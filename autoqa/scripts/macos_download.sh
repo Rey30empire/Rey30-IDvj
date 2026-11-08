@@ -1,5 +1,5 @@
 #!/bin/bash
-# macOS download script for Jan app
+# macOS download script for Rey30 IDvj app
 
 WORKFLOW_INPUT_URL="$1"
 WORKFLOW_INPUT_IS_NIGHTLY="$2"
@@ -8,42 +8,42 @@ REPO_VARIABLE_IS_NIGHTLY="$4"
 DEFAULT_URL="$5"
 DEFAULT_IS_NIGHTLY="$6"
 
-# Determine Jan app URL and nightly flag from multiple sources (priority order):
+# Determine Rey30 IDvj app URL and nightly flag from multiple sources (priority order):
 # 1. Workflow dispatch input (manual trigger)
-# 2. Repository variable JAN_APP_URL
+# 2. Repository variable REY30_APP_URL
 # 3. Default URL from env
 
-JAN_APP_URL=""
+REY30_APP_URL=""
 IS_NIGHTLY="false"
 
 if [ -n "$WORKFLOW_INPUT_URL" ]; then
-    JAN_APP_URL="$WORKFLOW_INPUT_URL"
+    REY30_APP_URL="$WORKFLOW_INPUT_URL"
     IS_NIGHTLY="$WORKFLOW_INPUT_IS_NIGHTLY"
-    echo "Using Jan app URL from workflow input: $JAN_APP_URL"
+    echo "Using Rey30 IDvj app URL from workflow input: $REY30_APP_URL"
     echo "Is nightly build: $IS_NIGHTLY"
 elif [ -n "$REPO_VARIABLE_URL" ]; then
-    JAN_APP_URL="$REPO_VARIABLE_URL"
+    REY30_APP_URL="$REPO_VARIABLE_URL"
     IS_NIGHTLY="$REPO_VARIABLE_IS_NIGHTLY"
-    echo "Using Jan app URL from repository variable: $JAN_APP_URL"
+    echo "Using Rey30 IDvj app URL from repository variable: $REY30_APP_URL"
     echo "Is nightly build: $IS_NIGHTLY"
 else
-    JAN_APP_URL="$DEFAULT_URL"
+    REY30_APP_URL="$DEFAULT_URL"
     IS_NIGHTLY="$DEFAULT_IS_NIGHTLY"
-    echo "Using default Jan app URL: $JAN_APP_URL"
+    echo "Using default Rey30 IDvj app URL: $REY30_APP_URL"
     echo "Is nightly build: $IS_NIGHTLY"
 fi
 
 # Export for later steps
-echo "JAN_APP_URL=$JAN_APP_URL" >> $GITHUB_ENV
+echo "REY30_APP_URL=$REY30_APP_URL" >> $GITHUB_ENV
 echo "IS_NIGHTLY=$IS_NIGHTLY" >> $GITHUB_ENV
 
-echo "Downloading Jan app from: $JAN_APP_URL"
-curl -L -o "/tmp/jan-installer.dmg" "$JAN_APP_URL"
+echo "Downloading Rey30 IDvj app from: $REY30_APP_URL"
+curl -L -o "/tmp/rey30-installer.dmg" "$REY30_APP_URL"
 
-if [ ! -f "/tmp/jan-installer.dmg" ]; then
-    echo "[FAILED] Failed to download Jan app"
+if [ ! -f "/tmp/rey30-installer.dmg" ]; then
+    echo "[FAILED] Failed to download Rey30 IDvj app"
     exit 1
 fi
 
-echo "[SUCCESS] Successfully downloaded Jan app"
-ls -la "/tmp/jan-installer.dmg"
+echo "[SUCCESS] Successfully downloaded Rey30 IDvj app"
+ls -la "/tmp/rey30-installer.dmg"

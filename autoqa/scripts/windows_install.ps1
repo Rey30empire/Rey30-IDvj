@@ -1,20 +1,20 @@
 #!/usr/bin/env pwsh
-# Windows install script for Jan app
+# Windows install script for Rey30 IDvj app
 
 param(
     [string]$IsNightly = "false"
 )
 
-$installerPath = "$env:TEMP\jan-installer.exe"
+$installerPath = "$env:TEMP\rey30-installer.exe"
 $isNightly = [System.Convert]::ToBoolean($IsNightly)
 
-Write-Host "Installing Jan app..."
+Write-Host "Installing Rey30 IDvj app..."
 Write-Host "Is nightly build: $isNightly"
 
 # Try silent installation first
 try {
     Start-Process -FilePath $installerPath -ArgumentList "/S" -Wait -NoNewWindow
-    Write-Host "Jan app installed silently"
+    Write-Host "Rey30 IDvj app installed silently"
 }
 catch {
     Write-Host "Silent installation failed, trying normal installation..."
@@ -24,25 +24,25 @@ catch {
 # Wait a bit for installation to complete
 Start-Sleep -Seconds 10
 
-Write-Host "[INFO] Waiting for Jan app first initialization (120 seconds)..."
-Write-Host "This allows Jan to complete its initial setup and configuration"
+Write-Host "[INFO] Waiting for Rey30 IDvj app first initialization (120 seconds)..."
+Write-Host "This allows Rey30 IDvj to complete its initial setup and configuration"
 Start-Sleep -Seconds 120
 Write-Host "[SUCCESS] Initialization wait completed"
 
 # Verify installation based on nightly flag
 if ($isNightly) {
-    $defaultJanPath = "$env:LOCALAPPDATA\Programs\jan-nightly\Jan-Desktop-nightly.exe"
-    $processName = "Jan-Desktop-nightly.exe"
+    $defaultRey30 IDvjPath = "$env:LOCALAPPDATA\Programs\rey30-nightly\Rey30-IDvj-nightly.exe"
+    $processName = "Rey30-IDvj-nightly.exe"
 } else {
-    $defaultJanPath = "$env:LOCALAPPDATA\Programs\jan\Jan-Desktop.exe"
-    $processName = "Jan-Desktop.exe"
+    $defaultRey30 IDvjPath = "$env:LOCALAPPDATA\Programs\Rey30 IDvj\Rey30-IDvj.exe"
+    $processName = "Rey30-IDvj.exe"
 }
 
-if (Test-Path $defaultJanPath) {
-    Write-Host "Jan app installed successfully at: $defaultJanPath"
-    Write-Output "JAN_APP_PATH=$defaultJanPath" >> $env:GITHUB_ENV
-    Write-Output "JAN_PROCESS_NAME=$processName" >> $env:GITHUB_ENV
+if (Test-Path $defaultRey30 IDvjPath) {
+    Write-Host "Rey30 IDvj app installed successfully at: $defaultRey30 IDvjPath"
+    Write-Output "REY30_APP_PATH=$defaultRey30 IDvjPath" >> $env:GITHUB_ENV
+    Write-Output "REY30_PROCESS_NAME=$processName" >> $env:GITHUB_ENV
 } else {
-    Write-Warning "Jan app not found at expected location: $defaultJanPath"
+    Write-Warning "Rey30 IDvj app not found at expected location: $defaultRey30 IDvjPath"
     Write-Host "Will auto-detect during test run"
 }

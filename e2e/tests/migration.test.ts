@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assertFixture, assertMigrated, historicalThread, migrationPhases, seedMigration, selectScenario } from '../migration.js'
-import { janUserDataDir } from '../helpers/paths.js'
+import { rey30UserDataDir } from '../helpers/paths.js'
 
 test('scenario selection is strict and defaults only when absent', () => {
   assert.equal(selectScenario(), 'default')
@@ -14,10 +14,10 @@ test('scenario selection is strict and defaults only when absent', () => {
 
 test('authentic fixture starts at schema 3; expected migration preserves every other field', () => {
   assertFixture()
-  const home = mkdtempSync(join(tmpdir(), 'jan-migration-unit-'))
+  const home = mkdtempSync(join(tmpdir(), 'rey30-idvj-migration-unit-'))
   try {
     seedMigration(home)
-    const data = janUserDataDir(home)
+    const data = rey30UserDataDir(home)
     assert.throws(() => assertMigrated(home))
     const store = join(data, 'store.json')
     writeFileSync(store, JSON.stringify({ ...JSON.parse(readFileSync(store, 'utf8')), mcp_version: 5 }))

@@ -3,14 +3,14 @@ import { join } from 'node:path'
 /**
  * Environment redirects for the desktop e2e profile, NOT a sandbox.
  * The launch guard must validate inherited overrides before this is merged with
- * process.env. In particular Unix JAN_DATA_ROOT must be unset or empty.
+ * process.env. In particular Unix REY30_DATA_ROOT must be unset or empty.
  *
  * Its own module, with no side effects, so specs can assert on it without
  * re-evaluating wdio.conf.ts (which creates the temp profile at import time).
  * Callers must create the directories these variables name -- nothing here does,
  * and on Windows one of them not existing is fatal (see below).
  *
- * On Linux every XDG base directory is pinned, not just the ones Jan is known to
+ * On Linux every XDG base directory is pinned, not just the ones Rey30 IDvj is known to
  * read today. Each outranks its `$HOME`-relative default, so any single one
  * inherited from the outer environment silently defeats the HOME override -- and
  * "the ones that matter" is a list that rots as the app changes.
@@ -19,19 +19,19 @@ import { join } from 'node:path'
  * stakes are destructive rather than untidy. `dirs::config_dir()` feeds the
  * legacy-config migration in core/app/commands.rs, which runs on every fresh
  * profile and does `fs::copy` followed by `fs::remove_file`. With that variable
- * inherited, a run DELETES the developer's real ~/.config/Jan/settings.json.
- * Confirmed against a decoy: the file did not survive one run.
+ * inherited, a run DELETES the developer's real ~/.config/Rey30-IDvj/settings.json.
+ * The inherited harness recorded this failure against a legacy-profile decoy.
  *
  * The scratch directory is pinned on every platform, not just Linux.
  * `std::env::temp_dir()` reads TMPDIR on Unix and TMP/TEMP on Windows, and
- * tauri-plugin-agent-tools puts agent scratch at `temp_dir()/jan-agent-<session>`
- * -- then sweep_stale_scratch_dirs() (workspace.rs) DELETES every `jan-agent-*`
+ * tauri-plugin-agent-tools puts agent scratch at `temp_dir()/rey30-idvj-agent-<session>`
+ * -- then sweep_stale_scratch_dirs() (workspace.rs) DELETES every `rey30-idvj-agent-*`
  * older than 24h it finds there. The current smoke suite never reaches that
  * sweep (it is gated on an existing thread, and a fresh profile has none), so
  * this is pre-emptive rather than a live bug. It stops being pre-emptive the
  * moment a spec creates a thread.
  *
- * On Windows the lever is `JAN_DATA_ROOT`, which is Jan's own rather than
+ * On Windows the lever is `REY30_DATA_ROOT`, which is Rey30 IDvj's own rather than
  * something `dirs` provides: `dirs` asks the known-folder API for
  * FOLDERID_RoamingAppData and offers no override at all, so core/app/paths.rs
  * prefers the variable and falls back to `dirs`. It is honoured on every
@@ -68,7 +68,7 @@ import { join } from 'node:path'
  *   wdio.conf.ts creates them; the comment there says why.
  * - Those registry values are the default, not a guarantee. Folder redirection
  *   or policy can make them literal paths that ignore USERPROFILE entirely, so
- *   isolation still rests on JAN_DATA_ROOT and paths.rs rather than on this.
+ *   isolation still rests on REY30_DATA_ROOT and paths.rs rather than on this.
  *
  * `LOCALAPPDATA` is set for agreement, not because `dirs` reads it -- it does
  * not. With the known folder already resolving inside the profile, leaving the
@@ -76,15 +76,15 @@ import { join } from 'node:path'
  * the same question. Together they also take the WebView2 user-data folder with
  * them, which matters more than it looks: Tauri puts it at
  * `%LOCALAPPDATA%\<identifier>\EBWebView`, keyed on the bundle identifier
- * (`jan.ai.app`) and not on the executable name, so an unconfined test run and
- * an installed Jan share one browser profile.
+ * (`com.rey30.idvj.app`) and not on the executable name, so an unconfined test run and
+ * an installed Rey30 IDvj share one browser profile.
  *
  * macOS gap: HOME does not redirect WKWebView localStorage. Native validation
  * by thinhlpg on PRs #9457/#9464 observed writes in the real account's
  * ~/Library/WebKit/<bundle id>/WebsiteData/Default/.../LocalStorage, shared
- * with installed Jan (jan.ai.app), not in the temporary profile. Both normal
+ * with installed Rey30 IDvj (com.rey30.idvj.app), not in the temporary profile. Both normal
  * and migration launches can touch that state. Follow-up: isolate WebKit
- * storage (jan-internal#496; evaluate a distinct e2e bundle ID) and verify
+ * storage (upstream browser-profile isolation follow-up; evaluate a distinct e2e bundle ID) and verify
  * that launches leave real-profile storage untouched. This is not fixed here.
  * Use a disposable macOS account/VM for stronger separation.
  *
@@ -114,12 +114,12 @@ import { join } from 'node:path'
  * update check (web-app/src/services/updater/tauri.ts) stores a nonce seed
  * through the plugin, which resolves BaseDirectory::AppData with Tauri's own
  * resolver -- `dirs::data_dir()`, not core/app/paths.rs -- so it lands in the
- * real `%APPDATA%\jan.ai.app\`. It is created only when absent and never
+ * real `%APPDATA%\com.rey30.idvj.app\`. It is created only when absent and never
  * overwrites an existing seed, so the worst case is planting a file the real app
  * would have written itself.
  *
  * The one Windows escape that *was* destructive is gone rather than documented:
- * deep-link registration writes HKCU Software\Classes\jan, outside anything an
+ * deep-link registration writes HKCU Software\Classes\rey30-idvj, outside anything an
  * environment variable can reach, so it is compiled out under the `e2e` feature
  * (src-tauri/src/lib.rs) alongside single-instance.
  *
@@ -130,9 +130,11 @@ export function isolationEnv(home: string): Record<string, string> {
   // Callers must ensure the scratch directory exists: temp_dir() does not
   // create it.
   const tmp = join(home, 'tmp')
+  const agent = { REY30_CONFIG_HOME: join(home, 'agent-config') }
   if (process.platform === 'win32') {
     return {
-      JAN_DATA_ROOT: join(home, 'AppData', 'Roaming'),
+      ...agent,
+      REY30_DATA_ROOT: join(home, 'AppData', 'Roaming'),
       APPDATA: join(home, 'AppData', 'Roaming'),
       LOCALAPPDATA: join(home, 'AppData', 'Local'),
       USERPROFILE: home,
@@ -141,8 +143,9 @@ export function isolationEnv(home: string): Record<string, string> {
       TMP: tmp,
     }
   }
-  if (process.platform !== 'linux') return { HOME: home, TMPDIR: tmp }
+  if (process.platform !== 'linux') return { ...agent, HOME: home, TMPDIR: tmp }
   return {
+    ...agent,
     HOME: home,
     TMPDIR: tmp,
     XDG_DATA_HOME: join(home, '.local', 'share'),

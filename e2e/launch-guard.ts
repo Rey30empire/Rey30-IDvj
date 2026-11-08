@@ -65,17 +65,20 @@ export function containsPath(parent: string, child: string): boolean {
 
 /** Must run even before mkdtemp: these overrides bypass the native desktop lookup. */
 export function assertSafeLaunchEnvironment({ env, platform }: LaunchContext): void {
-  if (env.APP_NAME !== undefined && env.APP_NAME !== 'Jan') {
-    throw new Error('Unset APP_NAME (or use Jan) for e2e: it redirects Jan paths')
+  if (env.APP_NAME !== undefined && env.APP_NAME !== 'Rey30-IDvj') {
+    throw new Error('Unset APP_NAME (or use Rey30 IDvj) for e2e: it redirects Rey30 IDvj paths')
   }
   if (env.CI === 'e2e') {
-    throw new Error('Unsafe CI=e2e: bypasses native Jan configuration with ./data')
+    throw new Error('Unsafe CI=e2e: bypasses native Rey30 IDvj configuration with ./data')
   }
-  if (env.JAN_DATA_FOLDER) {
-    throw new Error('Unset JAN_DATA_FOLDER for e2e: it bypasses the test profile')
+  if (env.REY30_DATA_FOLDER || env.JAN_DATA_FOLDER) {
+    throw new Error('Unset REY30_DATA_FOLDER for e2e: it bypasses the test profile')
   }
-  if (platform !== 'win32' && env.JAN_DATA_ROOT) {
-    throw new Error('Unset JAN_DATA_ROOT for e2e on Unix: it overrides native HOME/XDG resolution')
+  if (env.REY30_CONFIG_HOME) {
+    throw new Error('Unset REY30_CONFIG_HOME for e2e: the harness supplies an isolated agent config')
+  }
+  if (platform !== 'win32' && (env.REY30_DATA_ROOT || env.JAN_DATA_ROOT)) {
+    throw new Error('Unset REY30_DATA_ROOT for e2e on Unix: it overrides native HOME/XDG resolution')
   }
 }
 
@@ -86,17 +89,17 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
   const candidate = canonicalPath(home)
   const tempRoot = canonicalPath(context.tempRoot)
   if (candidate === tempRoot || !containsPath(tempRoot, candidate)) {
-    throw new Error(`Unsafe JAN_E2E_HOME ${home}: must be strictly inside temp root ${tempRoot}`)
+    throw new Error(`Unsafe REY30_E2E_HOME ${home}: must be strictly inside temp root ${tempRoot}`)
   }
   const protectedPaths: string[] = []
-  const bundleIds = ['jan.ai.app', 'jan-nightly.ai.app', 'jan-beta.ai.app']
+  const bundleIds = ['com.rey30.idvj.app', 'com.rey30.idvj.nightly.app', 'com.rey30.idvj.beta.app', 'jan.ai.app', 'jan-nightly.ai.app', 'jan-beta.ai.app']
   const addRoot = (root: string) => {
-    for (const name of ['Jan', ...bundleIds]) protectedPaths.push(join(root, name))
+    for (const name of ['Rey30-IDvj', 'Jan', ...bundleIds]) protectedPaths.push(join(root, name))
   }
   for (const realHome of realHomes) {
     const canonicalHome = canonicalPath(realHome)
-    if (candidate === canonicalHome) throw new Error(`Unsafe JAN_E2E_HOME: real home ${home}`)
-    protectedPaths.push(join(realHome, '.jan'))
+    if (candidate === canonicalHome) throw new Error(`Unsafe REY30_E2E_HOME: real home ${home}`)
+    protectedPaths.push(join(realHome, '.rey30-idvj'), join(realHome, '.jan'))
     for (const root of [
       '.local/share', '.local/state', '.config', '.cache',
       'Library/Application Support', 'Library/Caches', 'Library/Logs',
@@ -105,44 +108,49 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
   }
   for (const key of [
     'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME',
-    'APPDATA', 'LOCALAPPDATA', 'JAN_DATA_ROOT',
+    'APPDATA', 'LOCALAPPDATA', 'REY30_DATA_ROOT', 'JAN_DATA_ROOT',
   ]) {
     if (env[key] && isAbsolute(env[key]!)) addRoot(env[key]!)
   }
   for (const path of protectedPaths) {
     const protectedPath = canonicalPath(path)
     if (containsPath(candidate, protectedPath) || containsPath(protectedPath, candidate)) {
-      throw new Error(`Unsafe JAN_E2E_HOME ${home}: overlaps real Jan path ${path}`)
+      throw new Error(`Unsafe REY30_E2E_HOME ${home}: overlaps real Rey30 IDvj path ${path}`)
     }
   }
 
   // Existing subdirectories (or the settings file itself) may be symlinks too.
   // Check all redirected roots and seed destinations before mkdir/writeFile.
   for (const suffix of [
-    'tmp', '.jan', '.local/share', '.local/state', '.config', '.cache',
+    'tmp', 'agent-config', '.rey30-idvj', '.jan', '.local/share', '.local/state', '.config', '.cache',
     'Library/Application Support', 'Library/Caches', 'Library/Logs',
     'AppData/Roaming', 'AppData/Local',
+    '.local/share/Rey30-IDvj/data/settings.json',
+    'Library/Application Support/Rey30-IDvj/data/settings.json',
+    'AppData/Roaming/Rey30-IDvj/data/settings.json',
     '.local/share/Jan/data/settings.json',
     'Library/Application Support/Jan/data/settings.json',
     'AppData/Roaming/Jan/data/settings.json',
   ]) {
     if (!containsPath(candidate, canonicalPath(join(candidate, suffix)))) {
-      throw new Error(`Unsafe JAN_E2E_HOME ${home}: ${suffix} escapes profile`)
+      throw new Error(`Unsafe REY30_E2E_HOME ${home}: ${suffix} escapes profile`)
     }
   }
   const dataRoot = context.platform === 'win32'
-    ? 'AppData/Roaming/Jan'
-    : context.platform === 'darwin' ? 'Library/Application Support/Jan' : '.local/share/Jan'
-  // Rust commands.rs checks canonical Jan/settings.json first; only if absent
+    ? 'AppData/Roaming/Rey30-IDvj'
+    : context.platform === 'darwin' ? 'Library/Application Support/Rey30-IDvj' : '.local/share/Rey30-IDvj'
+  // Rust commands.rs checks canonical Rey30 IDvj/settings.json first; only if absent
   // does it migrate the first file from bundle-id settings, then (Linux only)
-  // .config/Jan/settings.json. Migration copies AND removes its source. Validate
+  // .config/Rey30-IDvj/settings.json. Migration copies AND removes its source. Validate
   // every candidate, even those shadowed by an existing/higher-priority file,
   // rather than depending on files remaining unchanged until the app starts.
-  // The Rust constant is currently jan.ai.app; include known channel IDs too
+  // The Rust constant is currently com.rey30.idvj.app; include known channel IDs too
   // conservatively, although a build may never consult those candidates.
   const configFiles = [
     join(candidate, dataRoot, 'settings.json'),
+    join(candidate, dirname(dataRoot), 'Jan', 'settings.json'),
     ...bundleIds.map(id => join(candidate, dirname(dataRoot), id, 'settings.json')),
+    ...(context.platform === 'linux' ? [join(candidate, '.config/Rey30-IDvj/settings.json')] : []),
     ...(context.platform === 'linux' ? [join(candidate, '.config/Jan/settings.json')] : []),
   ]
   for (const configFile of configFiles) {

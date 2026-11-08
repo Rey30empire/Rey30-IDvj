@@ -1,11 +1,17 @@
-# Desktop e2e tests
+# Pruebas de escritorio de Rey30 IDvj
 
-WebDriver-driven end-to-end tests against a real Jan desktop build, using
+El resto del documento conserva notas históricas del arnés base; no son resultados de esta migración.
+
+El arnés usa `REY30_CONFIG_HOME` dentro del perfil temporal para aislar también la configuración del agente en Windows. `HOME` y `USERPROFILE` por sí solos no redirigen todos los known folders nativos. Los aliases `JAN_*` se validan y las rutas de datos antiguas se protegen durante la migración.
+
+Este proyecto de pruebas requiere Node.js 22.12 o superior. La dependencia de descarga de navegadores se fija en `@puppeteer/browsers` 3.2.6 para retirar `extract-zip`; se verifican los contratos usados por WebdriverIO 9. Esta corrección no requiere ejecutar modelos.
+
+WebDriver-driven end-to-end tests against a real Rey30 IDvj desktop build, using
 [WebdriverIO](https://webdriver.io) and `@wdio/tauri-service`.
 
 **macOS, Linux and Windows.** Each can have the app's data folder redirected by
 environment — on macOS and Linux through the OS's own variables, on Windows
-through one Jan provides. See [Isolation](#isolation).
+through one Rey30 IDvj provides. See [Isolation](#isolation).
 
 On Linux you need the Tauri build dependencies plus a display. `libssl-dev` is
 easy to miss: `openssl-sys` is in the app's default dependency graph, but GitHub
@@ -91,9 +97,9 @@ outside the script. `build:e2e:deps` runs `yarn install` anyway, which is what
 picks up dependency changes after a branch switch.
 
 That deps stage is not optional. The workspace packages have to be **built**,
-not just installed -- `web-app` imports `@janhq/core`, which resolves to
+not just installed -- `web-app` imports `@rey30-idvj/core`, which resolves to
 `core/dist`. Without it `build:web` fails with
-`TS2307: Cannot find module '@janhq/core'`.
+`TS2307: Cannot find module '@rey30-idvj/core'`.
 
 `build:e2e:deps` is deliberately the same four steps as `Makefile:44-47`,
 including its redundant second build of `core` (`build:extensions` starts by
@@ -108,8 +114,8 @@ cd e2e && yarn test
 
 | Variable | Effect |
 | --- | --- |
-| `JAN_E2E_KEEP=1` | Keep the throwaway profile after the run instead of deleting it. |
-| `JAN_E2E_HOME=<dir>` | Use a validated `<dir>` strictly inside the OS temp root as the profile instead of a fresh temp dir. A directory supplied this way is never deleted — only a profile the harness created is cleaned up. Primarily how the launcher hands the path to its workers. |
+| `REY30_E2E_KEEP=1` | Keep the throwaway profile after the run instead of deleting it. |
+| `REY30_E2E_HOME=<dir>` | Use a validated `<dir>` strictly inside the OS temp root as the profile instead of a fresh temp dir. A directory supplied this way is never deleted — only a profile the harness created is cleaned up. Primarily how the launcher hands the path to its workers. |
 
 This package is **not** a yarn workspace of the root project. It has its own
 lockfile, because it shares no code with `core`/`web-app` and adding it to the
@@ -174,13 +180,13 @@ is a hardcoded `/tmp/{identifier}_si.sock` on macOS (`platform_impl/macos.rs` �
 literally `/tmp`, not `$TMPDIR`, because the path must stay under 100 chars), a
 session-bus **D-Bus name** on Linux, and a named mutex on Windows. None live
 under `HOME` or any XDG directory, and the macOS socket ignores the pinned
-`TMPDIR` too, so nothing in `isolationEnv` isolates them. A developer with the real Jan open would
+`TMPDIR` too, so nothing in `isolationEnv` isolates them. A developer with the real Rey30 IDvj open would
 otherwise see the test binary hand over its argv and exit before the WebDriver
 server ever bound.
 
 ## Isolation
 
-Each run gets a throwaway profile in a temp dir to redirect Jan application
+Each run gets a throwaway profile in a temp dir to redirect Rey30 IDvj application
 data. This is not complete isolation: macOS WebKit storage and the other gaps
 below can still touch the real user profile. The desktop app resolves its data folder from
 `core::app::paths::data_dir()`; which variables that leaves you needing to
@@ -198,15 +204,15 @@ HOME redirection does **not** isolate WKWebView localStorage. In native macOS
 arm64 validation on [#9457](https://github.com/janhq/jan/pull/9457) and
 [#9464](https://github.com/janhq/jan/pull/9464), thinhlpg observed writes under the
 real `~/Library/WebKit/<bundle id>/WebsiteData/Default/.../LocalStorage/`
-(`jan.ai.app`), shared with an installed Jan. The redirected profile contained
-no `Library/WebKit`; `Library/Caches/jan.ai.app` did redirect. Therefore both
-normal and migration launches may read or modify installed-Jan browser state;
+(`com.rey30.idvj.app`), shared with an installed Rey30 IDvj. The redirected profile contained
+no `Library/WebKit`; `Library/Caches/com.rey30.idvj.app` did redirect. Therefore both
+normal and migration launches may read or modify installed-Rey30 IDvj browser state;
 a passing migration smoke does not prove browser-storage isolation or migration.
-Use a disposable macOS account/VM for separation, not merely `JAN_E2E_HOME`.
+Use a disposable macOS account/VM for separation, not merely `REY30_E2E_HOME`.
 
-**Follow-up ([jan-internal#496](https://github.com/janhq/jan-internal/issues/496),
+**Follow-up ([upstream browser-profile isolation follow-up](https://github.com/janhq/jan-internal/issues/496),
 not fixed here):** isolate macOS e2e WebKit storage, evaluating a
-distinct e2e bundle identifier, and verify with real installed-Jan storage that
+distinct e2e bundle identifier, and verify with real installed-Rey30 IDvj storage that
 launches do not touch it. The possible connection to a missing setup wizard on
 an already-used Mac is unproven. This PR changes neither bundle IDs nor WebKit
 storage behavior.
@@ -214,30 +220,30 @@ storage behavior.
 ### Launch guard (limited guarantee)
 
 Before profile seeding, recursive cleanup registration, or launch,
-`launch-guard.ts` validates `JAN_E2E_HOME`. Inherited paths are checked before
+`launch-guard.ts` validates `REY30_E2E_HOME`. Inherited paths are checked before
 mkdir; generated profiles require an initial `mkdtemp` allocation, preceded by
 the environment check. It must be strictly inside the OS temp root; CI and local launches
 allocate profiles with `mkdtemp` under Node’s `os.tmpdir()` (which may differ
 from GitHub’s `runner.temp`). Real homes and
-ancestors/descendants of known user Jan paths are rejected, including inherited
+ancestors/descendants of known user Rey30 IDvj paths are rejected, including inherited
 XDG/AppData locations. Existing prefixes are canonicalized (also for not-yet-created
 paths) so symlink aliases cannot disguise overlap; sibling names are accepted.
 Redirected seed/scratch roots, desktop configuration paths, and their
 `data_folder` values outside the profile are rejected. This includes legacy
-migration sources: Rust checks canonical `Jan/settings.json` first, then (only
+migration sources: Rust checks canonical `Rey30 IDvj/settings.json` first, then (only
 if absent) copies and removes the first file found among bundle-id
-`settings.json` and then, on Linux, `.config/Jan/settings.json`. The guard conservatively
+`settings.json` and then, on Linux, `.config/Rey30-IDvj/settings.json`. The guard conservatively
 validates all these sources even when shadowed by a higher-priority config,
 including known nightly/beta bundle IDs (Rust's current migration constant is
-`jan.ai.app`), and checks their directory/file symlinks before reading them.
+`com.rey30.idvj.app`), and checks their directory/file symlinks before reading them.
 Inherited profiles are never recursively deleted.
 
-Unset nonempty `JAN_DATA_ROOT` on Unix: the WDIO service merges
+Unset nonempty `REY30_DATA_ROOT` on Unix: the WDIO service merges
 `{ ...process.env, ...options.env }`, so omitting it from the Unix overrides
 would otherwise preserve it and bypass native HOME/XDG lookup. Even a relative
 value is rejected rather than relying on fallback behavior. Windows explicitly
-overrides it. Nonempty `JAN_DATA_FOLDER`, `CI=e2e`, and `APP_NAME` values other
-than `Jan` (including empty) are rejected too.
+overrides it. Nonempty `REY30_DATA_FOLDER`, `CI=e2e`, and `APP_NAME` values other
+than `Rey30 IDvj` (including empty) are rejected too.
 
 This is an accidental-launch guard, **not a filesystem sandbox** or a proof of
 complete confinement. It does not prevent concurrent symlink changes, hard-link
@@ -260,18 +266,18 @@ a single inherited value defeats the `HOME` override.
 rather than minimal. `dirs::config_dir()` feeds the legacy-config migration in
 `core/app/commands.rs`, which does `fs::copy` followed by `fs::remove_file`. With
 that variable inherited, a run **deletes** the developer's real
-`~/.config/Jan/settings.json` — confirmed against a decoy, which did not survive
+`~/.config/Rey30-IDvj/settings.json` — confirmed against a decoy, which did not survive
 a single run.
 
 On Windows there is no OS lever at all: `dirs` calls
 `SHGetKnownFolderPath(FOLDERID_RoamingAppData, ..)`, which reads the registry and
-takes no environment input. So Jan supplies its own — `core/app/paths.rs` prefers
-`JAN_DATA_ROOT` and falls back to `dirs`.
+takes no environment input. So Rey30 IDvj supplies its own — `core/app/paths.rs` prefers
+`REY30_DATA_ROOT` and falls back to `dirs`.
 
-It is Jan's own variable rather than `%APPDATA%`, which would also have worked.
+It is Rey30 IDvj's own variable rather than `%APPDATA%`, which would also have worked.
 The cost is what rules it out: Windows sets `%APPDATA%` for every interactive
 session and processes inherit it, so honouring it would move the data root of
-every existing install onto a value Jan does not control — and the blast radius
+every existing install onto a value Rey30 IDvj does not control — and the blast radius
 includes the legacy-config migration's `fs::copy` + `fs::remove_file`. A
 dedicated name is unset in every real install, so the shipping binary resolves
 byte-identically to `dirs` on all three platforms.
@@ -304,11 +310,11 @@ which `tauri-plugin-http`'s cookie jar turns into a startup panic
 exists; the embedded driver never binds and the run fails in `onPrepare`
 reporting only `code=101`. The pair also takes the WebView2 user-data folder with
 it, which Tauri puts at `%LOCALAPPDATA%\<identifier>\EBWebView` — keyed on the
-bundle identifier (`jan.ai.app`) rather than on the executable name, so without
-the override a test run and an installed Jan share one browser profile. Those
+bundle identifier (`com.rey30.idvj.app`) rather than on the executable name, so without
+the override a test run and an installed Rey30 IDvj share one browser profile. Those
 registry values are the default rather than a guarantee, though: folder
 redirection or policy can make them literal paths that ignore `USERPROFILE`, so
-isolation still rests on `JAN_DATA_ROOT` and `paths.rs`.
+isolation still rests on `REY30_DATA_ROOT` and `paths.rs`.
 
 Two things Windows still cannot isolate, both of them accepted gaps enumerated
 in `isolation.ts` next to `XDG_RUNTIME_DIR`:
@@ -321,7 +327,7 @@ in `isolation.ts` next to `XDG_RUNTIME_DIR`:
   this is a read leak rather than a destructive one.
 - `updater.json` is written through `tauri-plugin-store`, which resolves its
   base with Tauri's own resolver rather than `core/app/paths.rs`, landing it in
-  the real `%APPDATA%\jan.ai.app\`. Created only when absent.
+  the real `%APPDATA%\com.rey30.idvj.app\`. Created only when absent.
 
 These are known desktop-suite residue or reads, not a full isolation guarantee.
 Windows CLI/global-config callers and explicit saves are not covered; this
@@ -332,9 +338,9 @@ being documented, since no environment variable reaches the registry.
 
 Two things that look like they'd work but don't:
 
-- `JAN_DATA_FOLDER` — despite the name, a different variable from
-  `JAN_DATA_ROOT` above: it names the data folder itself rather than the OS root
-  it sits under, and only `resolve_jan_data_folder()` reads it, which is the CLI
+- `REY30_DATA_FOLDER` — despite the name, a different variable from
+  `REY30_DATA_ROOT` above: it names the data folder itself rather than the OS root
+  it sits under, and only `resolve_rey30_data_folder()` reads it, which is the CLI
   path. The desktop build ignores it.
 - `CI=e2e` (now rejected by the launch guard) short-circuits `get_app_configurations()` to a hardcoded `"./data"`,
   which would skip the config resolution these tests exist to cover.
@@ -344,12 +350,12 @@ providers are configured, so `/` renders `SetupScreen`. The suite asserts that
 rather than working around it. Reusing an inherited profile can retain providers
 and other state, so it may not satisfy these first-launch assertions.
 
-A first launch used to **download**: Jan fetches its embedding model
+A first launch used to **download**: Rey30 IDvj fetches its embedding model
 `sentence-transformer-mini` (~45MB) on a profile it has not bootstrapped before,
 and announces it with a toast that mounts over the header at a moment set by
 network speed. `wdio.conf.ts` now pre-seeds the one-shot flag that suppresses
 that bootstrap, so a run neither downloads it nor shows the toast — a kept
-profile is ~112KB rather than ~45MB. Set `JAN_E2E_EMBEDDER_DOWNLOAD=1` to get
+profile is ~112KB rather than ~45MB. Set `REY30_E2E_EMBEDDER_DOWNLOAD=1` to get
 the real bootstrap back, which is what a spec *about* the embedder needs.
 
 That is the one large download removed, not every network call: the app still
@@ -422,7 +428,7 @@ Three consequences, all of which read as a failure about the wrong thing:
   hover state, so `moveTo()` cannot reveal hover-only UI, and
   `browser.action('pointer')` cannot either.
 - **Radix components that open on `pointerdown` never open from a click.**
-  `DropdownMenuTrigger` is the one in Jan's sidebar. `DialogTrigger` and
+  `DropdownMenuTrigger` is the one in Rey30 IDvj's sidebar. `DialogTrigger` and
   `PopoverTrigger` use `onClick` and are fine.
 - **The workaround for both is the keyboard**, and it is not a hack — it is the
   route a keyboard user takes. `elementClick` leaves the element focused, which
@@ -547,7 +553,7 @@ the probe cannot succeed. It times out after 5s **per command**, logging
 `browser.switchToWindow(await browser.getWindowHandle())`: `afterCommand` treats
 a successful non-internal `switchToWindow` as the user taking charge of window
 selection and suppresses the probe for the rest of the session, so switching to
-the handle we are already on is a no-op that disables it. Jan runs a single
+the handle we are already on is a no-op that disables it. Rey30 IDvj runs a single
 window under test, so there is nothing to recover. The numbers are the spec
 reporter's own per-file timings on macOS: `smoke.e2e.ts` went from 40.3s to
 ~70ms for the same three assertions, and `chat.e2e.ts` from dying on the Mocha
@@ -580,12 +586,12 @@ If a future spec is mysteriously slow and the log carries
 - `paths.ts` — two directories, and they are not the same one. Asserting against
   a real on-disk path is what makes a filesystem check meaningful; asserting
   against `isolationEnv()` would only restate what the harness injected.
-  - `janDataDir(testHome)` — the directory the Rust side resolves for app data
-    inside the throwaway profile (`data_dir()/Jan`). `settings.json` lives here.
-  - `janUserDataDir(testHome)` — `janDataDir()/data`, which is what
+  - `rey30DataDir(testHome)` — the directory the Rust side resolves for app data
+    inside the throwaway profile (`data_dir()/Rey30-IDvj`). `settings.json` lives here.
+  - `rey30UserDataDir(testHome)` — `rey30DataDir()/data`, which is what
     `settings.json`'s `data_folder` points at and what the Rust thread code
     takes as its `data_folder` argument (`core/threads/utils.rs`,
-    `get_thread_dir`). Threads are at `janUserDataDir()/threads/<id>`.
+    `get_thread_dir`). Threads are at `rey30UserDataDir()/threads/<id>`.
 
   Picking the wrong one of those is quiet rather than loud, which is why it is
   worth stating: a path one segment short simply never exists, and an "is it
@@ -612,7 +618,7 @@ which the app genuinely asks for:
   through `generateText`. It answers a fixed `MOCK_TITLE` so the sidebar
   assertion is deterministic.
 
-This works from Node because Jan issues those requests from Rust
+This works from Node because Rey30 IDvj issues those requests from Rust
 (`getRuntimeFetch()` → `tauri-plugin-http`), so the server sees an ordinary HTTP
 client: no CORS, no preflight, and the capability set already allows
 `http://*:*`. The provider is registered through the real Add Provider and Add
@@ -722,13 +728,13 @@ There is no provider setup, model download or inference request. The embedder
 bootstrap suppression flag is seeded once; incidental app metadata requests
 are not blocked, so this is not an offline/network-isolation test.
 
-`JAN_E2E_SCENARIO` accepts only `default` (the existing five specs) or `migration`
+`REY30_E2E_SCENARIO` accepts only `default` (the existing five specs) or `migration`
 (only `migration.e2e.ts`); use the runner, not a hand-exported migration scenario.
-`test:migration` rejects inherited `JAN_E2E_HOME` and
-`JAN_E2E_EMBEDDER_DOWNLOAD`. It uses the same launch safety guard as the default
+`test:migration` rejects inherited `REY30_E2E_HOME` and
+`REY30_E2E_EMBEDDER_DOWNLOAD`. It uses the same launch safety guard as the default
 suite. On failure/interruption the owned profile and phase-specific runner and
 WDIO logs remain under the printed temporary path. On success it removes them
-unless `JAN_E2E_KEEP=1`. The migration runner directly spawns and retains handles
+unless `REY30_E2E_KEEP=1`. The migration runner directly spawns and retains handles
 for the app and WDIO; the migration config disables the service launcher to avoid
 a second app. It waits for the embedded `/status` readiness before starting WDIO.
 The spec then waits for the historical sidebar row (thread-store hydration), not
@@ -754,5 +760,5 @@ This covers startup migrations and persistence across a second process start,
 not an installer upgrade, old binary execution, browser localStorage migration,
 provider credential migration, or an exhaustive upgrade matrix. The fixture is
 not a copy of an OS browser profile. `yarn test:unit` exercises fixture comparison,
-strict scenario selection, and launch/barrier ordering without starting Jan;
+strict scenario selection, and launch/barrier ordering without starting Rey30 IDvj;
 it does not substitute for the desktop smoke.

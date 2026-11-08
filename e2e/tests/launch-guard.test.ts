@@ -17,7 +17,7 @@ test('account lookup failure reports the isolation requirement and preserves its
 })
 
 function fixture(t: { after: (fn: () => void) => void }) {
-  const root = canonicalPath(mkdtempSync(join(tmpdir(), 'jan-guard-test-')))
+  const root = canonicalPath(mkdtempSync(join(tmpdir(), 'rey30-idvj-guard-test-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const realHome = join(root, 'user')
   mkdirSync(realHome)
@@ -25,14 +25,14 @@ function fixture(t: { after: (fn: () => void) => void }) {
   return { root, realHome, context }
 }
 
-test('rejects real home and Jan ancestors/descendants without writes', (t) => {
+test('rejects real home and Rey30 IDvj ancestors/descendants without writes', (t) => {
   const { root, realHome, context } = fixture(t)
-  const jan = join(realHome, '.local/share/Jan')
-  mkdirSync(jan, { recursive: true })
-  const sentinel = join(jan, 'settings.json')
+  const rey30 = join(realHome, '.local/share/Rey30-IDvj')
+  mkdirSync(rey30, { recursive: true })
+  const sentinel = join(rey30, 'settings.json')
   writeFileSync(sentinel, 'untouched')
   const before = readdirSync(root, { recursive: true })
-  for (const home of [realHome, root, join(realHome, '.local'), jan, join(jan, 'new/profile'), join(realHome, '.jan/new')]) {
+  for (const home of [realHome, root, join(realHome, '.local'), rey30, join(rey30, 'new/profile'), join(realHome, '.jan/new')]) {
     assert.throws(() => assertSafeE2eHome(home, context), /Unsafe/)
   }
   assert.deepEqual(readdirSync(root, { recursive: true }), before)
@@ -41,12 +41,12 @@ test('rejects real home and Jan ancestors/descendants without writes', (t) => {
 
 test('accepts CI temp profile, mkdtemp, and prefix siblings, without creating targets', (t) => {
   const { root, realHome, context } = fixture(t)
-  for (const home of [join(root, 'jan-e2e-home'), join(realHome, '.local/share/Jan-other')]) {
+  for (const home of [join(root, 'rey30-idvj-e2e-home'), join(realHome, '.local/share/Rey30-IDvj-other')]) {
     const before = readdirSync(root, { recursive: true })
     assert.equal(assertSafeE2eHome(home, context), canonicalPath(home))
     assert.deepEqual(readdirSync(root, { recursive: true }), before)
   }
-  const generated = mkdtempSync(join(root, 'jan-e2e-'))
+  const generated = mkdtempSync(join(root, 'rey30-idvj-e2e-'))
   assert.equal(assertSafeE2eHome(generated, context), generated)
   assert.throws(() => assertSafeE2eHome(join(root, '..', 'outside'), context), /temp root/)
 })
@@ -56,6 +56,7 @@ test('protects inherited custom XDG and Windows app-data locations', (t) => {
   for (const key of ['XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME', 'APPDATA', 'LOCALAPPDATA']) {
     const base = join(root, `custom-${key}`)
     const overridden = { ...context, env: { [key]: base } }
+    assert.throws(() => assertSafeE2eHome(join(base, 'Rey30-IDvj/new'), overridden), /overlaps/)
     assert.throws(() => assertSafeE2eHome(join(base, 'Jan/new'), overridden), /overlaps/)
     assert.throws(() => assertSafeE2eHome(base, overridden), /overlaps/)
     assertSafeE2eHome(`${base}-sibling`, overridden)
@@ -66,19 +67,19 @@ test('environment bypasses fail before any profile creation', (t) => {
   const { root, context } = fixture(t)
   const before = readdirSync(root, { recursive: true })
   for (const platform of ['linux', 'darwin', 'win32'] as const) {
-    for (const env of [{ CI: 'e2e' }, { JAN_DATA_FOLDER: join(root, 'outside') }, { APP_NAME: '../elsewhere' }, { APP_NAME: '' }]) {
+    for (const env of [{ CI: 'e2e' }, { REY30_DATA_FOLDER: join(root, 'outside') }, { JAN_DATA_FOLDER: join(root, 'outside') }, { REY30_CONFIG_HOME: join(root, 'outside') }, { APP_NAME: '../elsewhere' }, { APP_NAME: '' }]) {
       assert.throws(() => assertSafeLaunchEnvironment({ ...context, platform, env }))
     }
     for (const value of ['', undefined]) {
-      assertSafeLaunchEnvironment({ ...context, platform, env: { JAN_DATA_ROOT: value, CI: 'true' } })
+      assertSafeLaunchEnvironment({ ...context, platform, env: { REY30_DATA_ROOT: value, CI: 'true' } })
     }
   }
   for (const platform of ['linux', 'darwin'] as const) {
     for (const value of ['relative', ' ', join(root, 'override')]) {
-      assert.throws(() => assertSafeE2eHome(join(root, 'new'), { ...context, platform, env: { JAN_DATA_ROOT: value } }), /JAN_DATA_ROOT/)
+      assert.throws(() => assertSafeE2eHome(join(root, 'new'), { ...context, platform, env: { REY30_DATA_ROOT: value } }), /REY30_DATA_ROOT/)
     }
   }
-  assertSafeLaunchEnvironment({ ...context, platform: 'win32', env: { JAN_DATA_ROOT: 'inherited-is-overridden' } })
+  assertSafeLaunchEnvironment({ ...context, platform: 'win32', env: { REY30_DATA_ROOT: 'inherited-is-overridden' } })
   assert.deepEqual(readdirSync(root, { recursive: true }), before)
 })
 
@@ -107,7 +108,7 @@ test('canonicalizes symlink prefixes and rejects redirected seed paths', (t) => 
 test('rejects existing desktop data_folder escape before changing settings', (t) => {
   const { root, realHome, context } = fixture(t)
   const profile = join(root, 'profile')
-  const dir = join(profile, '.local/share/Jan')
+  const dir = join(profile, '.local/share/Rey30-IDvj')
   mkdirSync(dir, { recursive: true })
   const file = join(dir, 'settings.json')
   const unsafe = JSON.stringify({ data_folder: realHome })
@@ -119,13 +120,13 @@ test('rejects existing desktop data_folder escape before changing settings', (t)
 })
 
 // Platform resolution is simulated, but all filesystem paths are native paths
-// under the fixture's temp root -- never a developer's real Jan directories.
+// under the fixture's temp root -- never a developer's real Rey30 IDvj directories.
 const migrationCases = (['linux', 'darwin', 'win32'] as const).flatMap(platform => {
   const dataRoot = platform === 'win32' ? 'AppData/Roaming'
     : platform === 'darwin' ? 'Library/Application Support' : '.local/share'
   return [
-    ...['jan.ai.app', 'jan-nightly.ai.app', 'jan-beta.ai.app'].map(id => join(dataRoot, id, 'settings.json')),
-    ...(platform === 'linux' ? [join('.config/Jan/settings.json')] : []),
+    ...['com.rey30.idvj.app', 'com.rey30.idvj.nightly.app', 'com.rey30.idvj.beta.app'].map(id => join(dataRoot, id, 'settings.json')),
+    ...(platform === 'linux' ? [join('.config/Rey30-IDvj/settings.json')] : []),
   ].map(suffix => ({ platform, suffix, dataRoot }))
 })
 
@@ -146,7 +147,7 @@ for (const { platform, suffix, dataRoot } of migrationCases) {
     }
     // Deliberately conservative: canonical config shadows this source in Rust,
     // but must not hide unsafe legacy settings from the launch guard.
-    const canonicalDir = join(profile, dataRoot, 'Jan')
+    const canonicalDir = join(profile, dataRoot, 'Rey30-IDvj')
     mkdirSync(canonicalDir, { recursive: true })
     writeFileSync(join(canonicalDir, 'settings.json'), '{}')
     assert.throws(launch, /data_folder/)
@@ -192,12 +193,13 @@ test('isolation env overrides inherited path variables; Unix retains native reso
   const { root } = fixture(t)
   const home = join(root, 'profile')
   const overrides = isolationEnv(home)
-  const merged = { HOME: 'real-home', TMPDIR: 'real-temp', XDG_CONFIG_HOME: 'real-config', JAN_DATA_ROOT: '', ...overrides }
+  assert.equal(overrides.REY30_CONFIG_HOME, join(home, 'agent-config'))
+  const merged = { HOME: 'real-home', TMPDIR: 'real-temp', XDG_CONFIG_HOME: 'real-config', REY30_DATA_ROOT: '', ...overrides }
   assert.equal(merged.HOME, home)
   if (process.platform === 'win32') {
-    assert.equal(merged.JAN_DATA_ROOT, join(home, 'AppData/Roaming'))
+    assert.equal(merged.REY30_DATA_ROOT, join(home, 'AppData/Roaming'))
   } else {
-    assert.equal(merged.JAN_DATA_ROOT, '')
+    assert.equal(merged.REY30_DATA_ROOT, '')
     assert.equal(merged.TMPDIR, join(home, 'tmp'))
     if (process.platform === 'linux') assert.equal(merged.XDG_CONFIG_HOME, join(home, '.config'))
   }

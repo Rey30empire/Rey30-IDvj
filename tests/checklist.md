@@ -1,65 +1,65 @@
-# I. Before release 
+# I. Before release
 
 ## A. Initial update / migration Data check
 
 Before testing, set-up the following in the old version to make sure that we can see the data is properly migrated:
-- [ ] Changing Interface / theme to something that is obviously different from default set-up 
+- [ ] Changing Interface / theme to something that is obviously different from default set-up
 - [ ] Ensure there are a few chat threads
-- [ ] Ensure there are 2 model downloaded 
-- [ ] Ensure there are 2 import on local provider (llama.cpp) 
+- [ ] Ensure there are 2 model downloaded
+- [ ] Ensure there are 2 import on local provider (llama.cpp)
 - [ ] Modify MCP servers list and add some ENV value to MCP servers
-- [ ] Modify Local API Server 
-- [ ] HTTPS proxy config value 
-- [ ] Add 2 custom assistants to Jan 
-- [ ] Create a new chat with the custom assistant 
+- [ ] Modify Local API Server
+- [ ] HTTPS proxy config value
+- [ ] Add 2 custom assistants to Rey30 IDvj
+- [ ] Create a new chat with the custom assistant
 - [ ] Change the `App Data` to some other folder
-- [ ] Create a Custom Provider 
+- [ ] Create a Custom Provider
 - [ ] Disable some model providers
-- [ ] Change llama.cpp setting of 2 models 
+- [ ] Change llama.cpp setting of 2 models
 #### Validate that the update does not corrupt existing user data or settings (before and after update show the same information):
 - [ ] Threads
-	- [ ] Previously used model and assistants is shown correctly 
-	- [ ] Can resume chat in threads with the previous context 
+	- [ ] Previously used model and assistants is shown correctly
+	- [ ] Can resume chat in threads with the previous context
 - [ ] Assistants
 - Settings:
-	- [ ] Interface 
-	- [ ] MCP Servers 
-	- [ ] Local API Server 
+	- [ ] Interface
+	- [ ] MCP Servers
+	- [ ] Local API Server
 	- [ ] HTTPS Proxy
 - [ ] Custom Provider Set-up
 
 #### In `Hub`:
-- [ ] Can see model from HF listed properly 
-- [ ] Downloaded model will show `Use` instead of `Download` 
-- [ ] Toggling on `Downloaded` on the right corner show the correct list of downloaded models 
+- [ ] Can see model from HF listed properly
+- [ ] Downloaded model will show `Use` instead of `Download`
+- [ ] Toggling on `Downloaded` on the right corner show the correct list of downloaded models
 
 #### In `Settings -> General`:
-- [ ] Ensure the `App Data` path is the same  
-- [ ] Click Open Logs, App Log will show 
-	
+- [ ] Ensure the `App Data` path is the same
+- [ ] Click Open Logs, App Log will show
+
 #### In `Settings -> Model Providers`:
 - [ ] Llama.cpp still listed downloaded models and user can chat with the models
 - [ ] Llama.cpp still listed imported models and user can chat with the models
 - [ ] Remote model still retain previously set up API keys and user can chat with model from the provider without having to re-enter API keys
-- [ ] Enabled and Disabled Model Providers stay the same as before update 
+- [ ] Enabled and Disabled Model Providers stay the same as before update
 
 #### In `Settings -> Extensions`, check that following exists:
-- [ ] Conversational 
-- [ ] Jan Assistant
-- [ ] Download Manager 
+- [ ] Conversational
+- [ ] Rey30 IDvj Assistant
+- [ ] Download Manager
 - [ ] llama.cpp Inference Engine
 
-## B. `Settings` 
+## B. `Settings`
 
 #### In `General`:
-- [ ] Ensure `Community` links work and point to the correct website 
-- [ ] Ensure the `Check for Updates` function detect the correct latest version 
+- [ ] Ensure `Community` links work and point to the correct website
+- [ ] Ensure the `Check for Updates` function detect the correct latest version
 - [ ] [ENG] Create a folder with un-standard character as title (e.g. Chinese character) => change the `App data` location to that folder => test that model is still able to load and run properly.
 #### In `Interface`:
 - [ ] Toggle between different `Theme` options to check that they change accordingly and that all elements of the UI are legible with the right contrast:
-	- [ ] Light 
-	- [ ] Dark 
-	- [ ] System (should follow your OS system settings) 
+	- [ ] Light
+	- [ ] Dark
+	- [ ] System (should follow your OS system settings)
 - [ ] Change the following values => close the application => re-open the application => ensure that the change is persisted across session:
 	- [ ] Theme
 	- [ ] Font Size
@@ -80,7 +80,7 @@ In `Llama.cpp`:
 - [ ] Can import `gguf` model with no error
 - [ ] [0.7.0] While importing, there should be an import indication appear under `Models`
 - [ ] Imported model will be listed with correct name under the `Models`
-- [ ] [0.6.9] Take a `gguf` file and delete the `.gguf` extensions from the file name, import it into Jan and verify that it works.
+- [ ] [0.6.9] Take a `gguf` file and delete the `.gguf` extensions from the file name, import it into Rey30 IDvj and verify that it works.
 - [ ] [0.6.10] Can import vlm models and chat with images
 - [ ] [0.6.10] Import a file that is not `mmproj` in the `mmproj field` should show validation error
 - [ ] [0.6.10] Import `mmproj` from different models should error
@@ -109,7 +109,7 @@ In Remote Model Providers:
 	- [ ] [0.8.5] NVIDIA NIM
 	- [ ] [0.8.5] xAI
 	- [ ] [0.8.5] MiniMax
-- [ ] Once a valid API key is used, user can select a model from that provider and chat without any error. 
+- [ ] Once a valid API key is used, user can select a model from that provider and chat without any error.
 - [ ] Delete a model and ensure that it doesn't show up in the `Models` list view or in the selectable dropdown in chat input.
 - [ ] Ensure that a deleted model also not selectable or appear in old threads that used it.
 - [ ] Adding of new model manually works and user can chat with the newly added model without error (you can add back the model you just delete for testing)
@@ -121,7 +121,7 @@ In Custom Providers:
 - [ ] Click `Refresh` should retrieve a list of available models from the Custom Providers.
 - [ ] User can chat with the custom providers
 - [ ] Ensure that Custom Providers can be deleted and won't reappear in a new session
-- [ ] [0.6.9] Make sure that Ollama set-up  as a custom provider work with Jan
+- [ ] [0.6.9] Make sure that Ollama set-up  as a custom provider work with Rey30 IDvj
 
 In general:
 - [ ] Disabled Model Provider should not show up as selectable in chat input of new thread and old thread alike (old threads' chat input should show `Select Model` instead of disabled model)
@@ -139,7 +139,7 @@ Make sure the following shortcut key combo is visible and works:
 
 #### In `Hardware`:
 Ensure that the following section information show up for hardware
-- [ ] Operating System 
+- [ ] Operating System
 - [ ] CPU
 - [ ] Memory
 - [ ] GPU (If the machine has one)
@@ -179,10 +179,10 @@ Ensure that the following section information show up for hardware
 - [ ] `Open Logs` show the correct query log send to the server and return from the server
 - [ ] Make sure that changing all the parameter in `Server Configuration` is reflected when `Start Server`
 - [ ] [0.6.9] When the startup configuration, the last used model is also automatically start (users does not have to manually start a model before starting the server)
-- [ ] [0.6.9] Make sure that you can send an image to a Local API Server and it also works (can set up Local API Server as a Custom Provider in Jan to test)
+- [ ] [0.6.9] Make sure that you can send an image to a Local API Server and it also works (can set up Local API Server as a Custom Provider in Rey30 IDvj to test)
 - [ ] [0.6.10] Make sure you are still able to see API key when server local status is running
-- [ ] [0.7.0] Users can see the Jan API Server Swagger UI by opening the following path in their browser `http://<ip>:<port>`
-- [ ] [0.8.5] Jan CLI commands work: `jan serve`, `jan models list`, `jan acp` (experimental, gated by JAN_EXPERIMENTAL_ACP=1)
+- [ ] [0.7.0] Users can see the Rey30 IDvj API Server Swagger UI by opening the following path in their browser `http://<ip>:<port>`
+- [ ] [0.8.5] Rey30 IDvj CLI commands work: `jan serve`, `jan models list`, `jan acp` (experimental, gated by REY30_EXPERIMENTAL_ACP=1)
 - [ ] [0.8.8] `jan --version` on the CLI built for this release prints the release tag's version (e.g. `jan 0.8.8` for `v0.8.8`), not an older one
 - [ ] [0.7.0] Users can set the trusted host to * in the server configuration to accept requests from all host or without host
 #### In `HTTPS Proxy`:
@@ -192,7 +192,7 @@ Ensure that the following section information show up for hardware
 - [ ] User can click `Download` to download a model
 - [ ] User can cancel a model in the middle of downloading
 - [ ] User can add a Hugging Face model detail to the list by pasting a model name / model url into the search bar and press enter
-- [ ] Clicking on a listing will open up the model card information within Jan and render the HTML properly
+- [ ] Clicking on a listing will open up the model card information within Rey30 IDvj and render the HTML properly
 - [ ] Clicking download work on the `Show variants` section
 - [ ] Clicking download work inside the Model card HTML
 - [ ] [0.6.9] Check that the model recommendation base on user hardware work as expected in the Model Hub
@@ -208,7 +208,7 @@ Ensure that the following section information show up for hardware
 - [ ] Ensure that the search thread feature return accurate result based on thread titles and contents
 - [ ] `Delete All` should delete only threads in the `Recents` section
 #### In a thread:
-- [ ] When `New Chat` is clicked, the assistant is set as the last selected assistant, the model selected is set as the last used model, and the user can immediately chat with the model. 
+- [ ] When `New Chat` is clicked, the assistant is set as the last selected assistant, the model selected is set as the last used model, and the user can immediately chat with the model.
 - [ ] User can conduct multi-turn conversation in a single thread without lost of data (given that `Context Shift` is not enabled)
 - [ ] User can change to a different model in the middle of a conversation in a thread and the model work.
 - [ ] User can click on `Regenerate` button on a returned message from the model to get a new response base on the previous context.
@@ -225,7 +225,7 @@ Ensure that the following section information show up for hardware
 - [ ] User can click `Copy` to copy the model response
 - [ ] [0.6.10] When click on copy code block from model generation, it will only copy one code-block at a time instead of multiple code block at once
 - [ ] User can click `Delete` to delete either the user message or the model response.
-- [ ] The token speed appear when a response from model is being generated and the final value is show under the response. 
+- [ ] The token speed appear when a response from model is being generated and the final value is show under the response.
 - [ ] Make sure that user when using IME keyboard to type Chinese and Japanese character and they press `Enter`, the `Send` button doesn't trigger automatically after each words.
 - [ ] [0.6.9] Attach an image to the chat input and see if you can chat with it using a Remote model & Local model
 - [ ] [0.6.9] Check that you can paste an image to text box from your system clipboard (Copy - Paste)
@@ -240,7 +240,7 @@ Ensure that the following section information show up for hardware
 
 - [ ] [0.7.0] User can create new project
 - [ ] [0.7.0] User can add existing threads to a project
-- [ ] [0.7.0] When the user attempts to delete a project, a confirmation dialog must appear warning that this action will permanently delete the project and all its associated threads. 
+- [ ] [0.7.0] When the user attempts to delete a project, a confirmation dialog must appear warning that this action will permanently delete the project and all its associated threads.
 - [ ] [0.7.0] The user can successfully delete a project, and all threads contained within that project are also permanently deleted.
 - [ ] [0.7.0] A thread that already belongs to a project cannot be re-added to the same project.
 
@@ -252,8 +252,8 @@ Ensure that the following section information show up for hardware
 - [ ] [0.8.5] Projects: create a project, add existing threads, verify threads appear under the project
 
 ## E. Assistants
-- [ ] There is always at least one default Assistant which is Jan
-- [ ] The default Jan assistant has `stream = True` by default 
+- [ ] There is always at least one default Assistant which is Rey30 IDvj
+- [ ] The default Rey30 IDvj assistant has `stream = True` by default
 - [ ] User can create / edit a new assistant with different parameters and instructions choice.
 - [ ] When user delete the default Assistant, the next Assistant in line will be come the default Assistant and apply their setting to new chat accordingly.
 - [ ] User can create / edit assistant from within a Chat windows (on the top left)
@@ -265,7 +265,7 @@ In `Settings -> General`:
 - [ ] [0.7.0] Users cannot set the data location to root directories (e.g., C:\, D:\ on Windows), but can select subfolders within those drives (e.g., C:\data, D:\data)
 - [ ] Click on `Reset` button in `Other` to factory reset the app:
 	- [ ] All threads deleted
-	- [ ] All Assistant deleted except for default Jan Assistant
+	- [ ] All Assistant deleted except for default Rey30 IDvj Assistant
 	- [ ] `App Data` location is reset back to default path
 	- [ ] Interface reset
 	- [ ] Model Providers information all reset
@@ -279,18 +279,18 @@ In `Settings -> General`:
 - [ ] Locate to the data folder using the `App Data` path information => delete the folder => reopen the app to check that all the folder is re-created with all the necessary data.
 - [ ] Ensure that the uninstallation process removes the app successfully from the system.
 ## G. New App Installation
-- [ ] Clean up by deleting all the left over folder created by Jan
+- [ ] Clean up by deleting all the left over folder created by Rey30 IDvj
 	- [ ] On MacOS
-		- [ ] `~/Library/Application Support/Jan`
+		- [ ] `~/Library/Application Support/Rey30 IDvj`
 		- [ ] `~/Library/Caches/jan.ai.app`
 	- [ ] On Windows
-		- [ ] `C:\Users\\<Username>\\AppData\Roaming\Jan\`
+		- [ ] `C:\Users\\<Username>\\AppData\Roaming\Rey30 IDvj\`
 		- [ ] `C:\Users\\<Username>\\AppData\Local\jan.ai.app`
-		- [ ] `~/.cache/Jan`
+		- [ ] `~/.cache/Rey30 IDvj`
 		- [ ] `~/.cache/jan.ai.app`
-		- [ ] `~/.local/share/Jan`
+		- [ ] `~/.local/share/Rey30 IDvj`
 		- [ ] `~/.local/share/jan.ai.app`
-- [ ] Ensure that the fresh install of Jan launch
+- [ ] Ensure that the fresh install of Rey30 IDvj launch
 - [ ] Do some basic check to see that all function still behaved as expected. To be extra careful, you can go through the whole list again. However, it is more advisable to just check to make sure that all the core functionality like `Thread` and `Model Providers` work as intended.
 
 ## H. Channel gate (preview surfaces)

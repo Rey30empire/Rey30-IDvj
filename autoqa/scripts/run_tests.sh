@@ -1,14 +1,14 @@
 #!/bin/bash
 # Common test runner script
 
-JAN_APP_PATH="$1"
+REY30_APP_PATH="$1"
 PROCESS_NAME="$2"
 RP_TOKEN="$3"
 PLATFORM="$4"
 
 echo "Starting Auto QA Tests..."
 echo "Platform: $PLATFORM"
-echo "Jan app path: $JAN_APP_PATH"
+echo "Rey30 IDvj app path: $REY30_APP_PATH"
 echo "Process name: $PROCESS_NAME"
 
 # Platform-specific setup
@@ -31,22 +31,22 @@ if [ "$PLATFORM" = "ubuntu" ]; then
         exit 1
     }
 
-    # Make Jan executable if needed
-    if [ -f "/usr/bin/Jan-Desktop-nightly" ]; then
-        sudo chmod +x /usr/bin/Jan-Desktop-nightly
+    # Make Rey30 IDvj executable if needed
+    if [ -f "/usr/bin/Rey30-IDvj-nightly" ]; then
+        sudo chmod +x /usr/bin/Rey30-IDvj-nightly
     fi
-    if [ -f "/usr/bin/Jan-Desktop" ]; then
-        sudo chmod +x /usr/bin/Jan-Desktop
+    if [ -f "/usr/bin/Rey30-IDvj" ]; then
+        sudo chmod +x /usr/bin/Rey30-IDvj
     fi
 fi
 
 # macOS specific setup
 if [ "$PLATFORM" = "macos" ]; then
-    # Verify Jan app path
-    if [ ! -f "$JAN_APP_PATH" ]; then
-        echo "❌ Jan app not found at: $JAN_APP_PATH"
+    # Verify Rey30 IDvj app path
+    if [ ! -f "$REY30_APP_PATH" ]; then
+        echo "❌ Rey30 IDvj app not found at: $REY30_APP_PATH"
         echo "Available files in /Applications:"
-        ls -la /Applications/ | grep -i jan || echo "No Jan apps found"
+        ls -la /Applications/ | grep -i rey30 || echo "No Rey30 IDvj apps found"
         exit 1
     fi
 fi
@@ -60,10 +60,10 @@ echo "Contents of trajectories directory (if exists):"
 ls -la trajectories/ 2>/dev/null || echo "trajectories directory not found"
 
 # Run the main test with proper arguments
-if [ -n "$JAN_APP_PATH" ] && [ -n "$PROCESS_NAME" ]; then
-    python main.py --enable-reportportal --rp-token "$RP_TOKEN" --jan-app-path "$JAN_APP_PATH" --jan-process-name "$PROCESS_NAME"
-elif [ -n "$JAN_APP_PATH" ]; then
-    python main.py --enable-reportportal --rp-token "$RP_TOKEN" --jan-app-path "$JAN_APP_PATH"
+if [ -n "$REY30_APP_PATH" ] && [ -n "$PROCESS_NAME" ]; then
+    python main.py --enable-reportportal --rp-token "$RP_TOKEN" --rey30-app-path "$REY30_APP_PATH" --rey30-process-name "$PROCESS_NAME"
+elif [ -n "$REY30_APP_PATH" ]; then
+    python main.py --enable-reportportal --rp-token "$RP_TOKEN" --rey30-app-path "$REY30_APP_PATH"
 else
     python main.py --enable-reportportal --rp-token "$RP_TOKEN"
 fi

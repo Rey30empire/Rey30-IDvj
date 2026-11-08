@@ -12,13 +12,13 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { TauriCapabilities, TauriServiceOptions } from '@wdio/tauri-service'
 import { SevereServiceError } from 'webdriverio'
-import { janUserDataDir } from './helpers/paths.js'
+import { rey30UserDataDir } from './helpers/paths.js'
 import { isolationEnv } from './isolation.js'
 import { selectScenario } from './migration.js'
 import { assertSafeE2eHome, assertSafeLaunchEnvironment, canonicalPath, containsPath, launchContext } from './launch-guard.js'
 
-const scenario = selectScenario(process.env.JAN_E2E_SCENARIO)
-if (scenario === 'migration' && (!process.env.JAN_E2E_HOME || !['1', '2'].includes(process.env.JAN_E2E_MIGRATION_PHASE ?? ''))) {
+const scenario = selectScenario(process.env.REY30_E2E_SCENARIO)
+if (scenario === 'migration' && (!process.env.REY30_E2E_HOME || !['1', '2'].includes(process.env.REY30_E2E_MIGRATION_PHASE ?? ''))) {
   throw new Error('Use yarn test:migration for the owned, two-launch migration profile')
 }
 
@@ -30,12 +30,12 @@ if (scenario === 'migration' && (!process.env.JAN_E2E_HOME || !['1', '2'].includ
 //   Windows FOLDERID_RoamingAppData                    -> nothing
 //
 // Windows has no lever of its own -- `dirs` goes straight to the known-folder
-// API, which takes no environment input -- so Jan reads `JAN_DATA_ROOT` ahead of
+// API, which takes no environment input -- so Rey30 IDvj reads `REY30_DATA_ROOT` ahead of
 // it, and isolationEnv() sets that variable there. `paths.rs` honours it on all
 // three platforms, but the harness sets it only on Windows: macOS and Linux
 // already have a lever, and pushing them down the override branch would stop the
 // suite exercising the `dirs` lookup a real user actually gets. See
-// src-tauri/src/core/app/paths.rs for why the variable is Jan's own rather than
+// src-tauri/src/core/app/paths.rs for why the variable is Rey30 IDvj's own rather than
 // `%APPDATA%`, and isolationEnv() for what is still not isolated on Windows.
 
 const repoRoot = resolve(import.meta.dirname, '..')
@@ -45,7 +45,7 @@ const repoRoot = resolve(import.meta.dirname, '..')
 const appBinary = join(
   repoRoot,
   'src-tauri/target/debug',
-  process.platform === 'win32' ? 'Jan-Desktop.exe' : 'Jan-Desktop'
+  process.platform === 'win32' ? 'Rey30-IDvj.exe' : 'Rey30-IDvj'
 )
 
 // Fail here rather than 2 minutes later inside a driver-connection retry loop,
@@ -58,12 +58,12 @@ if (!existsSync(appBinary)) {
 }
 
 // A throwaway profile per run, which is what keeps the suite away from the
-// developer's real Jan data. See isolationEnv() for the variables that confine
+// developer's real Rey30 IDvj data. See isolationEnv() for the variables that confine
 // the app to it -- HOME alone is not sufficient on Linux.
 //
-// Deliberately NOT using JAN_DATA_FOLDER, which despite the name is a different
-// variable from JAN_DATA_ROOT above: it names the data folder itself rather than
-// the OS root it sits under, and only resolve_jan_data_folder() reads it, which
+// Deliberately NOT using REY30_DATA_FOLDER, which despite the name is a different
+// variable from REY30_DATA_ROOT above: it names the data folder itself rather than
+// the OS root it sits under, and only resolve_rey30_data_folder() reads it, which
 // is the CLI path. The desktop build ignores it.
 // Deliberately NOT using CI=e2e: that hook short-circuits
 // get_app_configurations() to a hardcoded "./data", which would skip the very
@@ -71,30 +71,30 @@ if (!existsSync(appBinary)) {
 //
 // This module is evaluated twice -- once in the wdio launcher, once in each
 // spawned worker. Only the launcher creates the directory; workers inherit the
-// path through JAN_E2E_HOME. Creating it unconditionally would give the specs a
+// path through REY30_E2E_HOME. Creating it unconditionally would give the specs a
 // different path from the one the app was actually launched with.
 //
 // `ownsTestHome` is load-bearing for safety, not just tidiness: cleanup deletes
 // recursively, so it must only ever delete a directory this process created. A
-// JAN_E2E_HOME inherited from the environment (a stray export, a CI variable)
+// REY30_E2E_HOME inherited from the environment (a stray export, a CI variable)
 // is validated before any writes and never removed.
 const context = launchContext()
 assertSafeLaunchEnvironment(context)
-const inheritedHome = process.env.JAN_E2E_HOME
+const inheritedHome = process.env.REY30_E2E_HOME
 const ownsTestHome = !inheritedHome
 // assertSafeE2eHome canonicalizes relative paths before they become HOME/XDG
 // values: `dirs` ignores relative XDG values and falls back to HOME defaults.
 const testHome = assertSafeE2eHome(
-  inheritedHome || mkdtempSync(join(realpathSync(tmpdir()), 'jan-e2e-')),
+  inheritedHome || mkdtempSync(join(realpathSync(tmpdir()), 'rey30-idvj-e2e-')),
   context
 )
-process.env.JAN_E2E_HOME = testHome
+process.env.REY30_E2E_HOME = testHome
 
 if (ownsTestHome) {
   // Cleanup on process exit rather than in onComplete: wdio runs user
   // onComplete hooks BEFORE service onComplete hooks (@wdio/cli, "user hooks
   // are run before service hooks"), and the tauri service's hook is what kills
-  // the app. Removing the tree from onComplete would race a live Jan process
+  // the app. Removing the tree from onComplete would race a live Rey30 IDvj process
   // that still holds store/log handles -- which can throw EBUSY (force: true
   // only swallows ENOENT) or let the app recreate paths under the deleted tree.
   //
@@ -107,7 +107,7 @@ if (ownsTestHome) {
   // 1, turning a green run red on cleanup alone. A second of backoff costs
   // nothing on the runs that do not need it.
   process.once('exit', () => {
-    if (process.env.JAN_E2E_KEEP) {
+    if (process.env.REY30_E2E_KEEP) {
       console.log(`e2e profile kept at ${testHome}`)
       return
     }
@@ -131,6 +131,7 @@ if (ownsTestHome) {
 // TMPDIR is pinned to a path inside the profile, and temp_dir() will not create
 // it. An app that cannot write scratch is a confusing failure; make it exist.
 mkdirSync(join(testHome, 'tmp'), { recursive: true })
+mkdirSync(join(testHome, 'agent-config'), { recursive: true })
 
 // The AppData pair is not optional on Windows, and getting it wrong does not
 // look like a path problem. SHGetKnownFolderPath resolves the Roaming and Local
@@ -155,11 +156,11 @@ if (process.platform === 'win32') {
 // getBackendSetting('llamacpp-embedder-bootstrapped') is truthy. That setting
 // comes from the `settings_get` Tauri command, which is backed by
 // src-tauri/src/core/app/settings_store.rs: a flat JSON string->string map at
-// `<jan_data_folder>/settings.json`. Writing the key here, before the app is
+// `<rey30_data_folder>/settings.json`. Writing the key here, before the app is
 // spawned, is indistinguishable from a previous run having done the bootstrap.
 //
 // Worth doing because the alternative is a ~45MB download to
-// `<jan_data_folder>/llamacpp/models/sentence-transformer-mini/model.gguf` on
+// `<rey30_data_folder>/llamacpp/models/sentence-transformer-mini/model.gguf` on
 // every single run, and with it a "Download Complete" toast that mounts over
 // the header at a moment set by network speed rather than by the spec. That is
 // a coin flip landing on whatever is being clicked: it produced three
@@ -176,11 +177,11 @@ if (process.platform === 'win32') {
 // nothing in these specs touches the embedder, which serves RAG rather than
 // chat. This is about determinism, not about avoiding a hard failure.
 //
-// Set JAN_E2E_EMBEDDER_DOWNLOAD to skip the seeding and get the real bootstrap
+// Set REY30_E2E_EMBEDDER_DOWNLOAD to skip the seeding and get the real bootstrap
 // back, which is what a spec *about* the embedder needs.
 //
 // Seeded whether or not this process created the profile. Gating it on
-// ownership would let an inherited JAN_E2E_HOME -- a stray export, a CI
+// ownership would let an inherited REY30_E2E_HOME -- a stray export, a CI
 // variable, someone reusing a profile -- quietly take the download and the
 // toast back, with nothing in the log saying so, which is precisely the
 // nondeterminism this block exists to remove. Writing one key into a profile
@@ -189,11 +190,11 @@ if (process.platform === 'win32') {
 // itself after a successful bootstrap, it only adds to the file, and a caller
 // who wants the real download has the env var above.
 //
-// NOTE this is the backend settings store, at janUserDataDir() -- NOT the app
-// config `settings.json` one directory up at janDataDir(), which is the file
+// NOTE this is the backend settings store, at rey30UserDataDir() -- NOT the app
+// config `settings.json` one directory up at rey30DataDir(), which is the file
 // smoke.e2e.ts asserts on. Same filename, different file, different owner.
-if (scenario !== 'migration' && !process.env.JAN_E2E_EMBEDDER_DOWNLOAD) {
-  const backendSettingsDir = janUserDataDir(testHome)
+if (scenario !== 'migration' && !process.env.REY30_E2E_EMBEDDER_DOWNLOAD) {
+  const backendSettingsDir = rey30UserDataDir(testHome)
   const backendSettingsFile = join(backendSettingsDir, 'settings.json')
   // A fresh mkdtemp profile cannot have one yet, but an inherited profile can,
   // and a populated one at that -- so merge rather than clobber. An unparseable
@@ -252,7 +253,7 @@ export const config: WebdriverIO.Config = {
   runner: 'local',
   // Ordered by hand, not globbed. State leaks forwards between spec files, and
   // further than the shared profile explains. Every spec in a run shares one
-  // on-disk profile: JAN_E2E_HOME is created in the launcher and inherited by
+  // on-disk profile: REY30_E2E_HOME is created in the launcher and inherited by
   // each worker (above), so whatever one spec file writes is still there for
   // the next. But the embedded provider also spawns *one* app, in the
   // launcher's onPrepare, and every spec file drives that same process over its
@@ -308,7 +309,7 @@ export const config: WebdriverIO.Config = {
   // can upload after the runner is gone. A local run of the two specs writes
   // ~630 webdriver lines here and none to the terminal.
   outputDir: scenario === 'migration'
-    ? join(testHome, 'runner-logs', `wdio-phase-${process.env.JAN_E2E_MIGRATION_PHASE}`)
+    ? join(testHome, 'runner-logs', `wdio-phase-${process.env.REY30_E2E_MIGRATION_PHASE}`)
     : join(import.meta.dirname, 'logs'),
   waitforTimeout: 20_000,
   connectionRetryTimeout: 120_000,
@@ -339,7 +340,7 @@ export const config: WebdriverIO.Config = {
   // afterCommand treats a successful, non-internal `switchToWindow` as the user
   // taking charge of window selection and suppresses focus recovery for the rest
   // of the session -- so switching to the handle we are already on is a no-op
-  // that turns the probe off. Jan runs a single window under test, so there is
+  // that turns the probe off. Rey30 IDvj runs a single window under test, so there is
   // nothing for the recovery to recover.
   //
   // `before` runs once per worker, before any spec file.
@@ -357,7 +358,7 @@ export const config: WebdriverIO.Config = {
   // and an expensive one to chase.
   //
   // Two ways to get there, both ordinary: a second `yarn test` in another
-  // terminal, or an orphaned Jan-Desktop from a hard-killed run (the service
+  // terminal, or an orphaned Rey30-IDvj from a hard-killed run (the service
   // spawns with detached:false, which does not tie the child's lifetime to the
   // launcher's -- SIGKILL the launcher and the app survives holding the port).
   //
@@ -375,11 +376,11 @@ export const config: WebdriverIO.Config = {
       `something is already listening on 127.0.0.1:${driverPort}, the port the ` +
         'embedded WebDriver server uses. This run would drive that process ' +
         'instead of the app it launches. Most likely another e2e run is in ' +
-        'progress, or a previous one was killed and left Jan-Desktop alive ' +
+        'progress, or a previous one was killed and left Rey30-IDvj alive ' +
         `(\`${
           process.platform === 'win32'
-            ? 'taskkill /IM Jan-Desktop.exe /F'
-            : 'pkill -f Jan-Desktop'
+            ? 'taskkill /IM Rey30-IDvj.exe /F'
+            : 'pkill -f Rey30-IDvj'
         }\`). To use a different port instead, set TAURI_WEBDRIVER_PORT.`
     )
   },

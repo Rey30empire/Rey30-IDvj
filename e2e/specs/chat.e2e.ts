@@ -17,7 +17,7 @@ import {
   type MockOpenAI,
 } from '../helpers/mock-openai.js'
 import { goto } from '../helpers/navigation.js'
-import { janUserDataDir } from '../helpers/paths.js'
+import { rey30UserDataDir } from '../helpers/paths.js'
 import {
   configureMockProvider,
   denyAnalyticsConsent,
@@ -27,7 +27,7 @@ import {
 // The worker inherits this from the launcher; see wdio.conf.ts. Read from the
 // environment rather than importing the config, so the spec does not trigger a
 // second evaluation of a module with top-level side effects.
-const testHome = process.env.JAN_E2E_HOME!
+const testHome = process.env.REY30_E2E_HOME!
 
 const PROVIDER_NAME = 'e2e-mock-provider'
 
@@ -210,7 +210,7 @@ describe('chat critical path', () => {
 
   it('deletes the thread from the sidebar and from disk', async () => {
     const rowSelector = `[data-testid="thread-row-${threadId}"]`
-    const threadDir = join(janUserDataDir(testHome), 'threads', threadId)
+    const threadDir = join(rey30UserDataDir(testHome), 'threads', threadId)
 
     // Establish the directory is there before deleting it. Without this the
     // check at the end of this test passes for a thread id that was never
@@ -229,7 +229,7 @@ describe('chat critical path', () => {
 
     // Opening this menu is the one genuinely awkward interaction in the suite,
     // and both halves of the awkwardness come from the embedded driver rather
-    // than from Jan.
+    // than from Rey30 IDvj.
     //
     // The driver has no real input: dispatch_pointer_event() builds a MouseEvent
     // in JS and dispatches it at the coordinates, and click_element() is

@@ -1,5 +1,5 @@
 {
-  "name": "@janhq/e2e",
+  "name": "@rey30-idvj/e2e",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -22,11 +22,12 @@
     "webdriverio": "^9.30.0"
   },
   "resolutions": {
+    "@puppeteer/browsers": "3.2.6",
     "basic-ftp": "^6.2.1",
     "serialize-javascript": "^7.0.3"
   },
   "packageManager": "yarn@4.5.3",
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22.12.0"
   }
 }

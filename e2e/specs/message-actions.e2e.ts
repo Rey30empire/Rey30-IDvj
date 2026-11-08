@@ -21,11 +21,11 @@ import {
 // still in the profile -- but its mock server was closed in that spec's after(),
 // so its base URL now points at nothing. And the model id has to differ because
 // the chat dropdown keys its option testid on the id alone
-// (DropdownModelProvider.tsx:584,684): two providers offering `jan-e2e-mock`
-// would put two elements behind `model-option-jan-e2e-mock` and selectModel()
+// (DropdownModelProvider.tsx:584,684): two providers offering `rey30-idvj-e2e-mock`
+// would put two elements behind `model-option-rey30-idvj-e2e-mock` and selectModel()
 // would be picking between a live server and a dead one by luck.
 const PROVIDER_NAME = 'e2e-actions-provider'
-const MODEL_ID = 'jan-e2e-actions'
+const MODEL_ID = 'rey30-idvj-e2e-actions'
 
 const OPENING_PROMPT = 'opening turn for the message actions spec'
 const EDITED_PROMPT = 'edited turn for the message actions spec'

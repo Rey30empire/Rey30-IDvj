@@ -30,7 +30,7 @@ import { AddressInfo } from 'node:net'
  */
 
 /** The model id the spec types into the Add Model combobox. */
-export const MOCK_MODEL_ID = 'jan-e2e-mock'
+export const MOCK_MODEL_ID = 'rey30-idvj-e2e-mock'
 
 /**
  * Prefixed onto the echoed prompt. The echo is the point: asserting the reply
@@ -222,7 +222,7 @@ function sendJson(res: ServerResponse, status: number, payload: unknown) {
   res.end(body)
 }
 
-const completionId = 'chatcmpl-jan-e2e'
+const completionId = 'chatcmpl-rey30-idvj-e2e'
 
 /** Resolves after `ms`; used only to pace a deliberately slow stream. */
 function sleep(ms: number) {
@@ -327,7 +327,7 @@ async function handle(
           id: modelId,
           object: 'model',
           created: Math.floor(Date.now() / 1000),
-          owned_by: 'jan-e2e',
+          owned_by: 'rey30-idvj-e2e',
         },
       ],
     })
@@ -378,7 +378,7 @@ async function handle(
   // Loud on purpose. A silent 404 here surfaces much later as an empty message
   // bubble, and the path is the only clue about which call was missed.
   sendJson(res, 404, {
-    error: { message: `jan e2e mock has no route for ${req.method} ${url}` },
+    error: { message: `rey30-idvj e2e mock has no route for ${req.method} ${url}` },
   })
 }
 

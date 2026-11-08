@@ -22,7 +22,7 @@ def upload_turn_folder(client, test_item_id, turn_path, turn_name, force_fail=Fa
 
     uploaded = False
     step_has_errors = False  # Track if this step has any errors
-    
+
     for fname in sorted(os.listdir(turn_path)):
         fpath = os.path.join(turn_path, fname)
 
@@ -83,7 +83,7 @@ def upload_turn_folder(client, test_item_id, turn_path, turn_name, force_fail=Fa
         step_status = "FAILED"
     else:
         step_status = "FAILED" if step_has_errors else "PASSED"
-    
+
     client.finish_test_item(
         item_id=step_item_id,
         end_time=timestamp(),
@@ -98,53 +98,53 @@ def extract_test_result_from_trajectory(trajectory_dir):
     if not trajectory_dir or not os.path.exists(trajectory_dir):
         logger.warning(f"Trajectory directory not found: {trajectory_dir}")
         return False
-    
+
     try:
         # Get all turn folders and find the last one
-        turn_folders = [f for f in os.listdir(trajectory_dir) 
+        turn_folders = [f for f in os.listdir(trajectory_dir)
                        if os.path.isdir(os.path.join(trajectory_dir, f)) and f.startswith("turn_")]
-        
+
         if not turn_folders:
             logger.warning("No turn folders found")
             return False
-        
+
         # Sort to get the last turn
         last_turn = sorted(turn_folders)[-1]
         last_turn_path = os.path.join(trajectory_dir, last_turn)
-        
+
         logger.info(f"Checking result in last turn: {last_turn}")
-        
+
         # Look for API call response files
-        response_files = [f for f in os.listdir(last_turn_path) 
+        response_files = [f for f in os.listdir(last_turn_path)
                          if f.startswith("api_call_") and f.endswith("_response.json")]
-        
+
         if not response_files:
             logger.warning("No API response files found in last turn")
             return False
-        
+
         # Check the last response file
         last_response_file = sorted(response_files)[-1]
         response_file_path = os.path.join(last_turn_path, last_response_file)
-        
+
         logger.info(f"Checking response file: {last_response_file}")
-        
+
         with open(response_file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
+
         # Extract content from response
         if 'response' in data and 'choices' in data['response'] and data['response']['choices']:
             last_choice = data['response']['choices'][-1]
             if 'message' in last_choice and 'content' in last_choice['message']:
                 content = last_choice['message']['content']
                 logger.info(f"Last response content: {content}")
-                
+
                 # Look for result patterns - need to check both True and False
                 true_pattern = r'\{\s*"result"\s*:\s*True\s*\}'
                 false_pattern = r'\{\s*"result"\s*:\s*False\s*\}'
-                
+
                 true_match = re.search(true_pattern, content)
                 false_match = re.search(false_pattern, content)
-                
+
                 if true_match:
                     logger.info(f"Found test result: True - PASSED")
                     return True
@@ -154,50 +154,50 @@ def extract_test_result_from_trajectory(trajectory_dir):
                 else:
                     logger.warning("No valid result pattern found in response content - marking as FAILED")
                     return False
-        
+
         logger.warning("Could not extract content from response structure")
         return False
-        
+
     except Exception as e:
         logger.error(f"Error extracting test result: {e}")
         return False
 
-def get_jan_log_paths(is_nightly=False):
+def get_rey30_log_paths(is_nightly=False):
     """
-    Get Jan application log file paths based on OS and version (nightly vs regular)
+    Get Rey30 IDvj application log file paths based on OS and version (nightly vs regular)
     Returns list of glob patterns for log files
     """
     system = platform.system().lower()
-    app_name = "Jan-nightly" if is_nightly else "Jan"
-    
+    app_name = "Rey30-IDvj-nightly" if is_nightly else "Rey30-IDvj"
+
     if system == "windows":
-        # Windows: %APPDATA%\Jan(-nightly)\data\logs\*.log
+        # Windows: %APPDATA%\Rey30-IDvj(-nightly)\data\logs\*.log
         appdata = os.path.expandvars("%APPDATA%")
         return [f"{appdata}\\{app_name}\\data\\logs\\*.log"]
-    
+
     elif system == "darwin":  # macOS
-        # macOS: ~/Library/Application Support/Jan(-nightly)/data/logs/*.log
+        # macOS: ~/Library/Application Support/Rey30-IDvj(-nightly)/data/logs/*.log
         home_dir = os.path.expanduser("~")
         return [f"{home_dir}/Library/Application Support/{app_name}/data/logs/*.log"]
-    
+
     elif system == "linux":
-        # Linux: ~/.local/share/Jan(-nightly)/data/logs/*.log
+        # Linux: ~/.local/share/Rey30-IDvj(-nightly)/data/logs/*.log
         home_dir = os.path.expanduser("~")
         return [f"{home_dir}/.local/share/{app_name}/data/logs/*.log"]
-    
+
     else:
         logger.warning(f"Unsupported OS: {system}")
         return []
 
-def upload_jan_logs(client, test_item_id, is_nightly=False, max_log_files=5):
+def upload_rey30_logs(client, test_item_id, is_nightly=False, max_log_files=5):
     """
-    Upload Jan application log files to ReportPortal
+    Upload Rey30 IDvj application log files to ReportPortal
     """
-    log_patterns = get_jan_log_paths(is_nightly)
+    log_patterns = get_rey30_log_paths(is_nightly)
     app_type = "nightly" if is_nightly else "regular"
-    
-    logger.info(f"Looking for Jan {app_type} logs...")
-    
+
+    logger.info(f"Looking for Rey30 IDvj {app_type} logs...")
+
     all_log_files = []
     for pattern in log_patterns:
         try:
@@ -206,29 +206,29 @@ def upload_jan_logs(client, test_item_id, is_nightly=False, max_log_files=5):
             logger.info(f"Found {len(log_files)} log files matching pattern: {pattern}")
         except Exception as e:
             logger.error(f"Error searching for logs with pattern {pattern}: {e}")
-    
+
     if not all_log_files:
-        logger.warning(f"No Jan {app_type} log files found")
+        logger.warning(f"No Rey30 IDvj {app_type} log files found")
         client.log(
             time=timestamp(),
             level="WARNING",
-            message=f"[INFO] No Jan {app_type} application logs found",
+            message=f"[INFO] No Rey30 IDvj {app_type} application logs found",
             item_id=test_item_id
         )
         return
-    
+
     # Sort by modification time (newest first) and limit to max_log_files
     try:
         all_log_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
         log_files_to_upload = all_log_files[:max_log_files]
-        
-        logger.info(f"Uploading {len(log_files_to_upload)} most recent Jan {app_type} log files")
-        
+
+        logger.info(f"Uploading {len(log_files_to_upload)} most recent Rey30 IDvj {app_type} log files")
+
         for i, log_file in enumerate(log_files_to_upload, 1):
             try:
                 file_size = os.path.getsize(log_file)
                 file_name = os.path.basename(log_file)
-                
+
                 # Check file size limit (50MB = 50 * 1024 * 1024 bytes)
                 max_file_size = 50 * 1024 * 1024  # 50MB
                 if file_size > max_file_size:
@@ -240,28 +240,28 @@ def upload_jan_logs(client, test_item_id, is_nightly=False, max_log_files=5):
                         item_id=test_item_id
                     )
                     continue
-                
+
                 logger.info(f"Uploading log file {i}/{len(log_files_to_upload)}: {file_name} ({file_size} bytes)")
-                
+
                 # Read log file content (safe to read since we checked size)
                 with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
                     log_content = f.read()
-                
+
                 # Upload as text attachment
                 client.log(
                     time=timestamp(),
                     level="INFO",
-                    message=f"[INFO] Jan {app_type} application log: {file_name}",
+                    message=f"[INFO] Rey30 IDvj {app_type} application log: {file_name}",
                     item_id=test_item_id,
                     attachment={
-                        "name": f"jan_{app_type}_log_{i}_{file_name}",
+                        "name": f"rey30_{app_type}_log_{i}_{file_name}",
                         "data": log_content.encode('utf-8'),
                         "mime": "text/plain"
                     }
                 )
-                
+
                 logger.info(f"Successfully uploaded log: {file_name}")
-                
+
             except Exception as e:
                 logger.error(f"Error uploading log file {log_file}: {e}")
                 client.log(
@@ -270,21 +270,21 @@ def upload_jan_logs(client, test_item_id, is_nightly=False, max_log_files=5):
                     message=f"Failed to upload log file {os.path.basename(log_file)}: {str(e)}",
                     item_id=test_item_id
                 )
-        
+
         # Add summary log
         client.log(
             time=timestamp(),
             level="INFO",
-            message=f"[INFO] Uploaded {len(log_files_to_upload)} Jan {app_type} log files (total available: {len(all_log_files)})",
+            message=f"[INFO] Uploaded {len(log_files_to_upload)} Rey30 IDvj {app_type} log files (total available: {len(all_log_files)})",
             item_id=test_item_id
         )
-        
+
     except Exception as e:
-        logger.error(f"Error processing Jan logs: {e}")
+        logger.error(f"Error processing Rey30 IDvj logs: {e}")
         client.log(
             time=timestamp(),
             level="ERROR",
-            message=f"Error processing Jan {app_type} logs: {str(e)}",
+            message=f"Error processing Rey30 IDvj {app_type} logs: {str(e)}",
             item_id=test_item_id
         )
 
@@ -308,7 +308,7 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
             message="[FAILED] TEST FAILED [FAILED]\nNo trajectory directory found",
             item_id=test_item_id
         )
-        
+
         # Upload video if available
         if video_path and os.path.exists(video_path):
             try:
@@ -327,16 +327,16 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
                 logger.info(f"Uploaded video for failed test: {video_path}")
             except Exception as e:
                 logger.error(f"Error uploading video: {e}")
-        
+
         client.finish_test_item(
             item_id=test_item_id,
             end_time=timestamp(),
             status="FAILED"
         )
         return
-    
+
     formatted_test_path = test_path.replace('\\', '/').replace('.txt', '').replace('/', '__')
-    
+
     # Determine final status
     if force_stopped:
         final_status = "FAILED"
@@ -344,12 +344,12 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
     else:
         test_result = extract_test_result_from_trajectory(trajectory_dir)
         if test_result is True:
-            final_status = "PASSED" 
+            final_status = "PASSED"
             status_message = "completed successfully with positive result"
         else:
             final_status = "FAILED"
             status_message = "no valid success result found"
-    
+
     # Create test item
     test_item_id = client.start_test_item(
         launch_id=launch_id,
@@ -358,11 +358,11 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
         item_type="TEST",
         description=f"Test case from: {test_path}"
     )
-    
+
     try:
-        turn_folders = [f for f in os.listdir(trajectory_dir) 
+        turn_folders = [f for f in os.listdir(trajectory_dir)
                        if os.path.isdir(os.path.join(trajectory_dir, f)) and f.startswith("turn_")]
-        
+
         # Add clear status log
         status_emoji = "[SUCCESS]" if final_status == "PASSED" else "[FAILED]"
         client.log(
@@ -371,7 +371,7 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
             message=f"{status_emoji} TEST {final_status} {status_emoji}\nReason: {status_message}\nTotal turns: {len(turn_folders)}",
             item_id=test_item_id
         )
-        
+
         # Upload screen recording video first
         if video_path and os.path.exists(video_path):
             logger.info(f"Attempting to upload video: {video_path}")
@@ -408,28 +408,28 @@ def upload_test_results_to_rp(client, launch_id, test_path, trajectory_dir, forc
                 message="No screen recording available for this test",
                 item_id=test_item_id
             )
-        
-        # Upload Jan application logs
-        logger.info("Uploading Jan application logs...")
-        upload_jan_logs(client, test_item_id, is_nightly=is_nightly, max_log_files=5)
-        
+
+        # Upload Rey30 IDvj application logs
+        logger.info("Uploading Rey30 IDvj application logs...")
+        upload_rey30_logs(client, test_item_id, is_nightly=is_nightly, max_log_files=5)
+
         # Upload all turn data with appropriate status
         # If test failed, mark all turns as failed
         force_fail_turns = (final_status == "FAILED")
-        
+
         for turn_folder in sorted(turn_folders):
             turn_path = os.path.join(trajectory_dir, turn_folder)
             upload_turn_folder(client, test_item_id, turn_path, turn_folder, force_fail=force_fail_turns)
-        
+
         # Finish with correct status
         client.finish_test_item(
             item_id=test_item_id,
             end_time=timestamp(),
             status=final_status
         )
-        
+
         logger.info(f"Uploaded test results for {formatted_test_path}: {final_status}")
-        
+
     except Exception as e:
         logger.error(f"Error uploading test results: {e}")
         client.finish_test_item(

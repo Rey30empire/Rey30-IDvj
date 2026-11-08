@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { cpSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { janUserDataDir } from './helpers/paths.js'
+import { rey30UserDataDir } from './helpers/paths.js'
 
 export const fixtureDir = join(import.meta.dirname, '../src-tauri/tests/fixtures/upgrade/0.8.3')
 export const historicalThread = '784952d3-dc72-474e-ab24-0d78e7035280'
@@ -16,14 +16,14 @@ export function assertFixture(source = fixtureDir) {
 /** Only called on the runner's own freshly-created, guarded profile. */
 export function seedMigration(home: string, source = fixtureDir) {
   assertFixture(source)
-  const destination = janUserDataDir(home)
+  const destination = rey30UserDataDir(home)
   mkdirSync(destination, { recursive: true })
   cpSync(source, destination, { recursive: true, errorOnExist: true, force: false })
 }
 
 /** Compare all fixture thread IDs, metadata, message IDs and content, not just counts. */
 export function assertMigrated(home: string, source = fixtureDir) {
-  const destination = janUserDataDir(home)
+  const destination = rey30UserDataDir(home)
   assert.equal(json(join(destination, 'store.json')).mcp_version, 5)
   const expected = json(join(source, 'mcp_config.json'))
   delete expected.mcpServers.exa
@@ -41,7 +41,7 @@ export function assertMigrated(home: string, source = fixtureDir) {
 
 export function selectScenario(value = 'default'): 'default' | 'migration' {
   if (value !== 'default' && value !== 'migration') {
-    throw new Error(`Invalid JAN_E2E_SCENARIO ${JSON.stringify(value)}: expected default or migration`)
+    throw new Error(`Invalid REY30_E2E_SCENARIO ${JSON.stringify(value)}: expected default or migration`)
   }
   return value
 }

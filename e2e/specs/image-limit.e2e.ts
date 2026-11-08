@@ -15,7 +15,7 @@ import {
   type MockOpenAI,
 } from '../helpers/mock-openai.js'
 import { goto, waitForPath } from '../helpers/navigation.js'
-import { janUserDataDir } from '../helpers/paths.js'
+import { rey30UserDataDir } from '../helpers/paths.js'
 import {
   configureMockProvider,
   denyAnalyticsConsent,
@@ -23,11 +23,11 @@ import {
 } from '../helpers/provider.js'
 
 // The worker inherits this from the launcher; see wdio.conf.ts.
-const testHome = process.env.JAN_E2E_HOME!
+const testHome = process.env.REY30_E2E_HOME!
 
 // Own provider and own model id: see the same note in message-actions.e2e.ts.
 const PROVIDER_NAME = 'e2e-image-limit-provider'
-const MODEL_ID = 'jan-e2e-image-limit'
+const MODEL_ID = 'rey30-idvj-e2e-image-limit'
 
 // Titles come from web-app/src/locales/en/settings.json
 // (settings:attachments.maxImage / maxFile). The settings rows carry no testid,
@@ -41,7 +41,7 @@ const DOC_ROW_INPUT =
 
 // Persisted key of useImageAttachmentConfig (constants/localStorage.ts). The
 // zustand persist blob lands in the backend settings store, a flat string map
-// at <jan_data>/settings.json, as a JSON string.
+// at <rey30_data>/settings.json, as a JSON string.
 const IMAGE_SETTING_KEY = 'setting-image-attachments'
 
 // Sizes. The PNGs are built in the page, so no fixture is committed.
@@ -272,7 +272,7 @@ async function setLimitViaUi(inputXpath: string, value: number) {
 
 function persistedImageLimit(): number | undefined {
   try {
-    const file = join(janUserDataDir(testHome), 'settings.json')
+    const file = join(rey30UserDataDir(testHome), 'settings.json')
     const store = JSON.parse(readFileSync(file, 'utf8')) as Record<
       string,
       string

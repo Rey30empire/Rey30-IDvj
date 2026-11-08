@@ -4,14 +4,14 @@ import { join } from 'node:path'
 import { browser, expect, $ } from '@wdio/globals'
 
 import { goto } from '../helpers/navigation.js'
-import { janDataDir } from '../helpers/paths.js'
+import { rey30DataDir } from '../helpers/paths.js'
 
 // The worker inherits this from the launcher; see wdio.conf.ts. Read from the
 // environment rather than importing the config, so the spec does not trigger a
 // second evaluation of a module with top-level side effects.
-const testHome = process.env.JAN_E2E_HOME!
+const testHome = process.env.REY30_E2E_HOME!
 
-describe('Jan desktop app', () => {
+describe('Rey30 IDvj desktop app', () => {
   before(async () => {
     // The webview has loaded the document. React mounting into it is asserted
     // by the first test rather than here, so a mount failure names a test
@@ -58,9 +58,9 @@ describe('Jan desktop app', () => {
 // overridden environment actually reached the app process.
 describe('on-disk isolation', () => {
   it('wrote its config inside the throwaway profile', async () => {
-    // app_data_dir_with_fallback() -> data_dir()/Jan, + CONFIGURATION_FILE_NAME
+    // app_data_dir_with_fallback() -> data_dir()/Rey30-IDvj, + CONFIGURATION_FILE_NAME
     // (core/app/commands.rs, core/app/constants.rs).
-    const settings = join(janDataDir(testHome), 'settings.json')
+    const settings = join(rey30DataDir(testHome), 'settings.json')
 
     await browser.waitUntil(() => existsSync(settings), {
       timeout: 30_000,

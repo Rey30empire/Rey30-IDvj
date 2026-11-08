@@ -49,42 +49,42 @@ def get_computer_config():
             "os_type": "linux"
         }
 
-def get_default_jan_path():
-    """Get default Jan app path based on OS"""
+def get_default_rey30_path():
+    """Get default Rey30 IDvj app path based on OS"""
     if IS_WINDOWS:
-        # The installed executable is Jan-Desktop.exe, or Jan-Desktop-<channel>.exe
+        # The installed executable is Rey30-IDvj.exe, or Rey30-IDvj-<channel>.exe
         # on nightly and beta (see .github/scripts/rename-tauri-app.sh and
         # autoqa/scripts/windows_install.ps1).
         possible_paths = [
-            os.path.expanduser(r"~\AppData\Local\Programs\jan\Jan-Desktop.exe"),
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'jan', 'Jan-Desktop.exe'),
-            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'jan-nightly', 'Jan-Desktop-nightly.exe'),
-            os.path.join(os.environ.get('APPDATA', ''), 'jan', 'Jan-Desktop.exe'),
-            r"C:\Program Files\jan\Jan-Desktop.exe",
-            r"C:\Program Files (x86)\jan\Jan-Desktop.exe"
+            os.path.expanduser(r"~\AppData\Local\Programs\Rey30 IDvj\Rey30-IDvj.exe"),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Rey30 IDvj', 'Rey30-IDvj.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'rey30-nightly', 'Rey30-IDvj-nightly.exe'),
+            os.path.join(os.environ.get('APPDATA', ''), 'rey30', 'Rey30-IDvj.exe'),
+            r"C:\Program Files\Rey30 IDvj\Rey30-IDvj.exe",
+            r"C:\Program Files (x86)\rey30\Rey30-IDvj.exe"
         ]
 
     elif IS_LINUX:
-        # The .deb and AppImage install the binary as Jan-Desktop, or
-        # Jan-Desktop-nightly on nightly (see autoqa/scripts/run_tests.sh).
+        # The .deb and AppImage install the binary as Rey30-IDvj, or
+        # Rey30-IDvj-nightly on nightly (see autoqa/scripts/run_tests.sh).
         possible_paths = [
-            "/usr/bin/Jan-Desktop",
-            "/usr/bin/Jan-Desktop-nightly",
-            "/usr/local/bin/Jan-Desktop",
-            "/opt/Jan/Jan-Desktop"
+            "/usr/bin/Rey30-IDvj",
+            "/usr/bin/Rey30-IDvj-nightly",
+            "/usr/local/bin/Rey30-IDvj",
+            "/opt/Rey30-IDvj/Rey30-IDvj"
         ]
 
     elif IS_MACOS:
         # productName names the .app, mainBinaryName names the executable inside it.
         possible_paths = [
-            "/Applications/Jan.app/Contents/MacOS/Jan-Desktop",
-            os.path.expanduser("~/Applications/Jan.app/Contents/MacOS/Jan-Desktop"),
-            "/Applications/Jan-nightly.app/Contents/MacOS/Jan-Desktop-nightly"
+            "/Applications/Rey30 IDvj.app/Contents/MacOS/Rey30-IDvj",
+            os.path.expanduser("~/Applications/Rey30 IDvj.app/Contents/MacOS/Rey30-IDvj"),
+            "/Applications/Rey30 IDvj nightly.app/Contents/MacOS/Rey30-IDvj-nightly"
         ]
 
     else:
         # Unknown platform
-        return "jan"
+        return "rey30-idvj"
 
     # Return first existing path, or the most likely default
     for path in possible_paths:
@@ -97,20 +97,20 @@ def start_computer_server():
     """Start computer server in background thread"""
     try:
         logger.info("Starting computer server in background...")
-        
+
         # Import computer_server module
         import computer_server
         import sys
-        
+
         # Start server in a separate thread
         def run_server():
             try:
                 # Save original sys.argv to avoid argument conflicts
                 original_argv = sys.argv.copy()
-                
+
                 # Override sys.argv for computer_server to use default args
                 sys.argv = ['computer_server']  # Reset to minimal args
-                
+
                 # Use the proper entry point
                 logger.info("Calling computer_server.run_cli()...")
                 computer_server.run_cli()
@@ -127,15 +127,15 @@ def start_computer_server():
                     sys.argv = original_argv
                 except:
                     pass
-        
+
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()
-        
+
         logger.info("Computer server thread started")
-        
+
         # Give server more time to start up
         time.sleep(5)
-        
+
         # Check if thread is still alive (server is running)
         if server_thread.is_alive():
             logger.info("Computer server is running successfully")
@@ -143,7 +143,7 @@ def start_computer_server():
         else:
             logger.error("Computer server thread died unexpectedly")
             return None
-        
+
     except ImportError as e:
         logger.error(f"Cannot import computer_server module: {e}")
         logger.error("Please install computer_server package")
@@ -163,24 +163,24 @@ def parse_arguments():
 Examples:
   # Run locally without ReportPortal
   python main.py
-  
+
   # Run with ReportPortal integration
   python main.py --enable-reportportal --rp-token YOUR_TOKEN
-  
-  # Run with custom Jan app path
-  python main.py --jan-app-path "C:/Custom/Path/Jan-Desktop.exe"
-  
+
+  # Run with custom Rey30 IDvj app path
+  python main.py --rey30-app-path "C:/Custom/Path/Rey30-IDvj.exe"
+
   # Run with different model
   python main.py --model-name "gpt-4" --model-base-url "https://api.openai.com/v1"
-  
+
   # Using environment variables
   ENABLE_REPORTPORTAL=true RP_TOKEN=xxx MODEL_NAME=gpt-4 python main.py
         """
     )
-    
-    # Get default Jan path
-    default_jan_path = get_default_jan_path()
-    
+
+    # Get default Rey30 IDvj path
+    default_rey30_path = get_default_rey30_path()
+
     # Computer server arguments
     server_group = parser.add_argument_group('Computer Server Configuration')
     server_group.add_argument(
@@ -189,7 +189,7 @@ Examples:
         default=os.getenv('SKIP_SERVER_START', 'false').lower() == 'true',
         help='Skip automatic computer server startup (env: SKIP_SERVER_START, default: false)'
     )
-    
+
     # ReportPortal arguments
     rp_group = parser.add_argument_group('ReportPortal Configuration')
     rp_group.add_argument(
@@ -200,7 +200,7 @@ Examples:
     )
     rp_group.add_argument(
         '--rp-endpoint',
-        default=os.getenv('RP_ENDPOINT', 'https://reportportal.menlo.ai'),
+        default=os.getenv('RP_ENDPOINT'),
         help='ReportPortal endpoint URL (env: RP_ENDPOINT, default: %(default)s)'
     )
     rp_group.add_argument(
@@ -218,21 +218,21 @@ Examples:
         default=os.getenv('LAUNCH_NAME'),
         help='Custom launch name for ReportPortal (env: LAUNCH_NAME, default: auto-generated with timestamp)'
     )
-    
-    # Jan app arguments
-    jan_group = parser.add_argument_group('Jan Application Configuration')
-    jan_group.add_argument(
-        '--jan-app-path',
-        default=os.getenv('JAN_APP_PATH', default_jan_path),
-        help=f'Path to Jan application executable (env: JAN_APP_PATH, default: auto-detected or {default_jan_path})'
+
+    # Rey30 IDvj app arguments
+    rey30_group = parser.add_argument_group('Rey30 IDvj Application Configuration')
+    rey30_group.add_argument(
+        '--rey30-app-path',
+        default=os.getenv('REY30_APP_PATH', default_rey30_path),
+        help=f'Path to Rey30 IDvj application executable (env: REY30_APP_PATH, default: auto-detected or {default_rey30_path})'
     )
-    jan_group.add_argument(
-        '--jan-process-name',
-        default=os.getenv('JAN_PROCESS_NAME', 'Jan-Desktop'),
-        help='Jan process name for monitoring, matched as a substring (env: JAN_PROCESS_NAME, '
-             'default: %(default)s, which also matches Jan-Desktop-nightly)'
+    rey30_group.add_argument(
+        '--rey30-process-name',
+        default=os.getenv('REY30_PROCESS_NAME', 'Rey30-IDvj'),
+        help='Rey30 IDvj process name for monitoring, matched as a substring (env: REY30_PROCESS_NAME, '
+             'default: %(default)s, which also matches Rey30-IDvj-nightly)'
     )
-    
+
     # Model/Agent arguments
     model_group = parser.add_argument_group('Model Configuration')
     model_group.add_argument(
@@ -252,10 +252,10 @@ Examples:
     )
     model_group.add_argument(
         '--model-base-url',
-        default=os.getenv('MODEL_BASE_URL', 'http://10.200.108.58:1234/v1'),
+        default=os.getenv('MODEL_BASE_URL', 'http://127.0.0.1:1234/v1'),
         help='Model base URL (env: MODEL_BASE_URL, default: %(default)s)'
     )
-    
+
     # Test execution arguments
     test_group = parser.add_argument_group('Test Execution Configuration')
     test_group.add_argument(
@@ -275,13 +275,15 @@ Examples:
         default=int(os.getenv('DELAY_BETWEEN_TESTS', '3')),
         help='Delay in seconds between tests (env: DELAY_BETWEEN_TESTS, default: %(default)s)'
     )
-    
+
     args = parser.parse_args()
-    
+
     # Validate ReportPortal token if ReportPortal is enabled
+    if args.enable_reportportal and not args.rp_endpoint:
+        parser.error('--rp-endpoint (or RP_ENDPOINT) is required when ReportPortal is enabled')
     if args.enable_reportportal and not args.rp_token:
         parser.error("--rp-token (or RP_TOKEN env var) is required when --enable-reportportal is used")
-    
+
     return args
 
 async def main():
@@ -290,10 +292,10 @@ async def main():
     """
     # Parse command line arguments
     args = parse_arguments()
-    
+
     # Initialize final exit code
     final_exit_code = 0
-    
+
     # Start computer server if not skipped
     server_thread = None
     if not args.skip_server_start:
@@ -303,7 +305,7 @@ async def main():
             return
     else:
         logger.info("Skipping computer server startup (assuming it's already running)")
-    
+
     try:
         # Build agent config from arguments
         agent_config = {
@@ -312,16 +314,16 @@ async def main():
             "model_name": args.model_name,
             "model_base_url": args.model_base_url
         }
-        
+
         # Log configuration
         logger.info("=== Configuration ===")
         logger.info(f"Computer server: {'STARTED' if server_thread else 'EXTERNAL'}")
         logger.info(f"Tests directory: {args.tests_dir}")
         logger.info(f"Max turns per test: {args.max_turns}")
         logger.info(f"Delay between tests: {args.delay_between_tests}s")
-        logger.info(f"Jan app path: {args.jan_app_path}")
-        logger.info(f"Jan app exists: {os.path.exists(args.jan_app_path)}")
-        logger.info(f"Jan process name: {args.jan_process_name}")
+        logger.info(f"Rey30 IDvj app path: {args.rey30_app_path}")
+        logger.info(f"Rey30 IDvj app exists: {os.path.exists(args.rey30_app_path)}")
+        logger.info(f"Rey30 IDvj process name: {args.rey30_process_name}")
         logger.info(f"Model: {args.model_name}")
         logger.info(f"Model URL: {args.model_base_url}")
         logger.info(f"Model provider: {args.model_provider}")
@@ -332,23 +334,23 @@ async def main():
             logger.info(f"ReportPortal token: {'SET' if args.rp_token else 'NOT SET'}")
             logger.info(f"Launch name: {args.launch_name if args.launch_name else 'AUTO-GENERATED'}")
         logger.info("======================")
-        
+
         # Scan all test files
         test_files = scan_test_files(args.tests_dir)
-        
+
         if not test_files:
             logger.warning(f"No test files found in directory: {args.tests_dir}")
             return
-        
+
         logger.info(f"Found {len(test_files)} test files")
-        
+
         # Track test results for final exit code
         test_results = {"passed": 0, "failed": 0, "total": len(test_files)}
-        
+
         # Initialize ReportPortal client only if enabled
         rp_client = None
         launch_id = None
-        
+
         if args.enable_reportportal:
             try:
                 rp_client = RPClient(
@@ -356,10 +358,10 @@ async def main():
                     project=args.rp_project,
                     api_key=args.rp_token
                 )
-                
+
                 # Start ReportPortal launch
                 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
+
                 # Use custom launch name if provided, otherwise generate default
                 if args.launch_name:
                     launch_name = args.launch_name
@@ -367,7 +369,7 @@ async def main():
                 else:
                     launch_name = f"E2E Test Run - {current_time}"
                     logger.info(f"Using auto-generated launch name: {launch_name}")
-                
+
                 launch_id = rp_client.start_launch(
                     name=launch_name,
                     start_time=timestamp(),
@@ -375,7 +377,7 @@ async def main():
                                f"Model: {args.model_name}\n"
                                f"Max turns: {args.max_turns}"
                 )
-                
+
                 logger.info(f"Started ReportPortal launch: {launch_name}")
             except Exception as e:
                 logger.error(f"Failed to initialize ReportPortal: {e}")
@@ -384,42 +386,42 @@ async def main():
                 launch_id = None
         else:
             logger.info("Running in local development mode - results will not be uploaded to ReportPortal")
-        
+
         # Start computer environment
         logger.info("Initializing computer environment...")
-        
+
         # Get platform-specific computer configuration
         computer_config = get_computer_config()
         logger.info(f"Using computer config: {computer_config}")
-        
+
         computer = Computer(
-            os_type=computer_config["os_type"], 
+            os_type=computer_config["os_type"],
             use_host_computer_server=True
         )
         await computer.run()
         logger.info("Computer environment ready")
-        
+
         # Run each test sequentially with turn monitoring
         for i, test_data in enumerate(test_files, 1):
             logger.info(f"Running test {i}/{len(test_files)}: {test_data['path']}")
-            
+
             try:
                 # Pass all configs to test runner
                 test_result = await run_single_test_with_timeout(
-                    computer=computer, 
-                    test_data=test_data, 
+                    computer=computer,
+                    test_data=test_data,
                     rp_client=rp_client,  # Can be None
                     launch_id=launch_id,  # Can be None
                     max_turns=args.max_turns,
-                    jan_app_path=args.jan_app_path,
-                    jan_process_name=args.jan_process_name,
+                    rey30_app_path=args.rey30_app_path,
+                    rey30_process_name=args.rey30_process_name,
                     agent_config=agent_config,
                     enable_reportportal=args.enable_reportportal
                 )
-                
+
                 # Track test result - properly handle different return formats
                 test_passed = False
-                
+
                 if test_result:
                     # Check different possible return formats
                     if isinstance(test_result, dict):
@@ -436,7 +438,7 @@ async def main():
                         test_passed = bool(test_result)
                 else:
                     test_passed = False
-                
+
                 # Update counters and log result
                 if test_passed:
                     test_results["passed"] += 1
@@ -444,19 +446,19 @@ async def main():
                 else:
                     test_results["failed"] += 1
                     logger.error(f"[FAILED] Test {i} FAILED: {test_data['path']}")
-                    
+
                 # Debug log for troubleshooting
                 logger.info(f"[INFO] Debug - Test result: type={type(test_result)}, value={test_result}, success_field={test_result.get('success', 'N/A') if isinstance(test_result, dict) else 'N/A'}, final_passed={test_passed}")
-                    
+
             except Exception as e:
                 test_results["failed"] += 1
                 logger.error(f"[FAILED] Test {i} FAILED with exception: {test_data['path']} - {e}")
-            
+
             # Add delay between tests
             if i < len(test_files):
                 logger.info(f"Waiting {args.delay_between_tests} seconds before next test...")
                 await asyncio.sleep(args.delay_between_tests)
-        
+
         # Log final test results summary
         logger.info("=" * 50)
         logger.info("TEST EXECUTION SUMMARY")
@@ -466,14 +468,14 @@ async def main():
         logger.info(f"Failed: {test_results['failed']}")
         logger.info(f"Success rate: {(test_results['passed']/test_results['total']*100):.1f}%")
         logger.info("=" * 50)
-        
+
         if test_results["failed"] > 0:
             logger.error(f"[FAILED] Test execution completed with {test_results['failed']} failures!")
             final_exit_code = 1
         else:
             logger.info("[SUCCESS] All tests completed successfully!")
             final_exit_code = 0
-        
+
     except KeyboardInterrupt:
         logger.info("Test execution interrupted by user")
         final_exit_code = 1
@@ -492,11 +494,11 @@ async def main():
                 logger.info("ReportPortal launch finished and session closed")
             except Exception as e:
                 logger.error(f"Error finishing ReportPortal launch: {e}")
-        
+
         # Note: daemon thread will automatically terminate when main program ends
         if server_thread:
             logger.info("Computer server will stop when main program exits (daemon thread)")
-    
+
     # Exit with appropriate code based on test results
     logger.info(f"Exiting with code: {final_exit_code}")
     exit(final_exit_code)

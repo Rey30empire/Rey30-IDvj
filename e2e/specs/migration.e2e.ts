@@ -3,8 +3,8 @@ import { assertFixture, assertMigrated, historicalThread } from '../migration.js
 import { goto } from '../helpers/navigation.js'
 import { USER_MESSAGES, ASSISTANT_MESSAGES } from '../helpers/chat.js'
 
-const home = process.env.JAN_E2E_HOME!
-describe(`0.8.3 migration, process start ${process.env.JAN_E2E_MIGRATION_PHASE}`, () => {
+const home = process.env.REY30_E2E_HOME!
+describe(`0.8.3 migration, process start ${process.env.REY30_E2E_MIGRATION_PHASE}`, () => {
   it('records schema 5, removes only Exa, and preserves all fixture threads and messages', async () => {
     assertFixture()
     await browser.waitUntil(() => {
