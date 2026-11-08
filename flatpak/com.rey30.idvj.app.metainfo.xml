@@ -10,7 +10,7 @@
   <launchable type="desktop-id">com.rey30.idvj.app.desktop</launchable>
   <description>
     <p>Distribución mantenida por Reinier Tamayo para administrar conversaciones, asistentes, modelos y herramientas.</p>
-    <p>Conserva la instalación del modelo Jan predeterminado y los avisos de los componentes bajo Apache 2.0.</p>
+    <p>Incluye la instalación del modelo local predeterminado y conserva los avisos de los componentes bajo Apache 2.0.</p>
   </description>
   <categories><category>Utility</category><category>Education</category><category>Chat</category></categories>
   <content_rating type="oars-1.1" />

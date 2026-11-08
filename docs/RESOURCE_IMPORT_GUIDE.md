@@ -66,4 +66,4 @@ Si el JSON existente está corrupto o cambia durante la preparación, la operaci
 
 La preferencia de este proyecto es **AMD para IA y NVIDIA para juegos**. La configuración actual conserva `Vulkan1`, comprobado como AMD Radeon AI PRO R9700 durante esta entrega. Los índices pueden cambiar al enumerar dispositivos; deben contrastarse con el nombre físico.
 
-El modelo Jan 4B y los chats existentes se conservan. La prueba aislada de inferencia utiliza el GGUF original por referencia, sin copiarlo ni crear enlaces y sin cambiar los ajustes del perfil.
+El modelo local predeterminado y los chats existentes se conservan. La prueba aislada de inferencia utiliza el GGUF original por referencia, sin copiarlo ni crear enlaces y sin cambiar los ajustes del perfil.

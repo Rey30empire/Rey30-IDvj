@@ -6,7 +6,7 @@ Módulo: corrección de dependencias de desarrollo y revisión de la importació
 
 Fecha: 2026-11-03, America/Chicago.
 
-Estado: COMPLETADO CON LIMITACIONES. Los cuatro grafos JavaScript medidos tienen cero entradas altas y críticas, con advertencias restantes documentadas. La Release 0.8.10 compiló y se abrió desde el BAT: se observó Jan-v3.5-4B seleccionado y el cuadro de mensaje vacío. AMD sigue configurada; no se enviaron inferencias nuevas. Computer Use notificó después una parada con Escape y no hubo más acciones de escritorio. El cierre está en PROJECT_STATUS.md y ui-open-acceptance.json; no se acredita seguridad universal.
+Estado: COMPLETADO CON LIMITACIONES. Los cuatro grafos JavaScript medidos tienen cero entradas altas y críticas, con advertencias restantes documentadas. La Release 0.8.10 compiló y se abrió desde el BAT: se observó el modelo local de 4B seleccionado y el cuadro de mensaje vacío. AMD sigue configurada; no se enviaron inferencias nuevas. Computer Use notificó después una parada con Escape y no hubo más acciones de escritorio. El cierre está en PROJECT_STATUS.md y ui-open-acceptance.json; no se acredita seguridad universal.
 
 ## 1. Objetivo
 

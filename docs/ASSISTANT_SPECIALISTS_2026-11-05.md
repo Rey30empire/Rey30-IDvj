@@ -16,7 +16,7 @@ Atlas se dedica a arquitectura, Forja a backend, Lince a depuración, Senda a in
 
 ## 3. Arquitectura
 
-Los perfiles integrados usan IDs estables y se proyectan al selector de asistentes existente. La migración reconoce el catálogo anterior, respeta nombres personalizados y añade los dos perfiles nuevos. El modelo se resuelve desde la asignación efectiva. Con asignación automática se usa un candidato local elegible y se prioriza Jan 4B. Los roles técnicos se componen en `buildCharacterContext`. [Perfiles y migración](../web-app/src/lib/characters/profiles.ts) · [Transporte](../web-app/src/lib/custom-chat-transport.ts)
+Los perfiles integrados usan IDs estables y se proyectan al selector de asistentes existente. La migración reconoce el catálogo anterior, respeta nombres personalizados y añade los dos perfiles nuevos. El modelo se resuelve desde la asignación efectiva. Con asignación automática se usa un candidato local elegible y se prioriza el modelo local predeterminado. Los roles técnicos se componen en `buildCharacterContext`. [Perfiles y migración](../web-app/src/lib/characters/profiles.ts) · [Transporte](../web-app/src/lib/custom-chat-transport.ts)
 
 El adaptador MCP prepara un proceso stdio `openclaw mcp serve --claude-channel-mode off`. El catálogo ofrece revisar y guardar la receta inactiva, con una ruta absoluta opcional para la CLI. La conexión usa el flujo existente de Servidores MCP. [Receta nativa](../src-tauri/src/core/integrations/catalog.rs) · [Guía de OpenClaw](src/pages/docs/desktop/integrations/openclaw.mdx) · [Servidor oficial](https://docs.openclaw.ai/cli/mcp/serve)
 
@@ -52,7 +52,7 @@ En la primera prueba de escritorio, el arranque aislado solicitó el modelo auxi
 
 La barra lateral conserva los destinos de chat, proyectos, Hub y espacio de trabajo. Los controles son operables con teclado y muestran su estado de selección mediante texto y atributos accesibles. Las pruebas verifican que un chat temporal o de proyecto queda fuera del acceso independiente. Los tests de transporte simulan al proveedor y prueban el caso de voz anterior seguida por texto. [Navegación](../web-app/src/components/left-sidebar/__tests__/NavAssistants.test.tsx) · [Transporte](../artifacts/qa/assistant-voice-channel-tests.log)
 
-Se cotejaron 2.314 archivos de fuente antes de preparar Release. Se verificaron los otros 459 archivos de runtime, el tamaño y fecha de los pesos de Jan 4B y el hash de los ajustes del motor. La copia privada de asistentes anterior a 0.9.6 quedó bajo `%APPDATA%\Rey30-IDvj\backup`. [Control de fuente](../artifacts/qa/assistants-specialists-20261105/production-freeze-check.json) · [Preparación](../artifacts/qa/assistants-specialists-20261105/staging-receipt.json)
+Se cotejaron 2.314 archivos de fuente antes de preparar Release. Se verificaron los otros 459 archivos de runtime, el tamaño y fecha de los pesos del modelo local de 4B y el hash de los ajustes del motor. La copia privada de asistentes anterior a 0.9.6 quedó bajo `%APPDATA%\Rey30-IDvj\backup`. [Control de fuente](../artifacts/qa/assistants-specialists-20261105/production-freeze-check.json) · [Preparación](../artifacts/qa/assistants-specialists-20261105/staging-receipt.json)
 
 ## 9. Limitaciones
 

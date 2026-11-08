@@ -2,7 +2,7 @@
 
 Distribución de escritorio mantenida por **Reinier Tamayo** para conversar con modelos locales, administrar asistentes, trabajar con herramientas y conectar proveedores externos. Conserva la estructura y la navegación del proyecto base.
 
-El código deriva de Jan y se distribuye bajo Apache 2.0. Los avisos originales se conservan en [LICENSE](LICENSE) y [NOTICE](NOTICE); las modificaciones de esta distribución se identifican en el historial y en la documentación de migración. La identidad Rey30 IDvj no cambia la autoría de los componentes heredados ni de los modelos.
+El código se distribuye bajo Apache 2.0. Ver [NOTICE](NOTICE) para las atribuciones de licencia; los avisos originales se conservan en [LICENSE](LICENSE) y [NOTICE](NOTICE). Las modificaciones de esta distribución se identifican en el historial y en la documentación de migración. La identidad Rey30 IDvj no cambia la autoría de los componentes heredados ni de los modelos.
 
 ## Inicio en Windows
 
@@ -30,7 +30,7 @@ corepack yarn dev
 
 ## Modelo y asistente predeterminados
 
-La instalación y selección del modelo Jan de 4B se conservan. Sus identificadores, nombres de archivo y fuentes Hugging Face mantienen el nombre real del modelo, para que su descarga funcione y su procedencia siga siendo clara. La interfaz y el asistente de la distribución se presentan como Rey30 IDvj.
+El modelo local predeterminado es `Qwen3.5-9B-Q4_K_M` (repositorio Hugging Face `unsloth/Qwen3.5-9B-GGUF`). Sus identificadores, nombres de archivo y fuentes mantienen el nombre real del modelo, para que su descarga funcione y su procedencia siga siendo clara. El asistente predeterminado de la distribución es Rey30 IDvj (id `rey30`).
 
 Los modelos descargados no forman parte del código fuente. Descargar un modelo, disponer de su archivo y completar una respuesta real son verificaciones diferentes. La compatibilidad, memoria necesaria y velocidad dependen del modelo, su cuantización y el equipo.
 

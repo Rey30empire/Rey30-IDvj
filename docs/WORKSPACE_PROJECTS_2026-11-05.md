@@ -34,7 +34,7 @@ Las operaciones actúan sobre los archivos elegidos. El diff ayuda a revisar una
 
 Seleccionar una carpeta identifica el proyecto. Elegir un modelo con `tools` permite que este proponga llamadas estructuradas. El runner y Rust deciden si cada operación se puede ejecutar. Que un modelo declare `tools` indica compatibilidad en el catálogo. Su respuesta efectiva y la calidad del trabajo dependen de cada ejecución.
 
-Se comprobó `tools` en los metadatos del Jan 4B instalado, sin cargar el modelo ni ejecutar inferencia. La política existente requiere **Normal** para las herramientas del espacio. **Solo local** y **Nube con revisión** las bloquean. Elegir un modelo local en **Normal** y activar **Solo local** son acciones distintas.
+Se comprobó `tools` en los metadatos del modelo local de 4B instalado, sin cargar el modelo ni ejecutar inferencia. La política existente requiere **Normal** para las herramientas del espacio. **Solo local** y **Nube con revisión** las bloquean. Elegir un modelo local en **Normal** y activar **Solo local** son acciones distintas.
 
 ## 6. Bloqueos detectados
 
@@ -60,7 +60,7 @@ La respuesta simulada del selector permitió comprobar su contrato con la aplica
 
 ## 9. Limitaciones
 
-Queda pendiente la aceptación manual del selector de Windows. La compatibilidad declarada de Jan 4B se verificó en metadatos. Quedan sin medir su capacidad para completar una tarea real con herramientas y su rendimiento. El alcance de aceptación de esta entrega es Windows. El límite de procesos es preventivo. La inspección o retirada de entradas de permisos de ejecuciones anteriores queda fuera del alcance.
+Queda pendiente la aceptación manual del selector de Windows. La compatibilidad declarada del modelo local de 4B se verificó en metadatos. Quedan sin medir su capacidad para completar una tarea real con herramientas y su rendimiento. El alcance de aceptación de esta entrega es Windows. El límite de procesos es preventivo. La inspección o retirada de entradas de permisos de ejecuciones anteriores queda fuera del alcance.
 
 ## 10. Siguiente paso
 

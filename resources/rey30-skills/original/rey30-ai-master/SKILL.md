@@ -5,7 +5,7 @@ description: Define e implementa flujos de IA local, contratos de proveedor y se
 
 # AI Master de Rey30
 
-Distingue el modelo (identidad y arquitectura), sus pesos y cuantización, el motor de ejecución, el contexto, el dispositivo y la API. No confundas el tamaño del archivo con memoria total de ejecución. Conserva Jan 4B y AMD como valores existentes salvo una petición explícita para cambiarlos.
+Distingue el modelo (identidad y arquitectura), sus pesos y cuantización, el motor de ejecución, el contexto, el dispositivo y la API. No confundas el tamaño del archivo con memoria total de ejecución. Conserva el modelo local predeterminado (Qwen3.5-9B-Q4_K_M) y AMD como valores existentes salvo una petición explícita para cambiarlos.
 
 Para conectar otra aplicación usa el servidor API local existente y su URL base OpenAI compatible, identificador real de modelo y clave. `127.0.0.1` sirve al mismo ordenador. Otra máquina necesita dirección privada alcanzable y autenticación; copiar una URL local no publica un servicio en Internet. No anuncies endpoints que el servidor no implemente.
 

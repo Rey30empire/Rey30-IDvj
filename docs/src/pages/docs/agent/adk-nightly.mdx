@@ -12,10 +12,10 @@ Para Python, instala `adk/python` en un entorno virtual. Para JavaScript, el paq
 
 Los instaladores del ADK admiten un manifiesto que identifica versión, plataforma, URL del archivo y SHA-256. Debes proporcionar una fuente de confianza mediante `manifestUrl` en JavaScript, `manifest_url` en Python o `REY30_AGENT_MANIFEST`.
 
-El manifiesto debe contener el ejecutable `rey30-idvj` (`rey30-idvj.exe` en Windows). El instalador comprueba el digest antes de publicar la generación de caché. Un canal sin configurar produce un error; no baja Jan por defecto.
+El manifiesto debe contener el ejecutable `rey30-idvj` (`rey30-idvj.exe` en Windows). El instalador comprueba el digest antes de publicar la generación de caché. Un canal sin configurar produce un error; no descarga ningún ejecutable por defecto.
 
 - [JavaScript y TypeScript](/docs/agent/adk-ts).
 - [Python](/docs/agent/adk-python).
 - [Runtime y caché](/docs/agent/adk-runtime).
 
-Esto instala el ejecutable de agentes. El catálogo y la instalación del modelo Jan 4B de escritorio son funciones independientes y mantienen sus fuentes reales.
+Esto instala el ejecutable de agentes. El catálogo y la instalación del modelo local predeterminado de escritorio (`Qwen3.5-9B-Q4_K_M`) son funciones independientes y mantienen sus fuentes reales.

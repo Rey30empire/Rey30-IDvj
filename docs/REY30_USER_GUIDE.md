@@ -88,7 +88,7 @@ La URL `127.0.0.1` conecta aplicaciones del mismo ordenador. Para otra máquina 
 
 En Agregar asistente, **Cargar desde archivo** permite revisar un archivo JSON, YAML o Markdown compatible antes de guardar. Importar instrucciones no concede permisos adicionales ni ejecuta código del archivo.
 
-El Hub ofrece **Descargar e instalar** y la importación de modelos locales admitidos. Un modelo aparece listo cuando el motor lo ha registrado, no sólo cuando la descarga alcanza el 100 %. Importar un GGUF local mantiene una referencia al archivo. Jan 4B y su instalación predeterminada se conservan.
+El Hub ofrece **Descargar e instalar** y la importación de modelos locales admitidos. Un modelo aparece listo cuando el motor lo ha registrado, no sólo cuando la descarga alcanza el 100 %. Importar un GGUF local mantiene una referencia al archivo. El modelo local predeterminado y su instalación se conservan.
 
 ## Restablecer configuración y guardar un punto
 

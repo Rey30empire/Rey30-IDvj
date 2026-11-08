@@ -2,7 +2,7 @@
 
 Proyecto: Rey30 IDvj. Módulo: seis personajes, audio local, recuperación de preferencias y catálogo MCP. Versión Windows x64: 0.9.2. Fecha: 2026-11-04, America/Chicago.
 
-Estado: COMPLETADO CON LIMITACIONES EXPLÍCITAS. Release 0.9.2 preparada, seis personajes persistidos y UI habitual abierta e inspeccionada. La voz sintética y el dictado se comprobaron técnicamente; no se activó el micrófono físico ni se repitieron inferencias de Jan.
+Estado: COMPLETADO CON LIMITACIONES EXPLÍCITAS. Release 0.9.2 preparada, seis personajes persistidos y UI habitual abierta e inspeccionada. La voz sintética y el dictado se comprobaron técnicamente; no se activó el micrófono físico ni se repitieron inferencias del modelo local.
 
 ## 1. Objetivo
 
@@ -25,7 +25,7 @@ Restablecer configuración está junto al idioma: recupera el punto guardado o v
 - `web-app/src/containers/characters/`: selector, editor y avatar. Los SVG están separados en `web-app/src/assets/characters/`.
 - `custom-chat-transport.ts`: captura la personalidad por petición, añade solo las memorias autorizadas y resuelve la asignación de modelo. El contexto vuelve a incluirse después de herramientas o compactación; Cowork conserva su sistema propio.
 - `src-tauri/src/core/system/character_audio.rs` y `.ps1`: IPC validado, proceso local oculto, JSON por stdin, límites de entrada/salida, cancelación por identificador y descarte de resultados tardíos. La boca utiliza la amplitud del audio que reproduce Web Audio.
-- `src-tauri/resources/character-audio/`: runtime, datos españoles, licencias, fuentes, receta y manifiesto SHA-256. No utiliza los pesos de Jan.
+- `src-tauri/resources/character-audio/`: runtime, datos españoles, licencias, fuentes, receta y manifiesto SHA-256. No utiliza los pesos del modelo de lenguaje local.
 
 ## 4. Análisis profesional
 
@@ -64,7 +64,7 @@ Las evidencias de esta fase están en `artifacts/qa/characters-20261104/`. Las d
 - Interfaz nativa: tres casos aprobados con perfil temporal nuevo, ventanas de 1200×800 y 900×650 y capturas reales. Comprueban las seis selecciones, controles independientes, recuperación sin/con punto, deshacer y conservación de personajes/proveedores/MCP. El catálogo de este spec usa metadatos declarados de fixture.
 - Audio por IPC nativo: un caso aprobado, seis variantes españolas disponibles, WAV PCM mono de 16 bits con amplitud no nula y rechazo de parámetros inválidos. No reprodujo sonido ni abrió el micrófono.
 - Tipos integrados, tipos E2E, lint de producción y de pruebas modificadas e instalación inmutable aprobados. Release final y destino CLI separado con su característica `cli`: salida 0.
-- Perfil habitual observado: versión 0.9.2 en General, Restablecer configuración junto al idioma, 50 tarjetas del registro MCP real y seis perfiles en el selector. Kairo quedó activo en Trabajo con voz desactivada y avatar visible. Jan-v3.5-4B continúa seleccionado con indicador verde; eso no se presenta como una inferencia.
+- Perfil habitual observado: versión 0.9.2 en General, Restablecer configuración junto al idioma, 50 tarjetas del registro MCP real y seis perfiles en el selector. Kairo quedó activo en Trabajo con voz desactivada y avatar visible. El modelo local de 4B continúa seleccionado con indicador verde; eso no se presenta como una inferencia.
 
 Recibos finales: `artifacts/qa/characters-20261104/{acceptance-final,ui-open-release-092,staging-receipt}.json`, `artifacts/qa/characters-preferences-e2e/run-qec6wN/receipt.json` y `artifacts/qa/character-audio-e2e/run-wtDbcw/receipt.json`. Se conservaron las ejecuciones iniciales fallidas y se documentaron los límites del driver para la selección de opciones y la intercepción de IPC.
 
@@ -76,7 +76,7 @@ El proceso de audio recibe datos como JSON, con código estático; no concatena 
 
 Las fuentes de producción y el paquete se congelan para comparar su cohorte con la compilación. Las comprobaciones nativas utilizan datos temporales y guardas contra carga de modelos o envío de chat.
 
-Se comprobaron 2 306 archivos de producción sin diferencias respecto a la cohorte final. La distribución conserva 24 componentes anteriores y añade 435 archivos de audio, con manifiesto y fuentes. Los ajustes habituales del motor y de MCP, y el tamaño/fecha de Jan, permanecieron iguales después de inspeccionar la UI. La clave nueva de personajes quedó persistida con los seis perfiles.
+Se comprobaron 2 306 archivos de producción sin diferencias respecto a la cohorte final. La distribución conserva 24 componentes anteriores y añade 435 archivos de audio, con manifiesto y fuentes. Los ajustes habituales del motor y de MCP, y el tamaño/fecha del modelo local, permanecieron iguales después de inspeccionar la UI. La clave nueva de personajes quedó persistida con los seis perfiles.
 
 ## 9. Limitaciones
 
@@ -84,7 +84,7 @@ Esta entrega de audio nativo se dirige a Windows x64. Las voces son sintéticas.
 
 La persistencia se verificó mediante guardado y lectura del perfil habitual, pruebas de carga y almacenamiento nativo. No se forzó un reinicio de la sesión habitual al detectarse actividad del propietario en el editor de personajes.
 
-Por instrucción del propietario no se repitieron inferencias de Jan ni la comparación conversacional de seis respuestas generadas. Los ejemplos son textos originales incluidos en los perfiles, no respuestas observadas del modelo. Las pruebas controladas comprueban construcción y envío del contexto; no certifican que cualquier modelo mantenga siempre el estilo.
+Por instrucción del propietario no se repitieron inferencias del modelo local ni la comparación conversacional de seis respuestas generadas. Los ejemplos son textos originales incluidos en los perfiles, no respuestas observadas del modelo. Las pruebas controladas comprueban construcción y envío del contexto; no certifican que cualquier modelo mantenga siempre el estilo.
 
 MCP mantiene requisitos propios de cada servidor. El proveedor completa OAuth mediante su navegador y consentimiento. Las categorías son orientativas. La protección de nube conserva los límites descritos en la guía; no promete anonimato ni convierte el procesamiento remoto en local.
 

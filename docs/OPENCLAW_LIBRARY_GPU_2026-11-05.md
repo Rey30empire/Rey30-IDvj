@@ -48,7 +48,7 @@ El puente OpenClaw se probó con el nuevo perfil de Gateway y con autenticación
 
 ## 8. Control de calidad
 
-La verificación de la biblioteca utiliza conteos y metadatos. Las pruebas de búsqueda emplean archivos de prueba o consultas de lectura sin reproducir pasajes del corpus en los registros. Los modelos instalados y la selección de AMD se comprueban a través de sus metadatos y ajustes. La preparación verificó 2.316 archivos de fuente, el ejecutable y otros 459 archivos de runtime. Los metadatos de los pesos de Jan 4B y el hash de los ajustes del motor coincidieron con el punto anterior.
+La verificación de la biblioteca utiliza conteos y metadatos. Las pruebas de búsqueda emplean archivos de prueba o consultas de lectura sin reproducir pasajes del corpus en los registros. Los modelos instalados y la selección de AMD se comprueban a través de sus metadatos y ajustes. La preparación verificó 2.316 archivos de fuente, el ejecutable y otros 459 archivos de runtime. Los metadatos de los pesos del modelo local de 4B y el hash de los ajustes del motor coincidieron con el punto anterior.
 
 ## 9. Limitaciones
 

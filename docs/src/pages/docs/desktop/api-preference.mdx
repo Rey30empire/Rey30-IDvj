@@ -36,7 +36,7 @@ curl http://127.0.0.1:1337/v1/models \
 {
   "object": "list",
   "data": [
-    { "id": "jan-v3-4b-base-instruct", "object": "model" }
+    { "id": "Qwen3.5-9B-Q4_K_M", "object": "model" }
   ]
 }
 ```
@@ -52,7 +52,7 @@ curl http://127.0.0.1:1337/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
-    "model": "jan-v3-4b-base-instruct",
+    "model": "Qwen3.5-9B-Q4_K_M",
     "messages": [{"role": "user", "content": "Hello!"}],
     "stream": false
   }'
@@ -69,7 +69,7 @@ curl http://127.0.0.1:1337/v1/messages \
   -H "Content-Type: application/json" \
   -H "x-api-key: YOUR_API_KEY" \
   -d '{
-    "model": "jan-v3-4b-base-instruct",
+    "model": "Qwen3.5-9B-Q4_K_M",
     "max_tokens": 1024,
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
@@ -103,7 +103,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="jan-v3-4b-base-instruct",
+    model="Qwen3.5-9B-Q4_K_M",
     messages=[{"role": "user", "content": "Hello!"}]
 )
 ```

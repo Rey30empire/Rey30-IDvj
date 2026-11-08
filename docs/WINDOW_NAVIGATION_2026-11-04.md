@@ -70,7 +70,7 @@ Estos resultados corresponden a fuente, contratos y build web. No acreditan mini
 
 ## 9. Limitaciones
 
-La GUI 0.9.4 está compilada y preparada, con aceptación de UI interrumpida. No se declara comprobada la presencia o posición de los controles en la ventana, sus acciones nativas, el fallback de Volver mediante clic real ni la aceptación del propietario. Las pruebas con router real acreditan navegación en memoria, no una ventana nativa. Los casos de plataformas y destino cruzado validan configuración, no una ejecución completa en otros sistemas. No hay nuevas pruebas de Jan, micrófono o GPU en este informe; tampoco un nuevo build de CLI.
+La GUI 0.9.4 está compilada y preparada, con aceptación de UI interrumpida. No se declara comprobada la presencia o posición de los controles en la ventana, sus acciones nativas, el fallback de Volver mediante clic real ni la aceptación del propietario. Las pruebas con router real acreditan navegación en memoria, no una ventana nativa. Los casos de plataformas y destino cruzado validan configuración, no una ejecución completa en otros sistemas. No hay nuevas pruebas del modelo local, micrófono o GPU en este informe; tampoco un nuevo build de CLI.
 
 ## 10. Siguiente paso
 

@@ -12,6 +12,6 @@ Comprueba si existe una instancia local o remota autorizada y consulta su versi�
 
 Para agregarlo a Rey30 IDvj utiliza un proveedor OpenAI compatible con la URL base de esa instancia, su clave unificada y un identificador obtenido de su catálogo real. El ejemplo loopback documentado es `http://localhost:3001/v1`; úsalo sólo si la instancia realmente escucha allí. No supongas que `auto` u otro alias exista. Un resultado de `/v1/models` demuestra descubrimiento, no una inferencia.
 
-Conserva Jan 4B y AMD como configuración local. El enrutador puede reenviar prompts a otros proveedores: que la dirección sea local no implica que el procesamiento sea local o privado. Informa destino, política del proveedor, límites y posibles costes antes de enviar contenido. No acumules cuentas ni eludas cuotas.
+Conserva el modelo local predeterminado (Qwen3.5-9B-Q4_K_M) y AMD como configuración local. El enrutador puede reenviar prompts a otros proveedores: que la dirección sea local no implica que el procesamiento sea local o privado. Informa destino, política del proveedor, límites y posibles costes antes de enviar contenido. No acumules cuentas ni eludas cuotas.
 
 Guarda claves en el flujo de credenciales del proveedor; evita incluirlas en ejemplos, historiales o informes. Los planes gratuitos cambian y no constituyen disponibilidad garantizada. Si faltan claves, instancia o autorización, identifica ese requisito y deja la configuración preparada sin afirmar funcionamiento remoto.
