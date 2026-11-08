@@ -425,7 +425,7 @@ export function ModelCombobox({
                 e.stopPropagation()
                 onRefresh()
               }}
-              aria-label="Refresh models"
+              aria-label={t('ui-details:refreshModels')}
             >
               {loading ? (
                 <IconLoader2 className="size-4 animate-spin" />

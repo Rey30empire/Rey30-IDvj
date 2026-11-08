@@ -8,6 +8,7 @@ export interface ThreadFolder {
   name: string
   updated_at: number
   assistantId?: string
+  workspaceFolder?: string
 }
 
 export interface ProjectsService {
@@ -20,6 +21,8 @@ export interface ProjectsService {
    * Add a new project/folder
    */
   addProject(name: string, assistantId?: string): Promise<ThreadFolder>
+
+  openWorkspaceProject(workspaceFolder: string): Promise<ThreadFolder>
 
   /**
    * Update a project/folder

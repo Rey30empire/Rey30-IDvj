@@ -1,7 +1,7 @@
 /**
  * Bounds on a Cowork run.
  *
- * The AI SDK cannot enforce these for us: Jan's tools are declared without an
+ * The AI SDK cannot enforce these for us: Rey30 IDvj's tools are declared without an
  * `execute`, so `streamText` returns after a single step and its `stopWhen`
  * conditions never evaluate. The loop is the runner's, so the caps are too —
  * and without them an agent with real tools has no upper bound at all.

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   Dialog,
   DialogContent,
@@ -10,10 +11,7 @@ import { Button } from '@/components/ui/button'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import {
-  IconLoader2,
-  IconCheck,
-} from '@tabler/icons-react'
+import { IconLoader2, IconCheck } from '@tabler/icons-react'
 import { ExtensionManager } from '@/lib/extension'
 
 type ImportMlxModelDialogProps = {
@@ -27,6 +25,7 @@ export const ImportMlxModelDialog = ({
   trigger,
   onSuccess,
 }: ImportMlxModelDialogProps) => {
+  const { t } = useTranslation()
   const serviceHub = useServiceHub()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -55,30 +54,30 @@ export const ImportMlxModelDialog = ({
 
   const handleImport = async () => {
     if (!selectedPath) {
-      toast.error('Please select a model folder')
+      toast.error(t('ui-dialogs:mlx.selectFolderRequired'))
       return
     }
 
     if (!modelName) {
-      toast.error('Please enter a model name')
+      toast.error(t('ui-dialogs:mlx.nameRequired'))
       return
     }
 
     // Validate model name - only allow alphanumeric, underscore, hyphen, and dot
     //eslint-disable-next-line
     if (!/^[a-zA-Z0-9/_.\-]+$/.test(modelName)) {
-      toast.error('Invalid model name. Only alphanumeric and _ - . characters are allowed.')
+      toast.error(t('ui-dialogs:mlx.invalidName'))
       return
     }
 
     // Check if model already exists
-    const modelExists = provider.models.some(
-      (model) => model.id === modelName
-    )
+    const modelExists = provider.models.some((model) => model.id === modelName)
 
     if (modelExists) {
-      toast.error('Model already exists', {
-        description: `${modelName} already imported`,
+      toast.error(t('ui-dialogs:shared.modelExists'), {
+        description: t('ui-dialogs:shared.alreadyImported', {
+          name: modelName,
+        }),
       })
       return
     }
@@ -91,7 +90,7 @@ export const ImportMlxModelDialog = ({
       // Get the MLX engine and call its import method
       const engine = ExtensionManager.getInstance().getEngine('mlx')
       if (!engine) {
-        throw new Error('MLX engine not found')
+        throw new Error(t('ui-dialogs:mlx.engineMissing'))
       }
 
       console.log('[MLX Import] Calling engine.import()...')
@@ -100,8 +99,8 @@ export const ImportMlxModelDialog = ({
       })
       console.log('[MLX Import] Import completed')
 
-      toast.success('Model imported successfully', {
-        description: `${modelName} has been imported`,
+      toast.success(t('ui-dialogs:shared.importSuccess'), {
+        description: t('ui-dialogs:shared.imported', { name: modelName }),
       })
 
       // Reset form and close dialog
@@ -111,9 +110,8 @@ export const ImportMlxModelDialog = ({
       onSuccess?.(modelName)
     } catch (error) {
       console.error('[MLX Import] Import model error:', error)
-      toast.error('Failed to import model', {
-        description:
-          error instanceof Error ? error.message : String(error),
+      toast.error(t('ui-dialogs:shared.importFailed'), {
+        description: error instanceof Error ? error.message : String(error),
       })
     } finally {
       setImporting(false)
@@ -148,12 +146,10 @@ export const ImportMlxModelDialog = ({
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Import MLX Model
+            {t('ui-dialogs:mlx.title')}
           </DialogTitle>
           <DialogDescription>
-            Import a local MLX model folder for use with MLX. MLX models are
-            typically downloaded from HuggingFace and contain safetensors files
-            along with config and tokenizer files.
+            {t('ui-dialogs:mlx.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -161,28 +157,26 @@ export const ImportMlxModelDialog = ({
           {/* Model Name Input */}
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Model Name
+              {t('ui-dialogs:mlx.name')}
             </label>
             <input
               type="text"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              placeholder="my-mlx-model"
+              placeholder={t('ui-dialogs:mlx.namePlaceholder')}
               className="w-full px-3 py-2 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
             />
             <p className="text-xs text-muted-foreground">
-              Only alphanumeric and _ - . characters are allowed
+              {t('ui-dialogs:mlx.allowedName')}
             </p>
           </div>
 
           {/* File Selection Area */}
           <div className="border rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <h3 className="font-medium">
-                Model Folder
-              </h3>
+              <h3 className="font-medium">{t('ui-dialogs:mlx.folder')}</h3>
               <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                Required
+                {t('ui-dialogs:shared.required')}
               </span>
             </div>
 
@@ -191,9 +185,7 @@ export const ImportMlxModelDialog = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <IconCheck size={16} className="text-accent" />
-                    <span className="text-sm font-medium">
-                      {displayPath}
-                    </span>
+                    <span className="text-sm font-medium">{displayPath}</span>
                   </div>
                   <Button
                     variant="secondary"
@@ -201,7 +193,7 @@ export const ImportMlxModelDialog = ({
                     onClick={handleFileSelect}
                     disabled={importing}
                   >
-                    Change
+                    {t('ui-dialogs:shared.change')}
                   </Button>
                 </div>
               </div>
@@ -213,7 +205,7 @@ export const ImportMlxModelDialog = ({
                 disabled={importing}
                 className="w-full h-12 border border-dashed text-muted-foreground"
               >
-                Select Model Folder
+                {t('ui-dialogs:mlx.selectFolder')}
               </Button>
             )}
           </div>
@@ -223,12 +215,10 @@ export const ImportMlxModelDialog = ({
             <div className="rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Model will be saved as:
+                  {t('ui-dialogs:shared.savedAs')}
                 </span>
               </div>
-              <p className="text-sm font-mono mt-1">
-                mlx/models/{modelName}/
-              </p>
+              <p className="text-sm font-mono mt-1">mlx/models/{modelName}/</p>
             </div>
           )}
         </div>
@@ -240,7 +230,7 @@ export const ImportMlxModelDialog = ({
             onClick={() => handleOpenChange(false)}
             disabled={importing}
           >
-            Cancel
+            {t('ui-dialogs:shared.cancel')}
           </Button>
           <Button
             onClick={handleImport}
@@ -248,7 +238,9 @@ export const ImportMlxModelDialog = ({
             disabled={importing || !selectedPath || !modelName}
           >
             {importing && <IconLoader2 className="mr-2 size-4 animate-spin" />}
-            {importing ? 'Importing...' : 'Import Model'}
+            {importing
+              ? t('ui-dialogs:shared.importing')
+              : t('ui-dialogs:shared.importModel')}
           </Button>
         </div>
       </DialogContent>

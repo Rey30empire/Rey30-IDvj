@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useHardware } from '@/hooks/useHardware'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   DEFAULT_CTX_LENGTH,
   estimateModelFit,
@@ -37,6 +38,7 @@ export const ModelSupportStatus = ({
   contextSize,
   className,
 }: ModelSupportStatusProps) => {
+  const { t } = useTranslation()
   const serviceHub = useServiceHub()
   const hardwareData = useHardware((s) => s.hardwareData)
   const [sizeBytes, setSizeBytes] = useState<number | null>(null)
@@ -75,7 +77,7 @@ export const ModelSupportStatus = ({
   if (tier === 'unknown') return null
 
   const style = TIER_STYLES[tier]
-  const tooltip = `${style.label} (estimated)`
+  const tooltip = `${t(`ui-spanish:fitDetail.${tier}`)} (${t('ui-spanish:estimated')})`
 
   return (
     <TooltipProvider>
@@ -87,7 +89,7 @@ export const ModelSupportStatus = ({
               style.dot,
               className
             )}
-            aria-label={`Device compatibility: ${tier}`}
+            aria-label={`${t('ui-spanish:deviceCompatibility')}: ${t(`ui-spanish:fit.${tier}`)}`}
           />
         </TooltipTrigger>
         <TooltipContent>

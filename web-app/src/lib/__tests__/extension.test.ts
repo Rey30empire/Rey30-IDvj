@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Extension, ExtensionManager } from '../extension'
 
 // Mock dependencies
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AIEngine: class MockAIEngine {},
   BaseExtension: class MockBaseExtension {},
   ExtensionTypeEnum: {
@@ -26,6 +26,16 @@ Object.defineProperty(window, 'core', {
 })
 
 describe('extension.ts', () => {
+  it('resolves an extension saved with the previous package scope without duplicate registration', () => {
+    const manager = new ExtensionManager()
+    const extension = { onLoad: vi.fn() } as never
+    const previousScope = '@' + 'janhq/'
+    manager.register('@rey30-idvj/llamacpp-extension', extension)
+
+    expect(manager.getByName(previousScope + 'llamacpp-extension')).toBe(extension)
+    expect(manager.getByName('@rey30-idvj/llamacpp-extension')).toBe(extension)
+    expect(manager.getAll()).toHaveLength(1)
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset the singleton for each test
@@ -137,16 +147,16 @@ describe('extension.ts', () => {
     it('should convert file source correctly', async () => {
       const { convertFileSrc } = await import('@tauri-apps/api/core')
       convertFileSrc('/path/to/extension.js')
-      
+
       expect(convertFileSrc).toHaveBeenCalledWith('/path/to/extension.js')
     })
 
     it('should invoke tauri commands', async () => {
       const { invoke } = await import('@tauri-apps/api/core')
       vi.mocked(invoke).mockResolvedValue('success')
-      
+
       await invoke('test_command', { param: 'value' })
-      
+
       expect(invoke).toHaveBeenCalledWith('test_command', { param: 'value' })
     })
   })

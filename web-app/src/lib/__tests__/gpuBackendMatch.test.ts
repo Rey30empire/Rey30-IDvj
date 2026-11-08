@@ -67,7 +67,7 @@ describe('gpuVendor', () => {
 })
 
 describe('backendGpuFamily', () => {
-  it('recognises the backend asset names Jan ships', () => {
+  it('recognises the backend asset names Rey30 IDvj ships', () => {
     expect(backendGpuFamily('linux-cuda-12-common_cpus-x64')).toBe('cuda')
     expect(backendGpuFamily('win-cuda-13-common_cpus-x64')).toBe('cuda')
     expect(backendGpuFamily('linux-vulkan-common_cpus-x64')).toBe('vulkan')

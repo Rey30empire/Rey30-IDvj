@@ -17,7 +17,7 @@ import { useAppState } from '@/hooks/useAppState'
 import { SESSION_STORAGE_PREFIX } from '@/constants/chat'
 import { useChat } from '@/hooks/use-chat'
 import { useModelProvider } from '@/hooks/useModelProvider'
-import { engineSlotsIdle } from '@janhq/tauri-plugin-llamacpp-api'
+import { engineSlotsIdle } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import { useInterfaceSettings } from '@/hooks/useInterfaceSettings'
 import {
   deriveToolOutputCap,
@@ -32,6 +32,7 @@ import {
 import { generateId, lastAssistantMessageIsCompleteWithToolCalls } from 'ai'
 import type { UIMessage } from '@ai-sdk/react'
 import { useChatSessions } from '@/stores/chat-session-store'
+import { isPendingVoiceTurn, useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import {
   convertThreadMessagesToUIMessages,
   extractContentPartsFromUIMessage,
@@ -61,7 +62,7 @@ import {
   ThreadMessage,
   MessageStatus,
   ChatCompletionRole,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import {
   createImageAttachment,
   createAudioAttachment,
@@ -103,8 +104,10 @@ import { useToolCallRuntime } from '@/hooks/useToolCallRuntime'
 import { webToolRoute, executeWebTool } from '@/lib/webSearchTool'
 import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
 import { CHAT_AGENT_TOOL_NAMES, executeAgentTool } from '@/lib/agentTools'
+import { getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
+import { isLiteraryThread } from '@/lib/literaryLibrary'
 import DropdownModelProvider from '@/containers/DropdownModelProvider'
-import { ExtensionTypeEnum, VectorDBExtension } from '@janhq/core'
+import { ExtensionTypeEnum, VectorDBExtension } from '@rey30-idvj/core'
 import { ExtensionManager } from '@/lib/extension'
 import { Shimmer } from '@/components/ai-elements/shimmer'
 import { useMessageQueue } from '@/stores/message-queue-store'
@@ -326,7 +329,7 @@ function webRoute(toolName: string): 'builtin' | 'disabled' | 'other' {
   )
 }
 
-// Internal tools never prompt: RAG and the native web tools are Jan's own, and
+// Internal tools never prompt: RAG and the native web tools are Rey30 IDvj's own, and
 // the built-in shell is gated in Rust (execute_tool refuses anything needing
 // approval), so only workspace-confined calls ever reach here.
 function isAutoAllowedTool(toolName: string): boolean {
@@ -825,6 +828,14 @@ function ThreadDetail() {
           try {
             const toolName = toolCall.toolName
 
+            if (isLiteraryThread(useThreads.getState().threads[threadId]) || !privacyAllowsTools(getPrivacyModeSnapshot())) {
+              useToolApprovalRequests.getState().resolveApproval(toolCall.toolCallId, 'deny')
+              approvalsOf(threadId).delete(toolCall.toolCallId)
+              record({ state: 'output-error', tool: toolName, toolCallId: toolCall.toolCallId,
+                errorText: 'Herramienta bloqueada por el modo de privacidad actual. No se ejecutó esta llamada.' })
+              continue
+            }
+
             if (webRoute(toolName) === 'disabled') {
               record({
                 state: 'output-error',
@@ -896,6 +907,9 @@ function ThreadDetail() {
             // a hung MCP server) must not hold the loop, and the thread, busy.
             const result = await untilAborted<ToolRunResult>(
               (async () => {
+                if (isLiteraryThread(useThreads.getState().threads[threadId]) || !privacyAllowsTools(getPrivacyModeSnapshot())) {
+                  return { error: 'Herramienta bloqueada por el modo de privacidad actual. No se ejecutó esta llamada.' }
+                }
                 if (webRoute(toolName) === 'builtin') {
                   return await executeWebTool(toolName, toolCall.input, {
                     maxOutputChars,
@@ -1047,7 +1061,7 @@ function ThreadDetail() {
               .filter(Boolean)
               .join('\n\n') ||
             useThreads.getState().threads[threadId]?.title
-          if (inputText) {
+          if (inputText && !isLiteraryThread(useThreads.getState().threads[threadId])) {
             const turnModel = turnModelOf(threadId)
             const provider = turnModel.selectedProvider
             const modelId = turnModel.selectedModel?.id
@@ -1096,6 +1110,8 @@ function ThreadDetail() {
       // never prompt (see isAutoAllowedTool).
       sessionData.tools.push(toolCall)
       if (
+        !isLiteraryThread(useThreads.getState().threads[threadId]) &&
+        privacyAllowsTools(getPrivacyModeSnapshot()) &&
         !isAutoAllowedTool(toolCall.toolName) &&
         !isDisabledChatAgentTool(toolCall.toolName) &&
         webRoute(toolCall.toolName) !== 'disabled' &&
@@ -1427,8 +1443,10 @@ function ThreadDetail() {
     async (
       text: string,
       files?: Array<{ type: string; mediaType: string; url: string }>,
-      draft: string = text
+      draft: string = text,
+      voiceGeneration?: number
     ) => {
+      if (voiceGeneration !== undefined && !isPendingVoiceTurn(voiceGeneration, threadId)) return
       // Cancel any in-flight title summarization so it doesn't compete with this request
       abortTitle(threadId)
 
@@ -1634,6 +1652,8 @@ function ThreadDetail() {
         setChatMessages((prev) => prev.filter((m) => m.id !== messageId))
       }
 
+      if (voiceGeneration !== undefined && !useAvatarVoiceSession.getState().markSubmitted(voiceGeneration, threadId, messageId)) return
+
       // Persist the final message to backend
       const baseUserMessage = newUserThreadContent(
         threadId,
@@ -1745,12 +1765,14 @@ function ThreadDetail() {
             text: string
             draft?: string
             files?: Array<{ type: string; mediaType: string; url: string }>
+            voiceGeneration?: number
           }
 
           await processAndSendMessage(
             message.text,
             message.files,
-            message.draft
+            message.draft,
+            message.voiceGeneration
           )
         } catch (error) {
           console.error('Failed to parse initial message:', error)
@@ -1803,10 +1825,11 @@ function ThreadDetail() {
       files?: Array<{ type: string; mediaType: string; url: string }>,
       // This route reads documents back out of the attachments store.
       _documents?: unknown,
-      draft?: string
+      draft?: string,
+      voiceGeneration?: number
     ) => {
       clearBannerErrors()
-      await processAndSendMessage(text, files, draft)
+      await processAndSendMessage(text, files, draft, voiceGeneration)
     },
     [processAndSendMessage, clearBannerErrors]
   )
@@ -2326,6 +2349,7 @@ function ThreadDetail() {
                   <MessageItem
                     key={message.id}
                     message={message}
+                    privateLibrary={isLiteraryThread(thread)}
                     isFirstMessage={isFirstMessage}
                     isLastMessage={isLastMessage}
                     status={effectiveStatus}
@@ -2348,6 +2372,7 @@ function ThreadDetail() {
                 <MessageItem
                   key={`continue-placeholder-${pendingContinueMessage.id}`}
                   message={pendingContinueMessage}
+                  privateLibrary={isLiteraryThread(thread)}
                   isFirstMessage={false}
                   isLastMessage={true}
                   status={effectiveStatus}
@@ -2381,7 +2406,7 @@ function ThreadDetail() {
                 status === CHAT_STATUS.SUBMITTED && (
                 <div className="flex flex-row items-center gap-2">
                   {pendingContinueMessage && (
-                    <Shimmer duration={1}>Growing the Mind...</Shimmer>
+                    <Shimmer duration={1}>{t('ui-spanish:continuingResponse')}</Shimmer>
                   )}
                   {!pendingContinueMessage && !lastIsAssistant && (
                     <PromptProgress />
@@ -2395,10 +2420,10 @@ function ThreadDetail() {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-destructive mb-1">
                         {oomError
-                          ? 'llama.cpp ran out of memory'
+                          ? t('ui-spanish:outOfMemory')
                           : backendError
-                            ? 'GGML backend encountered an error'
-                            : 'Model ran out of context size'}
+                            ? t('ui-spanish:backendError')
+                            : t('ui-spanish:contextFull')}
                       </p>
                       <div className="table table-fixed w-full">
                         <span
@@ -2415,10 +2440,10 @@ function ThreadDetail() {
                       </div>
                       {oomError && (
                         <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
-                          <li>Reduce context size (ctx-size)</li>
-                          <li>Disable MTP (Multi-Token Prediction)</li>
-                          <li>Lower n-gpu-layers or switch to a CPU backend</li>
-                          <li>Use a smaller / more quantized model</li>
+                          <li>{t('ui-spanish:reduceContext')}</li>
+                          <li>{t('ui-spanish:disableMtp')}</li>
+                          <li>{t('ui-spanish:lowerGpuLayers')}</li>
+                          <li>{t('ui-spanish:smallerModel')}</li>
                         </ul>
                       )}
                       {offersContextIncrease(
@@ -2432,7 +2457,7 @@ function ThreadDetail() {
                           onClick={handleContextSizeIncrease}
                         >
                           <IconAlertCircle className="size-4 mr-2" />
-                          Increase Context Size
+                          {t('ui-spanish:increaseContext')}
                         </Button>
                       ) : oomError || backendError ? (
                         <Button
@@ -2442,7 +2467,7 @@ function ThreadDetail() {
                           onClick={() => handleRegenerate()}
                         >
                           <IconRefresh className="size-4 mr-2" />
-                          Reload
+                          {t('ui-spanish:reload')}
                         </Button>
                       ) : null}
                     </div>

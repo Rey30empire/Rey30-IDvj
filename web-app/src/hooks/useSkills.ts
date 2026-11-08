@@ -51,10 +51,10 @@ const useSkillsVersion = create<{ v: number; bump: () => void }>((set) => ({
 }))
 
 /**
- * CRUD over the agent's skills. The permanent store in the Jan data folder is
+ * CRUD over the agent's skills. The permanent store in the Rey30 IDvj data folder is
  * always listed -- it is what the Cowork agent's `skill_*` tools read by
  * default -- and with a `folder` its project store
- * (`~/.jan/projects/<slug>/skills`) layers on top, a project skill shadowing a
+ * (`<app_data>/projects/<slug>/skills`) layers on top, a project skill shadowing a
  * same-named global one (#8879). Each returned skill carries its `origin` so
  * `read`/`write`/`remove` target the store it lives in; a brand-new skill lands
  * in the folder's store when one is attached, else the permanent store. The
@@ -68,6 +68,11 @@ export function useSkills(folder: string | null) {
   const [loading, setLoading] = useState(false)
   const version = useSkillsVersion((s) => s.v)
   const bump = useSkillsVersion((s) => s.bump)
+  useEffect(() => {
+    const imported = () => bump()
+    window.addEventListener('rey30:resources-imported', imported)
+    return () => window.removeEventListener('rey30:resources-imported', imported)
+  }, [bump])
   // Mirrors `enabled` so `setEnabled` can roll back to the last known value after
   // an await without depending on (and being recreated by) the state itself.
   const enabledRef = useRef<string[]>([])
@@ -193,7 +198,7 @@ export function useSkills(folder: string | null) {
     async (name: string) => {
       const dataFolder = folder
         ? undefined
-        : ((await getServiceHub().app().getJanDataFolder()) ?? undefined)
+        : ((await getServiceHub().app().getRey30DataFolder()) ?? undefined)
       await invoke('agent_skill_hub_import', {
         project: folder ?? undefined,
         dataFolder,

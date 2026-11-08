@@ -4,7 +4,7 @@ import {
   ChatCompletionRole,
   ThreadMessage,
   MessageStatus,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import { ulid } from 'ulidx'
 import { Attachment } from '@/types/attachment'
 import { injectFilesIntoPrompt } from './fileMetadata'

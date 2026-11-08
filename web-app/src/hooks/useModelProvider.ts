@@ -7,6 +7,7 @@ import { modelSettings } from '@/lib/predefined'
 import { predefinedProviders } from '@/constants/providers'
 import { isLocalProvider } from '@/lib/utils'
 import { API_KEY_FALLBACKS_SETTING_KEY } from '@/lib/provider-api-keys'
+import { ensureCharacterModelBindings } from '@/lib/characters/assistant-integration'
 
 const API_KEY_SETTING_KEY = 'api-key'
 
@@ -61,7 +62,7 @@ export const useModelProvider = create<ModelProviderState>()(
         if (!provider) return undefined
         return provider.models.find((model) => model.id === modelId)
       },
-      setProviders: (providers) =>
+      setProviders: (providers) => {
         set((state) => {
           // MLX is Apple-Silicon only; drop it on every other platform so it
           // can't be reactivated, queried, or shown anywhere in the UI.
@@ -172,7 +173,9 @@ export const useModelProvider = create<ModelProviderState>()(
                 ...model,
                 settings: settings,
                 capabilities:
-                  mergedCapabilities.length > 0 ? mergedCapabilities : undefined,
+                  mergedCapabilities.length > 0
+                    ? mergedCapabilities
+                    : undefined,
                 displayName: existingModel?.displayName || model.displayName,
                 ...(userConfiguredCapabilities
                   ? { _userConfiguredCapabilities: true as const }
@@ -183,17 +186,14 @@ export const useModelProvider = create<ModelProviderState>()(
             const mergedSettings = provider.settings.map((setting) => {
               const existingSetting = provider.persist
                 ? undefined
-                : existingProvider?.settings?.find(
-                    (x) => x.key === setting.key
-                  )
+                : existingProvider?.settings?.find((x) => x.key === setting.key)
               // Only the user's `value` is carried over from existing state;
               // metadata like `recommended` / `options` must always reflect
               // the fresh extension fetch (otherwise stale recommendations
               // and stale option lists outlive the underlying setting).
               const existingValue = (
                 existingSetting?.controller_props as
-                  | { value?: string | number | boolean }
-                  | undefined
+                  { value?: string | number | boolean } | undefined
               )?.value
               return {
                 ...setting,
@@ -215,7 +215,8 @@ export const useModelProvider = create<ModelProviderState>()(
               settings: mergedSettings,
               api_key: existingProvider?.api_key || provider.api_key,
               api_key_fallbacks:
-                existingProvider?.api_key_fallbacks ?? provider.api_key_fallbacks,
+                existingProvider?.api_key_fallbacks ??
+                provider.api_key_fallbacks,
               base_url: existingProvider?.base_url || provider.base_url,
               active: existingProvider ? existingProvider?.active : true,
             }
@@ -233,7 +234,17 @@ export const useModelProvider = create<ModelProviderState>()(
                 providers: nextProviders,
                 deletedModels: effectiveDeletedModels,
               }
-        }),
+        })
+        void ensureCharacterModelBindings(
+          providers.map((provider) => ({
+            ...provider,
+            active:
+              get().getProviderByName(provider.provider)?.active ??
+              provider.active,
+          })),
+          get().selectedModel
+        ).catch(() => {})
+      },
       updateProvider: (providerName, data) => {
         set((state) => {
           const providers = state.providers.map((provider) => {
@@ -253,7 +264,8 @@ export const useModelProvider = create<ModelProviderState>()(
             Array.isArray(data.models)
           ) {
             selectedModel =
-              data.models.find((model) => model.id === selectedModel?.id) ?? null
+              data.models.find((model) => model.id === selectedModel?.id) ??
+              null
           }
 
           return {
@@ -685,8 +697,7 @@ export const useModelProvider = create<ModelProviderState>()(
             if (provider.provider !== 'llamacpp' || !provider.models) return
             provider.models.forEach((model) => {
               const ctx = model.settings?.ctx_len as
-                | { controller_props?: { value?: unknown } }
-                | undefined
+                { controller_props?: { value?: unknown } } | undefined
               const controllerProps = ctx?.controller_props
               const ctxValue =
                 typeof controllerProps?.value === 'string'
@@ -744,8 +755,7 @@ export const useModelProvider = create<ModelProviderState>()(
             if (provider.provider !== 'llamacpp' || !provider.models) return
             provider.models.forEach((model) => {
               const ctx = model.settings?.ctx_len as
-                | { controller_props?: { value?: unknown } }
-                | undefined
+                { controller_props?: { value?: unknown } } | undefined
               const controllerProps = ctx?.controller_props
               if (!controllerProps) return
               const value = controllerProps.value

@@ -11,13 +11,13 @@ const runInspector = () => {
   fn()
   // If the document reported itself as still loading, mount waited for
   // DOMContentLoaded (which may already have fired in the test env).
-  if (document.querySelectorAll('[data-jan-inspector="1"]').length < 3) {
+  if (document.querySelectorAll('[data-rey30-inspector="1"]').length < 3) {
     document.dispatchEvent(new Event('DOMContentLoaded'))
   }
 }
 
 const overlays = () =>
-  [...document.querySelectorAll<HTMLDivElement>('[data-jan-inspector="1"]')]
+  [...document.querySelectorAll<HTMLDivElement>('[data-rey30-inspector="1"]')]
 
 const fire = (type: string, target: Element) => {
   const Ctor =
@@ -61,7 +61,7 @@ describe('PREVIEW_INSPECTOR_SCRIPT', () => {
     // keeping the inspector's own overlay divs (children of body).
     fire('pointerdown', document.body)
     for (const el of overlays()) el.style.display = 'none'
-    for (const el of document.body.querySelectorAll(':not([data-jan-inspector])')) {
+    for (const el of document.body.querySelectorAll(':not([data-rey30-inspector])')) {
       el.remove()
     }
     const main = document.createElement('main')
@@ -125,7 +125,7 @@ describe('PREVIEW_INSPECTOR_SCRIPT', () => {
     fire('pointerdown', main)
     expect(spy).toHaveBeenCalledWith(
       {
-        source: 'jan-preview-inspector',
+        source: 'rey30-preview-inspector',
         type: 'pin',
         label: 'main',
         rect: { x: 0, y: 0, width: 120, height: 60 },
@@ -235,7 +235,7 @@ describe('PREVIEW_INSPECTOR_SCRIPT', () => {
     fire('pointerdown', main)
     expect(spy).toHaveBeenCalledWith(
       {
-        source: 'jan-preview-inspector',
+        source: 'rey30-preview-inspector',
         type: 'pin',
         label: 'main',
         rect: { x: 0, y: 0, width: 120, height: 60 },

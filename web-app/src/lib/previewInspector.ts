@@ -9,7 +9,7 @@
  *   label chip (`div#main.card.active`, truncated) following the element.
  * - Click an element: pin its bbox + label. Click the background (html/body)
  *   or press Escape: clear the pin. Scrolling/resizing keeps the pin aligned.
- * - Every pin/clear posts a `{source:'jan-preview-inspector', type:'pin'|
+ * - Every pin/clear posts a `{source:'rey30-preview-inspector', type:'pin'|
  *   'clear'}` message to the parent so the annotation overlay can anchor its
  *   inline note box at the selected element (see AnnotationOverlay).
  *
@@ -20,8 +20,8 @@
  */
 export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
   'use strict'
-  if (window.__janPreviewInspector) return
-  window.__janPreviewInspector = true
+  if (window.__rey30PreviewInspector) return
+  window.__rey30PreviewInspector = true
 
   var HOVER = '#94a3b8'  // slate-400 - subtle gray for hover
   var PIN = '#64748b'    // slate-500 - darker gray for pinned
@@ -32,7 +32,7 @@ export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
 
   function makeBox() {
     var el = document.createElement('div')
-    el.setAttribute('data-jan-inspector', '1')
+    el.setAttribute('data-rey30-inspector', '1')
     el.style.cssText =
       'position:fixed;pointer-events:none;z-index:2147483647;display:none;' +
       'box-sizing:border-box;margin:0;padding:0'
@@ -41,7 +41,7 @@ export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
 
   function makeLabel() {
     var el = document.createElement('div')
-    el.setAttribute('data-jan-inspector', '1')
+    el.setAttribute('data-rey30-inspector', '1')
     el.style.cssText =
       'position:fixed;pointer-events:none;z-index:2147483647;display:none;' +
       'max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' +
@@ -95,7 +95,7 @@ export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
     try {
       window.parent.postMessage(
         {
-          source: 'jan-preview-inspector',
+          source: 'rey30-preview-inspector',
           type: 'pin',
           label: label,
           rect: { x: r.left, y: r.top, width: r.width, height: r.height }
@@ -110,7 +110,7 @@ export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
   function sendClear() {
     try {
       window.parent.postMessage(
-        { source: 'jan-preview-inspector', type: 'clear' },
+        { source: 'rey30-preview-inspector', type: 'clear' },
         '*'
       )
     } catch (e) {
@@ -201,7 +201,7 @@ export const PREVIEW_INSPECTOR_SCRIPT = `(function () {
   // stale bbox never sits underneath the strokes the user is drawing.
   window.addEventListener('message', function (e) {
     var d = e.data
-    if (d && d.source === 'jan-annotation-overlay' && d.type === 'clear') {
+    if (d && d.source === 'rey30-annotation-overlay' && d.type === 'clear') {
       clearPin()
       // The hover outline sticks too: once the overlay captures the pointer,
       // this frame never sees the pointerout that would have hidden it.

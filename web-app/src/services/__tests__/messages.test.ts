@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DefaultMessagesService } from '../messages/default'
 import { ExtensionManager } from '@/lib/extension'
-import { ExtensionTypeEnum } from '@janhq/core'
+import { ExtensionTypeEnum } from '@rey30-idvj/core'
 
 // Mock the ExtensionManager
 vi.mock('@/lib/extension', () => ({
@@ -14,7 +14,7 @@ vi.mock('@/lib/extension', () => ({
 
 describe('DefaultMessagesService', () => {
   let messagesService: DefaultMessagesService
-  
+
   const mockExtension = {
     listMessages: vi.fn(),
     createMessage: vi.fn(),

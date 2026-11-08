@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import uiDetailsEs from '@/locales/es/ui-details.json'
 
 // ---- Module mocks ----------------------------------------------------------
 
@@ -49,14 +50,21 @@ vi.mock('@/hooks/useServiceHub', () => ({
 }))
 
 vi.mock('@/i18n/react-i18next-compat', () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    t: (key: string) => {
+      const value = key.startsWith('ui-details:')
+        ? (uiDetailsEs as Record<string, unknown>)[key.slice('ui-details:'.length)]
+        : undefined
+      return typeof value === 'string' ? value : key
+    },
+  }),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => hoisted.navigateMock,
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   DownloadEvent: {
     onFileDownloadUpdate: 'fdu',
     onFileDownloadError: 'fde',
@@ -183,7 +191,7 @@ describe('DownloadManagement', () => {
       },
     }
     render(<DownloadManagement />)
-    const cancelBtn = screen.getByTitle('Cancel download')
+    const cancelBtn = screen.getByTitle('Cancelar descarga')
     fireEvent.click(cancelBtn.closest('button')!)
     expect(hoisted.cancelDownloadMock).toHaveBeenCalledWith('llamacpp/foo')
   })
@@ -198,7 +206,7 @@ describe('DownloadManagement', () => {
       },
     }
     render(<DownloadManagement />)
-    const cancelBtn = screen.getByTitle('Cancel download')
+    const cancelBtn = screen.getByTitle('Cancelar descarga')
     fireEvent.click(cancelBtn.closest('button')!)
     await waitFor(() => expect(hoisted.abortDownloadMock).toHaveBeenCalledWith('cloud-model'))
   })
@@ -263,7 +271,7 @@ describe('DownloadManagement', () => {
       },
     }
     render(<DownloadManagement />)
-    fireEvent.click(screen.getByTitle('Pause download').closest('button')!)
+    fireEvent.click(screen.getByTitle('Pausar descarga').closest('button')!)
     expect(hoisted.downloadStore.setPaused).toHaveBeenCalledWith(
       'cloud-model',
       true
@@ -291,7 +299,7 @@ describe('DownloadManagement', () => {
       },
     }
     render(<DownloadManagement />)
-    fireEvent.click(screen.getByTitle('Resume download').closest('button')!)
+    fireEvent.click(screen.getByTitle('Reanudar descarga').closest('button')!)
     expect(hoisted.downloadStore.setPaused).toHaveBeenCalledWith(
       'cloud-model',
       false
@@ -320,7 +328,7 @@ describe('DownloadManagement', () => {
       },
     }
     render(<DownloadManagement />)
-    fireEvent.click(screen.getByTitle('Resume download').closest('button')!)
+    fireEvent.click(screen.getByTitle('Reanudar descarga').closest('button')!)
     expect(hoisted.pullModelMock).not.toHaveBeenCalled()
     expect(hoisted.toastMock.error).toHaveBeenCalled()
   })
@@ -332,7 +340,7 @@ describe('DownloadManagement', () => {
       'llamacpp/foo': { name: 'llamacpp/foo', progress: 0.1, total: 10 },
     }
     render(<DownloadManagement />)
-    expect(screen.queryByTitle('Pause download')).not.toBeInTheDocument()
-    expect(screen.getByTitle('Cancel download')).toBeInTheDocument()
+    expect(screen.queryByTitle('Pausar descarga')).not.toBeInTheDocument()
+    expect(screen.getByTitle('Cancelar descarga')).toBeInTheDocument()
   })
 })

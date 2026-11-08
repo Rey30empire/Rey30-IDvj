@@ -14,7 +14,7 @@ const convertFileSrc = vi.fn((p: string, protocol?: string) =>
 const previewRegisterRoot = vi.fn(async () => {})
 const previewUnregisterRoot = vi.fn(async () => {})
 const openArtifact = vi.fn(async () => {})
-vi.mock('@janhq/tauri-plugin-agent-tools-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-agent-tools-api', () => ({
   previewRegisterRoot: (...a: unknown[]) => previewRegisterRoot(...a),
   previewUnregisterRoot: (...a: unknown[]) => previewUnregisterRoot(...a),
   openArtifact: (...a: unknown[]) => openArtifact(...a),
@@ -22,7 +22,7 @@ vi.mock('@janhq/tauri-plugin-agent-tools-api', () => ({
 const openPath = vi.fn()
 const revealItemInDir = vi.fn()
 const hub = {
-  app: () => ({ getJanDataFolder: async () => '/data' }),
+  app: () => ({ getRey30DataFolder: async () => '/data' }),
   core: () => ({ convertFileSrc }),
   opener: () => ({ openPath, revealItemInDir }),
 }
@@ -145,12 +145,12 @@ describe('CoworkPreviewPanel', () => {
     view('game.html')
 
     const frame = (await screen.findByTitle('game.html')) as HTMLIFrameElement
-    expect(frame.srcdoc).toContain('jan-preview-shim')
+    expect(frame.srcdoc).toContain('rey30-preview-shim')
     const report = (message: string) =>
       act(() => {
         window.dispatchEvent(
           new MessageEvent('message', {
-            data: { source: 'jan-preview-shim', type: 'error', message },
+            data: { source: 'rey30-preview-shim', type: 'error', message },
             source: frame.contentWindow,
           })
         )
@@ -177,7 +177,7 @@ describe('CoworkPreviewPanel', () => {
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
-          data: { source: 'jan-preview-shim', type: 'error', message: 'x' },
+          data: { source: 'rey30-preview-shim', type: 'error', message: 'x' },
           source: window,
         })
       )

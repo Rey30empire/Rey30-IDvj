@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { DefaultModelsService } from '../default'
-import { EngineManager, events, DownloadEvent, ContentType } from '@janhq/core'
+import { EngineManager, events, DownloadEvent, ContentType } from '@rey30-idvj/core'
 
 const { mockEvents, mockDownloadEvent, mockExtractContent, mockExtractMetadata } = vi.hoisted(() => ({
   mockEvents: { emit: vi.fn() },
@@ -12,7 +12,7 @@ const { mockEvents, mockDownloadEvent, mockExtractContent, mockExtractMetadata }
   mockExtractMetadata: vi.fn().mockReturnValue(''),
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   EngineManager: { instance: vi.fn() },
   events: mockEvents,
   DownloadEvent: mockDownloadEvent,
@@ -27,7 +27,7 @@ vi.mock('../tokenCountToolContext', () => ({
 
 global.fetch = vi.fn()
 Object.defineProperty(global, 'MODEL_CATALOG_URL', { value: 'https://example.com/models', writable: true, configurable: true })
-Object.defineProperty(global, 'LATEST_JAN_MODEL_URL', { value: 'https://example.com/latest', writable: true, configurable: true })
+Object.defineProperty(global, 'LATEST_DEFAULT_MODEL_URL', { value: 'https://example.com/latest', writable: true, configurable: true })
 
 describe('DefaultModelsService - additional coverage', () => {
   let svc: DefaultModelsService
@@ -69,24 +69,24 @@ describe('DefaultModelsService - additional coverage', () => {
     })
   })
 
-  describe('fetchLatestJanModel', () => {
+  describe('fetchLatestDefaultModel', () => {
     it.each([
       ['object response', { model_name: 'jan-nano' }, { model_name: 'jan-nano' }],
       ['array response', [{ model_name: 'jan-nano' }, { model_name: 'jan-micro' }], { model_name: 'jan-nano' }],
       ['empty array', [], null],
     ])('handles %s', async (_label, response, expected) => {
       ;(fetch as any).mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue(response) })
-      expect(await svc.fetchLatestJanModel()).toEqual(expected)
+      expect(await svc.fetchLatestDefaultModel()).toEqual(expected)
     })
 
     it('returns null on non-ok response', async () => {
       ;(fetch as any).mockResolvedValue({ ok: false, status: 500, statusText: 'Error' })
-      expect(await svc.fetchLatestJanModel()).toBeNull()
+      expect(await svc.fetchLatestDefaultModel()).toBeNull()
     })
 
     it('returns null on network error', async () => {
       ;(fetch as any).mockRejectedValue(new Error('network'))
-      expect(await svc.fetchLatestJanModel()).toBeNull()
+      expect(await svc.fetchLatestDefaultModel()).toBeNull()
     })
   })
 
@@ -431,6 +431,12 @@ describe('DefaultModelsService - additional coverage', () => {
   })
 
   describe('pullModel', () => {
+    it('rejects unavailable engines rather than reporting a successful local registration', async () => {
+      mockEngineManager.get.mockReturnValueOnce(undefined)
+      await expect(svc.pullModel('fixture-local', 'C:/fixtures/owned.gguf')).rejects.toThrow('no está disponible')
+      expect(mockEngine.import).not.toHaveBeenCalled()
+      expect(mockEngine.load).not.toHaveBeenCalled()
+    })
     it('handles all optional params', async () => {
       mockEngine.import.mockResolvedValue(undefined)
       await svc.pullModel('id1', '/path', 'sha256', 1000, '/mmproj', 'msha', 500)

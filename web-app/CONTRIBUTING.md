@@ -1,4 +1,4 @@
-# Contributing to Jan Web App
+# Contributing to Rey30 IDvj Web App
 
 [← Back to Main Contributing Guide](../CONTRIBUTING.md)
 
@@ -7,7 +7,7 @@ React frontend using TypeScript, TanStack Router, Radix UI, and Tailwind CSS. St
 ## Key Directories
 
 - **`/src/components/ui`** - UI components (buttons, dialogs, inputs)
-- **`/src/containers`** - Complex feature components (ChatInput, ThreadContent)  
+- **`/src/containers`** - Complex feature components (ChatInput, ThreadContent)
 - **`/src/hooks`** - Custom React hooks (useChat, useThreads, useAppState)
 - **`/src/routes`** - TanStack Router pages
 - **`/src/services`** - API layer for backend communication

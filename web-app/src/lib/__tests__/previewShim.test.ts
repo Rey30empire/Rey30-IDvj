@@ -97,9 +97,9 @@ describe('PREVIEW_SHIM_SCRIPT', () => {
     document.body.appendChild(script)
     script.dispatchEvent(new Event('error'))
     expect(posted).toEqual([
-      { source: 'jan-preview-shim', type: 'error', message: 'boom' },
+      { source: 'rey30-preview-shim', type: 'error', message: 'boom' },
       {
-        source: 'jan-preview-shim',
+        source: 'rey30-preview-shim',
         type: 'error',
         message: 'Failed to load script https://cdn.example/lib.js',
       },
@@ -110,10 +110,10 @@ describe('PREVIEW_SHIM_SCRIPT', () => {
 describe('previewShimError', () => {
   it('extracts the message from a shim report only', () => {
     expect(
-      previewShimError({ source: 'jan-preview-shim', type: 'error', message: 'x' })
+      previewShimError({ source: 'rey30-preview-shim', type: 'error', message: 'x' })
     ).toBe('x')
-    expect(previewShimError({ source: 'jan-preview-inspector', type: 'pin' })).toBeNull()
-    expect(previewShimError({ source: 'jan-preview-shim', type: 'error' })).toBeNull()
+    expect(previewShimError({ source: 'rey30-preview-inspector', type: 'pin' })).toBeNull()
+    expect(previewShimError({ source: 'rey30-preview-shim', type: 'error' })).toBeNull()
     expect(previewShimError('nope')).toBeNull()
     expect(previewShimError(null)).toBeNull()
   })

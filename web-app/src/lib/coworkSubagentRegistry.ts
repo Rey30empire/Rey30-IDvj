@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 /**
  * The saved subagent definitions available to a Cowork run.
  *
- * Desktop keeps a single directory (`<janDataFolder>/agent-workspace/subagents`)
+ * Desktop keeps a single directory (`<rey30DataFolder>/agent-workspace/subagents`)
  * rather than the CLI's plugin/user/project merge: a default session has no
  * project root, and an attached folder is mounted read-only, so scanning it
  * would let a cloned repo inject a system prompt and a tool allowlist into the

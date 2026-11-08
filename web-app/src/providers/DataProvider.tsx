@@ -15,7 +15,7 @@ import { useThreads } from '@/hooks/useThreads'
 import { ExtensionManager } from '@/lib/extension'
 import { useLocalApiServer } from '@/hooks/useLocalApiServer'
 import { useAppState } from '@/hooks/useAppState'
-import { AppEvent, events } from '@janhq/core'
+import { AppEvent, events } from '@rey30-idvj/core'
 import { SystemEvent } from '@/types/events'
 import { isDev } from '@/lib/utils'
 import { sweepThreadWorkspaces } from '@/lib/agentTools'
@@ -144,7 +144,7 @@ const syncRemoteProviders = () => {
   registeredProviderNames = currentActive
 }
 
-// MLX honors only these samplers; map Jan's setting keys to MLX request-body
+// MLX honors only these samplers; map Rey30 IDvj's setting keys to MLX request-body
 // keys (note repeat_penalty → repetition_penalty). llamacpp uses the router
 // preset and remote providers are intentionally excluded.
 const MLX_SAMPLING_KEY_MAP: Record<string, string> = {
@@ -164,8 +164,8 @@ const syncModelParamDefaults = () => {
     if (provider.provider !== 'mlx' || !provider.active) continue
     for (const model of provider.models) {
       const out: Record<string, number> = {}
-      for (const [janKey, mlxKey] of Object.entries(MLX_SAMPLING_KEY_MAP)) {
-        const v = model.settings?.[janKey]?.controller_props?.value
+      for (const [settingKey, mlxKey] of Object.entries(MLX_SAMPLING_KEY_MAP)) {
+        const v = model.settings?.[settingKey]?.controller_props?.value
         if (typeof v === 'number' && Number.isFinite(v)) out[mlxKey] = v
       }
       if (Object.keys(out).length > 0) defaults[model.id] = out
@@ -359,7 +359,7 @@ export function DataProvider() {
     // Only check for updates if the auto updater is not disabled
     // App might be distributed via other package managers
     // or methods that handle updates differently
-    if (isDev() || !autoUpdateCheck) {
+    if (AUTO_UPDATER_DISABLED || isDev() || !autoUpdateCheck) {
       return
     }
 

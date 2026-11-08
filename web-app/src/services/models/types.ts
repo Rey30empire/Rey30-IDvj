@@ -2,9 +2,9 @@
  * Models Service Types
  */
 
-import { SessionInfo, modelInfo, ThreadMessage, UnloadResult } from '@janhq/core'
-import type { SpecDraftKind } from '@janhq/core'
-import { Model as CoreModel } from '@janhq/core'
+import { SessionInfo, modelInfo, ThreadMessage, UnloadResult } from '@rey30-idvj/core'
+import type { SpecDraftKind } from '@rey30-idvj/core'
+import { Model as CoreModel } from '@rey30-idvj/core'
 
 // Types for model catalog
 export interface ModelQuant {
@@ -111,7 +111,7 @@ export interface ModelsService {
   getModelContextLimit(modelId: string, provider: string): Promise<number | undefined>
   fetchModels(): Promise<modelInfo[]>
   fetchModelCatalog(): Promise<ModelCatalog>
-  fetchLatestJanModel(): Promise<CatalogModel | null>
+  fetchLatestDefaultModel(): Promise<CatalogModel | null>
   fetchHuggingFaceRepo(
     repoId: string,
     hfToken?: string
@@ -231,7 +231,7 @@ export type EmbeddingVectorProblem =
  * expected, which is `ok`, not a warning. Mirrors GpuOffloadReason in
  * extensions/llamacpp-extension/src/readiness.ts.
  */
-export type GpuOffloadReason = 'runtimeUnreachable' | 'missingLibrary'
+export type GpuOffloadReason = 'runtimeUnreachable' | 'missingLibrary' | 'selectedDevicesUnavailable'
 
 interface ReadinessReport {
   status: 'ok' | 'warning'
@@ -263,4 +263,7 @@ export interface GpuOffloadReport extends ReadinessReport {
   reason?: GpuOffloadReason
   /** Set only for `missingLibrary`; names are not translatable. */
   missingLibraries?: string[]
+  devices?: { id: string; name: string }[]
+  missingDeviceIds?: string[]
+  offloadDisabled?: boolean
 }

@@ -5,12 +5,14 @@ import type { MCPServerConfig } from '../useMCPServers'
 
 const mockUpdateMCPConfig = vi.fn().mockResolvedValue(undefined)
 const mockRestartMCPServers = vi.fn().mockResolvedValue(undefined)
+const mockGetMCPConfig = vi.fn().mockResolvedValue({})
 
 vi.mock('@/hooks/useServiceHub', () => ({
   getServiceHub: () => ({
     mcp: () => ({
       updateMCPConfig: mockUpdateMCPConfig,
       restartMCPServers: mockRestartMCPServers,
+      getMCPConfig: mockGetMCPConfig,
     }),
   }),
 }))
@@ -25,6 +27,7 @@ const makeConfig = (overrides: Partial<MCPServerConfig> = {}): MCPServerConfig =
 describe('useMCPServers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetMCPConfig.mockReset().mockResolvedValue({})
     useMCPServers.setState({
       open: true, mcpServers: {}, settings: { ...DEFAULT_MCP_SETTINGS },
       loading: false, deletedServerKeys: [],
@@ -187,6 +190,38 @@ describe('useMCPServers', () => {
       expect(mockUpdateMCPConfig).toHaveBeenCalled()
       expect(mockRestartMCPServers).toHaveBeenCalled()
     })
+  })
+
+  it.each(['syncServers', 'syncServersAndRestart'] as const)('%s preserves current metadata and settings after toggling and deleting servers', async (method) => {
+    const kept = makeConfig({ active: false })
+    const removed = makeConfig()
+    mockGetMCPConfig.mockResolvedValue({
+      mcpServers: { kept, removed },
+      mcpSettings: { ...DEFAULT_MCP_SETTINGS, futureSetting: null },
+      customMetadata: { nested: ['retained', null] }, futureField: [1, false], nullable: null,
+    })
+    const store = useMCPServers.getState()
+    store.setServers({ kept, removed })
+    store.editServer('kept', { ...kept, active: true })
+    store.deleteServer('removed')
+    store.updateSettings({ toolCallTimeoutSeconds: 45 })
+    await store[method]()
+    const saved = JSON.parse(mockUpdateMCPConfig.mock.calls.at(-1)![0])
+    expect(saved.customMetadata).toEqual({ nested: ['retained', null] })
+    expect(saved.futureField).toEqual([1, false])
+    expect(saved.nullable).toBeNull()
+    expect(saved.mcpSettings.futureSetting).toBeNull()
+    expect(saved.mcpSettings.toolCallTimeoutSeconds).toBe(45)
+    expect(saved.mcpServers).toEqual({ kept: { ...kept, active: true } })
+    expect(mockGetMCPConfig).toHaveBeenCalledTimes(1)
+    expect(mockRestartMCPServers).toHaveBeenCalledTimes(method === 'syncServersAndRestart' ? 1 : 0)
+  })
+
+  it('does not write or restart after failing to read the current configuration', async () => {
+    mockGetMCPConfig.mockRejectedValueOnce(new Error('read failed'))
+    await expect(useMCPServers.getState().syncServersAndRestart()).rejects.toThrow('read failed')
+    expect(mockUpdateMCPConfig).not.toHaveBeenCalled()
+    expect(mockRestartMCPServers).not.toHaveBeenCalled()
   })
 
   describe('state management', () => {

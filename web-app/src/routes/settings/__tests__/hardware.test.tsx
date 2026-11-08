@@ -53,6 +53,8 @@ vi.mock('@/i18n/react-i18next-compat', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
+const physical = vi.hoisted(() => ({ gpus: [] as { uuid: string; name: string; total_memory: number }[] }))
+
 vi.mock('@/hooks/useHardware', () => ({
   useHardware: () => ({
     hardwareData: {
@@ -60,6 +62,7 @@ vi.mock('@/hooks/useHardware', () => ({
       os_name: 'Windows 11',
       cpu: { name: 'Intel i7', arch: 'x64', core_count: 8, extensions: ['SSE'] },
       total_memory: 16384,
+      gpus: physical.gpus,
     },
     systemUsage: { cpu: 50, used_memory: 8192 },
     setHardwareData: vi.fn(),
@@ -173,6 +176,7 @@ describe('Hardware Settings', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     global.IS_MACOS = false
+    physical.gpus = []
     llamacpp.devices = [
       { id: 'gpu0', name: 'RTX 3080', mem: 10240, free: 8192, activated: true },
     ]
@@ -240,6 +244,19 @@ describe('Hardware Settings', () => {
       expect(screen.getByText('Vulkan')).toBeInTheDocument()
       expect(screen.getAllByTestId('switch').length).toBe(1)
     })
+  })
+
+  it('lists the system-detected AMD even when only NVIDIA appears in the engine', async () => {
+    physical.gpus = [
+      { uuid: 'nvidia', name: 'RTX 3080', total_memory: 10240 },
+      { uuid: 'amd', name: 'AMD Radeon AI PRO R9700', total_memory: 32768 },
+    ]
+    const Component = Route.component as React.ComponentType
+    render(<Component />)
+    const amd = await screen.findByText('AMD Radeon AI PRO R9700')
+    expect(amd.closest('li')).toHaveTextContent('settings:hardware.detectedBySystem')
+    expect(screen.getAllByText('RTX 3080')).toHaveLength(1)
+    expect(screen.getAllByTestId('switch')).toHaveLength(1)
   })
 
   describe('Refresh and a GPU that appeared after launch', () => {

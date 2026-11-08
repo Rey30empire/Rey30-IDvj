@@ -131,7 +131,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => h.invoke(...args),
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AppEvent: { onModelImported: 'onModelImported' },
   events: {
     on: (...a: unknown[]) => h.eventsOn(...a),

@@ -35,6 +35,8 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { paramsSettings, type ParamDef } from '@/lib/predefinedParams'
 import { isPredefinedRemoteProvider } from '@/lib/providerCaps'
 import { cn } from '@/lib/utils'
+import { characterIdFromAssistantId, selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
+import { toast } from 'sonner'
 
 interface SamplerPopoverProps {
   /** Provider ID of the currently-selected model, if any. Used to scope the
@@ -59,6 +61,7 @@ export function SamplerPopover({
   modelId,
   assistantSwitcher,
 }: SamplerPopoverProps) {
+  const { t } = useTranslation()
   const currentAssistant = useAssistant((s) => s.currentAssistant)
   const updateAssistant = useAssistant((s) => s.updateAssistant)
   const assistantsLoading = useAssistant((s) => s.loading)
@@ -94,6 +97,7 @@ export function SamplerPopover({
     : selectedAssistant
 
   const params = activeAssistant?.parameters ?? {}
+  const isCharacter = !!characterIdFromAssistantId(activeAssistant?.id)
   const samplerKeys = Object.keys(params).filter((k) => k in paramsSettings)
   const hasOverrides = samplerKeys.length > 0
 
@@ -166,7 +170,7 @@ export function SamplerPopover({
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label="Sampling parameters"
+              aria-label={t('ui-details:samplingParameters')}
               className="relative"
               disabled={assistantsLoading}
             >
@@ -207,8 +211,7 @@ export function SamplerPopover({
           <div className="flex items-center gap-1 shrink-0">
             {hasOverrides && (
               <Button variant="ghost" size="sm" onClick={handleResetAll}>
-                Reset all
-              </Button>
+                {t('ui-details:resetParameters')}</Button>
             )}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -219,12 +222,15 @@ export function SamplerPopover({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Open assistant settings</p>
+                <p>{t('ui-details:openAssistantSettings')}</p>
               </TooltipContent>
             </Tooltip>
           </div>
         </div>
-        {activeAssistant ? (
+        {isCharacter ? <div className="space-y-2 px-4 py-3 text-sm">
+          <p>Este asistente utiliza los parámetros de su modelo asociado.</p>
+          {providerId && <Link className="inline-flex underline" to={route.settings.providers} params={{ providerName: providerId }}>Configurar modelo asociado</Link>}
+        </div> : activeAssistant ? (
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
             <ParametersSection
               params={params}
@@ -240,8 +246,7 @@ export function SamplerPopover({
           </div>
         ) : (
           <div className="text-xs text-muted-foreground px-4 py-3">
-            Pick an assistant above to configure sampling.
-          </div>
+            {t('ui-details:chooseAssistantForSampling')}</div>
         )}
       </PopoverContent>
     </Popover>
@@ -300,7 +305,7 @@ function AssistantHeader({
           setSelectedAssistant={assistantSwitcher.setSelectedAssistantId}
           currentThread={assistantSwitcher.currentThread}
           updateCurrentThreadAssistant={
-            assistantSwitcher.updateCurrentThreadAssistant
+            (assistant) => { void selectIntegratedAssistant(assistant?.id ?? '', assistantSwitcher.currentThread?.id).catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'No se pudo cambiar el asistente.')) }
           }
           assistants={assistantSwitcher.assistants}
         />

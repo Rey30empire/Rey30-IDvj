@@ -51,7 +51,7 @@ function setDefaultHeader(
 }
 
 /// Anthropic rejects `/v1/models` (and any Anthropic-shaped proxy) without
-/// `anthropic-version`, and rejects requests carrying an `Origin` (Jan's
+/// `anthropic-version`, and rejects requests carrying an `Origin` (Rey30 IDvj's
 /// webview is a browser context) without the browser-access opt-in header.
 /// Add both defaults for Anthropic providers when the caller hasn't set them;
 /// other providers are left untouched.

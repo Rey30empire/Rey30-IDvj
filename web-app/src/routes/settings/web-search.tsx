@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import HeaderPage from '@/containers/HeaderPage'
 import SettingsMenu from '@/containers/SettingsMenu'
 import { Card, CardItem } from '@/containers/Card'
@@ -23,8 +22,7 @@ import {
   providerFavicon,
 } from '@/hooks/useWebSearchConfig'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.web_search as any)({
+export const Route = createFileRoute('/settings/web-search')({
   component: WebSearchContent,
 })
 

@@ -30,6 +30,7 @@ import ErrorDialog from '@/containers/dialogs/ErrorDialog'
 import LlamacppBusyOnExitDialog from '@/containers/dialogs/LlamacppBusyOnExitDialog'
 import LlamacppOomListener from '@/containers/dialogs/LlamacppOomListener'
 import MissingDependenciesDialog from '@/containers/dialogs/MissingDependenciesDialog'
+import CloudPrivacyReviewDialog from '@/containers/dialogs/CloudPrivacyReviewDialog'
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -131,6 +132,7 @@ function RootLayout() {
           <LlamacppBusyOnExitDialog />
           <LlamacppOomListener />
           <MissingDependenciesDialog />
+          <CloudPrivacyReviewDialog />
           <OutOfContextPromiseModal />
         </TranslationProvider>
       </ServiceHubProvider>

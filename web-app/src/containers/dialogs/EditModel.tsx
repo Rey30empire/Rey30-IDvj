@@ -151,11 +151,11 @@ export const DialogEditModel = ({
       if (capabilitiesChanged) setOriginalCapabilities(capabilities)
 
       // Show success toast and close dialog
-      toast.success('Model updated successfully')
+      toast.success(t('ui-details:modelUpdated'))
       setIsOpen(false)
     } catch (error) {
       console.error('Failed to update model:', error)
-      toast.error('Failed to update model. Please try again.')
+      toast.error(t('ui-details:modelUpdateFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -217,8 +217,7 @@ export const DialogEditModel = ({
             disabled={isLoading}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            This is the name that will be shown in the interface. The original model file remains unchanged.
-          </p>
+            {t('ui-details:modelDisplayNameHint')}</p>
         </div>
 
         {/* Warning Banner */}

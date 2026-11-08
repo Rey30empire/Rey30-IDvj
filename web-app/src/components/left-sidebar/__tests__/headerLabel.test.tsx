@@ -30,6 +30,7 @@ vi.mock('@/containers/DownloadManegement', () => ({
 vi.mock('../NavCowork', () => ({ NavCowork: () => null }))
 vi.mock('../NavMain', () => ({ NavMain: () => null }))
 vi.mock('../NavChats', () => ({ NavChats: () => null }))
+vi.mock('../NavAssistants', () => ({ NavAssistants: () => null }))
 vi.mock('../NavProjects', () => ({ NavProjects: () => null }))
 vi.mock('../NavTabs', () => ({ NavTabs: () => null }))
 vi.mock('@/components/ui/sidebar', () => {
@@ -38,10 +39,13 @@ vi.mock('@/components/ui/sidebar', () => {
     Sidebar: Box,
     SidebarContent: Box,
     SidebarHeader: Box,
+    SidebarFooter: Box,
     SidebarTrigger: () => null,
     SidebarRail: () => null,
   }
 })
+
+vi.mock('../SidebarProfile', () => ({ SidebarProfile: () => <div>Local profile menu</div> }))
 
 import { LeftSidebar } from '..'
 
@@ -54,23 +58,23 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('shows the Jan label on Windows and Linux with window buttons on the right', () => {
+it('shows the Rey30 IDvj label on Windows and Linux with window buttons on the right', () => {
   render(<LeftSidebar />)
 
-  expect(screen.getByText('Jan')).toBeInTheDocument()
+  expect(screen.getByText('Rey30 IDvj')).toBeInTheDocument()
 })
 
 // The traffic lights own the top-left on macOS (#8943).
-it('hides the Jan label on macOS', () => {
+it('hides the Rey30 IDvj label on macOS', () => {
   vi.stubGlobal('IS_MACOS', true)
   render(<LeftSidebar />)
 
-  expect(screen.queryByText('Jan')).not.toBeInTheDocument()
+  expect(screen.queryByText('Rey30 IDvj')).not.toBeInTheDocument()
 })
 
-it('hides the Jan label when a Linux desktop puts window buttons on the left', () => {
+it('hides the Rey30 IDvj label when a Linux desktop puts window buttons on the left', () => {
   titlebar.left = ['close', 'minimize', 'maximize']
   render(<LeftSidebar />)
 
-  expect(screen.queryByText('Jan')).not.toBeInTheDocument()
+  expect(screen.queryByText('Rey30 IDvj')).not.toBeInTheDocument()
 })

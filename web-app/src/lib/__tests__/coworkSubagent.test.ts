@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Tool } from 'ai'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
+
+beforeEach(() => {
+  usePrivacyMode.setState({ mode: 'standard', loaded: true, saving: false, error: null })
+})
 
 const { streamText, convertToModelMessages } = vi.hoisted(() => ({
   streamText: vi.fn(),
@@ -655,6 +660,15 @@ describe('runSubagent', () => {
       expect.objectContaining({ toolName: 'read' }),
       expect.anything()
     )
+  })
+
+  it.each(['local-only', 'cloud-review'] as const)('keeps child tool dispatch denied in %s', async mode => {
+    usePrivacyMode.setState({ mode })
+    mockSteps([toolStep('c1', 'read', { path: 'a' }), textStep('done')])
+    const opts = baseOpts()
+    await runSubagent(opts)
+    expect(opts.dispatch).not.toHaveBeenCalled()
+    expect(opts.events.onInner).toHaveBeenCalledWith(expect.objectContaining({ type: 'tool_result', id: 'c1', is_error: true, content: expect.stringContaining('privacidad') }))
   })
 
   it('reports a step cap as an error, keeping the partial output', async () => {

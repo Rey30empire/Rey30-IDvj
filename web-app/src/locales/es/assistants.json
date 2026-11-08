@@ -36,5 +36,11 @@
   "isDefault": "Predeterminado",
   "defaultAssistantSection": "Asistente predeterminado",
   "defaultAssistantDesc": "Se usa al iniciar un nuevo chat",
-  "allAssistants": "Todos los asistentes"
+  "allAssistants": "Todos los asistentes",
+  "lastUsed": "Último uso",
+  "manage": "Administrar asistentes",
+  "voiceOnly": "Solo voz",
+  "openError": "No se pudo abrir el asistente.",
+  "loadError": "No se pudieron cargar los asistentes integrados.",
+  "loading": "Cargando asistentes…"
 }

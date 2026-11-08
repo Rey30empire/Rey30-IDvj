@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <g data-part="tail" class="character-tail"><path d="M139 222q45-8 44-61-23 7-40 33Z" fill="var(--character-secondary,#C96938)" stroke="#875036" stroke-width="3"/><path d="M169 180q13-14 14-19 1 25-8 40l-12-9Z" fill="var(--character-skin,#F0D4AE)"/></g>
+    <path d="M37 235v-48q0-45 63-45t63 45v48" fill="var(--character-primary,#47705D)"/>
+    <g data-part="arms" class="character-arms"><path d="m47 175-12 37 28 8m90-45 12 37-28 8" stroke="var(--character-primary,#47705D)" stroke-width="20" stroke-linecap="round"/><path d="m62 220 10-2m66 2-10-2" stroke="var(--character-secondary,#C96938)" stroke-width="9" stroke-linecap="round"/></g>
+    <path d="m76 146 24 27 24-27 13 25-23 22H86l-23-22Z" fill="#345849"/><path d="M87 170v23m26-23v23" stroke="var(--character-skin,#F0D4AE)" stroke-width="3"/><path d="m72 153 67 82" stroke="#6D4C39" stroke-width="10"/><path d="M117 206h27v29h-27Z" fill="var(--character-accent,#E8BD7F)" stroke="#7B573D" stroke-width="3"/>
+    <g data-part="ears" class="character-ears"><path d="M59 83 43 26q30 6 40 43m34 0q10-37 40-43l-16 57" fill="var(--character-secondary,#C96938)" stroke="var(--character-hair,#613E30)" stroke-width="5"/><path d="m55 46 13 34 7-12m70-22-13 34-7-12" fill="var(--character-skin,#F0D4AE)"/></g>
+    <path d="M57 69q43-32 86 0l12 38-32 34-23 8-23-8-32-34Z" fill="var(--character-secondary,#C96938)" stroke="#875036" stroke-width="3"/><path d="m49 109 29 2 22 16 22-16 29-2-28 32-23 8-23-8Z" fill="var(--character-skin,#F0D4AE)"/><path d="m100 70-7 13 7-3 7 3Z" fill="var(--character-hair,#613E30)"/>
+    <g data-part="eyebrows" class="character-brows" stroke="#613E30" stroke-width="4" stroke-linecap="round"><path d="m66 84 22 2m24 0 22-4"/></g>
+    <g data-part="eyes" class="character-eyes"><path d="M67 96h23m20 0h23" stroke="#F4D993" stroke-width="8" stroke-linecap="round"/><path d="M81 92v8m38-8v8" stroke="#3B382D" stroke-width="5" stroke-linecap="round"/></g>
+    <path d="m92 119 8 9 8-9q-8-6-16 0" fill="#44332D"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M100 128v6m0 0q-9 6-17-2m17 2q9 6 17-2" stroke="#755444" stroke-width="2.5" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="100" cy="136" rx="7" ry="3" fill="#63473B" opacity="0"/></g>
+  </g>
+</svg>

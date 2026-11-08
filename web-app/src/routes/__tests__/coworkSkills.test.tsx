@@ -12,9 +12,12 @@ const backend = vi.hoisted(() => ({
   received: [] as UIMessage[][],
   hold: false,
   preparationError: false,
+  hasFileTools: true,
+  validateFolder: vi.fn<(folder: string) => Promise<string>>(),
+  createModel: vi.fn(),
+  compact: vi.fn(),
   exercise: null as
-    | null
-    | ((deps: CoworkRunner.RunDeps, signal: AbortSignal) => Promise<void>),
+    null | ((deps: CoworkRunner.RunDeps, signal: AbortSignal) => Promise<void>),
   files: new Map<string, string>(),
   runs: [] as {
     signal: AbortSignal
@@ -64,6 +67,9 @@ vi.mock('@/lib/coworkTransport', () => ({
   CoworkChatTransport: class {
     setConfig() {}
     unfreezeTools() {}
+    get advertisedTools() {
+      return backend.hasFileTools ? { read: {}, write: {}, edit: {} } : {}
+    }
     async refreshTools() {
       if (backend.preparationError) throw new Error('Tool preparation failed')
     }
@@ -89,6 +95,7 @@ vi.mock('@/lib/coworkRunner', async (original) => ({
   },
 }))
 vi.mock('@/lib/agentTools', () => ({
+  validateCoworkFolder: backend.validateFolder,
   executeAgentTool: async (
     name: string,
     input: { path: string; content?: string }
@@ -110,8 +117,11 @@ vi.mock('@/lib/agentTools', () => ({
 vi.mock('@/lib/coworkSubagentRegistry', () => ({
   listSubagents: async () => [],
 }))
-vi.mock('@/lib/model-factory', () => ({ ModelFactory: {} }))
-vi.mock('@janhq/tauri-plugin-agent-tools-api', () => ({
+vi.mock('@/lib/model-factory', () => ({
+  ModelFactory: { createModel: backend.createModel },
+}))
+vi.mock('@/lib/context-manager', () => ({ compactMessages: backend.compact }))
+vi.mock('@rey30-idvj/tauri-plugin-agent-tools-api', () => ({
   sessionWorkspacePath: async () => '/sandbox',
 }))
 vi.mock('@/containers/ChatInput', () => ({
@@ -240,6 +250,7 @@ import { useMessageQueue } from '@/stores/message-queue-store'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { answerAsk } from '@/lib/coworkRunner'
 import { localStorageKey } from '@/constants/localStorage'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
 // The router mock returns the supplied component options directly.
 const routeOptions = Route as unknown as { component: () => ReactNode }
 const CoworkPage = routeOptions.component
@@ -255,12 +266,28 @@ function Manager() {
 }
 
 beforeEach(() => {
+  usePrivacyMode.setState({
+    mode: 'standard',
+    loaded: true,
+    saving: false,
+    error: null,
+  })
   backend.skills.clear()
   backend.projectSkills.clear()
   backend.storage.clear()
   backend.received = []
   backend.hold = false
   backend.preparationError = false
+  backend.hasFileTools = true
+  backend.validateFolder
+    .mockReset()
+    .mockImplementation(async (folder) => folder)
+  backend.createModel
+    .mockReset()
+    .mockResolvedValue({ id: 'owned-model-fixture' })
+  backend.compact
+    .mockReset()
+    .mockResolvedValue({ messages: [], trimmedCount: 0 })
   backend.runs = []
   backend.exercise = null
   backend.files.clear()
@@ -618,3 +645,129 @@ it.each([
     ).toBe(planMode)
   }
 )
+
+it.each(['local-only', 'cloud-review'] as const)(
+  'privacy mode %s denies file writes without bypassing the plan state',
+  async (mode) => {
+    usePrivacyMode.setState({ mode })
+    const sid = useCoworkSessions.getState().createSession()
+    useCoworkSessions.getState().setPlanMode(sid, true)
+    let outcome: CoworkRunner.ToolOutcome | undefined
+    backend.exercise = async (deps, signal) => {
+      outcome = await deps.dispatch(
+        {
+          toolCallId: 'write-denied',
+          toolName: 'write',
+          input: { path: 'cat.html', content: '<h1>Fixture</h1>' },
+        },
+        signal
+      )
+    }
+    render(<CoworkPage />)
+    act(() => usePrompt.getState().setPrompt('make cat html'))
+    fireEvent.click(screen.getByText('Send'))
+    await waitFor(() => expect(outcome?.isError).toBe(true))
+    expect(outcome?.output).toContain('privacidad')
+    expect(backend.files.has('cat.html')).toBe(false)
+    expect(useCoworkRun.getState().pendingAsks[sid] ?? []).toHaveLength(0)
+    expect(
+      useCoworkSessions
+        .getState()
+        .sessions.find((session) => session.id === sid)?.planMode
+    ).toBe(true)
+  }
+)
+
+it.each(['local-only', 'cloud-review'] as const)(
+  'blocks a project run in %s before validating or sending the folder',
+  async (mode) => {
+    usePrivacyMode.setState({ mode })
+    const sid = useCoworkSessions.getState().createSession()
+    useCoworkSessions.getState().setFolder(sid, '/owned-project')
+    render(<CoworkPage />)
+    act(() => usePrompt.getState().setPrompt('Lee los archivos del proyecto'))
+    fireEvent.click(screen.getByText('Send'))
+    await waitFor(() =>
+      expect(useCoworkRun.getState().outcomes[sid]?.errorText).toContain(
+        'privacidad'
+      )
+    )
+    expect(backend.validateFolder).not.toHaveBeenCalled()
+    expect(backend.received).toEqual([])
+  }
+)
+
+it('cancels a project run if its bound model changes while folder validation is pending', async () => {
+  const sid = useCoworkSessions.getState().createSession()
+  useCoworkSessions.getState().setFolder(sid, '/owned-project')
+  let validated!: (folder: string) => void
+  backend.validateFolder.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        validated = resolve
+      })
+  )
+  render(<CoworkPage />)
+  act(() => usePrompt.getState().setPrompt('Lee el proyecto'))
+  fireEvent.click(screen.getByText('Send'))
+  await waitFor(() =>
+    expect(backend.validateFolder).toHaveBeenCalledWith('/owned-project')
+  )
+  act(() =>
+    useCoworkSessions
+      .getState()
+      .setModel(sid, { provider: 'test', id: 'second-model' })
+  )
+  await act(async () => validated('/owned-project-canonical'))
+  await waitFor(() =>
+    expect(useCoworkRun.getState().runId[sid]).toBeUndefined()
+  )
+  expect(backend.received).toEqual([])
+})
+
+it('reports unavailable file tools rather than sending a project turn without them', async () => {
+  backend.hasFileTools = false
+  const sid = useCoworkSessions.getState().createSession()
+  useCoworkSessions.getState().setFolder(sid, '/owned-project')
+  render(<CoworkPage />)
+  act(() => usePrompt.getState().setPrompt('Crea un archivo'))
+  fireEvent.click(screen.getByText('Send'))
+  await waitFor(() =>
+    expect(useCoworkRun.getState().outcomes[sid]?.errorText).toContain(
+      'herramientas de archivos'
+    )
+  )
+  expect(backend.received).toEqual([])
+})
+
+it('compacts the project transcript with its bound provider and model', async () => {
+  const model = { id: 'owned-file-model', capabilities: ['tools'] }
+  const provider = {
+    provider: 'owned-bound',
+    active: true,
+    models: [model],
+    settings: [],
+  }
+  useModelProvider.setState((state) => ({
+    providers: [...state.providers, provider],
+  }))
+  const sid = useCoworkSessions.getState().createSession()
+  useCoworkSessions.getState().setFolder(sid, '/owned-project')
+  useCoworkSessions
+    .getState()
+    .setModel(sid, { provider: provider.provider, id: model.id })
+  useCoworkSessions
+    .getState()
+    .setMessages(sid, [
+      {
+        id: 'owned',
+        role: 'user',
+        parts: [{ type: 'text', text: 'Historial de archivos de prueba' }],
+      },
+    ])
+  render(<CoworkPage />)
+  act(() => usePrompt.getState().setPrompt('/compact'))
+  fireEvent.click(screen.getByText('Send'))
+  await waitFor(() => expect(backend.compact).toHaveBeenCalledOnce())
+  expect(backend.createModel).toHaveBeenCalledWith(model.id, provider)
+})

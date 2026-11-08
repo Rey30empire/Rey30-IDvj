@@ -4,7 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
-import packageJson from './package.json'
+import desktopConfig from '../src-tauri/tauri.conf.json'
+import { resolveBuildPlatform } from './build-platform'
 const host = process.env.TAURI_DEV_HOST
 
 // Plugin to inject GA scripts in HTML
@@ -46,6 +47,11 @@ function injectGoogleAnalytics(gaMeasurementId?: string): Plugin {
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
+  const platform = resolveBuildPlatform({
+    tauriPlatform: process.env.TAURI_ENV_PLATFORM,
+    isTauri: process.env.IS_TAURI,
+    hostPlatform: process.platform,
+  })
 
   return {
     plugins: [
@@ -64,13 +70,13 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@janhq/assistant-extension': path.resolve(__dirname, '../extensions/assistant-extension/dist/index.js'),
-        '@janhq/conversational-extension': path.resolve(__dirname, '../extensions/conversational-extension/dist/index.js'),
-        '@janhq/download-extension': path.resolve(__dirname, '../extensions/download-extension/dist/index.js'),
-        '@janhq/llamacpp-extension': path.resolve(__dirname, '../extensions/llamacpp-extension/dist/index.js'),
-        '@janhq/mlx-extension': path.resolve(__dirname, '../extensions/mlx-extension/dist/index.js'),
-        '@janhq/rag-extension': path.resolve(__dirname, '../extensions/rag-extension/dist/index.js'),
-        '@janhq/vector-db-extension': path.resolve(__dirname, '../extensions/vector-db-extension/dist/index.js'),
+        '@rey30-idvj/assistant-extension': path.resolve(__dirname, '../extensions/assistant-extension/dist/index.js'),
+        '@rey30-idvj/conversational-extension': path.resolve(__dirname, '../extensions/conversational-extension/dist/index.js'),
+        '@rey30-idvj/download-extension': path.resolve(__dirname, '../extensions/download-extension/dist/index.js'),
+        '@rey30-idvj/llamacpp-extension': path.resolve(__dirname, '../extensions/llamacpp-extension/dist/index.js'),
+        '@rey30-idvj/mlx-extension': path.resolve(__dirname, '../extensions/mlx-extension/dist/index.js'),
+        '@rey30-idvj/rag-extension': path.resolve(__dirname, '../extensions/rag-extension/dist/index.js'),
+        '@rey30-idvj/vector-db-extension': path.resolve(__dirname, '../extensions/vector-db-extension/dist/index.js'),
       },
     },
     optimizeDeps: {
@@ -79,13 +85,13 @@ export default defineConfig(({ mode }) => {
       // which otherwise invalidates the in-flight dynamic import of the service
       // hub and surfaces as "Importing a module script failed" on cold start.
       exclude: [
-        '@janhq/assistant-extension',
-        '@janhq/conversational-extension',
-        '@janhq/download-extension',
-        '@janhq/llamacpp-extension',
-        '@janhq/mlx-extension',
-        '@janhq/rag-extension',
-        '@janhq/vector-db-extension',
+        '@rey30-idvj/assistant-extension',
+        '@rey30-idvj/conversational-extension',
+        '@rey30-idvj/download-extension',
+        '@rey30-idvj/llamacpp-extension',
+        '@rey30-idvj/mlx-extension',
+        '@rey30-idvj/rag-extension',
+        '@rey30-idvj/vector-db-extension',
       ],
     },
     define: {
@@ -93,23 +99,23 @@ export default defineConfig(({ mode }) => {
       IS_DEV: JSON.stringify(process.env.IS_DEV),
       IS_WEB_APP: JSON.stringify(false),
       IS_MACOS: JSON.stringify(
-        process.env.TAURI_ENV_PLATFORM?.includes('darwin') ?? false
+        platform?.includes('darwin') ?? false
       ),
       IS_WINDOWS: JSON.stringify(
-        process.env.TAURI_ENV_PLATFORM?.includes('windows') ?? false
+        platform?.includes('windows') ?? false
       ),
       IS_LINUX: JSON.stringify(
-        process.env.TAURI_ENV_PLATFORM?.includes('linux') ?? false
+        platform?.includes('linux') ?? false
       ),
       IS_IOS: JSON.stringify(
-        process.env.TAURI_ENV_PLATFORM?.includes('ios') ?? false
+        platform?.includes('ios') ?? false
       ),
       IS_ANDROID: JSON.stringify(
-        process.env.TAURI_ENV_PLATFORM?.includes('android') ?? false
+        platform?.includes('android') ?? false
       ),
-      PLATFORM: JSON.stringify(process.env.TAURI_ENV_PLATFORM),
+      PLATFORM: JSON.stringify(platform),
 
-      VERSION: JSON.stringify(packageJson.version),
+      VERSION: JSON.stringify(desktopConfig.version),
 
       POSTHOG_KEY: JSON.stringify(env.POSTHOG_KEY),
       POSTHOG_HOST: JSON.stringify(env.POSTHOG_HOST),
@@ -117,12 +123,13 @@ export default defineConfig(({ mode }) => {
       MODEL_CATALOG_URL: JSON.stringify(
         'https://raw.githubusercontent.com/janhq/model-catalog/main/model_catalog_v2.json'
       ),
-      LATEST_JAN_MODEL_URL: JSON.stringify(
+      LATEST_DEFAULT_MODEL_URL: JSON.stringify(
         'https://raw.githubusercontent.com/janhq/model-catalog/main/latest_jan_model.json'
       ),
       AUTO_UPDATER_DISABLED: JSON.stringify(
-        env.AUTO_UPDATER_DISABLED === 'true'
+        true
       ),
+      APP_RELEASES_URL: JSON.stringify(''),
       UPDATE_CHECK_INTERVAL_MS: JSON.stringify(
         Number(env.UPDATE_CHECK_INTERVAL_MS) || 60 * 60 * 1000
       ),

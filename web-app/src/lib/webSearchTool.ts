@@ -1,4 +1,4 @@
-import { webSearch, webFetch } from '@janhq/tauri-plugin-websearch-api'
+import { webSearch, webFetch } from '@rey30-idvj/tauri-plugin-websearch-api'
 import { useMCPServers } from '@/hooks/useMCPServers'
 import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
 import { TRUNCATION_MARKER } from '@/lib/toolPresentation'

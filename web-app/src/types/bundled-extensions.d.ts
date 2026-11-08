@@ -5,33 +5,33 @@ type BundledExtensionCtor = new (
   active?: boolean,
   description?: string,
   version?: string
-) => import('@janhq/core').BaseExtension
+) => import('@rey30-idvj/core').BaseExtension
 
-declare module '@janhq/assistant-extension' {
+declare module '@rey30-idvj/assistant-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/download-extension' {
+declare module '@rey30-idvj/download-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/llamacpp-extension' {
+declare module '@rey30-idvj/llamacpp-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/mlx-extension' {
+declare module '@rey30-idvj/mlx-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/rag-extension' {
+declare module '@rey30-idvj/rag-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/vector-db-extension' {
+declare module '@rey30-idvj/vector-db-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }
-declare module '@janhq/conversational-extension' {
+declare module '@rey30-idvj/conversational-extension' {
   const ext: BundledExtensionCtor
   export default ext
 }

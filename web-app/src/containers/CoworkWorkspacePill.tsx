@@ -16,6 +16,8 @@ type Props = {
   /** Attached project folder, or null when the session is sandbox-only. */
   folder: string | null
   gitBranch?: string | null
+  picking?: boolean
+  detachDisabled?: boolean
   onAttach: () => void
   onDetach: () => void
 }
@@ -35,6 +37,8 @@ type Props = {
 export function CoworkWorkspacePill({
   folder,
   gitBranch,
+  picking,
+  detachDisabled,
   onAttach,
   onDetach,
 }: Props) {
@@ -169,13 +173,14 @@ export function CoworkWorkspacePill({
         <div className="mt-3 flex items-center gap-2">
           {folder ? (
             <>
-              <Button variant="ghost" size="sm" onClick={onDetach}>
+              <Button variant="ghost" size="sm" disabled={detachDisabled} onClick={onDetach}>
                 {t('common:workspace.detach')}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="ml-auto"
+                disabled={picking}
                 onClick={onAttach}
               >
                 {t('common:workspace.change')}
@@ -186,6 +191,7 @@ export function CoworkWorkspacePill({
               variant="outline"
               size="sm"
               className="ml-auto"
+              disabled={picking}
               onClick={onAttach}
             >
               {t('common:workspace.attach')}

@@ -18,6 +18,8 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { useTheme } from '@/hooks/useTheme'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
+import { ulid } from 'ulidx'
+import { MAX_ASSISTANT_FILE_BYTES, parseAssistantFile } from '@/lib/assistant-file'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface AddEditAssistantProps {
@@ -25,7 +27,7 @@ interface AddEditAssistantProps {
   onOpenChange: (open: boolean) => void
   editingKey: string | null
   initialData?: Assistant
-  onSave: (assistant: Assistant) => void
+  onSave: (assistant: Assistant) => void | Promise<void>
 }
 
 export default function AddEditAssistant({
@@ -35,6 +37,12 @@ export default function AddEditAssistant({
   initialData,
   onSave,
 }: AddEditAssistantProps) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const importAttempt = useRef(0)
+  const [importing, setImporting] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [fileReview, setFileReview] = useState<string[]>([])
+  const [importError, setImportError] = useState('')
   const [avatar, setAvatar] = useState<string | undefined>(initialData?.avatar)
 
   const [name, setName] = useState(initialData?.name || '')
@@ -96,6 +104,33 @@ export default function AddEditAssistant({
     }
   }, [open, editingKey, initialData])
 
+  useEffect(() => {
+    if (!open) { importAttempt.current += 1; setImporting(false) }
+  }, [open])
+
+  const loadAssistantFile = async (file: File | undefined) => {
+    if (!file) return
+    const attempt = ++importAttempt.current
+    setImporting(true)
+    setImportError('')
+    try {
+      if (file.size > MAX_ASSISTANT_FILE_BYTES) throw new Error('El archivo supera 1 MiB.')
+      const draft = parseAssistantFile(file.name, await file.text())
+      if (attempt !== importAttempt.current) return
+      setName(draft.name)
+      setDescription(draft.description)
+      setInstructions(draft.instructions)
+      setAvatar(draft.avatar)
+      setParams(draft.parameters)
+      setNameError(null)
+      setFileReview([`Archivo preparado: ${file.name}. Revisa las instrucciones y guarda para crear una copia independiente.`, ...draft.warnings])
+    } catch (error) {
+      if (attempt === importAttempt.current) setImportError(error instanceof Error ? error.message : 'No se pudo leer el archivo.')
+    } finally {
+      if (attempt === importAttempt.current) setImporting(false)
+    }
+  }
+
   const resetForm = () => {
     setAvatar(undefined)
     setName('')
@@ -104,6 +139,8 @@ export default function AddEditAssistant({
     setParams({})
     setNameError(null)
     setShowEmojiPicker(false)
+    setFileReview([])
+    setImportError('')
   }
 
   const setParamValue = (key: string, value: unknown) => {
@@ -141,7 +178,7 @@ export default function AddEditAssistant({
     })
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       setNameError(t('assistants:nameRequired'))
       return
@@ -149,23 +186,31 @@ export default function AddEditAssistant({
     setNameError(null)
     const assistant: Assistant = {
       avatar,
-      id: initialData?.id || Math.random().toString(36).substring(7),
+      id: editingKey && initialData ? initialData.id : ulid(),
       name,
       created_at: initialData?.created_at || Date.now(),
       description,
       instructions,
       parameters: params,
     }
-    onSave(assistant)
-    onOpenChange(false)
-    resetForm()
+    setSaving(true)
+    setImportError('')
+    try {
+      await onSave(assistant)
+      onOpenChange(false)
+      resetForm()
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : 'No se pudo guardar el asistente.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const { t } = useTranslation()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editingKey
@@ -174,6 +219,13 @@ export default function AddEditAssistant({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
+          {!editingKey && <div className="space-y-2 border-b pb-3">
+            <input ref={fileInput} type="file" accept=".json,.md,.yaml,.yml" className="hidden" aria-label="Archivo de asistente" onChange={(event) => { void loadAssistantFile(event.target.files?.[0]); event.target.value = '' }} />
+            <Button variant="outline" disabled={importing || saving} onClick={() => fileInput.current?.click()}>{importing ? 'Leyendo archivo…' : 'Cargar local (JSON, Markdown o YAML)'}</Button>
+            <p className="text-xs text-muted-foreground">Hasta 1 MiB. Se prepara el formulario para revisión; no se ejecutan instrucciones ni se reutiliza el identificador importado.</p>
+          </div>}
+          {fileReview.length > 0 && <div role="status" className="space-y-1 text-xs text-muted-foreground">{fileReview.map(message => <p key={message}>{message}</p>)}</div>}
+          {importError && <p role="alert" className="text-sm text-destructive">{importError}</p>}
           <div className="flex items-center gap-2">
             <div className="relative">
               <label className="text-sm mb-2 inline-block">
@@ -288,7 +340,7 @@ export default function AddEditAssistant({
         </div>
 
         <DialogFooter>
-          <Button onClick={handleSave}>{t('assistants:save')}</Button>
+          <Button disabled={importing || saving} onClick={() => void handleSave()}>{t('assistants:save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,7 @@
 import { type UIMessage } from '@ai-sdk/react'
 import {
   convertToModelMessages,
+  createDownload,
   streamText,
   type ChatRequestOptions,
   type ChatTransport,
@@ -45,7 +46,7 @@ import {
 } from '@/lib/agentTools'
 import { routeRefusedToolCalls } from '@/lib/disabledToolCalls'
 import { useAppState, type ModelLoadProgress } from '@/hooks/useAppState'
-import { unloadLlamaModel, getLoadedModels } from '@janhq/tauri-plugin-llamacpp-api'
+import { unloadLlamaModel, getLoadedModels } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import { engineFailure } from '@/lib/engineError'
 import { ExtensionManager } from '@/lib/extension'
 import { getLlamacppExtension } from '@/lib/llamacppRouterProps'
@@ -58,7 +59,7 @@ import {
   ExtensionTypeEnum,
   VectorDBExtension,
   type MCPTool,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import {
   trimMessages,
   compactMessages,
@@ -82,6 +83,21 @@ import { PING_OPEN } from '@/lib/coworkPing'
 import { paramsSettings } from '@/lib/predefinedParams'
 import { CHAT_SLOT_ID } from '@/constants/models'
 import { createStepMetadata } from '@/lib/stepMetadata'
+import { prepareMasterContext } from '@/lib/masterOrchestrator'
+import { responseGuidance } from '@/lib/responseGuidance'
+import { ensurePrivacyMode, getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
+import { assertPrivacyTextOnly } from '@/lib/privacyPayload'
+import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId, literaryLibraryContext } from '@/lib/literaryLibrary'
+import { useCharacterStore } from '@/stores/useCharacterStore'
+import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
+import { buildCharacterContext } from '@/lib/characters/personality'
+import {
+  assistantModelBinding,
+  characterBindingModel,
+  characterIdFromAssistantId,
+  ensureCharacterModelBindings,
+  isJanModelId,
+} from '@/lib/characters/assistant-integration'
 
 export type TokenUsageCallback = (
   usage: LanguageModelUsage,
@@ -705,7 +721,7 @@ const LOOPBACK_HOSTS: Record<string, true> = {
 }
 
 /**
- * Jan's own engines and any server on this machine (Ollama, LM Studio, a
+ * Rey30 IDvj's own engines and any server on this machine (Ollama, LM Studio, a
  * local llama-server). Their 5xx is deterministic and a retry re-runs the
  * whole prompt, so such requests are not retried.
  */
@@ -791,10 +807,12 @@ export function buildLlamacppReasoningParams(
   return { chat_template_kwargs: kwargs }
 }
 
-function extractLatestUserText(messages: UIMessage[]): string {
+function extractLatestUserInput(messages: UIMessage[]) {
+  let id: string | undefined
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (m.role !== 'user') continue
+    id ??= m.id
     const parts = Array.isArray(m.parts) ? m.parts : []
     const chunks: string[] = []
     for (const p of parts) {
@@ -803,9 +821,9 @@ function extractLatestUserText(messages: UIMessage[]): string {
         if (t) chunks.push(t)
       }
     }
-    if (chunks.length > 0) return chunks.join('\n')
+    if (chunks.length > 0) return { id, text: chunks.join('\n') }
   }
-  return ''
+  return { id, text: '' }
 }
 
 /**
@@ -1026,10 +1044,11 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
    * undefined so we don't send a useless system turn that some chat templates
    * still wrap into special tokens.
    */
-  protected buildSystemPrompt(messages: UIMessage[]): string | undefined {
+  protected buildSystemPrompt(messages: UIMessage[], baseSystem = this.systemMessage): string | undefined {
+    if (!privacyAllowsTools(getPrivacyModeSnapshot())) return baseSystem?.trim() ? baseSystem : undefined
     const raw =
       [
-        this.systemMessage,
+        baseSystem,
         this.buildMemorySystemInstruction(),
         this.buildFilesSystemInstruction(messages),
         this.buildWebSearchSystemInstruction(),
@@ -1061,6 +1080,20 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     abortSignal?: AbortSignal,
     modelSelection: ModelSelection = this.getModelSelection()
   ) {
+    try {
+      const mode = await ensurePrivacyMode()
+      if (!privacyAllowsTools(mode)) {
+        this.tools = {}
+        this.frozenRoutedTools = null
+        this.frozenRoutedSig = ''
+        return
+      }
+    } catch (error) {
+      this.tools = {}
+      this.frozenRoutedTools = null
+      this.frozenRoutedSig = ''
+      throw error
+    }
     // Resolve the memory digest before the prompt is built: the builder is
     // sync, so it reads the snapshot this await guarantees. Error-safe and
     // cached inside agentTools, so this is one IPC round-trip per store change.
@@ -1243,6 +1276,12 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       }
     }
 
+    if (!privacyAllowsTools(getPrivacyModeSnapshot())) {
+      this.tools = {}
+      this.frozenRoutedTools = null
+      this.frozenRoutedSig = ''
+      return
+    }
     this.tools = toolsRecord
   }
 
@@ -1297,7 +1336,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
    * Get current tools
    */
   getTools(): Record<string, Tool> {
-    return this.tools
+    return privacyAllowsTools(getPrivacyModeSnapshot()) ? this.tools : {}
   }
 
   /**
@@ -1326,9 +1365,12 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     provider: ProviderObject,
     parameters: Record<string, unknown>,
     providerId: string,
-    abortSignal: AbortSignal | undefined
+    abortSignal: AbortSignal | undefined,
+    nativeOnly: boolean
   ): Promise<LanguageModel> {
-    const modelPromise = ModelFactory.createModel(modelId, provider, parameters)
+    const modelPromise = nativeOnly
+      ? ModelFactory.createModel(modelId, provider, parameters, true)
+      : ModelFactory.createModel(modelId, provider, parameters)
     if (!abortSignal) return modelPromise
 
     // Target lib is ES2021 here (see tsconfig.app.json), predating
@@ -1342,7 +1384,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
           // model aborted mid-load is still in the "loading" state (not
           // "loaded") and would never resolve to a session -- silently
           // skipping the unload and leaking the still-loading llama-server.
-          // See https://github.com/janhq/jan/issues/8432.
+          // Preserve the provider request format when images and tool results share a turn.
           unloadLlamaModel(modelId).catch(() => {
             // Best-effort: model may not have started loading yet, or may
             // already have finished/failed on its own.
@@ -1387,10 +1429,66 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     // Capture the effective provider name early so the Anthropic serial
     // tool-use repair later uses the same value that was used to create the
     // model, even if the user switches provider mid-request.
-    const turnModelSelection = this.resolveTurnModelSelection(
+    let turnModelSelection = this.resolveTurnModelSelection(
       options.messages,
       options.trigger
     )
+    const { id: turnUserId, text: turnUserText } = extractLatestUserInput(options.messages)
+    const assignedThread = useThreads.getState().threads[threadId]
+    const assignedAssistant = this.threadId ? assignedThread?.assistants?.[0] : assignedThread ? assignedThread.assistants?.[0] : useAssistant.getState().currentAssistant
+    const usesLiteraryLibrary = !this.streamRoutesToCowork && assignedAssistant?.id === literaryAssistantId
+    const privateLibraryThread = usesLiteraryLibrary || isLiteraryThread(assignedThread)
+    if (privateLibraryThread && !usesLiteraryLibrary) {
+      throw new Error('Esta conversación está reservada a Pluma porque contiene fuentes privadas. Selecciona Pluma o abre otro chat.')
+    }
+    const characterId = this.streamRoutesToCowork ? undefined : characterIdFromAssistantId(assignedAssistant?.id)
+    if (characterId) {
+      await useCharacterStore.getState().load()
+      const profile = useCharacterStore.getState().profiles.find((item) => item.id === characterId)
+      if (!profile) throw new Error('No se encontró el personaje asignado a este chat. Selecciona otro asistente.')
+      if (!profile.modelBinding || isJanModelId(profile.modelBinding.modelId)) {
+        const { providers, selectedModel } = useModelProvider.getState()
+        await ensureCharacterModelBindings(providers, selectedModel)
+      }
+    }
+    const characterState = useCharacterStore.getState()
+    const turnCharacter = characterId ? characterState.profiles.find((profile) => profile.id === characterId) : undefined
+    const characterProjectId = assignedThread?.metadata?.project?.id
+    const voiceSession = useAvatarVoiceSession.getState()
+    const voiceTurn =
+      options.trigger === 'submit-message' &&
+      turnCharacter?.voice.enabled &&
+      voiceSession.open && voiceSession.active && voiceSession.phase === 'waiting' &&
+      voiceSession.characterId === characterId && voiceSession.threadId === threadId &&
+      voiceSession.submittedMessageId === turnUserId
+    const characterContext = turnCharacter
+      ? buildCharacterContext(
+          turnCharacter,
+          turnCharacter.settings,
+          characterState.getMemory(turnCharacter.id, characterProjectId),
+          turnUserText,
+          voiceTurn ? 'voice' : 'chat'
+        )
+      : undefined
+    if (voiceTurn && characterId) {
+      await characterState.applyModeInstruction(turnUserText, characterId)
+    }
+    if (turnCharacter) {
+      const assignedModel = characterBindingModel(turnCharacter.modelBinding, useModelProvider.getState().providers)
+      const binding = { providerId: assignedModel.provider, modelId: assignedModel.id }
+      const boundProvider = useModelProvider.getState().getProviderByName(binding.providerId)
+      const boundModel = boundProvider?.models.find((model) => model.id === binding.modelId)
+      if (!boundProvider || !boundModel) throw new Error('El modelo asignado al personaje ya no está disponible. Elige otro modelo en su configuración.')
+      turnModelSelection = { selectedProvider: binding.providerId, selectedModel: boundModel }
+      this.turnModelSelection = turnModelSelection
+    } else if (!this.streamRoutesToCowork && assignedAssistant && assignedAssistant.id !== 'jan' && assignedAssistant.id !== 'model-only') {
+      const state = useModelProvider.getState()
+      const binding = assistantModelBinding(assignedAssistant.id, state.providers)
+      const model = binding && state.getProviderByName(binding.providerId)?.models.find((item) => item.id === binding.modelId)
+      if (!binding || !model) throw new Error('Instala Qwen3.5-9B para usar este asistente.')
+      turnModelSelection = { selectedProvider: binding.providerId, selectedModel: model }
+      this.turnModelSelection = turnModelSelection
+    }
     const { selectedModel, selectedProvider: providerId } = turnModelSelection
     const modelId = selectedModel?.id
     const effectiveProviderName = providerId
@@ -1399,7 +1497,11 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       throw new Error('ServiceHub not initialized or model/provider missing.')
     }
 
-    this.lastUserMessage = extractLatestUserText(options.messages)
+    if (privateLibraryThread && !isLiteraryModelProvider(provider)) {
+      throw new Error('La biblioteca y su historial requieren un modelo local de Rey30.')
+    }
+
+    this.lastUserMessage = turnUserText
 
     try {
       const updatedProvider = useModelProvider
@@ -1475,7 +1577,8 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
         updatedProvider ?? provider,
         mergedParams,
         providerId,
-        options.abortSignal
+        options.abortSignal,
+        privateLibraryThread
       )
       this.setLoadingModel(threadId, false)
       this.setModelLoadProgress(threadId, undefined)
@@ -1489,7 +1592,24 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       throw engineFailure('model-errors:createModelFailed', error)
     }
 
-    await this.refreshTools(options.abortSignal, turnModelSelection)
+    if (!privateLibraryThread && privacyAllowsTools(await ensurePrivacyMode())) {
+      await this.refreshTools(options.abortSignal, turnModelSelection)
+    } else {
+      this.tools = {}
+      this.frozenRoutedTools = null
+      this.frozenRoutedSig = ''
+    }
+
+    const requestMaster = this.streamRoutesToCowork || privateLibraryThread
+      ? undefined
+      : await prepareMasterContext(turnUserText, options.abortSignal)
+    let libraryContext: string | undefined
+    if (usesLiteraryLibrary) {
+      await useThreads.getState().protectLiteraryThread(threadId)
+      options.abortSignal?.throwIfAborted()
+      libraryContext = await literaryLibraryContext(turnUserText, { kind: 'chat', threadId })
+      options.abortSignal?.throwIfAborted()
+    }
 
     // Split assistant turns that place text after tool calls into separate
     // messages. Required by the Claude API (tool_use / tool_result pairing) and
@@ -1500,7 +1620,11 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     const inferenceParams = this.getActiveInferenceParams()
 
 
-    const effectiveSystem = this.buildSystemPrompt(messagesToConvert)
+    const requestSystem = !privateLibraryThread && privacyAllowsTools(getPrivacyModeSnapshot())
+      ? this.buildSystemPrompt(messagesToConvert, turnCharacter ? '' : this.systemMessage)
+      : turnCharacter ? undefined : this.systemMessage
+    const effectiveSystem = [responseGuidance, requestSystem, requestMaster?.system, characterContext?.system, libraryContext]
+      .filter(Boolean).join('\n\n')
 
     const maxOutputTokens: number | undefined = (() => {
       const raw = inferenceParams.max_output_tokens ?? inferenceParams.max_tokens
@@ -1557,7 +1681,8 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
           messagesToConvert,
           contextConfig,
           this.model,
-          systemPromptTokens
+          systemPromptTokens,
+          options.abortSignal
         )
         effectiveMessages = compactResult.messages
         if (compactResult.trimmedCount > 0) {
@@ -1588,6 +1713,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
 
     const modelSupportsVision =
       selectedModel?.capabilities?.includes('vision') ?? false
+    if (getPrivacyModeSnapshot() === 'cloud-review') assertPrivacyTextOnly(effectiveMessages)
     const convertedMessages = await convertToModelMessages(
       coalesceMessagesForAlternation(
         resolveOrphanToolCalls(
@@ -1639,7 +1765,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     // Include tools only if we have tools loaded AND model supports them
     const hasTools = Object.keys(this.tools).length > 0
     const modelSupportsTools = selectedModel?.capabilities?.includes('tools') ?? this.modelSupportsTools
-    const shouldEnableTools = hasTools && modelSupportsTools
+    const shouldEnableTools = !privateLibraryThread && hasTools && modelSupportsTools && privacyAllowsTools(getPrivacyModeSnapshot())
 
     // Cloud providers take reasoning via the AI SDK's per-request
     // providerOptions (native thinking config), not the raw body.
@@ -1653,6 +1779,9 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     useAppState.getState().updateLiveTokenStats(undefined)
     useAppState.getState().updateThreadLiveTokenStats(threadId, undefined)
 
+    if (privateLibraryThread) assertPrivacyTextOnly({ messages: modelMessages })
+    else if (getPrivacyModeSnapshot() === 'cloud-review') assertPrivacyTextOnly({ system: effectiveSystem, messages: modelMessages })
+
     const result = streamText({
       model: this.model,
       messages: modelMessages,
@@ -1662,6 +1791,13 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       maxRetries: isLocalChatServer(providerId, provider.base_url) ? 0 : 2,
       tools: shouldEnableTools ? this.tools : undefined,
       toolChoice: shouldEnableTools ? 'auto' : undefined,
+      experimental_download: async urls => {
+        if ((privateLibraryThread || !privacyAllowsTools(getPrivacyModeSnapshot())) && urls.length > 0) {
+          throw new Error('El modo protegido bloqueó la descarga de un adjunto. Extrae su texto o usa un archivo local compatible sin enlaces externos.')
+        }
+        const download = createDownload()
+        return Promise.all(urls.map(({ url, isUrlSupportedByModel }) => isUrlSupportedByModel ? null : download({ url, abortSignal: options.abortSignal })))
+      },
       system: effectiveSystem,
       // 0 means "no cap" in assistant params; the SDK rejects anything below 1.
       ...(maxOutputTokens !== undefined && maxOutputTokens >= 1
@@ -1752,6 +1888,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     return routeRefusedToolCalls(
       continuedStream,
       (toolName) =>
+        !privateLibraryThread && privacyAllowsTools(getPrivacyModeSnapshot()) &&
         CHAT_AGENT_TOOL_NAMES.has(toolName) &&
         !(toolName in this.tools) &&
         !useChatShell.getState().shellEnabled

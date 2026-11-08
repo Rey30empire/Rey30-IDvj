@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useRef, useCallback } from 'react'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { useAppState } from '@/hooks/useAppState'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
 
 type CustomChatOptions = Omit<ChatInit<UIMessage>, 'transport'> &
   Pick<UseChatOptions<UIMessage>, 'experimental_throttle' | 'resume'> & {
@@ -49,6 +50,8 @@ export function useChat(
   // Get serviceHub and model metadata from app state
   const mcpToolNames = useAppState((state) => state.mcpToolNames)
   const ragToolNames = useAppState((state) => state.ragToolNames)
+  const privacyMode = usePrivacyMode((state) => state.mode)
+  const privacyReady = usePrivacyMode((state) => state.loaded && !state.saving && !state.error)
 
   const existingSessionTransport = sessionId
     ? useChatSessions.getState().sessions[sessionId]?.transport
@@ -115,9 +118,12 @@ export function useChat(
     if (transportRef.current) {
       // Use forceRefreshTools to update the transport's tool cache
       // This ensures the transport has the latest tools when MCP server status changes
-      transportRef.current.refreshTools()
+      void transportRef.current.refreshTools().catch(() => {
+        // The privacy control exposes its persistence error; a failed policy
+        // read must not turn this background refresh into an unhandled promise.
+      })
     }
-  }, [mcpToolNames, ragToolNames])
+  }, [mcpToolNames, ragToolNames, privacyMode, privacyReady])
 
   const setContinueFromContent = useCallback(
     (content: string | ContinuationContent) => {

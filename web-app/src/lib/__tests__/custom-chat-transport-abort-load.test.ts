@@ -74,7 +74,7 @@ vi.mock('@/hooks/useAppState', () => ({
       ),
   },
 }))
-vi.mock('@janhq/tauri-plugin-llamacpp-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-llamacpp-api', () => ({
   getLoadedModels: h.getLoadedModels,
   unloadLlamaModel: h.unloadLlamaModel,
 }))
@@ -124,6 +124,7 @@ describe('CustomChatTransport: abort during model load', () => {
   beforeEach(() => {
     h.getLoadedModels.mockClear()
     h.unloadLlamaModel.mockClear()
+    h.createModelMock.mockClear()
     h.resolveCreateModel = undefined
   })
 
@@ -139,9 +140,7 @@ describe('CustomChatTransport: abort during model load', () => {
       messageId: undefined,
     })
 
-    // Give sendMessages a tick to reach createModel() and start "loading".
-    await Promise.resolve()
-    await Promise.resolve()
+    await vi.waitFor(() => expect(h.resolveCreateModel).toBeTypeOf('function'))
 
     controller.abort()
 
@@ -161,9 +160,8 @@ describe('CustomChatTransport: abort during model load', () => {
       messageId: undefined,
     })
 
-    await Promise.resolve()
-    await Promise.resolve()
-    h.resolveCreateModel?.()
+    await vi.waitFor(() => expect(h.resolveCreateModel).toBeTypeOf('function'))
+    h.resolveCreateModel!()
 
     await expect(send).resolves.toBeDefined()
     expect(h.unloadLlamaModel).not.toHaveBeenCalled()

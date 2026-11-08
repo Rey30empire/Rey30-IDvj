@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Route as PrivacyRoute } from '../privacy'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
+import posthog from 'posthog-js'
 
 // Mock dependencies
 vi.mock('@/containers/SettingsMenu', () => ({
@@ -43,11 +45,12 @@ vi.mock('@/i18n/react-i18next-compat', () => ({
 }))
 
 vi.mock('@/components/ui/switch', () => ({
-  Switch: ({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (checked: boolean) => void }) => (
+  Switch: ({ checked, onCheckedChange, disabled }: { checked: boolean; onCheckedChange: (checked: boolean) => void; disabled?: boolean }) => (
     <input
       data-testid="switch"
       type="checkbox"
       checked={checked}
+      disabled={disabled}
       onChange={(e) => onCheckedChange(e.target.checked)}
     />
   ),
@@ -78,6 +81,7 @@ vi.mock('@tanstack/react-router', () => ({
 describe('Privacy Settings Route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    usePrivacyMode.setState({ mode: 'standard', loaded: true, saving: false, error: null })
   })
 
   it('should render the privacy settings page', () => {
@@ -93,8 +97,8 @@ describe('Privacy Settings Route', () => {
     const Component = PrivacyRoute.component as React.ComponentType
     render(<Component />)
 
-    expect(screen.getByTestId('card')).toBeInTheDocument()
-    expect(screen.getByTestId('card-header')).toBeInTheDocument()
+    expect(screen.getAllByTestId('card')).toHaveLength(2)
+    expect(screen.getAllByTestId('card-header')).toHaveLength(2)
     expect(screen.getByText('settings:privacy.analytics')).toBeInTheDocument()
   })
 
@@ -105,6 +109,17 @@ describe('Privacy Settings Route', () => {
     const analyticsSwitch = screen.getByTestId('switch')
     expect(analyticsSwitch).toBeInTheDocument()
     expect(analyticsSwitch).not.toBeChecked()
+  })
+
+  it('disables telemetry opt-in while protected mode is active and explains cloud limits', () => {
+    usePrivacyMode.setState({ mode: 'cloud-review' })
+    const Component = PrivacyRoute.component as React.ComponentType
+    render(<Component />)
+    const analyticsSwitch = screen.getByTestId('switch')
+    expect(analyticsSwitch).toBeDisabled()
+    fireEvent.click(analyticsSwitch)
+    expect(posthog.opt_in_capturing).not.toHaveBeenCalled()
+    expect(screen.getByText(/No convierte toda la aplicación/)).toBeInTheDocument()
   })
 
   it('should handle analytics toggle when enabling', () => {

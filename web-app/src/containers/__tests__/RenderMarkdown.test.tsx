@@ -29,6 +29,13 @@ Object.assign(navigator, {
 })
 
 describe('RenderMarkdown', () => {
+  it('hides the explicit-skill marker in user history while preserving the instruction body', () => {
+    const content = '<!-- rey30-explicit-skill:review -->\nInstrucciones guardadas y argumento original'
+    render(<RenderMarkdown content={content} isUser />)
+    const text = document.querySelector('.markdown')?.textContent || ''
+    expect(text).toContain('Instrucciones guardadas y argumento original')
+    expect(text).not.toContain('rey30-explicit-skill')
+  })
   it('preserves line breaks in model responses (when isUser == undefined)', () => {
     const modelResponseWithNewLines = `This is line 1
     This is line 2

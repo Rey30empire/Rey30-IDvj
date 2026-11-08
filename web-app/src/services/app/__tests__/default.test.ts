@@ -10,12 +10,12 @@ describe('DefaultAppService', () => {
   })
 
   describe('factoryReset', () => {
-    it('resolves without error (no options)', async () => {
-      await expect(svc.factoryReset()).resolves.toBeUndefined()
+    it('rejects legacy reset (no options)', async () => {
+      await expect(svc.factoryReset()).rejects.toThrow('deshabilitado')
     })
 
-    it('resolves without error (with options)', async () => {
-      await expect(svc.factoryReset({ keepData: true } as any)).resolves.toBeUndefined()
+    it('rejects legacy reset (with options)', async () => {
+      await expect(svc.factoryReset({ keepData: true } as any)).rejects.toThrow('deshabilitado')
     })
   })
 
@@ -43,16 +43,16 @@ describe('DefaultAppService', () => {
     })
   })
 
-  describe('getJanDataFolder', () => {
+  describe('getRey30DataFolder', () => {
     it('returns undefined', async () => {
-      const result = await svc.getJanDataFolder()
+      const result = await svc.getRey30DataFolder()
       expect(result).toBeUndefined()
     })
   })
 
-  describe('relocateJanDataFolder', () => {
+  describe('relocateRey30DataFolder', () => {
     it('resolves without error', async () => {
-      await expect(svc.relocateJanDataFolder('/new/path')).resolves.toBeUndefined()
+      await expect(svc.relocateRey30DataFolder('/new/path')).resolves.toBeUndefined()
     })
   })
 

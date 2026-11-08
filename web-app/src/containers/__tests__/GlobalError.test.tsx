@@ -1,14 +1,19 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import GlobalError from '../GlobalError'
 import '@testing-library/jest-dom'
+import i18n from '@/i18n/setup'
 
 describe('GlobalError Component', () => {
+  beforeEach(() => {
+    i18n.changeLanguage('es')
+  })
+
   it('should render error message for Error instance', () => {
     const error = new Error('Test error message')
     render(<GlobalError error={error} />)
 
-    expect(screen.getByText('Oops! Unexpected error occurred.')).toBeDefined()
+    expect(screen.getByText('Se produjo un error inesperado.')).toBeDefined()
     expect(screen.getByText('Test error message')).toBeDefined()
   })
 
@@ -16,7 +21,7 @@ describe('GlobalError Component', () => {
     const error = 'String error message'
     render(<GlobalError error={error} />)
 
-    expect(screen.getByText('Oops! Unexpected error occurred.')).toBeDefined()
+    expect(screen.getByText('Se produjo un error inesperado.')).toBeDefined()
     expect(screen.getAllByText('String error message')).toHaveLength(2)
   })
 
@@ -34,17 +39,17 @@ describe('GlobalError Component', () => {
     error.stack = 'a'.repeat(300)
     render(<GlobalError error={error} />)
 
-    const showMoreButton = screen.getByText('Show more')
+    const showMoreButton = screen.getByText('Mostrar más')
     fireEvent.click(showMoreButton)
 
     expect(screen.getByText('a'.repeat(300))).toBeDefined()
-    expect(screen.getByText('Show less')).toBeDefined()
+    expect(screen.getByText('Mostrar menos')).toBeDefined()
 
-    const showLessButton = screen.getByText('Show less')
+    const showLessButton = screen.getByText('Mostrar menos')
     fireEvent.click(showLessButton)
 
     expect(screen.getByText('a'.repeat(200))).toBeDefined()
-    expect(screen.getByText('Show more')).toBeDefined()
+    expect(screen.getByText('Mostrar más')).toBeDefined()
   })
 
   it('should handle refresh page button click', () => {
@@ -57,21 +62,19 @@ describe('GlobalError Component', () => {
     const error = new Error('Test error')
     render(<GlobalError error={error} />)
 
-    const refreshButton = screen.getByText('refresh this page')
+    const refreshButton = screen.getByRole('button', { name: 'actualizar esta página' })
     fireEvent.click(refreshButton)
 
     expect(reloadSpy).toHaveBeenCalledTimes(1)
     ;(window as any).location = originalLocation
   })
 
-  it('should render contact us link with correct href', () => {
+  it('shows the local error details without an unrelated support link', () => {
     const error = new Error('Test error')
     render(<GlobalError error={error} />)
 
-    const contactLink = screen.getByText('contact us')
-    expect(contactLink).toHaveAttribute('href', 'https://discord.gg/FTk2MvZwJH')
-    expect(contactLink).toHaveAttribute('target', '_blank')
-    expect(contactLink).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.getByText(/Consulta los detalles del error que aparecen debajo\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('should log error to console', () => {

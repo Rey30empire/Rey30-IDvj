@@ -31,8 +31,8 @@ const MIGRATED_KEYS: string[] = [
   localStorageKey.settingProxyConfig,
   localStorageKey.settingVulkan,
   localStorageKey.favoriteModels,
-  localStorageKey.latestJanModel,
-  localStorageKey.janModelPromptDismissed,
+  localStorageKey.latestDefaultModel,
+  localStorageKey.defaultModelPromptDismissed,
   localStorageKey.defaultEmbeddingModel,
   localStorageKey.agentMode,
 ]

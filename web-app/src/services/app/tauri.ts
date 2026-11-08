@@ -3,49 +3,14 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
-import { AppConfiguration } from '@janhq/core'
+import { AppConfiguration } from '@rey30-idvj/core'
 import type { FactoryResetOptions, LogEntry } from './types'
 import { DefaultAppService } from './default'
 
 export class TauriAppService extends DefaultAppService {
-  /**
-   * Factory reset with optional data preservation.
-   *
-   * User settings are persisted to `<jan_data>/settings.json` by the Rust
-   * settings store (`core::app::settings_store`), and secrets to the OS keyring
-   * (encrypted-file fallback `provider_secrets.enc`). The Rust `factory_reset`
-   * command conditionally deletes directories, config files, `settings.json`,
-   * and `provider_secrets.enc` based on the keep flags — no frontend
-   * snapshot/restore is needed.
-   *
-   * localStorage still holds a frozen pre-migration snapshot (kept so a
-   * downgraded build can read it). It is cleared on the next startup via a
-   * Rust sentinel (see `main.tsx`), never here: the backend can still refuse
-   * the reset, and on success the process restarts right after the invoke
-   * resolves, so clearing here would race the restart flush.
-   */
   async factoryReset(options?: FactoryResetOptions): Promise<void> {
-    const { EngineManager } = await import('@janhq/core')
-    for (const [, engine] of EngineManager.instance().engines) {
-      const activeModels = await engine.getLoadedModels()
-      if (activeModels) {
-        await Promise.all(activeModels.map((model: string) => engine.unload(model)))
-      }
-    }
-
-    const keepAppData = options?.keepAppData ?? false
-    const keepModelsAndConfigs = options?.keepModelsAndConfigs ?? false
-    const clearWebData = options?.clearWebData ?? false
-
-    if (!keepAppData && !keepModelsAndConfigs && !clearWebData) {
-      await invoke('factory_reset')
-    } else {
-      await invoke('factory_reset', {
-        keepAppData,
-        keepModelsAndConfigs,
-        clearWebData,
-      })
-    }
+    void options
+    throw new Error('El restablecimiento de fábrica está deshabilitado. Usa Guardar y restaurar preferencias en Ajustes generales.')
   }
 
   async readLogs(): Promise<LogEntry[]> {
@@ -53,19 +18,19 @@ export class TauriAppService extends DefaultAppService {
     return logData.split('\n').map(this.parseLogLine)
   }
 
-  async getJanDataFolder(): Promise<string | undefined> {
+  async getRey30DataFolder(): Promise<string | undefined> {
     try {
       const appConfiguration: AppConfiguration | undefined =
         await window.core?.api?.getAppConfigurations()
 
       return appConfiguration?.data_folder
     } catch (error) {
-      console.error('Failed to get Jan data folder:', error)
+      console.error('Failed to get Rey30 IDvj data folder:', error)
       return undefined
     }
   }
 
-  async relocateJanDataFolder(path: string): Promise<void> {
+  async relocateRey30DataFolder(path: string): Promise<void> {
     await window.core?.api?.changeAppDataFolder({ newDataFolder: path })
   }
 

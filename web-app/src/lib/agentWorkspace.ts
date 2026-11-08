@@ -4,7 +4,7 @@ import {
   memoryRead,
   memoryWrite,
   memoryDelete,
-} from '@janhq/tauri-plugin-agent-tools-api'
+} from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { invalidateMemory } from '@/lib/agentTools'
 import * as skillStore from '@/lib/skillStore'
@@ -22,8 +22,8 @@ export type { SkillMeta }
  */
 
 const dataFolder = async (): Promise<string> => {
-  const folder = await getServiceHub().app().getJanDataFolder()
-  if (!folder) throw new Error('Jan data folder is unavailable')
+  const folder = await getServiceHub().app().getRey30DataFolder()
+  if (!folder) throw new Error('Rey30 IDvj data folder is unavailable')
   return folder
 }
 

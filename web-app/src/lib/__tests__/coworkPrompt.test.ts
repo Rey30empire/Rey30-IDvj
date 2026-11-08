@@ -38,7 +38,7 @@ describe('buildCoworkSystemPrompt', () => {
 
   // #8882: an attached folder is the working directory, so the prompt names it
   // as the root relative paths resolve against -- not the sandbox, which would
-  // send bare-named artifacts into Jan's data folder.
+  // send bare-named artifacts into Rey30 IDvj's data folder.
   it('makes the attached folder the working directory relative paths resolve against', () => {
     const p = buildCoworkSystemPrompt(opts({ readOnlyFolder: '/home/u/repo' }))
     expect(p).toMatch(/working directory[^]*\/home\/u\/repo/)
@@ -53,6 +53,13 @@ describe('buildCoworkSystemPrompt', () => {
     expect(buildCoworkSystemPrompt(opts())).not.toMatch(
       /Shell commands are unavailable/i
     )
+  })
+
+  it('explains the file tools policy on shared folders even when the OS sandbox is available', () => {
+    const p = buildCoworkSystemPrompt(opts({ readOnlyFolder: 'C:\\Owned project', allowProcesses: false }))
+    expect(p).toContain('Shell commands and monitors are disabled.')
+    expect(p).toContain('Relative paths resolve against it')
+    expect(p).not.toContain('no OS sandbox is present')
   })
 
   it('carries the plan-review contract the ask card special-cases', () => {
@@ -99,7 +106,7 @@ describe('buildCoworkSystemPrompt', () => {
     )
     expect(p).toContain('# Environment')
     expect(p).toContain('- OS: linux (x86_64)')
-    expect(p).toContain('- App: Jan v0.7.0 (desktop)')
+    expect(p).toContain('- App: Rey30 IDvj v0.7.0 (desktop)')
     expect(p).toContain("- Today's date: Tue Sep 02 2026")
     expect(p).toContain('- User locale: en-US')
     expect(buildCoworkSystemPrompt(opts())).not.toContain('# Environment')

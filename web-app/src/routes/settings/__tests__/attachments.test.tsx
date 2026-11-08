@@ -22,7 +22,7 @@ vi.mock('@/lib/backendStorage', () => ({
 vi.mock('@/lib/extension', () => ({
   ExtensionManager: { getInstance: () => ({ get: () => undefined }) },
 }))
-vi.mock('@janhq/core', () => ({ ExtensionTypeEnum: { RAG: 'rag' } }))
+vi.mock('@rey30-idvj/core', () => ({ ExtensionTypeEnum: { RAG: 'rag' } }))
 // Simple number input so the test can drive onChange directly.
 vi.mock('@/containers/dynamicControllerSetting', () => ({
   DynamicControllerSetting: ({

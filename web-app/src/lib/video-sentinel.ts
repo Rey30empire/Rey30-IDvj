@@ -5,17 +5,17 @@
 // `input_video` content part inside the request fetch. Mirrors audio-sentinel,
 // but llama-server's `input_video` wire shape is `{ data }` with no format.
 
-const PREFIX = ' __JAN_VIDEO__'
+const PREFIX = ' __REY30_VIDEO__'
 const SUFFIX = ' '
 
-const SENTINEL_REGEX = / __JAN_VIDEO__([A-Za-z0-9+/=]+) /g
+const SENTINEL_REGEX = / __(?:REY30|JAN)_VIDEO__([A-Za-z0-9+/=]+) /g
 
 export function encodeVideoSentinel(base64: string): string {
   return `${PREFIX}${base64}${SUFFIX}`
 }
 
 export function hasVideoSentinel(text: string): boolean {
-  return text.includes(PREFIX)
+  return text.includes(PREFIX) || text.includes(PREFIX.replace('REY30', 'JAN'))
 }
 
 export type VideoPart = { type: 'input_video'; input_video: { data: string } }

@@ -1,0 +1,42 @@
+.character-avatar {
+  display: inline-block;
+  flex: 0 0 auto;
+  max-width: 100%;
+  vertical-align: middle;
+  contain: layout style;
+}
+.character-avatar > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.character-avatar [data-part] { transform-box: fill-box; transform-origin: center; }
+.character-avatar .character-mouth-open {
+  opacity: var(--character-mouth, 0);
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(calc(.25 + var(--character-mouth, 0) * 1.4));
+}
+.character-avatar .character-mouth-rest { opacity: calc(1 - var(--character-mouth, 0)); }
+.character-avatar:not([data-motion="0"])[data-gestures~="blink"] .character-eyes { animation: character-blink 6.8s linear infinite; }
+.character-avatar:not([data-motion="0"])[data-state="listening"][data-gestures~="head-tilt"] .character-portrait { animation: character-listen 4.5s ease-in-out infinite; }
+.character-avatar:not([data-motion="0"])[data-state="thinking"][data-gestures~="eyebrow"] .character-brows { transform: translateY(-2px) rotate(-3deg); }
+.character-avatar:not([data-motion="0"])[data-state="focused"][data-gestures~="eyebrow"] .character-brows { transform: translateY(1px); }
+.character-avatar:not([data-motion="0"])[data-state="error"][data-gestures~="head-tilt"] .character-portrait { transform: rotate(-3deg); }
+.character-avatar:not([data-motion="0"])[data-state="surprised"][data-gestures~="eyebrow"] .character-brows { transform: translateY(-4px); }
+.character-avatar:not([data-motion="0"])[data-state="happy"][data-gestures~="nod"] .character-portrait { animation: character-nod 1s ease-in-out 1; }
+.character-avatar:not([data-motion="0"])[data-state="celebrating"][data-gestures~="fist-raise"] .character-arms,
+.character-avatar:not([data-motion="0"])[data-state="celebrating"][data-gestures~="hands"] .character-arms { animation: character-cheer .7s ease-in-out 2; }
+.character-avatar:not([data-motion="0"])[data-state="celebrating"][data-gestures~="bow"] .character-portrait { animation: character-nod 1s ease-in-out 1; }
+.character-avatar:not([data-motion="0"])[data-state="celebrating"][data-gestures~="tail"] .character-tail { animation: character-tail .8s ease-in-out 2; }
+.character-avatar:not([data-motion="0"])[data-state="listening"][data-gestures~="ears"] .character-ears { transform: rotate(-3deg); }
+.character-avatar:not([data-motion="0"])[data-state="happy"][data-gestures~="pigtails"] .character-pigtails { animation: character-tail 1.1s ease-in-out 1; }
+.character-avatar:not([data-motion="0"])[data-state="happy"][data-gestures~="wave"] .character-arms { animation: character-tail .8s ease-in-out 2; }
+.character-avatar:not([data-motion="0"])[data-state="happy"][data-gestures~="wink"] .character-eye-right { animation: character-wink 1s linear 1; transform-box: fill-box; transform-origin: center; }
+@keyframes character-blink { 0%, 43%, 46%, 100% { transform: scaleY(1); } 44%, 45% { transform: scaleY(.12); } }
+@keyframes character-listen { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(calc(-1deg * var(--character-motion, 1))); } }
+@keyframes character-nod { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(2px * var(--character-motion, 1))); } }
+@keyframes character-cheer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-3px * var(--character-motion, 1))); } }
+@keyframes character-tail { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(calc(3deg * var(--character-motion, 1))); } }
+@keyframes character-wink { 0%, 25%, 75%, 100% { transform: scaleY(1); } 35%, 65% { transform: scaleY(.1); } }
+@media (prefers-reduced-motion: reduce) {
+  .character-avatar [data-part] { animation: none !important; transform: none !important; }
+  .character-avatar .character-mouth-open { opacity: 0; }
+  .character-avatar .character-mouth-rest { opacity: 1; }
+}

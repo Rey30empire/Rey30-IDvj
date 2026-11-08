@@ -5,22 +5,22 @@ import { getServiceHub } from '@/hooks/useServiceHub'
 import type { CatalogModel } from '@/services/models/types'
 import { backendStorage } from '@/lib/backendStorage'
 
-type LatestJanModelState = {
+type LatestDefaultModelState = {
   model: CatalogModel | null
   lastFetchedAt: number | null
   loading: boolean
   error: boolean
-  fetchLatestJanModel: (force?: boolean) => Promise<void>
+  fetchLatestDefaultModel: (force?: boolean) => Promise<void>
 }
 
-export const useLatestJanModel = create<LatestJanModelState>()(
+export const useLatestDefaultModel = create<LatestDefaultModelState>()(
   persist(
     (set, get) => ({
       model: null,
       lastFetchedAt: null,
       loading: false,
       error: false,
-      fetchLatestJanModel: async (force = false) => {
+      fetchLatestDefaultModel: async (force = false) => {
         const { lastFetchedAt, loading } = get()
 
         if (loading) return
@@ -38,7 +38,7 @@ export const useLatestJanModel = create<LatestJanModelState>()(
         try {
           const result = await getServiceHub()
             .models()
-            .fetchLatestJanModel()
+            .fetchLatestDefaultModel()
 
           if (result) {
             set({
@@ -55,7 +55,7 @@ export const useLatestJanModel = create<LatestJanModelState>()(
       },
     }),
     {
-      name: localStorageKey.latestJanModel,
+      name: localStorageKey.latestDefaultModel,
       storage: createJSONStorage(() => backendStorage),
       skipHydration: true,
       partialize: (state) => ({

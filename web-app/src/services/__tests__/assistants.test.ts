@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DefaultAssistantsService } from '../assistants/default'
 import { ExtensionManager } from '@/lib/extension'
-import { ExtensionTypeEnum } from '@janhq/core'
+import { ExtensionTypeEnum } from '@rey30-idvj/core'
 
 // Mock the ExtensionManager
 vi.mock('@/lib/extension', () => ({
@@ -14,7 +14,7 @@ vi.mock('@/lib/extension', () => ({
 
 describe('DefaultAssistantsService', () => {
   let assistantsService: DefaultAssistantsService
-  
+
   const mockExtension = {
     getAssistants: vi.fn(),
     createAssistant: vi.fn(),
@@ -49,7 +49,7 @@ describe('DefaultAssistantsService', () => {
 
     it('should return null when extension not found', async () => {
       mockExtensionManager.get.mockReturnValue(null)
-      
+
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const result = await assistantsService.getAssistants()
@@ -57,7 +57,7 @@ describe('DefaultAssistantsService', () => {
       expect(mockExtensionManager.get).toHaveBeenCalledWith(ExtensionTypeEnum.Assistant)
       expect(consoleSpy).toHaveBeenCalledWith('AssistantExtension not found')
       expect(result).toBeNull()
-      
+
       consoleSpy.mockRestore()
     })
 
@@ -81,14 +81,12 @@ describe('DefaultAssistantsService', () => {
       expect(result).toBeUndefined()
     })
 
-    it('should return undefined when extension not found', async () => {
+    it('rejects creation when extension is unavailable', async () => {
       mockExtensionManager.get.mockReturnValue(null)
       const assistant = { id: 'new-assistant', name: 'New Assistant', description: 'New assistant' }
 
-      const result = await assistantsService.createAssistant(assistant)
-
+      await expect(assistantsService.createAssistant(assistant)).rejects.toThrow('no está disponible')
       expect(mockExtensionManager.get).toHaveBeenCalledWith(ExtensionTypeEnum.Assistant)
-      expect(result).toBeUndefined()
     })
 
     it('should handle error when creating assistant', async () => {

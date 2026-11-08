@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
+import { SESSION_STORAGE_PREFIX } from '@/constants/chat'
 import type * as WebSearchConfigModule from '@/hooks/useWebSearchConfig'
 import { render, screen, act, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
@@ -128,6 +130,7 @@ const h = vi.hoisted(() => {
   useToolAvailableMock.getState = () => toolAvailableState
 
   const toolApprovalState: any = {
+    resolveApproval: vi.fn(),
     approveToolForThread: vi.fn(),
     clearPendingForThread: vi.fn(),
     requestApproval: vi.fn().mockResolvedValue(true),
@@ -218,6 +221,12 @@ vi.mock('@/containers/ChatInput', () => ({
         onClick={() => onSubmit('hello world', undefined)}
       >
         send
+      </button>
+      <button
+        data-testid="chat-send-voice"
+        onClick={() => onSubmit('texto del dictado', undefined, undefined, undefined, useAvatarVoiceSession.getState().generation)}
+      >
+        enviar dictado
       </button>
       <button
         data-testid="chat-send-ref"
@@ -437,6 +446,9 @@ const shell = vi.hoisted(() => ({
   enabled: true,
   execute: vi.fn(async () => ({ output: 'ok' })),
 }))
+
+const privacy = vi.hoisted(() => ({ mode: 'standard' as 'standard' | 'local-only' | 'cloud-review' }))
+vi.mock('@/lib/privacyPolicy', () => ({ getPrivacyModeSnapshot: () => privacy.mode, privacyAllowsTools: (mode: string) => mode === 'standard' }))
 vi.mock('@/hooks/useChatShell', () => ({
   useChatShell: { getState: () => ({ shellEnabled: shell.enabled }) },
 }))
@@ -462,7 +474,7 @@ vi.mock('@/hooks/useAutoScroll', () => ({
   }),
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   MessageStatus: { Ready: 'ready' },
   ChatCompletionRole: { Assistant: 'assistant', User: 'user' },
   ContentType: { Text: 'text' },
@@ -523,6 +535,8 @@ const renderComponent = () => {
 
 describe('ThreadDetail route', () => {
   beforeEach(() => {
+    useAvatarVoiceSession.getState().close()
+    privacy.mode = 'standard'
     // Leaving a thread no longer ends its tool loop, so a loop an earlier test
     // left waiting would keep its approvals. Deleting the threads ends them.
     h.removeChatSession('thread-1')
@@ -624,6 +638,49 @@ describe('ThreadDetail route', () => {
       expect(h.mockSendMessage).toHaveBeenCalled()
     })
     expect(h.messagesState.addMessage).toHaveBeenCalled()
+  })
+
+  it('marks the actual SDK user message for a live dictation without persisting the authorization', async () => {
+    const session = useAvatarVoiceSession.getState()
+    session.openFor('nara', 'thread-1')
+    session.start()
+    useAvatarVoiceSession.setState({ phase: 'waiting' })
+    renderComponent()
+    await act(async () => screen.getByTestId('chat-send-voice').click())
+
+    expect(h.mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'gen-id',
+      parts: [{ type: 'text', text: 'texto del dictado' }],
+    }))
+    expect(useAvatarVoiceSession.getState().submittedMessageId).toBe('gen-id')
+    expect(JSON.stringify(h.messagesState.addMessage.mock.calls)).not.toContain('voiceGeneration')
+  })
+
+  it.each([true, false])('only submits an initial dictation while its voice session remains active (%s)', async (active) => {
+    const session = useAvatarVoiceSession.getState()
+    session.openFor('nara', null)
+    session.start()
+    useAvatarVoiceSession.setState({ phase: 'waiting' })
+    expect(session.adoptThread('thread-1')).toBe(true)
+    const key = `${SESSION_STORAGE_PREFIX.INITIAL_MESSAGE}thread-1`
+    sessionStorage.setItem(key, JSON.stringify({
+      text: 'primer turno hablado',
+      voiceGeneration: useAvatarVoiceSession.getState().generation,
+    }))
+    if (!active) session.close()
+    await act(async () => renderComponent())
+
+    expect(sessionStorage.getItem(key)).toBeNull()
+    if (active) {
+      expect(h.mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'gen-id',
+        parts: [{ type: 'text', text: 'primer turno hablado' }],
+      }))
+      expect(useAvatarVoiceSession.getState().submittedMessageId).toBe('gen-id')
+    } else {
+      expect(h.mockSendMessage).not.toHaveBeenCalled()
+      expect(h.messagesState.addMessage).not.toHaveBeenCalled()
+    }
   })
 
   it('keeps the thread in its project when attachments are embedded', async () => {
@@ -1064,7 +1121,7 @@ describe('ThreadDetail route', () => {
       const persisted = added.find((m: any) => m.id === 'a-len')
       expect(persisted).toBeTruthy()
       expect(persisted.metadata.stopped).toBe(true)
-      expect(screen.queryByText('Increase Context Size')).toBeNull()
+      expect(screen.queryByText('ui-spanish:increaseContext')).toBeNull()
     })
 
     // A reply that fills a local model's context was generated; dropping it left
@@ -1079,7 +1136,7 @@ describe('ThreadDetail route', () => {
       const persisted = added.find((m: any) => m.id === 'a-len')
       expect(persisted).toBeTruthy()
       expect(persisted.metadata.stopped).toBe(true)
-      expect(screen.getByText('Increase Context Size')).toBeInTheDocument()
+      expect(screen.getByText('ui-spanish:increaseContext')).toBeInTheDocument()
     })
 
     // Clicks Increase Context Size and lets its delayed regenerate fire. Returns
@@ -1099,7 +1156,7 @@ describe('ThreadDetail route', () => {
       vi.useFakeTimers()
       try {
         await act(async () => {
-          screen.getByText('Increase Context Size').click()
+          screen.getByText('ui-spanish:increaseContext').click()
         })
         await act(async () => {
           vi.advanceTimersByTime(1000)
@@ -1297,7 +1354,7 @@ describe('ThreadDetail route', () => {
       vi.useFakeTimers()
       try {
         await act(async () => {
-          screen.getByText('Increase Context Size').click()
+          screen.getByText('ui-spanish:increaseContext').click()
         })
       } finally {
         vi.clearAllTimers()
@@ -1347,7 +1404,7 @@ describe('ThreadDetail route', () => {
         })
       })
 
-      expect(screen.queryByText('Increase Context Size')).toBeNull()
+      expect(screen.queryByText('ui-spanish:increaseContext')).toBeNull()
       // Stamped on its own thread instead, which shows it on return.
       const stamped = h.messagesState.updateMessage.mock.calls
         .map((c: any[]) => c[0])
@@ -1469,8 +1526,8 @@ describe('ThreadDetail route', () => {
         { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
       ]
       renderComponent()
-      expect(screen.getByText('Model ran out of context size')).toBeInTheDocument()
-      expect(screen.queryByText('Increase Context Size')).toBeNull()
+      expect(screen.getByText('ui-spanish:contextFull')).toBeInTheDocument()
+      expect(screen.queryByText('ui-spanish:increaseContext')).toBeNull()
       // The provider's own text says what to cut; the generic string hid it.
       expect(
         screen.getByText(/188240 \+ 21333 > 200000/)
@@ -1489,7 +1546,7 @@ describe('ThreadDetail route', () => {
         { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'hi' }] },
       ]
       renderComponent()
-      expect(screen.getByText('Increase Context Size')).toBeInTheDocument()
+      expect(screen.getByText('ui-spanish:increaseContext')).toBeInTheDocument()
     })
   })
 
@@ -1515,6 +1572,31 @@ describe('ThreadDetail route', () => {
       shell.enabled = true
       shell.execute.mockClear()
       h.toolApprovalState.requestApproval = vi.fn().mockResolvedValue(false)
+    })
+
+    it('rejects a queued shell call after the privacy mode changes, without executing it', async () => {
+      renderComponent()
+      await act(async () => { await (h as any).capturedOnToolCall(shellCall('privacy-queued')) })
+      privacy.mode = 'local-only'
+      await act(async () => { await finish() })
+      expect(shell.execute).not.toHaveBeenCalled()
+      expect(h.mockAddToolOutput).toHaveBeenCalledWith(expect.objectContaining({
+        toolCallId: 'privacy-queued', state: 'output-error', errorText: expect.stringContaining('modo de privacidad'),
+      }))
+    })
+
+    it('rejects a queued MCP call after a privacy change without reaching the service', async () => {
+      const callTool = vi.fn()
+      h.appStateState.mcpToolNames = new Set(['malicious_remote_probe'])
+      hub.mcp = () => ({ callToolWithCancellation: callTool }) as never
+      renderComponent()
+      await act(async () => {
+        await (h as any).capturedOnToolCall({ toolCall: { toolCallId: 'privacy-mcp', toolName: 'malicious_remote_probe', input: { query: 'dato de prueba' } } })
+      })
+      privacy.mode = 'cloud-review'
+      await act(async () => { await finish() })
+      expect(callTool).not.toHaveBeenCalled()
+      expect(h.mockAddToolOutput).toHaveBeenCalledWith(expect.objectContaining({ toolCallId: 'privacy-mcp', state: 'output-error', errorText: expect.stringContaining('privacidad') }))
     })
 
     it('runs the shell without a prompt while the switch is on', async () => {

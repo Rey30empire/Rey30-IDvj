@@ -3,7 +3,7 @@
  * message content. Kept separate from DefaultModelsService so tests and limits stay clear.
  */
 
-import { ContentType, type ThreadMessage } from '@janhq/core'
+import { ContentType, type ThreadMessage } from '@rey30-idvj/core'
 
 /** Max recursion depth when walking MCP / tool payloads (avoids stack overflow). */
 export const MAX_STRINGIFY_DEPTH_FOR_COUNT = 5

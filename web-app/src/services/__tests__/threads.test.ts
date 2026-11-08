@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DefaultThreadsService } from '../threads/default'
 import { ExtensionManager } from '@/lib/extension'
-import { ConversationalExtension, ExtensionTypeEnum } from '@janhq/core'
 
 // Mock ExtensionManager
 vi.mock('@/lib/extension', () => ({
@@ -27,7 +26,11 @@ describe('DefaultThreadsService', () => {
   beforeEach(() => {
     threadsService = new DefaultThreadsService()
     vi.clearAllMocks()
-    ;(ExtensionManager.getInstance as any).mockReturnValue(mockExtensionManager)
+    vi.mocked(ExtensionManager.getInstance).mockReturnValue(
+      mockExtensionManager as unknown as ReturnType<
+        typeof ExtensionManager.getInstance
+      >
+    )
   })
 
   describe('fetchThreads', () => {
@@ -151,7 +154,9 @@ describe('DefaultThreadsService', () => {
         id: '1',
         title: 'New Thread',
         updated: 1234567890,
-        assistants: [{ ...realAssistant, model: { id: 'gpt-4', engine: 'openai' } }],
+        assistants: [
+          { ...realAssistant, model: { id: 'gpt-4', engine: 'openai' } },
+        ],
         metadata: { order: 1 },
       }
 
@@ -168,7 +173,11 @@ describe('DefaultThreadsService', () => {
         model: { id: 'gpt-4', provider: 'openai' },
         order: 1,
         // Real assistants (with instructions) are preserved
-        assistants: [expect.objectContaining({ instructions: 'You are a helpful assistant.' })],
+        assistants: [
+          expect.objectContaining({
+            instructions: 'You are a helpful assistant.',
+          }),
+        ],
       })
     })
 
@@ -190,6 +199,28 @@ describe('DefaultThreadsService', () => {
   })
 
   describe('updateThread', () => {
+    it('preserves the chosen model for a model-only thread across a storage round trip', async () => {
+      const thread = {
+        id: 'owned-model-only',
+        title: 'Owned',
+        updated: 1,
+        model: { id: 'owned-model', provider: 'llamacpp' },
+        assistants: [],
+      } as Thread
+      await threadsService.updateThread(thread)
+      const payload = mockConversationalExtension.modifyThread.mock.calls[0][0]
+      expect(payload.assistants).toEqual([
+        {
+          id: 'model-only',
+          name: 'Model',
+          model: { id: 'owned-model', engine: 'llamacpp' },
+        },
+      ])
+      mockConversationalExtension.listThreads.mockResolvedValue([payload])
+      const [restored] = await threadsService.fetchThreads()
+      expect(restored.model).toEqual(thread.model)
+      expect(restored.assistants?.[0]?.id).toBe('model-only')
+    })
     it('should update thread successfully', async () => {
       const realAssistant = {
         id: 'assistant-1',
@@ -207,6 +238,7 @@ describe('DefaultThreadsService', () => {
       }
 
       const result = threadsService.updateThread(thread as Thread)
+      await expect(result).resolves.toBeUndefined()
 
       expect(mockConversationalExtension.modifyThread).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -237,9 +269,9 @@ describe('DefaultThreadsService', () => {
 
   describe('edge cases and error handling', () => {
     it('should throw when the conversational extension is not ready (startup race)', async () => {
-      ;(ExtensionManager.getInstance as any).mockReturnValue({
+      vi.mocked(ExtensionManager.getInstance).mockReturnValue({
         get: vi.fn().mockReturnValue(null),
-      })
+      } as unknown as ReturnType<typeof ExtensionManager.getInstance>)
 
       await expect(threadsService.fetchThreads()).rejects.toThrow()
     })
@@ -255,9 +287,9 @@ describe('DefaultThreadsService', () => {
     })
 
     it('should handle createThread when extension manager returns null', async () => {
-      ;(ExtensionManager.getInstance as any).mockReturnValue({
+      vi.mocked(ExtensionManager.getInstance).mockReturnValue({
         get: vi.fn().mockReturnValue(null),
-      })
+      } as unknown as ReturnType<typeof ExtensionManager.getInstance>)
 
       const inputThread = {
         id: '1',
@@ -270,10 +302,10 @@ describe('DefaultThreadsService', () => {
       expect(result).toEqual(inputThread)
     })
 
-    it('should handle updateThread when extension manager returns null', async () => {
-      ;(ExtensionManager.getInstance as any).mockReturnValue({
+    it('rejects an update when storage is unavailable instead of reporting an unpersisted assistant selection', async () => {
+      vi.mocked(ExtensionManager.getInstance).mockReturnValue({
         get: vi.fn().mockReturnValue(null),
-      })
+      } as unknown as ReturnType<typeof ExtensionManager.getInstance>)
 
       const thread = {
         id: '1',
@@ -281,15 +313,15 @@ describe('DefaultThreadsService', () => {
         model: { id: 'gpt-4', provider: 'openai' },
       }
 
-      const result = await threadsService.updateThread(thread as Thread)
-
-      expect(result).toBeUndefined()
+      await expect(
+        threadsService.updateThread(thread as Thread)
+      ).rejects.toThrow('No se guardó el cambio de asistente')
     })
 
     it('should handle deleteThread when extension manager returns null', async () => {
-      ;(ExtensionManager.getInstance as any).mockReturnValue({
+      vi.mocked(ExtensionManager.getInstance).mockReturnValue({
         get: vi.fn().mockReturnValue(null),
-      })
+      } as unknown as ReturnType<typeof ExtensionManager.getInstance>)
 
       const result = await threadsService.deleteThread('test-id')
 
@@ -363,7 +395,9 @@ describe('DefaultThreadsService', () => {
         id: '1',
         title: 'New Thread',
         updated: 1234567890,
-        assistants: [{ ...realAssistant, model: { id: '*', engine: 'llamacpp' } }],
+        assistants: [
+          { ...realAssistant, model: { id: '*', engine: 'llamacpp' } },
+        ],
         metadata: { order: 1 },
       }
 
@@ -372,7 +406,7 @@ describe('DefaultThreadsService', () => {
       )
 
       const result = await threadsService.createThread(inputThread as Thread)
-
+      expect(result.model).toEqual({ id: '*', provider: 'llamacpp' })
       expect(mockConversationalExtension.createThread).toHaveBeenCalledWith(
         expect.objectContaining({
           assistants: [
@@ -397,7 +431,13 @@ describe('DefaultThreadsService', () => {
         id: '1',
         title: 'New Thread',
         updated: 1234567890,
-        assistants: [{ id: 'model-only', name: 'Model', model: { id: 'gpt-4', engine: 'openai' } }],
+        assistants: [
+          {
+            id: 'model-only',
+            name: 'Model',
+            model: { id: 'gpt-4', engine: 'openai' },
+          },
+        ],
         metadata: { order: 1 },
       }
 
@@ -406,7 +446,7 @@ describe('DefaultThreadsService', () => {
       )
 
       const result = await threadsService.createThread(inputThread as Thread)
-
+      expect(result.model).toEqual(inputThread.model)
       // Should create with model-only entry when no assistants provided
       expect(mockConversationalExtension.createThread).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -438,8 +478,8 @@ describe('DefaultThreadsService', () => {
           assistants: [
             {
               model: { id: 'gpt-4', engine: 'openai' },
-              id: 'jan',
-              name: 'Jan',
+              id: 'model-only',
+              name: 'Model',
             },
           ],
         })

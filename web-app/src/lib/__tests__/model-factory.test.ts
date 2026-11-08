@@ -5,7 +5,7 @@ import {
   createCustomFetch,
   describeTransportError,
 } from '../model-factory'
-import type { ProviderObject } from '@janhq/core'
+import type { ProviderObject } from '@rey30-idvj/core'
 import { invoke } from '@tauri-apps/api/core'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 

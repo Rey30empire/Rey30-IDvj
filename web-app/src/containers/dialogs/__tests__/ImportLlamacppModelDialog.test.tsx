@@ -1,8 +1,24 @@
+import type { ReactNode } from 'react'
+import { TranslationContext } from '@/i18n/context'
+import i18n from '@/i18n/setup'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import {
+  render as baseRender,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react'
 import '@testing-library/jest-dom'
 
+const render = (ui: ReactNode) =>
+  baseRender(
+    <TranslationContext.Provider value={{ t: i18n.t, i18n }}>
+      {ui}
+    </TranslationContext.Provider>
+  )
+
 const hoisted = vi.hoisted(() => ({
+  providers: [] as any[],
   dialogOpen: vi.fn(),
   pullModel: vi.fn(),
   validateGgufFile: vi.fn(),
@@ -17,6 +33,10 @@ const hoisted = vi.hoisted(() => ({
 }))
 
 vi.mock('sonner', () => ({ toast: hoisted.toast }))
+vi.mock('@/hooks/useModelProvider', () => ({
+  useModelProvider: (selector: (state: { providers: any[] }) => unknown) =>
+    selector({ providers: hoisted.providers }),
+}))
 
 // Override the global useServiceHub mock from setup.ts with a tailored one.
 vi.mock('@/hooks/useServiceHub', () => {
@@ -39,6 +59,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 import { ImportLlamacppModelDialog } from '../ImportLlamacppModelDialog'
+import LocalModelInstaller from '@/containers/LocalModelInstaller'
 
 const provider = { models: [] } as unknown as any
 
@@ -48,6 +69,7 @@ const openDialog = () => {
 
 describe('ImportLlamacppModelDialog', () => {
   beforeEach(() => {
+    i18n.changeLanguage('es')
     vi.clearAllMocks()
     hoisted.validateGgufFile.mockResolvedValue({
       isValid: true,
@@ -66,8 +88,8 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    expect(screen.getAllByText('Import Model').length).toBeGreaterThan(0)
-    expect(screen.getByText('Select GGUF File')).toBeInTheDocument()
+    expect(screen.getAllByText('Importar modelo').length).toBeGreaterThan(0)
+    expect(screen.getByText('Seleccionar archivo GGUF')).toBeInTheDocument()
   })
 
   it('shows Select Draft GGUF File when the draft model switch is enabled', () => {
@@ -79,7 +101,9 @@ describe('ImportLlamacppModelDialog', () => {
     )
     openDialog()
     fireEvent.click(document.getElementById('draft-model')!)
-    expect(screen.getByText('Select Draft GGUF File')).toBeInTheDocument()
+    expect(
+      screen.getByText('Seleccionar archivo GGUF borrador')
+    ).toBeInTheDocument()
   })
 
   it('passes the draft model path through to pullModel', async () => {
@@ -94,15 +118,15 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     fireEvent.click(document.getElementById('draft-model')!)
-    fireEvent.click(screen.getByText('Select Draft GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF borrador'))
     await waitFor(() =>
       expect(screen.getByText('draft.gguf')).toBeInTheDocument()
     )
     const importBtn = await screen.findByRole('button', {
-      name: /Import Model/i,
+      name: /Importar modelo/i,
     })
     await waitFor(() => expect(importBtn).not.toBeDisabled())
     fireEvent.click(importBtn)
@@ -140,19 +164,19 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     await waitFor(() =>
       expect(screen.getAllByText('ok.gguf').length).toBeGreaterThan(0)
     )
     fireEvent.click(document.getElementById('draft-model')!)
-    fireEvent.click(screen.getByText('Select Draft GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF borrador'))
     await waitFor(() =>
       expect(screen.getAllByText('draft.gguf').length).toBeGreaterThan(0)
     )
     await waitFor(() =>
       expect(
-        screen.getByText(/not compatible with the main model/i)
+        screen.getByText(/no es compatible con el principal/i)
       ).toBeInTheDocument()
     )
   })
@@ -181,18 +205,18 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     await waitFor(() =>
       expect(screen.getAllByText('ok.gguf').length).toBeGreaterThan(0)
     )
     fireEvent.click(document.getElementById('draft-model')!)
-    fireEvent.click(screen.getByText('Select Draft GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF borrador'))
     await waitFor(() =>
       expect(screen.getAllByText('mtp.gguf').length).toBeGreaterThan(0)
     )
     expect(
-      screen.queryByText('Draft Model Validation Error')
+      screen.queryByText('Error de validación del modelo borrador')
     ).not.toBeInTheDocument()
   })
 
@@ -206,7 +230,7 @@ describe('ImportLlamacppModelDialog', () => {
     openDialog()
     const sw = document.getElementById('multimodal')!
     fireEvent.click(sw)
-    expect(screen.getByText('Select MMPROJ File')).toBeInTheDocument()
+    expect(screen.getByText('Seleccionar archivo MMPROJ')).toBeInTheDocument()
   })
 
   it('toasts an error when Import is clicked with no model file selected', () => {
@@ -219,7 +243,7 @@ describe('ImportLlamacppModelDialog', () => {
     openDialog()
     // The Import button is disabled without a model, so directly invoke handleImport via click.
     // With no modelFile, the button is disabled; assert it's disabled instead.
-    const importBtn = screen.getByRole('button', { name: /Import Model/i })
+    const importBtn = screen.getByRole('button', { name: /Importar modelo/i })
     expect(importBtn).toBeDisabled()
   })
 
@@ -233,7 +257,7 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() =>
       expect(hoisted.validateGgufFile).toHaveBeenCalledWith('/tmp/model.gguf')
     )
@@ -256,9 +280,11 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() =>
-      expect(screen.getByText('Model Validation Error')).toBeInTheDocument()
+      expect(
+        screen.getByText('Error de validación del modelo')
+      ).toBeInTheDocument()
     )
   })
 
@@ -274,18 +300,16 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
-    await waitFor(() =>
-      expect(hoisted.validateGgufFile).toHaveBeenCalled()
-    )
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
+    await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     const importBtn = await screen.findByRole('button', {
-      name: /Import Model/i,
+      name: /Importar modelo/i,
     })
     await waitFor(() => expect(importBtn).not.toBeDisabled())
     fireEvent.click(importBtn)
     await waitFor(() =>
       expect(hoisted.toast.error).toHaveBeenCalledWith(
-        'Model already exists',
+        'El modelo ya existe',
         expect.any(Object)
       )
     )
@@ -304,10 +328,10 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     const importBtn = await screen.findByRole('button', {
-      name: /Import Model/i,
+      name: /Importar modelo/i,
     })
     await waitFor(() => expect(importBtn).not.toBeDisabled())
     fireEvent.click(importBtn)
@@ -325,7 +349,7 @@ describe('ImportLlamacppModelDialog', () => {
     )
     await waitFor(() =>
       expect(hoisted.toast.success).toHaveBeenCalledWith(
-        'Model imported successfully',
+        'Modelo importado correctamente',
         expect.any(Object)
       )
     )
@@ -342,16 +366,16 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Select GGUF File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
     await waitFor(() => expect(hoisted.validateGgufFile).toHaveBeenCalled())
     const importBtn = await screen.findByRole('button', {
-      name: /Import Model/i,
+      name: /Importar modelo/i,
     })
     await waitFor(() => expect(importBtn).not.toBeDisabled())
     fireEvent.click(importBtn)
     await waitFor(() =>
       expect(hoisted.toast.error).toHaveBeenCalledWith(
-        'Failed to import model',
+        'No se pudo importar el modelo',
         expect.any(Object)
       )
     )
@@ -368,7 +392,7 @@ describe('ImportLlamacppModelDialog', () => {
     openDialog()
     // Enable vision mode first
     fireEvent.click(document.getElementById('multimodal')!)
-    fireEvent.click(screen.getByText('Select MMPROJ File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo MMPROJ'))
     await waitFor(() =>
       expect(hoisted.invoke).toHaveBeenCalledWith(
         'plugin:llamacpp|read_gguf_metadata',
@@ -393,9 +417,9 @@ describe('ImportLlamacppModelDialog', () => {
     )
     openDialog()
     fireEvent.click(document.getElementById('multimodal')!)
-    fireEvent.click(screen.getByText('Select MMPROJ File'))
+    fireEvent.click(screen.getByText('Seleccionar archivo MMPROJ'))
     await waitFor(() =>
-      expect(screen.getByText('MMProj Validation Error')).toBeInTheDocument()
+      expect(screen.getByText('Error de validación MMProj')).toBeInTheDocument()
     )
   })
 
@@ -407,9 +431,60 @@ describe('ImportLlamacppModelDialog', () => {
       />
     )
     openDialog()
-    fireEvent.click(screen.getByText('Cancel'))
+    fireEvent.click(screen.getByText('Cancelar'))
     await waitFor(() =>
-      expect(screen.queryByText('Import Model')).not.toBeInTheDocument()
+      expect(screen.queryByText('Importar modelo')).not.toBeInTheDocument()
     )
+  })
+})
+
+describe('Hub local model installer entry', () => {
+  beforeEach(() => {
+    i18n.changeLanguage('es')
+    vi.clearAllMocks()
+    hoisted.providers = []
+    hoisted.dialogOpen.mockReset()
+    hoisted.pullModel.mockReset().mockResolvedValue(undefined)
+    hoisted.validateGgufFile
+      .mockReset()
+      .mockResolvedValue({
+        isValid: true,
+        metadata: { metadata: { 'general.architecture': 'llama' } },
+      })
+    hoisted.invoke
+      .mockReset()
+      .mockResolvedValue({ metadata: { 'general.architecture': 'llama' } })
+  })
+  it('disables installation until the current local provider is available', () => {
+    render(<LocalModelInstaller />)
+    expect(
+      screen.getByRole('button', { name: 'Instalar GGUF local' })
+    ).toBeDisabled()
+    expect(hoisted.dialogOpen).not.toHaveBeenCalled()
+  })
+  it('opens the real import dialog and registers the selected absolute path', async () => {
+    hoisted.providers = [{ provider: 'llamacpp', models: [] }]
+    hoisted.dialogOpen.mockResolvedValueOnce('C:/fixtures/qa-owned.gguf')
+    render(<LocalModelInstaller />)
+    fireEvent.click(screen.getByRole('button', { name: 'Instalar GGUF local' }))
+    expect(
+      screen.getByRole('heading', { name: 'Instalar modelo GGUF local' })
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Seleccionar archivo GGUF'))
+    await waitFor(() =>
+      expect(hoisted.validateGgufFile).toHaveBeenCalledWith(
+        'C:/fixtures/qa-owned.gguf'
+      )
+    )
+    const confirm = screen.getByRole('button', { name: /Importar modelo/i })
+    await waitFor(() => expect(confirm).toBeEnabled())
+    fireEvent.click(confirm)
+    await waitFor(() => expect(hoisted.pullModel).toHaveBeenCalledTimes(1))
+    expect(hoisted.pullModel.mock.calls[0][1]).toBe('C:/fixtures/qa-owned.gguf')
+    expect(
+      hoisted.invoke.mock.calls.some((call) =>
+        /completion|inference|download|models\/load/.test(call[0])
+      )
+    ).toBe(false)
   })
 })

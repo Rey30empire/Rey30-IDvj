@@ -32,7 +32,7 @@
   "recents": "Recientes",
   "hub": "Hub",
   "helpSupport": "Ayuda y soporte",
-  "helpUsImproveJan": "Ayúdanos a mejorar Jan",
+  "helpUsImproveRey30": "Ayúdanos a mejorar Rey30 IDvj",
   "unstarAll": "Quitar todas las estrellas",
   "unstar": "Quitar estrella",
   "deleteAll": "Eliminar todo",
@@ -111,7 +111,7 @@
   "noModels": "No se encontraron modelos",
   "customAvatar": "Avatar personalizado",
   "editAssistant": "Editar asistente",
-  "jan": "Jan",
+  "rey30": "Rey30 IDvj",
   "metadata": "Metadatos",
   "regenerate": "Regenerar",
   "threadImage": "Imagen del hilo",
@@ -235,9 +235,38 @@
     "delete": "Eliminar"
   },
   "modelSettings": {
-    "nglDisabledByFit": "Auto-fit is choosing GPU layers. Turn off Auto-fit to set this manually.",
+    "nglDisabledByFit": "El ajuste automático está eligiendo las capas de GPU. Desactívalo para establecerlas manualmente.",
     "title": "Configuración del modelo - {{modelId}}",
-    "description": "Configura los ajustes del modelo para optimizar el rendimiento y el comportamiento."
+    "description": "Configura los ajustes del modelo para optimizar el rendimiento y el comportamiento.",
+    "samplingDefaults": {
+      "title": "Parámetros de muestreo predeterminados",
+      "description": "Ajustes de muestreo predeterminados para este modelo. Se usan salvo que el asistente o la petición especifiquen otros valores."
+    },
+    "specDraft": {
+      "section": "Decodificación especulativa",
+      "enable": "Activar decodificación especulativa",
+      "enableDescription": "Propone varios tokens por paso y los verifica en una sola pasada para acelerar la generación. Usa las cabezas MTP integradas en el modelo o el modelo borrador descargado con él (MTP, Eagle3, DFlash o DSpark).",
+      "nMax": "Máximo de tokens del borrador",
+      "nMaxDescription": "Número máximo de tokens propuestos por paso. Predeterminado: 16.",
+      "nMin": "Mínimo de tokens del borrador",
+      "nMinDescription": "Número mínimo de tokens propuestos por paso. Predeterminado: 0.",
+      "pMin": "Probabilidad mínima del borrador",
+      "pMinDescription": "Probabilidad mínima para proponer tokens de forma voraz (0–1). Predeterminado: 0.75.",
+      "probabilistic": "Muestreo probabilístico del borrador",
+      "probabilisticDescription": "Muestrea el borrador en lugar de elegir su token más probable y deja que el modelo lo verifique mediante muestreo por rechazo. Si está desactivado, usa la selección voraz predeterminada.",
+      "nUbatch": "Tamaño del lote del borrador",
+      "nUbatchDescription": "Tamaño físico del lote del contexto del borrador. Redúcelo para ahorrar VRAM. El valor 0 usa el tamaño de lote del modelo (predeterminado)."
+    },
+    "templateKwargs": {
+      "section": "Opciones de la plantilla de chat",
+      "description": "Opciones adicionales admitidas por la plantilla de chat de este modelo. Se envían como chat_template_kwargs en cada petición; deja un valor predeterminado para que decida la plantilla.",
+      "addCustom": "Añadir opción personalizada",
+      "keyPlaceholder": "nombre",
+      "valuePlaceholder": "valor",
+      "add": "Añadir",
+      "cancel": "Cancelar",
+      "remove": "Eliminar"
+    }
   },
   "dialogs": {
     "changeDataFolder": {
@@ -268,6 +297,11 @@
   },
   "projects": {
     "title": "Proyectos",
+    "sidebarTitle": "Proyecto",
+    "options": "Opciones del proyecto",
+    "view": "Ver proyecto",
+    "createFromScratch": "Crear proyecto desde cero",
+    "loadExisting": "Cargar proyecto existente",
     "new": "Nuevos proyectos",
     "addProject": "Agregar proyecto",
     "addToProject": "Agregar al proyecto",
@@ -396,7 +430,16 @@
     },
     "downloadFailed": {
       "title": "Error en la descarga",
-      "description": "La descarga de {{item}} falló"
+      "description": "La descarga de {{item}} falló",
+      "descriptionWithReason": "Falló la descarga de {{item}}: {{reason}}",
+      "reason": {
+        "dns": "no se pudo resolver el nombre del servidor",
+        "refused": "se rechazó la conexión",
+        "timeout": "se agotó el tiempo de espera de la conexión",
+        "tls": "no se pudo establecer una conexión segura",
+        "proxy": "no se pudo conectar con el proxy",
+        "unreachable": "no se pudo conectar con el servidor"
+      }
     },
     "modelValidationStarted": {
       "title": "Validando modelo",
@@ -444,7 +487,18 @@
     },
     "uploadFailed": {
       "title": "Error de procesamiento",
-      "description": "Error al procesar el archivo"
+      "description": "Error al procesar el archivo",
+      "subjectThisFile": "Este archivo",
+      "pdfMalformedXref": "{{subject}} tiene una tabla de referencias cruzadas PDF incorrecta y no se pudo procesar. Ábrelo en un lector PDF y vuelve a guardarlo (Archivo → Imprimir → Guardar como PDF); después, súbelo de nuevo.",
+      "pdfScanned": "{{subject}} parece ser un PDF escaneado o basado en imágenes. El reconocimiento de texto (OCR) todavía no está disponible; sube un PDF que contenga texto.",
+      "pdfEncrypted": "{{subject}} está protegido con contraseña. Elimínala y vuelve a intentarlo.",
+      "pdfUnsupportedFeature": "{{subject}} usa una función PDF que Rey30 IDvj todavía no puede procesar (por ejemplo, funciones PostScript de color o sombreado). Vuelve a guardarlo (Archivo → Imprimir → Guardar como PDF) para simplificarlo y súbelo de nuevo.",
+      "pdfGeneric": "No se pudo procesar {{subject}} como PDF. Puede estar dañado o usar una función PDF no admitida.",
+      "fileTooLarge": "{{subject}} es demasiado grande. {{message}}.",
+      "unsupportedType": "El tipo de archivo «{{type}}» no está admitido.",
+      "ioError": "No se pudo leer {{subject}}: {{message}}",
+      "parseGeneric": "No se pudo procesar {{subject}}: {{message}}",
+      "fallback": "No se pudo procesar {{subject}}."
     },
     "fileDeleted": {
       "title": "Archivo eliminado",
@@ -461,6 +515,24 @@
     "attachmentsDisabledInfo": {
       "title": "Adjuntos desactivados",
       "description": "Los adjuntos están desactivados en la Configuración"
+    },
+    "openSettings": "Abrir configuración",
+    "openLogs": "Abrir registros",
+    "downloadTokenRequired": {
+      "title": "Se necesita un token de Hugging Face",
+      "description": "Este modelo requiere un token de acceso a Hugging Face. Añádelo en Configuración y vuelve a intentarlo."
+    },
+    "downloadLicenseRequired": {
+      "title": "Acepta la licencia del modelo en Hugging Face",
+      "description": "Debes aceptar la licencia del modelo en su página de Hugging Face antes de descargarlo."
+    },
+    "downloadRateLimited": {
+      "title": "Límite de peticiones de Hugging Face",
+      "description": "Has alcanzado el límite de peticiones. Añadir un token puede aumentar ese límite. Vuelve a intentarlo más tarde."
+    },
+    "unsupportedFileType": {
+      "title": "Tipo de archivo no admitido",
+      "description": "La extensión «.{{extension}}» no está admitida como referencia del proyecto."
     }
   },
   "errors": {
@@ -468,7 +540,12 @@
     "fileTooLargeDescription": "{{fileName}} excede el límite de {{maxFileSizeMB}}MB"
   },
   "files": {
-    "chunksCount": "{{count}} fragmentos"
+    "chunksCount": "{{count}} fragmentos",
+    "title": "Archivos",
+    "empty": "Aquí aparecerán los archivos que adjuntes y los que cree el agente.",
+    "a11y": "Archivos: {{count}}",
+    "attachments": "Adjuntos",
+    "notImported": "fuera de la carpeta de trabajo"
   },
   "llamacppBusyOnExit": {
     "title": "llama.cpp is still busy",
@@ -476,5 +553,254 @@
     "forceQuit": "Force quit",
     "forcing": "Force quitting…",
     "shuttingDown": "Shutting down…"
-  }
+  },
+  "htmlArtifact": {
+    "code": "Código",
+    "preview": "Vista previa",
+    "previewStreaming": "Disponible cuando termine la generación",
+    "unresolvedAssets_one": "No se puede cargar 1 recurso en la vista previa. Las rutas relativas no tienen una URL base con la que resolverse.",
+    "unresolvedAssets_other": "No se pueden cargar {{count}} recursos en la vista previa. Las rutas relativas no tienen una URL base con la que resolverse."
+  },
+  "web_search": "Búsqueda web",
+  "shell": "Terminal",
+  "browse": "Navegar",
+  "moreControls": "Más controles",
+  "starting": "Iniciando...",
+  "activeSuffix": " (Activo)",
+  "home": "Inicio",
+  "cowork": "Espacio de trabajo",
+  "newSession": "Nueva sesión",
+  "artifacts": "Resultados",
+  "customize": "Personalizar",
+  "local": "Local",
+  "selectFolder": "Seleccionar carpeta",
+  "selectModel": "Selecciona primero un modelo",
+  "commands": "Comandos",
+  "cmdHelp": "Mostrar los comandos disponibles",
+  "cmdClear": "Vaciar esta sesión",
+  "cmdModels": "Cambiar el modelo activo",
+  "cmdModelsHint": "Escribe /models y elige un modelo de la lista",
+  "cmdModelSwitched": "Se cambió a {{name}}",
+  "cmdUnknown": "Comando desconocido: {{name}}. Prueba /help",
+  "cmdBusy": "No se puede hacer mientras el agente está en ejecución",
+  "cmdCompact": "Resumir el contexto de la sesión",
+  "cmdCompacted": "Contexto reducido: {{before}} -> {{after}} mensajes",
+  "cmdNothingToCompact": "Todavía no hay contexto que resumir",
+  "cmdCompactFailed": "No se pudo resumir el contexto: {{error}}",
+  "cmdPlan": "Activar o desactivar el modo de planificación (solo lectura: el agente propone sin escribir)",
+  "cmdPlanOn": "Modo de planificación activado: el agente lee y propone sin escribir",
+  "cmdPlanOff": "Modo de planificación desactivado: ejecución normal",
+  "cmdTodo": "Abrir el panel de progreso",
+  "cmdTasks": "Abrir el panel de tareas en segundo plano",
+  "cmdInit": "Estudiar el proyecto y escribir habilidades y memoria",
+  "cmdInitRunning": "Preparando el contexto de este proyecto",
+  "skills": "Habilidades",
+  "skillsInContext": "Habilidades disponibles para el agente en esta ejecución",
+  "skillsTitle": "Administrar habilidades",
+  "skillsScopeProject": "Habilidades de {{folder}}",
+  "skillsScopeGlobal": "Habilidades globales, disponibles en todas las sesiones",
+  "skillsScopeMerged": "Habilidades de {{folder}}, junto con las globales compartidas por todas las sesiones",
+  "skillOriginFolder": "carpeta",
+  "skillOriginGlobal": "global",
+  "skillsEmpty": "Todavía no hay habilidades",
+  "skillsPickOrNew": "Selecciona una habilidad para editarla o crea una nueva.",
+  "skillNew": "Nueva habilidad",
+  "skillDelete": "Eliminar habilidad",
+  "skillSave": "Guardar",
+  "skillSaved": "Habilidad guardada",
+  "skillNameRequired": "El nombre de la habilidad es obligatorio",
+  "skillNamePlaceholder": "nombre-habilidad",
+  "skillContentPlaceholder": "Describe el procedimiento reutilizable en Markdown…",
+  "skillHubImport": "Importar del catálogo",
+  "skillHubTitle": "Catálogo de habilidades de Anthropic",
+  "skillHubEmpty": "No se encontraron habilidades en el catálogo",
+  "skillImport": "Importar",
+  "skillReimport": "Volver a importar",
+  "skillImported": "Se importó {{name}}",
+  "sessions": "Sesiones",
+  "deleteSession": "Eliminar sesión",
+  "deleteSessionTitle": "¿Eliminar sesión?",
+  "deleteSessionBody": "Se eliminarán permanentemente «{{title}}» y su transcripción. Esta acción no se puede deshacer.",
+  "analyticsConsentDetail": "Recopilamos datos anónimos para conocer el uso de las funciones. Nunca rastreamos tus chats ni tu información personal. Puedes cambiar esta opción en Configuración > Privacidad.",
+  "analyticsConsentQuestion": "¿Quieres ayudarnos a mejorar Rey30 IDvj?",
+  "dismiss": "Descartar",
+  "preview.loading": "Abriendo…",
+  "preview.unsupported": "Rey30 IDvj no puede mostrar este tipo de archivo. Ábrelo para verlo en otra aplicación.",
+  "preview.outside": "Este archivo ya no está en la carpeta de trabajo de la sesión.",
+  "preview.tooLarge": "El archivo es demasiado grande para la vista previa. Ábrelo para verlo en otra aplicación.",
+  "preview.reload": "Volver a cargar",
+  "preview.allowNetwork": "Permitir acceso a la red",
+  "preview.unsandboxed": "Ejecutar sin aislamiento: permite datos guardados y archivos locales",
+  "preview.unresolvedRefs_one": "No se puede cargar 1 archivo enlazado por esta página en la vista previa. Ábrela para verla en un navegador.",
+  "preview.unresolvedRefs_other": "No se pueden cargar {{count}} archivos enlazados por esta página en la vista previa. Ábrela para verla en un navegador.",
+  "preview.externalRefs_one": "Se bloqueó 1 recurso que esta página carga desde la web. Activa «Permitir acceso a la red» para cargarlo.",
+  "preview.externalRefs_other": "Se bloquearon {{count}} recursos que esta página carga desde la web. Activa «Permitir acceso a la red» para cargarlos.",
+  "preview.scriptErrors_one": "La página notificó un error: {{message}}",
+  "preview.scriptErrors_other": "La página notificó {{count}} errores. Primero: {{message}}",
+  "changes": {
+    "title": "Cambios del agente",
+    "empty": "Aquí aparecerán los archivos que el agente escriba o edite.",
+    "a11y": "Cambios del agente: {{files}} archivos, {{additions}} líneas añadidas, {{deletions}} líneas eliminadas"
+  },
+  "modelPanel": {
+    "title": "Configuración del modelo",
+    "a11y": "Abrir la configuración del modelo"
+  },
+  "coworkSlash": {
+    "skillUnavailable": "La habilidad «{{name}}» no está disponible",
+    "kind": {
+      "skill": "Habilidad",
+      "command": "Comando",
+      "model": "Modelo"
+    }
+  },
+  "multimodal": "Multimodal",
+  "noAssistant": "Sin asistente",
+  "settingUpRey30": "Iniciando Rey30 IDvj…",
+  "registeringExtensions": "Registrando extensiones…",
+  "loadingExtensions": "Cargando extensiones… ({{done}}/{{total}})",
+  "modelControls": {
+    "updateFailed": "No se pudo actualizar la configuración del modelo"
+  },
+  "missingDependenciesDialog": {
+    "title": "Faltan bibliotecas del sistema",
+    "description": "Se instaló {{backend}}, pero no se encontraron algunas bibliotecas del sistema necesarias. Podría recurrir a la CPU o no funcionar correctamente.",
+    "installLabel": "Para resolverlo, instala lo siguiente:",
+    "download": "Descargar",
+    "additionalLibraries": "Otras bibliotecas que faltan:",
+    "missingLibraries": "Bibliotecas que faltan:",
+    "showRawLibraries": "Mostrar los nombres de {{count}} bibliotecas que faltan"
+  },
+  "duration": {
+    "seconds": "{{count}}s",
+    "minutes": "{{count}}m",
+    "hours": "{{count}}h"
+  },
+  "collapse": "Contraer",
+  "expand": "Expandir",
+  "todoPanelTitle": "Progreso",
+  "todoPanelEmpty": "Todavía no hay una lista de tareas.",
+  "backgroundTasks": "Tareas en segundo plano",
+  "subagentsRunning_one": "{{count}} subagente en ejecución",
+  "subagentsRunning_other": "{{count}} subagentes en ejecución",
+  "monitorsRunning_one": "{{count}} monitor en ejecución",
+  "monitorsRunning_other": "{{count}} monitores en ejecución",
+  "backgroundRunning_one": "{{count}} tarea en segundo plano en ejecución",
+  "backgroundRunning_other": "{{count}} tareas en segundo plano en ejecución",
+  "monitors": "Monitores",
+  "monitorPolling": "Consultando",
+  "monitorMatched": "Coincidencia encontrada",
+  "monitorTimedOut": "Tiempo de espera agotado",
+  "monitorStopped": "Detenido",
+  "monitorEnded": "Finalizado",
+  "coworkWatching_one": "Supervisando {{count}} monitor…",
+  "coworkWatching_other": "Supervisando {{count}} monitores…",
+  "coworkWaitingBackground": "Esperando las tareas en segundo plano…",
+  "noBackgroundTasks": "Todavía no hay tareas en segundo plano.",
+  "running": "En ejecución",
+  "queued": "En cola",
+  "waiting": "En espera",
+  "finished": "Finalizado",
+  "subagentPhase": "fase {{phase}}",
+  "subagentWaiting": "en espera",
+  "viewTranscript": "Ver transcripción",
+  "taskWorking": "Trabajando…",
+  "taskNoOutput": "El subagente no produjo ninguna salida visible.",
+  "subagentToolUses_one": "{{count}} uso de herramienta",
+  "subagentToolUses_other": "{{count}} usos de herramientas",
+  "artifactGroupCode": "Código",
+  "artifactGroupImage": "Imagen",
+  "artifactGroupDocument": "Documento",
+  "artifactGroupVideo": "Vídeo",
+  "artifactGroupAudio": "Audio",
+  "artifactOpenPreview": "Abrir vista previa",
+  "artifactOpenExternal": "Abrir",
+  "artifactMoreActions": "Más acciones",
+  "artifactShowInFolder": "Mostrar en la carpeta",
+  "skillsUsedLabel": "Habilidades utilizadas",
+  "skillsUsed": "Habilidades utilizadas: {{skills}}",
+  "artifactsAll": "Todos",
+  "artifactsEmpty": "Aquí aparecerán los resultados de tus sesiones del espacio de trabajo.",
+  "artifactsNoMatch": "No hay resultados coincidentes.",
+  "artifactsSearch": "Buscar resultados",
+  "artifactsShowMore": "Mostrar {{count}} más",
+  "workspace": {
+    "readsFrom": "Trabaja en",
+    "writable": "lectura y escritura",
+    "footnote": "Al enviar una tarea, el agente puede leer y editar los archivos de esta carpeta. Usa Planificar para revisar una propuesta antes de editar.",
+    "footnoteEmpty": "Elige una carpeta existente o créala en el selector. El agente podrá leer y editar sus archivos.",
+    "attach": "Abrir carpeta",
+    "change": "Abrir otra carpeta",
+    "detach": "Desvincular carpeta",
+    "open": "Abrir",
+    "reveal": "Mostrar en el explorador",
+    "unavailable": "Carpeta de trabajo no disponible",
+    "missing": "La carpeta de trabajo {{folder}} ya no está disponible. Elige otra carpeta.",
+    "openFailed": "No se pudo abrir la carpeta de trabajo",
+    "revealFailed": "No se pudo mostrar la carpeta de trabajo",
+    "a11yWithFolder": "Carpeta del proyecto {{folder}}, adjunta con acceso de lectura y escritura. Puedes cambiarla o desvincularla.",
+    "a11yNoFolder": "Abrir una carpeta de proyecto",
+    "openFolder": "Abrir carpeta",
+    "sessionOptions": "Opciones de {{name}}",
+    "sessionsUnavailable": "Las sesiones todavía no están disponibles. Espera un momento y vuelve a intentarlo.",
+    "pickerFailed": "No se pudo mostrar el selector. Vuelve a pulsar Abrir carpeta.",
+    "invalidSelection": "Elige una carpeta local existente o créala en el selector.",
+    "savedFolderChanged": "La ruta guardada apunta a otra carpeta. Carga el proyecto desde el selector para confirmar la nueva ruta.",
+    "folderBusy": "Esta carpeta tiene una sesión en curso. Ábrela desde Sesiones o espera a que termine."
+  },
+  "coworkEmpty": {
+    "title": "¿En qué trabajamos?",
+    "subtitleSandbox": "Abre una carpeta para trabajar con sus archivos o encarga una tarea en el espacio de trabajo.",
+    "subtitleFolder": "Trabaja en {{folder}}. Puedes pedir que lea, explique o edite sus archivos.",
+    "try": "Prueba",
+    "sandbox": {
+      "first": "Escribe un script Python que renombre archivos según la fecha en que se tomaron",
+      "second": "Crea un panel de una sola página a partir de un CSV que pegaré",
+      "third": "Redacta un README para un proyecto que te describiré"
+    },
+    "folder": {
+      "first": "Explica cómo está organizado {{folder}}",
+      "second": "Busca todos los TODO de {{folder}} y agrúpalos por área",
+      "third": "Escribe pruebas para la parte de {{folder}} que te indique"
+    }
+  },
+  "sandbox": {
+    "noTerminal": "Sin terminal",
+    "a11y": "La ejecución de comandos está desactivada. Ver detalles.",
+    "title": "La ejecución de comandos está desactivada",
+    "body": "Rey30 IDvj solo permite al agente ejecutar comandos de terminal si el sistema puede aislarlos. Aquí no hay un mecanismo de aislamiento disponible: el agente puede leer, escribir y editar archivos en su carpeta de trabajo, pero no ejecutar programas.",
+    "fixLinux": "Linux usa bubblewrap. Instálalo y reinicia Rey30 IDvj.",
+    "fixMac": "macOS usa el aislamiento integrado en /usr/bin/sandbox-exec. Reinicia Rey30 IDvj cuando esté disponible.",
+    "fixWindows": "Windows usa AppContainer. Reinicia Rey30 IDvj para volver a intentarlo.",
+    "recheck": "Volver a comprobar"
+  },
+  "planMode": {
+    "label": "Plan",
+    "tooltipOff": "Planifica primero: el agente lee y propone sin escribir.",
+    "tooltipOn": "Planificando. Desactiva este modo para permitir que el agente escriba archivos.",
+    "onAnnounce": "Modo de planificación activado",
+    "placeholder": "Pide un plan. El agente no modificará ningún archivo."
+  },
+  "budget": {
+    "stoppedSteps": "Se detuvo al alcanzar {{max}} pasos. El agente no ha terminado.",
+    "keepGoing": "Continuar",
+    "stoppedTokens": "Se detuvo porque la sesión alcanzó su límite de tokens.",
+    "compact": "Resumir contexto",
+    "newSession": "Nueva sesión"
+  },
+  "run": {
+    "stopped": "Detenido.",
+    "failed": "La ejecución se detuvo antes de tiempo.",
+    "tryAgain": "Volver a intentarlo"
+  },
+  "modelNoTools": "{{model}} no puede llamar a herramientas, por lo que no puede actuar como agente. Elige un modelo que admita herramientas.",
+  "askContinue": "Continuar",
+  "askNext": "Siguiente pregunta",
+  "askPageOf": "{{current}} de {{total}}",
+  "askPrev": "Pregunta anterior",
+  "askSkipped": "Omitida",
+  "askRecommended": "Recomendado",
+  "askSelectedCount": "{{count}} seleccionados",
+  "askSomethingElse": "Otra respuesta",
+  "submit": "Enviar"
 }

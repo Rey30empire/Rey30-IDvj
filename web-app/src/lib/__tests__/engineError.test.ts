@@ -71,7 +71,7 @@ describe('parseEngineError', () => {
   it('recovers a wrong-processor engine start from the error text', () => {
     const parsed = parseEngineError(
       new Error(
-        'Failed to start model: {"code":"UNSUPPORTED_CPU","message":"The llama.cpp engine in this Jan build does not support this computer\'s processor.","details":"Bad CPU type in executable (os error 86)"}'
+        'Failed to start model: {"code":"UNSUPPORTED_CPU","message":"The llama.cpp engine in this Rey30 IDvj build does not support this computer\'s processor.","details":"Bad CPU type in executable (os error 86)"}'
       )
     )
 

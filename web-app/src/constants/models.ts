@@ -2,7 +2,7 @@
  * Model-related constants
  */
 
-export const JAN_CODE_HF_REPO = 'janhq/Jan-Code-4b-Gguf'
+export const DEFAULT_CODE_HF_REPO = 'janhq/Jan-Code-4b-Gguf'
 export const DEFAULT_MODEL_QUANTIZATIONS = ['iq4_xs', 'q4_k_m']
 
 /**
@@ -11,8 +11,8 @@ export const DEFAULT_MODEL_QUANTIZATIONS = ['iq4_xs', 'q4_k_m']
  */
 export const SETUP_SCREEN_QUANTIZATIONS = ['q4_k_xl']
 
-export const JAN_V2_VL_MODEL_HF_REPO = 'janhq/Jan-v2-VL-high-gguf'
-export const JAN_V2_VL_QUANTIZATIONS = ['q4_k_m', 'q4_k_s', 'q4_0', 'q3_k_m']
+export const DEFAULT_VISION_HF_REPO = 'janhq/Jan-v2-VL-high-gguf'
+export const DEFAULT_VISION_QUANTIZATIONS = ['q4_k_m', 'q4_k_s', 'q4_0', 'q3_k_m']
 
 /**
  * Provider model capabilities - copied from token.js package
@@ -147,10 +147,10 @@ export const providerModels = {
 } as const
 
 /**
- * The one llama.cpp slot Jan pins, and the thread identities that share it.
+ * The one llama.cpp slot Rey30 IDvj pins, and the thread identities that share it.
  *
  * Every surface -- chat, Cowork, background tasks -- sends `id_slot: 0` plus a
- * `thread_id`. Jan reserves no slot of its own, so the emitted "Parallel
+ * `thread_id`. Rey30 IDvj reserves no slot of its own, so the emitted "Parallel
  * Sequences" count is exactly what the user configured (llama.cpp's own default
  * when unset). What keeps the surfaces from destroying each other's KV cache is
  * not a slot each but the engine's per-`thread_id` slot-cache park/restore

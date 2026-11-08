@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import SettingsMenu from '@/containers/SettingsMenu'
 import HeaderPage from '@/containers/HeaderPage'
 import { Card, CardItem } from '@/containers/Card'
@@ -23,8 +22,7 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAppState } from '@/hooks/useAppState'
 import { Button } from '@/components/ui/button'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.hardware as any)({
+export const Route = createFileRoute('/settings/hardware')({
   component: HardwareContent,
 })
 
@@ -54,14 +52,17 @@ function backendLabel(backend: string): string {
 function findGpuForDevice(
   backend: string,
   index: number,
+  name: string,
   gpus: GPU[]
 ): GPU | undefined {
   const key = backend.toLowerCase()
+  const matching = gpus.filter((gpu) => gpu.name.trim().toLowerCase() === name.trim().toLowerCase())
+  if (matching.length === 1) return matching[0]
   if (key === 'vulkan') {
-    return gpus.find((gpu) => gpu.vulkan_info?.index === index)
+    return matching.find((gpu) => gpu.vulkan_info?.index === index)
   }
   if (key === 'cuda') {
-    return gpus.find((gpu) => gpu.nvidia_info?.index === index)
+    return matching.find((gpu) => gpu.nvidia_info?.index === index)
   }
   return undefined
 }
@@ -187,7 +188,7 @@ function GpuGroupCard({
   const activated = group.devices.some((device) => device.activated)
   const device = selectedDevice(group)
   const { backend, index } = parseDeviceId(device.id)
-  const gpuInfo = findGpuForDevice(backend, index, gpus)
+  const gpuInfo = findGpuForDevice(backend, index, device.name, gpus)
   const used = Math.max(0, device.mem - device.free)
   const usedPercent = device.mem > 0 ? (used / device.mem) * 100 : 0
 
@@ -488,6 +489,11 @@ function HardwareContent() {
   }
 
   const gpus = hardwareData.gpus ?? []
+  const engineGpus = new Set(llamacppDevices.map((device) => {
+    const { backend, index } = parseDeviceId(device.id)
+    return findGpuForDevice(backend, index, device.name, gpus)
+  }))
+  const systemOnlyGpus = gpus.filter((gpu) => !engineGpus.has(gpu))
   const isAppleSilicon =
     IS_MACOS && /^(arm64|aarch64)$/i.test(hardwareData.cpu?.arch ?? '')
   const memoryPercent =
@@ -525,8 +531,7 @@ function HardwareContent() {
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
               <div className="text-muted-foreground">
-                Loading hardware information...
-              </div>
+                {t('ui-details:loadingHardware')}</div>
             </div>
           ) : (
             <div className="flex flex-col justify-between gap-4 gap-y-3 w-full">
@@ -642,7 +647,7 @@ function HardwareContent() {
                 </Card>
               )}
 
-              {!IS_MACOS && llamacpp && (
+              {!IS_MACOS && (llamacpp || gpus.length > 0) && (
                 <Card
                   title={t('settings:hardware.gpus')}
                   header={
@@ -690,12 +695,22 @@ function HardwareContent() {
                   ) : (
                     <div className="text-sm">
                       <span className="text-foreground">
-                        {t('settings:hardware.noGpus')}
+                        {t(gpus.length ? 'settings:hardware.noEngineGpus' : 'settings:hardware.noGpus')}
                       </span>
                       <p className="mt-1 text-muted-foreground">
                         {t('settings:hardware.noDevicesDesc')}
                       </p>
                     </div>
+                  )}
+                  {!llamacppDevicesLoading && systemOnlyGpus.length > 0 && (
+                    <ul className="mt-3 flex flex-col gap-2" aria-label={t('settings:hardware.detectedBySystem')}>
+                      {systemOnlyGpus.map((gpu) => (
+                        <li key={gpu.uuid} className="rounded-lg border border-border/60 p-3 text-sm">
+                          <span className="block font-medium">{gpu.name}</span>
+                          <span className="block text-muted-foreground">{t('settings:hardware.detectedBySystem')}{gpu.total_memory > 0 ? ` · ${formatMegaBytes(gpu.total_memory)}` : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </Card>
               )}

@@ -2,7 +2,7 @@ import {
   openArtifact,
   previewRegisterRoot,
   previewUnregisterRoot,
-} from '@janhq/tauri-plugin-agent-tools-api'
+} from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { previewUrlFor } from '@/lib/coworkPreview'
 
@@ -28,7 +28,7 @@ export function previewUrl(abs: string): string {
 export function artifactOpener() {
   return {
     openArtifact: async (roots: string[], abs: string) => {
-      const dataFolder = await getServiceHub().app().getJanDataFolder()
+      const dataFolder = await getServiceHub().app().getRey30DataFolder()
       await openArtifact(dataFolder ?? '', roots, abs)
     },
     revealItemInDir: (abs: string) =>

@@ -1,6 +1,6 @@
 import { isDev } from '@/lib/utils'
 import { useState, useCallback, useEffect } from 'react'
-import { events, AppEvent } from '@janhq/core'
+import { events, AppEvent } from '@rey30-idvj/core'
 import type { UpdateInfo } from '@/services/updater/types'
 import { getServiceHub } from '@/hooks/useServiceHub'
 
@@ -51,6 +51,7 @@ export const useAppUpdater = () => {
 
   const checkForUpdate = useCallback(
     async (resetRemindMeLater = false) => {
+      if (AUTO_UPDATER_DISABLED) return null
       console.log('Checking for updates...')
 
       try {

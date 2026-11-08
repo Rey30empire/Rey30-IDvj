@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <path d="M23 235v-42c0-31 30-49 77-49s77 18 77 49v42" fill="var(--character-secondary,#F2E7CE)"/>
+    <g data-part="arms" class="character-arms"><path d="m39 172-17 30-10-4m149-26 17 30 10-4" stroke="var(--character-secondary,#F2E7CE)" stroke-width="21" stroke-linecap="round"/><path d="m9 192-4-9m7 9 5-12m174 12 4-9m-7 9-5-12" stroke="var(--character-skin,#B98162)" stroke-width="7" stroke-linecap="round"/></g>
+    <path d="m60 152-9 83h98l-9-83-22 8-18 37-18-37Z" fill="var(--character-primary,#21616A)"/><path d="M100 195v40m-30-35h15m30 0h15" stroke="#184C53" stroke-width="3"/><path d="M87 129h26v32l-13 12-13-12" fill="var(--character-skin,#B98162)"/><path d="m83 158 17 12 17-12 9 17-21 11-5-16-6 22-13-15Z" fill="var(--character-accent,#EA8757)"/>
+    <path d="M57 73q0-39 43-39t43 39v35q-4 39-43 39t-43-39Z" fill="var(--character-skin,#B98162)" stroke="#6F4B3E" stroke-width="3"/><path d="M57 85q-15-43 13-54 17-19 40-8 39-1 34 50l-10-16q-20 6-32-10-16 19-34 15l-5 23" fill="var(--character-hair,#727473)"/><path d="m73 34 8 11m31-14 1 12m17-5-3 12" stroke="#B7B4AA" stroke-width="5" stroke-linecap="round"/>
+    <g data-part="eyebrows" class="character-brows" stroke="#4A3C36" stroke-width="5" stroke-linecap="round"><path d="M69 82q9-8 18-1m26 0q9-7 18 1"/></g>
+    <g data-part="eyes" class="character-eyes"><ellipse cx="79" cy="96" rx="9" ry="7" fill="#FCF0DE"/><ellipse cx="121" cy="96" rx="9" ry="7" fill="#FCF0DE"/><path d="M80 93v7m40-7v7" stroke="#413D38" stroke-width="5" stroke-linecap="round"/></g>
+    <path d="M98 99q-10 15 5 14m-36-4 5 5m61-5-5 5" stroke="#97654F" stroke-width="2" stroke-linecap="round"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M82 123q18 14 36 0" stroke="#674137" stroke-width="3" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="100" cy="128" rx="8" ry="4" fill="#674137" opacity="0"/></g>
+    <circle cx="106" cy="216" r="3" fill="var(--character-secondary,#F2E7CE)"/>
+  </g>
+</svg>

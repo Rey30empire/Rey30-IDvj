@@ -43,8 +43,7 @@ export type CoworkSession = {
   title: string
   /** The selected provider/model pair, matching normal chat threads. */
   model?: ThreadModel
-  /** An attached project folder, mounted read-only. Writes always land in the
-   * session's own sandbox, never here. */
+  /** The validated folder where this session reads and writes project files. */
   folder: string | null
   turns: CoworkTurn[]
   /** The authoritative conversation, sent to the model each turn. */
@@ -68,6 +67,7 @@ type CoworkSessionsState = {
   sessions: CoworkSession[]
   currentId: string | null
   createSession: () => string
+  openFolder: (folder: string, runningIds: string[], model?: ThreadModel) => string | null
   selectSession: (id: string) => void
   deleteSession: (id: string) => void
   setFolder: (id: string, folder: string | null) => void
@@ -151,7 +151,7 @@ export const useCoworkSessions = create<CoworkSessionsState>()(
         // up empty ones (e.g. from repeated clicks on "New session").
         const { currentId, sessions } = get()
         const current = sessions.find((s) => s.id === currentId)
-        if (current && current.turns.length === 0) return current.id
+        if (current && !current.folder && current.turns.length === 0 && !current.messages?.length) return current.id
 
         const id = crypto.randomUUID()
         const session: CoworkSession = {
@@ -163,6 +163,24 @@ export const useCoworkSessions = create<CoworkSessionsState>()(
           updated: now(),
         }
         set((s) => ({ sessions: [session, ...s.sessions], currentId: id }))
+        return id
+      },
+
+      openFolder: (folder, runningIds, model) => {
+        const { currentId, sessions } = get()
+        const matching = sessions.filter((session) => session.folder === folder)
+        const idle = matching.filter((session) => !runningIds.includes(session.id))
+        const existing = idle.find((session) => session.id === currentId) ?? idle[0]
+        if (existing) {
+          if (existing.id !== currentId) set({ currentId: existing.id })
+          return existing.id
+        }
+        if (matching.length) return null
+        const id = crypto.randomUUID()
+        set({
+          sessions: [{ id, title: 'New session', folder, model, turns: [], messages: [], updated: now() }, ...sessions],
+          currentId: id,
+        })
         return id
       },
 
@@ -314,7 +332,7 @@ export const useCoworkSessions = create<CoworkSessionsState>()(
         set((s) => {
           const keep = new Set(keepIds)
           const sessions = s.sessions.filter(
-            (x) => x.turns.length > 0 || x.id === s.currentId || keep.has(x.id)
+            (x) => !!x.folder || x.turns.length > 0 || !!x.messages?.length || x.id === s.currentId || keep.has(x.id)
           )
           return sessions.length === s.sessions.length ? {} : { sessions }
         }),
@@ -322,7 +340,7 @@ export const useCoworkSessions = create<CoworkSessionsState>()(
     {
       name: localStorageKey.coworkSessions,
       // Persist through the Rust settings store (see backendStorage) so sessions
-      // live in <jan_data>/settings.json instead of webview localStorage.
+      // live in <app_data>/settings.json instead of webview localStorage.
       // Async storage requires skipHydration + explicit rehydrate in
       // hydrateBackendStores() once the ServiceHub is ready.
       storage: createJSONStorage(() => backendStorage),

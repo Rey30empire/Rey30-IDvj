@@ -5,10 +5,11 @@ import { Fzf } from 'fzf'
 import { TEMPORARY_CHAT_ID } from '@/constants/chat'
 import { useAgentMode } from '@/hooks/useAgentMode'
 import { ExtensionManager } from '@/lib/extension'
-import { ExtensionTypeEnum, VectorDBExtension } from '@janhq/core'
+import { ExtensionTypeEnum, VectorDBExtension } from '@rey30-idvj/core'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { useAppState } from '@/hooks/useAppState'
 import { cleanupThreadWorkspace } from '@/lib/agentTools'
+import { isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
 
 type ThreadState = {
   threads: Record<string, Thread>
@@ -36,8 +37,14 @@ type ThreadState = {
   updateCurrentThreadModel: (model: ThreadModel) => void
   getFilteredThreads: (searchTerm: string) => Thread[]
   updateCurrentThreadAssistant: (assistant: Assistant) => void
+  assignThreadAssistant: (
+    threadId: string,
+    assistant: Assistant | undefined,
+    model?: ThreadModel
+  ) => Promise<void>
   updateThreadTimestamp: (threadId: string) => void
   updateThread: (threadId: string, updates: Partial<Thread>) => void
+  protectLiteraryThread: (threadId: string) => Promise<void>
   deleteAllThreadsByProject: (projectId: string) => void
   searchIndex: Fzf<Thread[]> | null
 }
@@ -68,10 +75,9 @@ const cleanupVectorDB = async (threadId: string) => {
  */
 const cleanupThreadCache = async (threadId: string) => {
   try {
-    const { EngineManager } = await import('@janhq/core')
+    const { EngineManager } = await import('@rey30-idvj/core')
     const engine = EngineManager.instance().get('llamacpp') as
-      | { forgetThreadCache?: (id: string) => Promise<number> }
-      | undefined
+      { forgetThreadCache?: (id: string) => Promise<number> } | undefined
     await engine?.forgetThreadCache?.(threadId)
   } catch (e) {
     console.warn(
@@ -150,9 +156,12 @@ export const useThreads = create<ThreadState>()((set, get) => ({
 
     let currentIndex = searchIndex
     if (!currentIndex?.find) {
-      currentIndex = new Fzf<Thread[]>(filteredThreadsValues.filter(t => t.title), {
-        selector: (item: Thread) => item.title ?? '',
-      })
+      currentIndex = new Fzf<Thread[]>(
+        filteredThreadsValues.filter((t) => t.title),
+        {
+          selector: (item: Thread) => item.title ?? '',
+        }
+      )
       set({ searchIndex: currentIndex })
     }
 
@@ -315,9 +324,14 @@ export const useThreads = create<ThreadState>()((set, get) => ({
 
       return {
         threads: remainingThreads,
-        searchIndex: new Fzf<Thread[]>(Object.values(remainingThreads).filter(t => t.id !== TEMPORARY_CHAT_ID && t.title), {
-          selector: (item: Thread) => item.title ?? '',
-        }),
+        searchIndex: new Fzf<Thread[]>(
+          Object.values(remainingThreads).filter(
+            (t) => t.id !== TEMPORARY_CHAT_ID && t.title
+          ),
+          {
+            selector: (item: Thread) => item.title ?? '',
+          }
+        ),
       }
     })
   },
@@ -363,8 +377,7 @@ export const useThreads = create<ThreadState>()((set, get) => ({
       model,
       updated: Date.now() / 1000,
       assistants: assistant ? [assistant] : [],
-      ...(projectMetadata &&
-        !isTemporary && {
+      ...(projectMetadata && !isTemporary && {
           metadata: {
             project: projectMetadata,
           },
@@ -375,6 +388,10 @@ export const useThreads = create<ThreadState>()((set, get) => ({
           ...(projectMetadata && { project: projectMetadata }),
         },
       }),
+    }
+    if (assistant?.id === literaryAssistantId) {
+      if (isTemporary) throw new Error('Abre un chat guardado para usar la biblioteca literaria.')
+      newThread.metadata = { ...newThread.metadata, literaryLibrary: true }
     }
     return await getServiceHub()
       .threads()
@@ -397,6 +414,59 @@ export const useThreads = create<ThreadState>()((set, get) => ({
         return createdThread
       })
   },
+  assignThreadAssistant: async (threadId, assistant, model) => {
+    const thread = get().threads[threadId]
+    if (!thread)
+      throw new Error(
+        'El chat seleccionado ya no existe. Actualiza la conversación.'
+      )
+    const nextModel = model ?? thread.model
+    const next = {
+      ...thread,
+      model: nextModel,
+      assistants: assistant ? [{ ...assistant, model: nextModel }] : [],
+      updated: Date.now() / 1000,
+      ...((isLiteraryThread(thread) || assistant?.id === literaryAssistantId) && {
+        metadata: { ...thread.metadata, literaryLibrary: true },
+      }),
+    }
+    await getServiceHub().threads().updateThread(next)
+    if (!get().threads[threadId])
+      throw new Error(
+        'El chat se cerró mientras se guardaba el asistente. Vuelve a seleccionar una conversación.'
+      )
+    set((state) => ({
+      threads: {
+        ...state.threads,
+        [threadId]: {
+          ...state.threads[threadId],
+          model: nextModel,
+          assistants: next.assistants,
+          updated: next.updated,
+          ...(next.metadata?.literaryLibrary === true && {
+            metadata: { ...state.threads[threadId].metadata, literaryLibrary: true },
+          }),
+        },
+      },
+    }))
+  },
+  protectLiteraryThread: async (threadId) => {
+    const thread = get().threads[threadId]
+    if (!thread || threadId === TEMPORARY_CHAT_ID || thread.metadata?.isTemporary) {
+      throw new Error('Abre un chat guardado para usar la biblioteca literaria.')
+    }
+    if (thread.metadata?.literaryLibrary === true) return
+    await getServiceHub().threads().updateThread({
+      ...thread,
+      metadata: { ...thread.metadata, literaryLibrary: true },
+    })
+    set((state) => {
+      const current = state.threads[threadId]
+      if (!current) return state
+      return { threads: { ...state.threads, [threadId]: { ...current, metadata: { ...current.metadata, literaryLibrary: true } } } }
+    })
+    if (!get().threads[threadId]) throw new Error('El chat de la biblioteca se cerró.')
+  },
   updateCurrentThreadAssistant: (assistant) => {
     set((state) => {
       if (!state.currentThreadId) return { ...state }
@@ -406,7 +476,9 @@ export const useThreads = create<ThreadState>()((set, get) => ({
           .threads()
           .updateThread({
             ...currentThread,
-            assistants: assistant ? [{ ...assistant, model: currentThread.model }] : [],
+            assistants: assistant
+              ? [{ ...assistant, model: currentThread.model }]
+              : [],
           })
       return {
         threads: {
@@ -456,7 +528,9 @@ export const useThreads = create<ThreadState>()((set, get) => ({
       return {
         threads: newThreads,
         searchIndex: new Fzf<Thread[]>(
-          Object.values(newThreads).filter((t) => t.id !== TEMPORARY_CHAT_ID && t.title),
+          Object.values(newThreads).filter(
+            (t) => t.id !== TEMPORARY_CHAT_ID && t.title
+          ),
           {
             selector: (item: Thread) => item.title ?? '',
           }
@@ -508,6 +582,9 @@ export const useThreads = create<ThreadState>()((set, get) => ({
         ...thread,
         ...updates,
         updated: Date.now() / 1000,
+        ...(thread.metadata?.literaryLibrary === true && {
+          metadata: { ...thread.metadata, ...updates.metadata, literaryLibrary: true },
+        }),
       }
 
       getServiceHub().threads().updateThread(updatedThread)
@@ -516,7 +593,9 @@ export const useThreads = create<ThreadState>()((set, get) => ({
       return {
         threads: newThreads,
         searchIndex: new Fzf<Thread[]>(
-          Object.values(newThreads).filter((t) => t.id !== TEMPORARY_CHAT_ID && t.title),
+          Object.values(newThreads).filter(
+            (t) => t.id !== TEMPORARY_CHAT_ID && t.title
+          ),
           {
             selector: (item: Thread) => item.title ?? '',
           }

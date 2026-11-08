@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
   providerId: 'openai',
   serviceHub: null as unknown,
   predefinedRemote: false,
+  masterContext: vi.fn<(...args: unknown[]) => Promise<{ system?: string; selection: { mode: string; skills: string[] } }>>(),
+  privacyMode: 'standard' as 'standard' | 'local-only' | 'cloud-review',
 }))
 
 const mcpService = {
@@ -108,7 +110,7 @@ vi.mock('@/hooks/useAppState', () => ({
   },
 }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async () => []) }))
-vi.mock('@janhq/tauri-plugin-llamacpp-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-llamacpp-api', () => ({
   getLoadedModels: vi.fn(async () => ['llama-local']),
   unloadLlamaModel: vi.fn(),
 }))
@@ -120,6 +122,12 @@ vi.mock('@/lib/mcp-orchestrator', () => ({
 }))
 vi.mock('@/lib/mcp-router-model-filter', () => ({
   isRouterModelSelectable: () => false,
+}))
+vi.mock('@/lib/masterOrchestrator', () => ({ prepareMasterContext: h.masterContext }))
+vi.mock('@/lib/privacyPolicy', async importOriginal => ({
+  ...(await importOriginal<typeof import('../privacyPolicy')>()),
+  ensurePrivacyMode: async () => h.privacyMode,
+  getPrivacyModeSnapshot: () => h.privacyMode,
 }))
 vi.mock('@/lib/reasoningProviderOptions', () => ({
   buildReasoningProviderOptions: () => undefined,
@@ -136,6 +144,7 @@ vi.mock('../model-factory', () => ({
 import { CustomChatTransport } from '../custom-chat-transport'
 import { CoworkChatTransport } from '../coworkTransport'
 import { ModelFactory } from '../model-factory'
+import * as contextManager from '../context-manager'
 
 const user = (id: string, text: string): UIMessage =>
   ({ id, role: 'user', parts: [{ type: 'text', text }] }) as UIMessage
@@ -167,6 +176,9 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
     h.servers = ['srv']
     h.providerId = 'openai'
     h.assistantParameters = null
+    h.masterContext.mockReset()
+    h.privacyMode = 'standard'
+    h.masterContext.mockResolvedValue({ selection: { mode: 'none', skills: [] } })
     h.getModelProps.mockReset()
     provider.provider = 'openai'
     provider.settings = []
@@ -176,6 +188,63 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
     h.getRelevantTools.mockResolvedValue([
       { name: 'tool_a', description: 'a', inputSchema: {}, server: 'srv' },
     ])
+  })
+
+  it('adds master instructions to one request without retaining them in the next request or changing tools', async () => {
+    h.masterContext.mockResolvedValueOnce({ system: 'Instrucciones automáticas de esta petición', selection: { mode: 'automatic', skills: ['review'] } })
+    const transport = new CustomChatTransport('Sistema original', 'thread-1')
+    await drain(await send(transport, [user('m1', 'Crea una interfaz')]))
+    await drain(await send(transport, [user('m2', 'Una pregunta diferente')]))
+    expect(streamTextCalls[0].system).toContain('Instrucciones automáticas de esta petición')
+    expect(streamTextCalls[1].system).not.toContain('Instrucciones automáticas de esta petición')
+    expect(streamTextCalls[1].system).toContain('Sistema original')
+    expect(Object.keys(streamTextCalls[1].tools as object)).toEqual(Object.keys(streamTextCalls[0].tools as object))
+    expect(h.masterContext).toHaveBeenNthCalledWith(1, 'Crea una interfaz', undefined)
+    expect(h.masterContext).toHaveBeenNthCalledWith(2, 'Una pregunta diferente', undefined)
+  })
+
+  it('withholds all tool definitions in protected modes, including a subclass that overrides refreshTools', async () => {
+    class UncheckedTransport extends CustomChatTransport {
+      override async refreshTools() { this.tools = { unsafe: {} as never } }
+    }
+    h.privacyMode = 'local-only'
+    const transport = new UncheckedTransport('Instrucciones locales', 'thread-1')
+    const refresh = vi.spyOn(transport, 'refreshTools')
+    await drain(await send(transport, [user('private', 'Hola')]))
+    expect(refresh).not.toHaveBeenCalled()
+    expect(streamTextCalls.at(-1)?.tools).toBeUndefined()
+    expect(transport.getTools()).toEqual({})
+    const download = streamTextCalls.at(-1)?.experimental_download as (urls: unknown[]) => Promise<unknown>
+    await expect(download([{ url: new URL('https://example.invalid/private.pdf'), isUrlSupportedByModel: true }])).rejects.toThrow('modo protegido')
+  })
+
+  it('rejects opaque cloud-review attachments before SDK conversion or streaming', async () => {
+    h.privacyMode = 'cloud-review'
+    const transport = new CustomChatTransport('Texto', 'thread-1')
+    const message = user('opaque', 'Resume el adjunto')
+    message.parts.push({ type: 'file', url: 'https://example.invalid/private.pdf', mediaType: 'application/pdf' })
+    await expect(send(transport, [message])).rejects.toThrow()
+    expect(streamTextCalls).toHaveLength(0)
+  })
+
+  it('passes Stop to a pending compaction review before any stream is requested', async () => {
+    h.assistantParameters = { max_context_tokens: 512, auto_compact: true }
+    const controller = new AbortController()
+    let entered!: () => void
+    const pendingReview = new Promise<void>(resolve => { entered = resolve })
+    const compact = vi.spyOn(contextManager, 'compactMessages').mockImplementation(async (_messages, _config, _model, _tokens, signal) => {
+      expect(signal).toBe(controller.signal)
+      entered()
+      return new Promise((_resolve, reject) => signal!.addEventListener('abort', () => reject(new DOMException('Operación cancelada.', 'AbortError')), { once: true }))
+    })
+    try {
+      const transport = new CustomChatTransport('Texto', 'thread-1')
+      const request = transport.sendMessages({ chatId: 'thread-1', messages: [user('stop-review', 'Hola')], abortSignal: controller.signal, trigger: 'submit-message', messageId: undefined })
+      await pendingReview
+      controller.abort()
+      await expect(request).rejects.toMatchObject({ name: 'AbortError' })
+      expect(streamTextCalls).toHaveLength(0)
+    } finally { compact.mockRestore() }
   })
 
   it('sends a byte-identical prefix (system + tools + prior turns) on the next turn', async () => {
@@ -468,7 +537,7 @@ it('sends an MCP image result to an OpenAI-compatible provider as a sentinel', a
   const transport = new CustomChatTransport('you are jan', 'thread-1')
   await drain(await send(transport, mcpImageTurn()))
   const sent = JSON.stringify(streamTextCalls[0].messages)
-  expect(sent).toContain('__JAN_TOOL_IMAGE__data:image/png;base64,iVBORw0KGgo=')
+  expect(sent).toContain('__REY30_TOOL_IMAGE__data:image/png;base64,iVBORw0KGgo=')
   expect(sent).not.toContain('mimeType')
 })
 
@@ -488,6 +557,6 @@ it.each(['anthropic', 'google', 'openai'])(
     expect(sent).toContain(
       '"type":"image-data","mediaType":"image/png","data":"iVBORw0KGgo="'
     )
-    expect(sent).not.toContain('__JAN_TOOL_IMAGE__')
+    expect(sent).not.toContain('__REY30_TOOL_IMAGE__')
   }
 )

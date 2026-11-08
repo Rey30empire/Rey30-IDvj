@@ -1,7 +1,7 @@
 import type { RAGService } from './types'
-import type { MCPTool, MCPToolCallResult, RAGExtension } from '@janhq/core'
+import type { MCPTool, MCPToolCallResult, RAGExtension } from '@rey30-idvj/core'
 import { ExtensionManager } from '@/lib/extension'
-import { ExtensionTypeEnum } from '@janhq/core'
+import { ExtensionTypeEnum } from '@rey30-idvj/core'
 
 export class DefaultRAGService implements RAGService {
   async getTools(): Promise<MCPTool[]> {

@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { toNumber } from '@/utils/number'
 import { Gauge } from 'lucide-react'
 import { useInterfaceSettings } from '@/hooks/useInterfaceSettings'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   Popover,
   PopoverContent,
@@ -28,6 +29,7 @@ interface TokenSpeedIndicatorProps {
 
 export const TokenSpeedIndicator = memo(
   ({ metadata, streaming }: TokenSpeedIndicatorProps) => {
+    const { t } = useTranslation()
     const showTokenSpeed = useInterfaceSettings((s) => s.showTokenSpeed)
 
     const nonStreamingAssistantParam =
@@ -55,7 +57,7 @@ export const TokenSpeedIndicator = memo(
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Token speed details"
+            aria-label={t('ui-details:tokenSpeedDetails')}
             className="text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
           >
             <Gauge size={16} />
@@ -65,13 +67,13 @@ export const TokenSpeedIndicator = memo(
           <div className="flex flex-col gap-1">
             {rawSpeed > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Generation</span>
+                <span className="text-muted-foreground">{t('ui-spanish:generation')}</span>
                 <span className="font-mono">{rawSpeed.toFixed(2)} tps</span>
               </div>
             )}
             {promptSpeed && promptSpeed > 0 && (
               <div className="flex items-center justify-between gap-4">
-                <span className="text-muted-foreground">Reading</span>
+                <span className="text-muted-foreground">{t('ui-spanish:reading')}</span>
                 <span className="font-mono">{promptSpeed.toFixed(2)} tps</span>
               </div>
             )}

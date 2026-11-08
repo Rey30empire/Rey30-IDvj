@@ -1,14 +1,20 @@
 import { getServiceHub } from '@/hooks/useServiceHub'
-import { Assistant as CoreAssistant } from '@janhq/core'
+import { Assistant as CoreAssistant } from '@rey30-idvj/core'
 import { create } from 'zustand'
 import { localStorageKey } from '@/constants/localStorage'
+import { useCharacterStore } from '@/stores/useCharacterStore'
+import {
+  characterIdFromAssistantId,
+  mergeAvailableAssistants,
+  toCharacterAssistant,
+} from '@/lib/characters/assistant-integration'
 
 interface AssistantState {
   assistants: Assistant[]
   currentAssistant: Assistant | undefined
   loading: boolean
   defaultAssistantId: string
-  addAssistant: (assistant: Assistant) => void
+  addAssistant: (assistant: Assistant) => Promise<void>
   updateAssistant: (assistant: Assistant) => void
   deleteAssistant: (id: string) => void
   setCurrentAssistant: (
@@ -29,12 +35,12 @@ const setLastUsedAssistantId = (assistantId: string) => {
 
 export const defaultAssistant: Assistant = {
   id: 'jan',
-  name: 'Jan',
+  name: 'Rey30 IDvj',
   created_at: 1747029866.542,
   parameters: {},
-  avatar: '👋',
+  avatar: '/images/rey30-idvj.svg',
   description:
-    "Jan is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user's behalf.",
+    'Te ayuda a resolver tareas y utilizar las herramientas habilitadas en tu equipo.',
   instructions: `You must output your response in the exact language used in the latest user message. Do not provide translations or switch languages unless explicitly instructed to do so. If the input is mostly English, respond in English.
 
 When handling user queries:
@@ -79,7 +85,9 @@ const getDefaultAssistantId = (): string | null => {
   let defaultAssistantId: string | null = null
 
   try {
-    defaultAssistantId = localStorage.getItem(localStorageKey.defaultAssistantId)
+    defaultAssistantId = localStorage.getItem(
+      localStorageKey.defaultAssistantId
+    )
   } catch (error) {
     console.debug('Failed to get last used assistant from localStorage:', error)
   }
@@ -91,8 +99,7 @@ const setDefaultAssistantId = (assistantId: string) => {
   try {
     if (!assistantId) {
       localStorage.removeItem(localStorageKey.defaultAssistantId)
-    }
-    else {
+    } else {
       localStorage.setItem(localStorageKey.defaultAssistantId, assistantId)
     }
   } catch (error) {
@@ -110,30 +117,63 @@ const getInitialAssistantState = () => {
   }
 }
 
+const pendingAssistantIds = new Set<string>()
+const legacyDescriptions = ['Jan', 'Rey30 IDvj'].map(
+  (name) =>
+    `${name} is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user's behalf.`
+)
+let selectionVersion = 0
+const availableAssistants = (assistants: Assistant[]) =>
+  mergeAvailableAssistants(assistants, useCharacterStore.getState().profiles)
+const resolvedAssistant = (assistant: Assistant | undefined) => {
+  const id = characterIdFromAssistantId(assistant?.id)
+  if (!id) return assistant
+  const profile = useCharacterStore
+    .getState()
+    .profiles.find((item) => item.id === id)
+  return profile ? toCharacterAssistant(profile) : undefined
+}
+
 export const useAssistant = create<AssistantState>((set, get) => ({
   ...getInitialAssistantState(),
-  addAssistant: (assistant) => {
-    set({ assistants: [...get().assistants, assistant] })
-    getServiceHub()
-      .assistants()
-      .createAssistant(assistant as unknown as CoreAssistant)
-      .catch((error) => {
-        console.error('Failed to create assistant:', error)
-      })
+  addAssistant: async (assistant) => {
+    if (assistant.id.startsWith('character:'))
+      throw new Error(
+        'Los personajes se guardan desde su editor; no se duplican como archivos de asistente.'
+      )
+    if (
+      pendingAssistantIds.has(assistant.id) ||
+      get().assistants.some((existing) => existing.id === assistant.id)
+    ) {
+      throw new Error(
+        'El identificador del asistente ya existe. No se reemplazó ningún asistente.'
+      )
+    }
+    pendingAssistantIds.add(assistant.id)
+    try {
+      await getServiceHub()
+        .assistants()
+        .createAssistant(assistant as unknown as CoreAssistant)
+      set({ assistants: [...get().assistants, assistant] })
+    } finally {
+      pendingAssistantIds.delete(assistant.id)
+    }
   },
   updateAssistant: (assistant) => {
+    if (assistant.id.startsWith('character:'))
+      throw new Error(
+        'Edita este personaje desde su configuración para conservar su perfil y memoria.'
+      )
     const state = get()
     set({
       assistants: state.assistants.map((a) =>
         a.id === assistant.id ? assistant : a
       ),
-      // Update currentAssistant if it's the same assistant being updated
       currentAssistant:
         state.currentAssistant?.id === assistant.id
           ? assistant
           : state.currentAssistant,
     })
-    // Create assistant already cover update logic
     getServiceHub()
       .assistants()
       .createAssistant(assistant as unknown as CoreAssistant)
@@ -142,6 +182,10 @@ export const useAssistant = create<AssistantState>((set, get) => ({
       })
   },
   deleteAssistant: (id) => {
+    if (id.startsWith('character:'))
+      throw new Error(
+        'Los perfiles de personajes se administran desde su configuración.'
+      )
     const state = get()
     getServiceHub()
       .assistants()
@@ -160,7 +204,11 @@ export const useAssistant = create<AssistantState>((set, get) => ({
 
     // If the deleted assistant was current, fallback to default and update localStorage
     if (wasCurrentAssistant) {
-      set({ currentAssistant: state.assistants.find(a => a.id === defaultAssistant.id) })
+      set({
+        currentAssistant: state.assistants.find(
+          (a) => a.id === defaultAssistant.id
+        ),
+      })
       setLastUsedAssistantId(defaultAssistant.id)
     }
 
@@ -170,17 +218,21 @@ export const useAssistant = create<AssistantState>((set, get) => ({
     }
   },
   setDefaultAssistant: (id) => {
-    const newAssistant = get().assistants?.find(a => a.id === id)
+    selectionVersion += 1
+    const newAssistant = availableAssistants(get().assistants).find(
+      (a) => a.id === id
+    )
     if (newAssistant) {
       set({ defaultAssistantId: id, currentAssistant: newAssistant })
       setLastUsedAssistantId(id)
-    }
-    else {
+    } else {
       set({ defaultAssistantId: id })
     }
     setDefaultAssistantId(id)
   },
   setCurrentAssistant: (assistant, saveToStorage = true) => {
+    selectionVersion += 1
+    assistant = resolvedAssistant(assistant)
     const currentAssistant = get().currentAssistant
     if (currentAssistant !== assistant) {
       set({ currentAssistant: assistant })
@@ -191,17 +243,57 @@ export const useAssistant = create<AssistantState>((set, get) => ({
   },
   setAssistants: (assistants) => {
     if (assistants) {
-      assistants.forEach((a) => (a.id = a.id?.toString())) // new String("id") !== "id"
-      const lastUsedId = getLastUsedAssistantId(assistants)
-      const lastUsedAssist = assistants.find((a) => a.id === lastUsedId)
+      assistants = assistants
+        .filter(
+          (assistant) => !assistant.id?.toString().startsWith('character:')
+        )
+        .map((assistant) => ({ ...assistant, id: assistant.id?.toString() }))
+        .map((assistant) =>
+          assistant.id === defaultAssistant.id
+            ? {
+                ...assistant,
+                ...(assistant.name === 'Jan'
+                  ? { name: defaultAssistant.name }
+                  : {}),
+                ...(assistant.avatar === '👋'
+                  ? { avatar: defaultAssistant.avatar }
+                  : {}),
+                ...(assistant.description &&
+                legacyDescriptions.includes(
+                  assistant.description.replace(/\u2019/g, "'")
+                )
+                  ? { description: defaultAssistant.description }
+                  : {}),
+              }
+            : assistant
+        )
+      const available = availableAssistants(assistants)
+      const lastUsedId = getLastUsedAssistantId(available)
+      const lastUsedAssist = available.find((a) => a.id === lastUsedId)
       const defaultAssistantId = getDefaultAssistantId() || ''
-      const defaultAssistant = assistants.find((a) => a.id === defaultAssistantId)
+      const selectedDefaultAssistant = available.find(
+        (a) => a.id === defaultAssistantId
+      )
       set({
         assistants,
-        currentAssistant: defaultAssistant || lastUsedAssist,
+        currentAssistant: selectedDefaultAssistant || lastUsedAssist,
         defaultAssistantId,
-        loading: false
+        loading: false,
       })
+      const version = selectionVersion
+      void useCharacterStore
+        .getState()
+        .load()
+        .then(() => {
+          if (version !== selectionVersion) return
+          const fresh = availableAssistants(get().assistants)
+          const defaultId = getDefaultAssistantId() || ''
+          const restored =
+            fresh.find((item) => item.id === defaultId) ||
+            fresh.find((item) => item.id === getLastUsedAssistantId(fresh))
+          set({ currentAssistant: restored })
+        })
+        .catch(() => {})
     } else {
       set({ loading: false })
     }

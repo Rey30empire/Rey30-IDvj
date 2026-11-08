@@ -1,5 +1,5 @@
 // Renderer selection and load-state modelling for the Cowork preview pane
-// (jan-internal #242). Kept pure and separate from the component so the state
+// (upstream-internal #242). Kept pure and separate from the component so the state
 // machine and the security checks are testable without a DOM.
 import { countUnresolvedAssetRefs } from '@/lib/htmlAssets'
 

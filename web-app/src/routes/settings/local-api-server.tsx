@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import HeaderPage from '@/containers/HeaderPage'
 import SettingsMenu from '@/containers/SettingsMenu'
 import { Card, CardItem } from '@/containers/Card'
@@ -22,6 +21,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { LogViewer } from '@/components/LogViewer'
 import { ensureModelForServer } from '@/utils/ensureModelForServer'
+import { LocalApiConnectionCard } from '@/containers/LocalApiConnectionCard'
 
 import {
   Popover,
@@ -47,8 +47,7 @@ import {
 } from '@tabler/icons-react'
 import { ChevronsUpDown } from 'lucide-react'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.local_api_server as any)({
+export const Route = createFileRoute('/settings/local-api-server')({
   component: LocalAPIServerContent,
 })
 
@@ -122,15 +121,15 @@ function LocalAPIServerContent() {
       if (serverHost !== '127.0.0.1' && !apiKey?.toString().trim()) {
         setShowApiKeyError(true)
         toast.error(t('common:apiKeyRequired'), {
-          description: `Set an API key in Configuration before listening on ${serverHost}, or switch the host to 127.0.0.1.`,
+          description: t('api-connection:networkKeyRequired'),
         })
         return
       }
       setShowApiKeyError(false)
 
       console.log('Starting server with port:', serverPort)
-      toast.info('Starting server...', {
-        description: `Attempting to start server on port ${serverPort}`,
+      toast.info(t('settings:localApiServer.startingServer'), {
+        description: t('api-connection:startingPort', { port: serverPort }),
       })
 
       setServerStatus('pending')
@@ -277,7 +276,7 @@ function LocalAPIServerContent() {
             <PopoverTrigger asChild>
               <Button size="sm" variant="outline" className="relative z-50">
                 <IconSettings2 size={16} />
-                Configuration
+                {t('settings:localApiServer.serverConfiguration')}
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -373,10 +372,10 @@ function LocalAPIServerContent() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium">
-                        Execute tools on server
+                        {t('api-connection:executeTools')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Run tools server-side for chat endpoints.
+                        {t('api-connection:executeToolsHelp')}
                       </p>
                     </div>
                     <Switch
@@ -524,40 +523,25 @@ function LocalAPIServerContent() {
                 />
               </Card>
 
-              <Card>
-                <CardItem
-                  title="Server Status"
-                  description={
-                    isServerRunning ? (
-                      <div className="space-y-1">
-                        <div>The server is currently running.</div>
-                        <div className="text-xs font-mono">
-                          http://{serverHost}:{serverPort}
-                          {apiPrefix}
-                        </div>
-                      </div>
-                    ) : (
-                      'The server is stopped.'
-                    )
-                  }
-                />
+              <LocalApiConnectionCard />
 
+              <Card>
                 <CardItem
                   title={t('settings:localApiServer.swaggerDocs')}
                   description={t('settings:localApiServer.swaggerDocsDesc')}
                   actions={
                     <a
-                      href={`http://${serverHost}:${serverPort}`}
+                      href={`http://127.0.0.1:${serverPort}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={cn(
-                        isServerRunning ? '' : 'pointer-events-none'
+                        serverStatus === 'running' ? '' : 'pointer-events-none'
                       )}
                     >
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={!isServerRunning}
+                        disabled={serverStatus !== 'running'}
                         title={t('settings:localApiServer.swaggerDocs')}
                       >
                         <span>{t('settings:localApiServer.openDocs')}</span>
@@ -575,7 +559,7 @@ function LocalAPIServerContent() {
                   <CollapsibleTrigger className="flex items-center gap-2 hover:no-underline data-[state=open]:[&>svg.chevron-down]:hidden data-[state=closed]:[&>svg.chevron-up]:hidden">
                     <IconChevronDown size={16} className="chevron-down" />
                     <IconChevronUp size={16} className="chevron-up" />
-                    <span className="font-medium text-sm">Server Log</span>
+                    <span className="font-medium text-sm">{t('settings:localApiServer.serverLogs')}</span>
                   </CollapsibleTrigger>
                   <Button
                     variant="outline"
@@ -584,7 +568,7 @@ function LocalAPIServerContent() {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <IconExternalLink size={14} className="mr-1" />
-                    Open in New Window
+                    {t('api-connection:openLogsWindow')}
                   </Button>
                 </div>
                 <CollapsibleContent>

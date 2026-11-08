@@ -106,10 +106,9 @@ export const ModelDownloadAction = ({
     downloadProcesses.some((e) => e.id === variant.model_id)
   const downloadProgress =
     downloadProcesses.find((e) => e.id === variant.model_id)?.progress || 0
-  const isDownloaded = useModelProvider
-    .getState()
-    .getProviderByName('llamacpp')
-    ?.models.some((m: { id: string }) => m.id === variant.model_id)
+  const isDownloaded = useModelProvider(state => state.providers
+    .find(provider => provider.provider === 'llamacpp')
+    ?.models.some((item: { id: string }) => item.id === variant.model_id))
 
   if (isDownloading) {
     return (
@@ -138,12 +137,15 @@ export const ModelDownloadAction = ({
   }
 
   return (
-    <div
-      className="size-6 cursor-pointer flex items-center justify-center rounded transition-all duration-200 ease-in-out"
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-7"
       title={t('hub:downloadModel')}
-      onClick={handleDownloadModel}
+      aria-label={t('hub:downloadModel')}
+      onClick={() => void handleDownloadModel()}
     >
       <IconDownload size={16} className="text-muted-foreground" />
-    </div>
+    </Button>
   )
 }

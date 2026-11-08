@@ -22,7 +22,7 @@ import {
   type ToolImage,
   type ToolSchema,
   type WorkspaceScope,
-} from '@janhq/tauri-plugin-agent-tools-api'
+} from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import { getServiceHub } from '@/hooks/useServiceHub'
 
 /**
@@ -163,7 +163,7 @@ export function invalidateMemory(): void {
 }
 
 async function loadMemorySnapshot(): Promise<MemorySnapshot> {
-  const dataFolder = await getServiceHub().app().getJanDataFolder()
+  const dataFolder = await getServiceHub().app().getRey30DataFolder()
   if (!dataFolder) return { catalog: [], digest: '' }
   const newestFirst = (await memoryCatalog(dataFolder)).sort(
     (a, b) => b.mtimeMs - a.mtimeMs
@@ -246,7 +246,7 @@ const messageOf = (e: unknown): string =>
  * files from one conversation are invisible to the next; memory and skill tools
  * reach the permanent store instead and persist. No project path is passed --
  * the desktop has no project picker yet, so the plugin uses the permanent store
- * in the Jan data folder.
+ * in the Rey30 IDvj data folder.
  *
  * `shell` additionally runs under an OS sandbox whose network access is closed
  * unless the caller opens it. Chat never does; Cowork passes its own setting.
@@ -257,7 +257,7 @@ export async function executeAgentTool(
   threadId: string,
   /**
    * A project folder to attach read-only. Rust validates it and refuses one
-   * that overlaps the workspace or the Jan data folder, rather than silently
+   * that overlaps the workspace or the Rey30 IDvj data folder, rather than silently
    * dropping it, so an unusable attachment surfaces as a tool error.
    */
   readOnlyProject?: string | null,
@@ -274,7 +274,7 @@ export async function executeAgentTool(
    * folder). Off by default, so chat's attachment stays read-only. */
   projectWritable = false,
   /**
-   * A project folder whose project-store skills (`~/.jan/projects/<slug>/skills`)
+   * A project folder whose project-store skills (`<app_data>/projects/<slug>/skills`)
    * layer on top of the permanent store for `skill_list`/`skill_read`, so an
    * attached folder's skills reach the agent alongside the global ones (#8879).
    * Cowork passes its attached folder; chat leaves it unset, keeping its skills
@@ -283,8 +283,8 @@ export async function executeAgentTool(
   skillProject?: string | null
 ): Promise<AgentToolResult> {
   try {
-    const dataFolder = await getServiceHub().app().getJanDataFolder()
-    if (!dataFolder) return { error: 'Jan data folder is unavailable' }
+    const dataFolder = await getServiceHub().app().getRey30DataFolder()
+    if (!dataFolder) return { error: 'Rey30 IDvj data folder is unavailable' }
     const args =
       input && typeof input === 'object'
         ? (input as Record<string, unknown>)
@@ -317,6 +317,20 @@ export async function executeAgentTool(
 
 export type { MonitorUpdate }
 
+export async function validateCoworkFolder(folder: string): Promise<string> {
+  const services = getServiceHub()
+  const dataFolder = await services.app().getRey30DataFolder()
+  if (!dataFolder) throw new Error('La carpeta de datos de Rey30 IDvj no está disponible.')
+  try {
+    return await services.core().invoke<string>('plugin:agent-tools|validate_cowork_folder', {
+      dataFolder,
+      folder,
+    })
+  } catch (error) {
+    throw new Error(messageOf(error))
+  }
+}
+
 /**
  * Start a file monitor for a Cowork session. `onUpdate` receives every match
  * (and the terminal all-met/timeout update) as it happens; the returned string
@@ -332,8 +346,8 @@ export async function startAgentMonitor(
   projectWritable = false
 ): Promise<{ output: string; isError?: boolean }> {
   try {
-    const dataFolder = await getServiceHub().app().getJanDataFolder()
-    if (!dataFolder) return { output: 'ERROR: Jan data folder is unavailable', isError: true }
+    const dataFolder = await getServiceHub().app().getRey30DataFolder()
+    if (!dataFolder) return { output: 'ERROR: Rey30 IDvj data folder is unavailable', isError: true }
     const input =
       args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
     const output = await startMonitor(dataFolder, sessionId, input, onUpdate, {
@@ -490,7 +504,7 @@ export async function importAttachment(
   text?: string
 ): Promise<{ path: string; textPath: string | null } | null> {
   try {
-    const dataFolder = await getServiceHub().app().getJanDataFolder()
+    const dataFolder = await getServiceHub().app().getRey30DataFolder()
     if (!dataFolder) return null
     return await attachmentImport(dataFolder, sessionId, source, text)
   } catch (e) {
@@ -506,7 +520,7 @@ export async function importAttachment(
  */
 export async function cleanupThreadWorkspace(threadId: string): Promise<void> {
   try {
-    const dataFolder = await getServiceHub().app().getJanDataFolder()
+    const dataFolder = await getServiceHub().app().getRey30DataFolder()
     if (!dataFolder) return
     await threadWorkspaceDelete(dataFolder, threadId)
   } catch (e) {
@@ -525,7 +539,7 @@ export async function sweepThreadWorkspaces(
   liveThreadIds: string[]
 ): Promise<number> {
   try {
-    const dataFolder = await getServiceHub().app().getJanDataFolder()
+    const dataFolder = await getServiceHub().app().getRey30DataFolder()
     if (!dataFolder) return 0
     return await threadWorkspaceSweep(dataFolder, liveThreadIds)
   } catch (e) {

@@ -1,8 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import { useState } from 'react'
 
 import { useAssistant } from '@/hooks/useAssistant'
+import { useAvailableAssistants } from '@/hooks/useAvailableAssistants'
+import { useCharacterStore } from '@/stores/useCharacterStore'
+import { CharacterEditorDialog } from '@/containers/characters/CharacterPanel'
+import { assistantDisplayName, characterAssistantId } from '@/lib/characters/assistant-integration'
+import { getCharacterChatRole } from '@/lib/characters/profiles'
 
 import HeaderPage from '@/containers/HeaderPage'
 import { IconCirclePlus, IconPencil, IconTrash } from '@tabler/icons-react'
@@ -23,12 +27,11 @@ import {
 import { ChevronsUpDown } from 'lucide-react'
 import { DropdownMenuSeparator } from '@radix-ui/react-dropdown-menu'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.assistant as any)({
+export const Route = createFileRoute('/settings/assistant')({
   component: AssistantContent,
 })
 
-function AssistantContent() {
+export function AssistantContent() {
   const { t } = useTranslation()
   const { 
     assistants,
@@ -42,6 +45,9 @@ function AssistantContent() {
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const availableAssistants = useAvailableAssistants()
+  const characterProfiles = useCharacterStore(state => state.profiles)
+  const [editingCharacter, setEditingCharacter] = useState<string | null>(null)
 
   const handleDelete = (id: string) => {
     setDeletingId(id)
@@ -56,18 +62,18 @@ function AssistantContent() {
     }
   }
 
-  const handleSave = (assistant: Assistant) => {
+  const handleSave = async (assistant: Assistant) => {
     if (editingKey) {
-      updateAssistant(assistant)
+      await updateAssistant(assistant)
     } else {
-      addAssistant(assistant)
+      await addAssistant(assistant)
     }
     setOpen(false)
     setEditingKey(null)
   }
 
   const sortedAssistants = assistants.slice().sort((a, b) => a.created_at - b.created_at)
-  const defaultAssistant = sortedAssistants.find((a) => a.id === defaultAssistantId)
+  const defaultAssistant = availableAssistants.find((a) => a.id === defaultAssistantId)
 
   return (
     <div className="flex flex-col h-svh w-full">
@@ -102,7 +108,7 @@ function AssistantContent() {
                 actions={
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="justify-between">
+                      <Button data-testid="default-assistant-trigger" aria-label="Asistente predeterminado" variant="outline" size="sm" className="justify-between">
                         <span className={cn('truncate')}>
                           {defaultAssistant?.name ?? t('assistants:lastUsed')}
                         </span>
@@ -121,7 +127,7 @@ function AssistantContent() {
                         {t('assistants:lastUsed')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {sortedAssistants.map((a) => (
+                      {availableAssistants.map((a) => (
                         <DropdownMenuItem
                           key={a.id}
                           className={cn(
@@ -138,6 +144,15 @@ function AssistantContent() {
                 }
               />
               <h1 className="text-foreground font-studio font-medium text-sm mt-4 mb-4">{t('assistants:allAssistants')}</h1>
+              {characterProfiles.map(profile => <div data-testid="assistant-character-row" data-character-id={profile.id} key={profile.id} className="group my-1 flex items-center gap-3 rounded-lg bg-secondary/20 px-3 py-3 transition-colors hover:bg-secondary dark:hover:bg-secondary/20">
+                <div aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-xs font-medium dark:bg-secondary/40">{profile.name.split(' ').slice(0, 2).map(part => part[0]).join('')}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2"><span className="truncate font-studio text-sm font-medium">{assistantDisplayName(profile.id, profile.name)}</span>{defaultAssistantId === characterAssistantId(profile.id) && <span className="shrink-0 rounded-full bg-foreground/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">{t('assistants:isDefault')}</span>}</div>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{getCharacterChatRole(profile).label} · {getCharacterChatRole(profile).description}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{profile.modelBinding ? `${profile.modelBinding.providerId} · ${profile.modelBinding.modelId}` : 'Asignación automática de modelo local pequeño'}</p>
+                </div>
+                <Button variant="ghost" size="icon-xs" aria-label={`Editar ${profile.name}`} onClick={() => setEditingCharacter(profile.id)}><IconPencil className="size-4 text-muted-foreground" /></Button>
+              </div>)}
               {sortedAssistants.map((assistant) => (
                 <div
                   className="group flex items-center gap-3 px-3 py-3 rounded-lg my-1 bg-secondary/20 hover:bg-secondary dark:hover:bg-secondary/20 transition-colors"
@@ -155,7 +170,7 @@ function AssistantContent() {
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-studio font-medium truncate">
-                        {assistant.name}
+                        {assistantDisplayName(assistant.id, assistant.name)}
                       </span>
                       {defaultAssistantId === assistant.id && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-muted-foreground bg-foreground/10 leading-none shrink-0">
@@ -205,6 +220,7 @@ function AssistantContent() {
             }
             onSave={handleSave}
           />
+          <CharacterEditorDialog open={Boolean(editingCharacter)} characterId={editingCharacter ?? undefined} onOpenChange={next => { if (!next) setEditingCharacter(null) }} />
           <DeleteAssistantDialog
             open={deleteConfirmOpen}
             onOpenChange={setDeleteConfirmOpen}

@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import i18n from '@/i18n/setup'
 
 interface GlobalErrorProps {
   error: Error | unknown
 }
 
 export default function GlobalError({ error }: GlobalErrorProps) {
+  const t = i18n.t
   console.error('Error in root route:', error)
   const [showFull, setShowFull] = useState(false)
 
@@ -35,27 +37,18 @@ export default function GlobalError({ error }: GlobalErrorProps) {
           </div>
         </div>
         <h1 className="mt-5 text-xl font-bold text-slate-800">
-          Oops! Unexpected error occurred.
+          {t('ui-spanish:unexpectedError')}
         </h1>
         <p className="lg:text-md my-2 text-slate-600">
-          Something went wrong. Try to{' '}
+          {t('ui-spanish:tryRefresh')}{' '}
           <button
             rel="noopener noreferrer"
             className="text-accent hover:underline"
             onClick={() => window.location.reload()}
           >
-            refresh this page
+            {t('ui-details:refreshPage')}
           </button>{' '}
-          or <br /> feel free to{' '}
-          <a
-            rel="noopener noreferrer"
-            className="text-accent! hover:underline"
-            href="https://discord.gg/FTk2MvZwJH"
-            target="_blank"
-          >
-            contact us
-          </a>{' '}
-          if the problem persists.
+          {t('ui-details:problemPersists')} <br /> {t('ui-spanish:consultErrorDetails')}
         </p>
         <div
           className="mt-5 w-full md:w-4/5 xl:w-4/6 mx-auto rounded border border-red-400 bg-red-100 px-4 py-3 text-red-700 "
@@ -79,7 +72,7 @@ export default function GlobalError({ error }: GlobalErrorProps) {
               onClick={() => setShowFull(!showFull)}
               className="mt-2 text-sm text-red-700 underline focus:outline-none cursor-pointer"
             >
-              {showFull ? 'Show less' : 'Show more'}
+              {t(showFull ? 'ui-spanish:showLess' : 'ui-spanish:showMore')}
             </button>
           </div>
         </div>

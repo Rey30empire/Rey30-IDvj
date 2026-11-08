@@ -11,7 +11,7 @@ import {
 
 // Hoisted: vi.mock factories are lifted above module-level consts, so the spies
 // have to be created in the same hoisted scope to be referenceable there.
-const { api, invoke, getJanDataFolder } = vi.hoisted(() => ({
+const { api, invoke, getRey30DataFolder } = vi.hoisted(() => ({
   api: {
     skillList: vi.fn(),
     skillRead: vi.fn(),
@@ -20,20 +20,20 @@ const { api, invoke, getJanDataFolder } = vi.hoisted(() => ({
     skillInvoke: vi.fn(),
   },
   invoke: vi.fn(),
-  getJanDataFolder: vi.fn(),
+  getRey30DataFolder: vi.fn(),
 }))
 
-vi.mock('@janhq/tauri-plugin-agent-tools-api', () => api)
+vi.mock('@rey30-idvj/tauri-plugin-agent-tools-api', () => api)
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 vi.mock('@/hooks/useServiceHub', () => ({
-  getServiceHub: () => ({ app: () => ({ getJanDataFolder }) }),
+  getServiceHub: () => ({ app: () => ({ getRey30DataFolder }) }),
 }))
 
 describe('skillStore', () => {
   beforeEach(() => {
     Object.values(api).forEach((fn) => fn.mockReset())
     invoke.mockReset().mockResolvedValue(undefined)
-    getJanDataFolder.mockReset().mockResolvedValue('/data')
+    getRey30DataFolder.mockReset().mockResolvedValue('/data')
   })
 
   describe('store scope', () => {
@@ -56,9 +56,9 @@ describe('skillStore', () => {
     })
 
     it('fails loudly when the data folder is unavailable', async () => {
-      getJanDataFolder.mockResolvedValue(null)
+      getRey30DataFolder.mockResolvedValue(null)
       await expect(listSkills(storeScope)).rejects.toThrow(
-        'Jan data folder is unavailable'
+        'Rey30 IDvj data folder is unavailable'
       )
     })
   })
@@ -106,7 +106,7 @@ describe('skillStore', () => {
       invoke.mockResolvedValueOnce([])
       await listSkills(scope)
       await writeSkill(scope, 'lint', 'text')
-      expect(getJanDataFolder).not.toHaveBeenCalled()
+      expect(getRey30DataFolder).not.toHaveBeenCalled()
     })
   })
 

@@ -80,7 +80,7 @@ const coreHoisted = vi.hoisted(() => ({
   readdirSyncMock: vi.fn(),
 }))
 const { fileStatMock, readdirSyncMock } = coreHoisted
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   ExtensionTypeEnum: { VectorDB: 'vectordb' },
   VectorDBExtension: class {},
   fs: {

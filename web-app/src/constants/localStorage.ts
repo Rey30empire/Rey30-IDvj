@@ -29,9 +29,9 @@ export const localStorageKey = {
   threadManagement: 'thread-management',
   modelSupportCache: 'jan_model_support_cache',
   recentSearches: 'recent-searches',
-  janModelPromptDismissed: 'jan-model-prompt-dismissed',
+  defaultModelPromptDismissed: 'jan-model-prompt-dismissed',
   agentMode: 'agent-mode',
-  latestJanModel: 'latest-jan-model',
+  latestDefaultModel: 'latest-jan-model',
   defaultEmbeddingModel: 'default-embedding-model',
   pausedDownloads: 'paused-downloads',
   // Value predates the Cowork rename; changing it would orphan saved sessions.

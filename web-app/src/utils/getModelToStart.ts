@@ -1,5 +1,5 @@
 import { localStorageKey } from '@/constants/localStorage'
-import type { ModelInfo } from '@janhq/core'
+import type { ModelInfo } from '@rey30-idvj/core'
 
 export const getLastUsedModel = (): {
   provider: string

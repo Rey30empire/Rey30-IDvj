@@ -8,7 +8,7 @@ import { useServiceHub } from '@/hooks/useServiceHub'
 import { useTranslation } from '@/i18n'
 import { CatalogModel } from '@/services/models/types'
 import { cn } from '@/lib/utils'
-import { DownloadEvent, EngineManager, events } from '@janhq/core'
+import { DownloadEvent, EngineManager, events } from '@rey30-idvj/core'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useNavigate } from '@tanstack/react-router'
@@ -164,11 +164,11 @@ export const MlxModelDownloadAction = memo(({ model }: { model: CatalogModel }) 
     } catch (error) {
       console.error('Error downloading MLX model:', error)
       removeLocalDownloadingModel(modelId)
-      toast.error('Failed to download MLX model', {
+      toast.error(t('ui-details:mlxDownloadFailed'), {
         description: error instanceof Error ? error.message : 'Unknown error',
       })
     }
-  }, [serviceHub, model, huggingfaceToken, addLocalDownloadingModel, removeLocalDownloadingModel, modelId, modelName])
+  }, [serviceHub, model, huggingfaceToken, addLocalDownloadingModel, removeLocalDownloadingModel, modelId, modelName, t])
 
   return (
     <div className="flex items-center">

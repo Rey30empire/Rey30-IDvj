@@ -22,10 +22,14 @@ export const useReleaseNotes = create<ReleaseState>((set) => ({
   error: null,
 
   fetchLatestRelease: async (includeBeta: boolean) => {
+    if (AUTO_UPDATER_DISABLED || !APP_RELEASES_URL) {
+      set({ release: null, loading: false, error: null })
+      return
+    }
     set({ loading: true, error: null })
     try {
       const res = await fetch(
-        'https://api.github.com/repos/janhq/jan/releases'
+        APP_RELEASES_URL
       )
       if (!res.ok) throw new Error('Failed to fetch releases')
       const releases = await res.json()

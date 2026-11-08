@@ -37,5 +37,10 @@
   "defaultAssistantSection": "Default Assistant",
   "defaultAssistantDesc": "Used when starting a new chat",
   "allAssistants": "All Assistants",
-  "lastUsed": "Last used"
+  "lastUsed": "Last used",
+  "manage": "Manage assistants",
+  "voiceOnly": "Voice only",
+  "openError": "Could not open the assistant.",
+  "loadError": "Could not load built-in assistants.",
+  "loading": "Loading assistants…"
 }

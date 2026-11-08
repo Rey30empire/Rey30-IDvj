@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <path d="M27 231v-48c0-26 24-48 73-48s73 22 73 48v48" fill="var(--character-primary,#34353C)"/>
+    <g data-part="arms" class="character-arms"><path d="m43 164-18 39 15 12 27-41M157 164l18 39-15 12-27-41" fill="var(--character-secondary,#F06D3D)" stroke="#292D34" stroke-width="5" stroke-linejoin="round"/><path d="m25 203-7 11 14 13 10-14m133-10 7 11-14 13-10-14" fill="#34353C" stroke="#20242C" stroke-width="4"/></g>
+    <path d="m58 159 26 27 16-20 17 20 26-27-25-9H82Z" fill="var(--character-secondary,#F06D3D)"/><path d="m100 168 8 63M66 198l16 9m48-9-14 9" stroke="var(--character-accent,#F4BF62)" stroke-width="4"/><path d="M85 127h30v28l-15 15-15-15" fill="var(--character-skin,#CB9675)"/>
+    <path d="M61 70q39-35 78 0l-5 48-21 22H87l-21-22Z" fill="var(--character-skin,#CB9675)" stroke="#40332E" stroke-width="3"/><path d="m62 82-13-26 18 1-3-23 27 12 9-20 14 22 28-10-6 23 19 7-18 26-5-24-18 8-17-14-16 15-16-3Z" fill="var(--character-hair,#25282F)"/><path d="m100 44 13 14-14 17-7-18Z" fill="var(--character-secondary,#F06D3D)"/>
+    <g data-part="eyebrows" class="character-brows" stroke="#302A2A" stroke-width="4" stroke-linecap="round"><path d="m73 86 16-4m22 0 16 4"/></g>
+    <g data-part="eyes" class="character-eyes"><path d="M73 95h17m20 0h17" stroke="#F9EEE2" stroke-width="8" stroke-linecap="round"/><path d="M83 92v7m34-7v7" stroke="#353238" stroke-width="5" stroke-linecap="round"/></g>
+    <path d="m100 100-4 11h7" stroke="#91634E" stroke-width="2" stroke-linecap="round"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M87 121q13 9 26-2" stroke="#644535" stroke-width="3" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="101" cy="122" rx="7" ry="4" fill="#583E37" opacity="0"/></g>
+    <path d="m37 233 3-15m123 15-3-15" stroke="var(--character-accent,#F4BF62)" stroke-width="4"/>
+  </g>
+</svg>

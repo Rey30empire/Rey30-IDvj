@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <path d="M39 235v-51q0-40 61-40t61 40v51" fill="var(--character-primary,#B5A17E)"/>
+    <g data-part="arms" class="character-arms"><path d="m48 172-18 41 16 7 20-40m88-8 13-29" stroke="var(--character-primary,#B5A17E)" stroke-width="18" stroke-linecap="round"/><path d="m162 140-1-21m3 23 10-10" stroke="var(--character-skin,#BD8A66)" stroke-width="7" stroke-linecap="round"/></g>
+    <path d="m82 150 18 14 18-14 7 85H75Z" fill="var(--character-secondary,#32745B)"/><path d="m76 151-13 17 17 13m44-30 13 17-17 13" stroke="#857356" stroke-width="3"/><path d="M87 125h26v29l-13 12-13-12" fill="var(--character-skin,#BD8A66)"/><path d="M129 196h17v23h-17Z" fill="var(--character-accent,#E3B56B)" stroke="#7A6B52" stroke-width="2"/><path d="M132 201h11m-11 5h8" stroke="#7A6B52" stroke-width="2"/>
+    <path d="M61 72q8-35 41-35t39 35l-8 51-24 20-26-7-19-23Z" fill="var(--character-skin,#BD8A66)" stroke="#77563F" stroke-width="3"/>
+    <g data-part="hair" fill="var(--character-hair,#35302E)"><circle cx="65" cy="60" r="14"/><circle cx="76" cy="43" r="15"/><circle cx="98" cy="38" r="17"/><circle cx="121" cy="42" r="15"/><circle cx="137" cy="58" r="14"/><path d="m55 62 10 27 5-20 14-11 23 4 21-5 7 28 10-25Z"/></g>
+    <g data-part="eyebrows" class="character-brows" stroke="#473731" stroke-width="4" stroke-linecap="round"><path d="m72 84 18-6m22 3 17 4"/></g>
+    <g data-part="eyes" class="character-eyes"><path d="M73 94h18m20 0h18" stroke="#F8E9D4" stroke-width="7" stroke-linecap="round"/><path d="M87 92v5m38-5v5" stroke="#3C3830" stroke-width="5" stroke-linecap="round"/></g>
+    <path d="m101 97 5 16h-9" stroke="#9E7050" stroke-width="2" stroke-linecap="round"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M86 124q15 8 29-4" stroke="#704F3E" stroke-width="3" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="102" cy="125" rx="7" ry="3" fill="#5B4035" opacity="0"/></g>
+  </g>
+</svg>

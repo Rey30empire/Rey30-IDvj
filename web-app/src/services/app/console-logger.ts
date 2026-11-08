@@ -4,7 +4,7 @@ import {
   info as logInfo,
   warn as logWarn,
 } from '@tauri-apps/plugin-log'
-import { formatLogArg } from '@janhq/core'
+import { formatLogArg } from '@rey30-idvj/core'
 
 type ConsoleMethod = 'log' | 'info' | 'warn' | 'error' | 'debug'
 

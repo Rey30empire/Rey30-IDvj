@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useThreadManagement } from '@/hooks/useThreadManagement'
 import { useAssistant } from '@/hooks/useAssistant'
+import { useAvailableAssistants } from '@/hooks/useAvailableAssistants'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
 import { toast } from 'sonner'
 import { useTranslation } from '@/i18n/react-i18next-compat'
@@ -47,7 +48,8 @@ export default function AddProjectDialog({
   const [name, setName] = useState(initialData?.name || '')
   const [selectedAssistantId, setSelectedAssistantId] = useState<string | undefined>(initialData?.assistantId)
   const { folders } = useThreadManagement()
-  const { assistants, addAssistant } = useAssistant()
+  const { addAssistant } = useAssistant()
+  const assistants = useAvailableAssistants()
   const [addAssistantDialogOpen, setAddAssistantDialogOpen] = useState(false)
 
   const selectedAssistant = assistants.find((a) => a.id === selectedAssistantId)
@@ -206,8 +208,8 @@ export default function AddProjectDialog({
       open={addAssistantDialogOpen}
       onOpenChange={setAddAssistantDialogOpen}
       editingKey={null}
-      onSave={(assistant) => {
-        addAssistant(assistant)
+      onSave={async (assistant) => {
+        await addAssistant(assistant)
         setSelectedAssistantId(assistant.id)
       }}
     />

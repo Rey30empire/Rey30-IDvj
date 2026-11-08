@@ -16,6 +16,7 @@ import {
   IconCodeDots,
 } from '@tabler/icons-react'
 import { MCPServerConfig } from '@/hooks/useMCPServers'
+import { validateMCPServers } from '@/lib/mcpConfigValidation'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import {
   DndContext,
@@ -281,7 +282,7 @@ export default function AddEditMCPServer({
       try {
         const parsedData = JSON.parse(jsonContent)
         // Validate that it's an object with server configurations
-        if (typeof parsedData !== 'object' || parsedData === null) {
+        if (typeof parsedData !== 'object' || parsedData === null || Array.isArray(parsedData)) {
           setError(t('mcp-servers:editJson.errorFormat'))
           return
         }
@@ -316,7 +317,10 @@ export default function AddEditMCPServer({
             return
           }
 
-          onSave(trimmedServerName, serverConfig as MCPServerConfig)
+        }
+        validateMCPServers(parsedData)
+        for (const [serverName, config] of Object.entries(parsedData)) {
+          onSave(serverName.trim(), config)
         }
         onOpenChange(false)
         resetForm()
@@ -390,7 +394,7 @@ export default function AddEditMCPServer({
                 'size-6 cursor-pointer flex items-center justify-center rounded hover:bg-secondary transition-all duration-200 ease-in-out',
                 isToggled && 'bg-secondary text-primary'
               )}
-              title="Add server by JSON"
+              title={t('ui-details:addServerJson')}
               onClick={() => setIsToggled(!isToggled)}
             >
               <IconCodeDots className="h-5 w-5 cursor-pointer transition-colors duration-200" />

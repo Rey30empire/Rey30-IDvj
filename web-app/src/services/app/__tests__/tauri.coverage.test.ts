@@ -5,7 +5,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   EngineManager: {
     instance: () => ({
       engines: new Map([
@@ -42,87 +42,21 @@ describe('TauriAppService – coverage', () => {
   })
 
   describe('factoryReset', () => {
-    it('calls factory_reset without params when no keep flags', async () => {
+    it.each([undefined, { keepAppData: false, keepModelsAndConfigs: false }, { keepAppData: true, keepModelsAndConfigs: true }])('rejects legacy reset without invoking backend or touching storage (%j)', async options => {
       const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockResolvedValue(undefined)
-
-      await svc.factoryReset()
-
-      expect(invoke).toHaveBeenCalledWith('factory_reset')
-    })
-
-    it('calls factory_reset without params when both keep flags false', async () => {
-      const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockResolvedValue(undefined)
-
-      await svc.factoryReset({ keepAppData: false, keepModelsAndConfigs: false })
-
-      expect(invoke).toHaveBeenCalledWith('factory_reset')
-    })
-
-    it('calls factory_reset with params when keepAppData true', async () => {
-      const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockResolvedValue(undefined)
-
-      await svc.factoryReset({ keepAppData: true, keepModelsAndConfigs: false })
-
-      expect(invoke).toHaveBeenCalledWith('factory_reset', {
-        keepAppData: true,
-        keepModelsAndConfigs: false,
-        clearWebData: false,
-      })
-    })
-
-    it('calls factory_reset with params when keepModelsAndConfigs true', async () => {
-      const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockResolvedValue(undefined)
-
-      await svc.factoryReset({ keepAppData: false, keepModelsAndConfigs: true })
-
-      expect(invoke).toHaveBeenCalledWith('factory_reset', {
-        keepAppData: false,
-        keepModelsAndConfigs: true,
-        clearWebData: false,
-      })
-    })
-
-    it('leaves localStorage alone when the backend refuses the reset', async () => {
-      const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockRejectedValue('Refusing to reset /home/jan')
-      localStorage.setItem('model-provider', '{"providers":[]}')
-      localStorage.setItem('setup-completed', 'true')
-
-      await expect(
-        svc.factoryReset({ keepAppData: false, keepModelsAndConfigs: false })
-      ).rejects.toBe('Refusing to reset /home/jan')
-
-      // Pruning happens on the next startup from the Rust sentinel, which a
-      // refused reset never writes.
-      expect(localStorage.getItem('model-provider')).toBe('{"providers":[]}')
-      expect(localStorage.getItem('setup-completed')).toBe('true')
-    })
-
-    it('handles engine with no active models', async () => {
-      // Re-mock to return null/empty from getLoadedModels
-      const { invoke } = await import('@tauri-apps/api/core')
-      vi.mocked(invoke).mockResolvedValue(undefined)
-
-      const { EngineManager } = await import('@janhq/core')
-      const engine = (EngineManager as any).instance().engines.get('engine1')
-      engine.getLoadedModels.mockResolvedValueOnce(null)
-
-      await svc.factoryReset()
-
-      expect(engine.unload).not.toHaveBeenCalled()
+      localStorage.setItem('model-provider', 'fixture-provider')
+      await expect(svc.factoryReset(options)).rejects.toThrow('deshabilitado')
+      expect(invoke).not.toHaveBeenCalled()
+      expect(localStorage.getItem('model-provider')).toBe('fixture-provider')
     })
   })
 
-  describe('getJanDataFolder', () => {
+  describe('getRey30DataFolder', () => {
     it('returns undefined on error', async () => {
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
       mockWindowCore.api.getAppConfigurations.mockRejectedValue(new Error('fail'))
 
-      const result = await svc.getJanDataFolder()
+      const result = await svc.getRey30DataFolder()
 
       expect(result).toBeUndefined()
       expect(spy).toHaveBeenCalled()
@@ -132,7 +66,7 @@ describe('TauriAppService – coverage', () => {
     it('returns undefined when config has no data_folder', async () => {
       mockWindowCore.api.getAppConfigurations.mockResolvedValue({})
 
-      const result = await svc.getJanDataFolder()
+      const result = await svc.getRey30DataFolder()
 
       expect(result).toBeUndefined()
     })

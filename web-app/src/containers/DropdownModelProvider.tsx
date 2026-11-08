@@ -26,11 +26,23 @@ import { useServiceHub } from '@/hooks/useServiceHub'
 import { getLastUsedModel } from '@/utils/getModelToStart'
 import { ChevronsUpDown } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAssistant } from '@/hooks/useAssistant'
+import { useAvailableAssistants, useActiveCharacter } from '@/hooks/useAvailableAssistants'
+import { assistantModelBinding, characterIdFromAssistantId, isJanModelId, preferredCharacterModel, selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
+import { getCharacterChatRole } from '@/lib/characters/profiles'
+import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
+import { useCharacterStore } from '@/stores/useCharacterStore'
+import { AvatarEmoji } from '@/containers/AvatarEmoji'
+import { Button } from '@/components/ui/button'
+import { useAssistantSwitcher } from '@/hooks/useAssistantSwitcher'
 
 type DropdownModelProviderProps = {
   model?: ThreadModel
   useLastUsedModel?: boolean
   onModelChange?: (model: ThreadModel) => void
+  allowAssistants?: boolean
+  assistantId?: string
+  onAssistantChange?: (id: string) => Promise<void> | void
 }
 
 interface SearchableModel {
@@ -57,6 +69,9 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
   model,
   useLastUsedModel = false,
   onModelChange,
+  allowAssistants = true,
+  assistantId,
+  onAssistantChange,
 }: DropdownModelProviderProps) {
   const {
     providers,
@@ -68,7 +83,34 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     updateProvider,
   } = useModelProvider()
   const [displayModel, setDisplayModel] = useState<string>('')
-  const { updateCurrentThreadModel } = useThreads()
+  const { updateCurrentThreadModel, currentThreadId, threads } = useThreads()
+  const { currentAssistant } = useAssistant()
+  const assistants = useAvailableAssistants()
+  const character = useActiveCharacter()
+  const profiles = useCharacterStore((state) => state.profiles)
+  const characterError = useCharacterStore((state) => state.error)
+  const [selectionError, setSelectionError] = useState<string | null>(null)
+  const [selectorTab, setSelectorTab] = useState<'assistants' | 'models'>(allowAssistants ? 'assistants' : 'models')
+  const assignedAssistant = allowAssistants
+    ? assistantId !== undefined ? assistants.find(item => item.id === assistantId) : currentThreadId ? threads?.[currentThreadId]?.assistants?.[0] : currentAssistant
+    : undefined
+  const activeAssistant = assistants.find((item) => item.id === assignedAssistant?.id) ?? assignedAssistant
+  const privateLibraryChat = allowAssistants && (activeAssistant?.id === literaryAssistantId || isLiteraryThread(currentThreadId ? threads?.[currentThreadId] : undefined))
+  const fixedAssistantId = !character && activeAssistant?.id && !['jan', 'model-only'].includes(activeAssistant.id) && !characterIdFromAssistantId(activeAssistant.id)
+    ? activeAssistant.id
+    : undefined
+  const binding = allowAssistants && character
+    ? character.modelBinding && !isJanModelId(character.modelBinding.modelId)
+      ? character.modelBinding
+      : preferredCharacterModel(providers, selectedModel)
+    : fixedAssistantId ? assistantModelBinding(fixedAssistantId, providers) : undefined
+  const bindingProvider = providers.find((item) => item.provider === binding?.providerId && item.active !== false && (!privateLibraryChat || isLiteraryModelProvider(item)))
+  const boundModel = bindingProvider?.models.find((item) => item.id === binding?.modelId && !item.capabilities?.includes('embeddings'))
+  const visibleModelName = allowAssistants && (character || fixedAssistantId)
+    ? boundModel && bindingProvider
+      ? `${getModelDisplayName(boundModel)} · ${getProviderTitle(bindingProvider.provider)}`
+      : 'Modelo del asistente no disponible'
+    : displayModel
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { favoriteModels } = useFavoriteModel()
@@ -77,7 +119,32 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
   // Search state
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
+  const assistantQuery = searchValue.trim().toLocaleLowerCase('es')
+  const visibleAssistants = assistants.filter((item) => {
+    const profile = profiles.find((candidate) => candidate.id === characterIdFromAssistantId(item.id))
+    const role = profile ? getCharacterChatRole(profile).label : ''
+    return `${item.name} ${role} ${item.description ?? ''}`.toLocaleLowerCase('es').includes(assistantQuery)
+  })
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const chooseAssistant = useCallback(async (id: string) => {
+    setSelectionError(null)
+    try {
+      await selectIntegratedAssistant(id, assistantId !== undefined ? undefined : currentThreadId)
+      await onAssistantChange?.(id)
+      setOpen(false)
+    } catch (error) {
+      setSelectionError(error instanceof Error ? error.message : 'No se pudo seleccionar el asistente.')
+    }
+  }, [currentThreadId, assistantId, onAssistantChange])
+  useEffect(() => {
+    if (!allowAssistants) return
+    useAssistantSwitcher.getState().setCycleHandler(() => {
+      const index = assistants.findIndex((item) => item.id === activeAssistant?.id)
+      const next = assistants[(index + 1) % assistants.length]
+      if (next) void chooseAssistant(next.id)
+    })
+    return () => useAssistantSwitcher.getState().setCycleHandler(null)
+  }, [allowAssistants, assistants, activeAssistant?.id, chooseAssistant])
 
   // Helper function to check if a model exists in providers
   const checkModelExists = useCallback(
@@ -147,6 +214,11 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
   // Initialize model provider - avoid race conditions with manual selections
   useEffect(() => {
     const initializeModel = async () => {
+      if (allowAssistants && (character || fixedAssistantId)) {
+        if (binding && boundModel) selectModelProvider(binding.providerId, boundModel.id)
+        else selectModelProvider('', '')
+        return
+      }
       // Auto select model when existing thread is passed
       if (model) {
         selectModelProvider(model?.provider as string, model?.id as string)
@@ -208,6 +280,11 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     updateProvider,
     getProviderByName,
     checkAndUpdateModelVisionCapability,
+    allowAssistants,
+    fixedAssistantId,
+    character?.id,
+    binding?.providerId,
+    boundModel?.id,
 
     // selectedModel and selectedProvider intentionally excluded to prevent race conditions
   ])
@@ -264,11 +341,13 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     const items: SearchableModel[] = []
 
     providers.forEach((provider) => {
-      if (!provider.active) return
+      if (!provider.active || (privateLibraryChat && !isLiteraryModelProvider(provider))) return
 
       provider.models.forEach((modelItem) => {
         // Skip embedding models - they can't be used for chat
         if (modelItem.embedding) return
+        if ((character || fixedAssistantId) && isJanModelId(modelItem.id)) return
+        if (fixedAssistantId && (provider.provider !== binding?.providerId || modelItem.id !== binding.modelId)) return
 
         // Skip models that require API key but don't have one (except llamacpp)
         // For custom providers, allow if they have at least one model loaded
@@ -301,7 +380,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     })
 
     return items
-  }, [providers])
+  }, [providers, privateLibraryChat, character, fixedAssistantId, binding?.providerId, binding?.modelId])
 
   // Create Fzf instance for fuzzy search
   const fzfInstance = useMemo(() => {
@@ -399,6 +478,15 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
 
   const handleSelect = useCallback(
     async (searchableModel: SearchableModel) => {
+      setSelectionError(null)
+      if (allowAssistants && character) {
+        try {
+          await useCharacterStore.getState().updateProfile({ ...character, modelBinding: { providerId: searchableModel.provider.provider, modelId: searchableModel.model.id } })
+        } catch (error) {
+          setSelectionError(error instanceof Error ? error.message : 'No se pudo guardar el modelo del asistente.')
+          return
+        }
+      }
       // Immediately update display to prevent double-click issues
       setDisplayModel(getModelDisplayName(searchableModel.model))
       setSearchValue('')
@@ -457,6 +545,8 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
       getProviderByName,
       checkAndUpdateModelVisionCapability,
       serviceHub,
+      allowAssistants,
+      character,
     ]
   )
 
@@ -464,23 +554,24 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     ? getModelBy(selectedModel?.id)
     : undefined
 
-  if (!providers.length) return null
+  if (!providers.length && !allowAssistants) return null
 
   const provider = getProviderByName(selectedProvider)
 
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-        <PopoverTrigger asChild>
           <div
             data-testid="model-selector-trigger"
-            className="border relative z-20 px-4 py-1.5 flex items-center gap-1.5 rounded-full"
+            className="border relative z-20 px-3 py-1.5 flex min-w-0 max-w-full items-center gap-1.5 rounded-full"
           >
+          <PopoverTrigger asChild>
             <button
               type="button"
-              className="font-medium cursor-pointer flex items-center gap-1.5 relative z-20 min-w-0"
+              aria-label={allowAssistants ? 'Seleccionar asistente y modelo' : 'Seleccionar modelo'}
+              className="font-medium cursor-pointer flex items-center gap-1.5 relative z-20 min-w-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             >
-              {provider && (
+              {allowAssistants && character ? <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs">{character.name.split(' ').map(word => word[0]).slice(0, 2).join('')}</span> : provider && (
                 <div className="shrink-0">
                   <ProvidersAvatar provider={provider} />
                 </div>
@@ -493,13 +584,14 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                       !selectedModel?.id && 'text-muted-foreground'
                     )}
                   >
-                    {displayModel}
+                    {activeAssistant && activeAssistant.id !== 'model-only' ? <><span data-testid="selected-assistant-name" className="block truncate text-sm">{activeAssistant.name}</span><span className="block truncate text-xs text-muted-foreground">{visibleModelName}</span></> : visibleModelName}
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>{displayModel}</TooltipContent>
+                <TooltipContent>{visibleModelName}</TooltipContent>
               </Tooltip>
               <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
             </button>
+          </PopoverTrigger>
           {currentModel?.settings &&
             provider &&
             provider.provider === 'llamacpp' && (
@@ -517,13 +609,12 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
             className="ml-0.5 shrink-0"
           />
         </div>
-        </PopoverTrigger>
 
       <PopoverContent
         className={cn(
           // Use auto width to fit long model names; keep a sensible minimum.
           'w-auto min-w-70 max-w-[90vw] p-0 backdrop-blur-2xl bg-background/95 border',
-          searchValue.length === 0 && 'h-80'
+          'max-h-[min(560px,75dvh)] w-[min(420px,90vw)]'
         )}
         align="start"
         // sideOffset={16}
@@ -532,25 +623,51 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
         avoidCollisions={searchValue.length === 0 ? true : false}
       >
         <div className="flex flex-col size-full">
+          {allowAssistants && <div className="flex gap-1 border-b p-2" aria-label="Elegir asistentes o modelos">
+            <Button data-testid="assistant-selector-tab" variant={selectorTab === 'assistants' ? 'secondary' : 'ghost'} aria-pressed={selectorTab === 'assistants'} size="sm" onClick={() => setSelectorTab('assistants')}>Asistentes</Button>
+            <Button data-testid="model-selector-tab" variant={selectorTab === 'models' ? 'secondary' : 'ghost'} aria-pressed={selectorTab === 'models'} size="sm" onClick={() => setSelectorTab('models')}>Modelos</Button>
+          </div>}
           {/* Search input */}
           <div className="relative p-2 border-b">
             <input
               ref={searchInputRef}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              placeholder={t('common:searchModels')}
-              className="text-sm font-normal outline-0"
+              aria-label={selectorTab === 'assistants' ? 'Buscar asistentes' : 'Buscar modelos'}
+              placeholder={selectorTab === 'assistants' ? 'Buscar asistentes…' : t('common:searchModels')}
+              className="w-full rounded-sm text-sm font-normal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             />
             {searchValue.length > 0 && (
-              <div className="absolute right-2 top-0 bottom-0 flex items-center justify-center">
+              <button type="button" aria-label="Borrar búsqueda" className="absolute right-2 top-0 bottom-0 flex items-center justify-center" onClick={onClearSearch}>
                 <IconX
                   size={16}
                   className="text-muted-foreground cursor-pointer"
-                  onClick={onClearSearch}
                 />
-              </div>
+              </button>
             )}
           </div>
+
+          {(selectionError || characterError) && <p className="px-3 py-2 text-sm text-destructive" role="alert">{selectionError || characterError}</p>}
+          {allowAssistants && selectorTab === 'assistants' ? <div className="max-h-[min(420px,55dvh)] overflow-y-auto p-1">
+            <button type="button" data-testid="assistant-option-model-only" className="flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm hover:bg-accent focus-visible:outline-2 focus-visible:outline-foreground" aria-pressed={!activeAssistant || activeAssistant.id === 'model-only'} onClick={() => void chooseAssistant('')}>Solo modelo</button>
+            {visibleAssistants.map((assistant) => {
+              const id = characterIdFromAssistantId(assistant.id)
+              const profile = profiles.find((item) => item.id === id)
+              const binding = profile?.modelBinding
+              const linkedModel = binding ? providers.find((item) => item.provider === binding.providerId)?.models.find((item) => item.id === binding.modelId) : undefined
+              return <button type="button" key={assistant.id} data-testid={`assistant-option-${assistant.id}`} aria-pressed={activeAssistant?.id === assistant.id} className={cn('my-0.5 flex min-h-14 w-full items-center gap-3 rounded-md px-3 py-2 text-left hover:bg-accent focus-visible:outline-2 focus-visible:outline-foreground', activeAssistant?.id === assistant.id && 'bg-accent')} onClick={() => void chooseAssistant(assistant.id)}>
+                {profile ? <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{profile.name.split(' ').map(word => word[0]).slice(0, 2).join('')}</span> : <AvatarEmoji avatar={assistant.avatar ?? '👤'} imageClassName="size-7" textClassName="text-xl" />}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{assistant.name}</span>
+                  {profile && <span className="block truncate text-xs text-muted-foreground">{getCharacterChatRole(profile).label}</span>}
+                  <span className="block truncate text-xs text-muted-foreground">{profile ? linkedModel ? getModelDisplayName(linkedModel) : binding ? 'Modelo asociado no disponible' : 'Selecciona un modelo en Asistentes' : 'Utiliza el modelo seleccionado'}</span>
+                </span>
+                {activeAssistant?.id === assistant.id && <span aria-label="Seleccionado">✓</span>}
+              </button>
+            })}
+            {!visibleAssistants.length && <p className="p-3 text-sm text-muted-foreground">No se encontraron asistentes.</p>}
+            <Button variant="ghost" className="mt-1 w-full justify-start" onClick={() => { setOpen(false); navigate({ to: route.settings.assistant }) }}>Gestionar asistentes</Button>
+          </div> : <>
 
           {/* Model list */}
           <div className="max-h-80 overflow-y-auto">
@@ -579,12 +696,13 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                         searchableModel.model.capabilities || []
 
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={`fav-${searchableModel.value}`}
                           data-testid={`model-option-${searchableModel.model.id}`}
                           onClick={() => handleSelect(searchableModel)}
                           className={cn(
-                            'mx-1 mb-1 px-2 py-1.5 rounded-sm cursor-pointer flex items-center gap-2 transition-all duration-200',
+                            'mx-1 mb-1 w-[calc(100%-0.5rem)] min-h-11 px-2 py-1.5 rounded-sm cursor-pointer flex items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-foreground transition-all duration-200',
                             'hover:bg-secondary/40',
                             // Selected state needs stronger contrast than the surrounding secondary tint.
                             isSelected &&
@@ -614,7 +732,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                               </div>
                             )}
                           </div>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -647,7 +765,9 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                           </span>
                         </div>
 
-                        <div
+                        <button
+                          type="button"
+                          aria-label={`Configurar ${getProviderTitle(providerInfo.provider)}`}
                           className="size-6 cursor-pointer flex items-center justify-center rounded-sm bg-secondary-foreground/8 transition-all duration-200 ease-in-out"
                           onClick={(e) => {
                             e.stopPropagation()
@@ -662,7 +782,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                             size={16}
                             className="text-muted-foreground"
                           />
-                        </div>
+                        </button>
                       </div>
 
                       {/* Models for this provider */}
@@ -679,12 +799,13 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                             searchableModel.model.capabilities || []
 
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={searchableModel.value}
                               data-testid={`model-option-${searchableModel.model.id}`}
                               onClick={() => handleSelect(searchableModel)}
                               className={cn(
-                                'mx-1 mb-1 px-2 py-1.5 rounded-sm cursor-pointer flex items-center gap-2 transition-all duration-200',
+                                'mx-1 mb-1 w-[calc(100%-0.5rem)] min-h-11 px-2 py-1.5 rounded-sm cursor-pointer flex items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-foreground transition-all duration-200',
                                 'hover:bg-secondary/40',
                                 isSelected &&
                                   'bg-primary/15 hover:bg-primary/15 ring-1 ring-primary/40'
@@ -710,7 +831,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                                   </div>
                                 )}
                               </div>
-                            </div>
+                            </button>
                           )
                         })
                       )}
@@ -720,6 +841,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
               </div>
             )}
           </div>
+          </>}
         </div>
       </PopoverContent>
     </Popover>

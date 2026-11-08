@@ -34,5 +34,5 @@ export function isLocalNetworkUrl(url: string): boolean {
  */
 export function localNetworkHint(url: string, onMac: boolean): string {
   if (!onMac || !isLocalNetworkUrl(url)) return ''
-  return 'If the server is on your local network, allow Jan in System Settings > Privacy & Security > Local Network.'
+  return 'If the server is on your local network, allow Rey30 IDvj in System Settings > Privacy & Security > Local Network.'
 }

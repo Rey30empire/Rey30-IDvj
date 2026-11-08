@@ -652,6 +652,7 @@ export type RunSubagentOptions = {
     workspacePath: string | null
     readOnlyFolder: string | null
     bashAvailable: boolean
+    allowProcesses?: boolean
     environment?: CoworkEnvironment | null
   }
   /** Runs one of the child's tool calls. Same sandbox as the parent. */
@@ -734,6 +735,7 @@ export async function runSubagent(
         workspacePath: opts.system.workspacePath,
         readOnlyFolder: opts.system.readOnlyFolder,
         bashAvailable: opts.system.bashAvailable && 'shell' in tools,
+        allowProcesses: opts.system.allowProcesses,
         // Derived, not passed: the intersection above may have dropped them.
         webSearch: 'web_search' in tools,
         environment: opts.system.environment,

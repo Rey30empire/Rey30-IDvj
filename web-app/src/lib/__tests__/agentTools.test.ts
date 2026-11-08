@@ -9,9 +9,9 @@ const memoryCatalog = vi.fn()
 const memoryRead = vi.fn()
 const subagentResultReserve = vi.fn()
 const subagentResultFill = vi.fn()
-const getJanDataFolder = vi.fn()
+const getRey30DataFolder = vi.fn()
 
-vi.mock('@janhq/tauri-plugin-agent-tools-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-agent-tools-api', () => ({
   toolSchemas: () => toolSchemas(),
   executeTool: (...args: unknown[]) => executeTool(...args),
   threadWorkspaceDelete: (...args: unknown[]) => threadWorkspaceDelete(...args),
@@ -25,7 +25,7 @@ vi.mock('@janhq/tauri-plugin-agent-tools-api', () => ({
 }))
 
 vi.mock('@/hooks/useServiceHub', () => ({
-  getServiceHub: () => ({ app: () => ({ getJanDataFolder }) }),
+  getServiceHub: () => ({ app: () => ({ getRey30DataFolder }) }),
 }))
 
 const schemaFor = (name: string) => ({
@@ -47,7 +47,7 @@ describe('agentTools', () => {
     memoryRead.mockReset().mockResolvedValue('')
     subagentResultReserve.mockReset()
     subagentResultFill.mockReset()
-    getJanDataFolder.mockReset().mockResolvedValue('/data')
+    getRey30DataFolder.mockReset().mockResolvedValue('/data')
   })
 
   // The chat surface offers the sandboxed shell alone; everything else is
@@ -353,7 +353,7 @@ describe('agentTools', () => {
   })
 
   it('errors when the data folder is unavailable', async () => {
-    getJanDataFolder.mockResolvedValue(undefined)
+    getRey30DataFolder.mockResolvedValue(undefined)
     const { executeAgentTool } = await import('../agentTools')
     const result = await executeAgentTool('read', {}, 'thread-1')
     expect(result.error).toBeTruthy()

@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import DropdownModelProvider from '../DropdownModelProvider'
 import { getModelDisplayName } from '@/lib/utils'
 import { useModelProvider } from '@/hooks/useModelProvider'
+import { useActiveCharacter, useAvailableAssistants } from '@/hooks/useAvailableAssistants'
+import { selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
+import { useCharacterStore } from '@/stores/useCharacterStore'
 
 // Define basic types to avoid missing declarations
 type ModelProvider = {
@@ -42,6 +45,17 @@ vi.mock('@/hooks/useThreads', () => ({
   useThreads: vi.fn(() => ({
     updateCurrentThreadModel: vi.fn(),
   })),
+}))
+vi.mock('@/hooks/useAvailableAssistants', () => ({
+  useAvailableAssistants: vi.fn(() => []),
+  useActiveCharacter: vi.fn(() => undefined),
+}))
+vi.mock('@/lib/characters/assistant-integration', () => ({
+  assistantModelBinding: () => null,
+  characterIdFromAssistantId: (id?: string) => id?.startsWith('character:') ? id.slice(10) : undefined,
+  isJanModelId: (id: string) => /^jan-/i.test(id),
+  preferredCharacterModel: () => null,
+  selectIntegratedAssistant: vi.fn(),
 }))
 
 vi.mock('@/hooks/useServiceHub', () => ({
@@ -142,6 +156,8 @@ describe('DropdownModelProvider - Display Name Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useAvailableAssistants).mockReturnValue([])
+    vi.mocked(useActiveCharacter).mockReturnValue(undefined)
 
     // Reset the mock for each test
     vi.mocked(useModelProvider).mockReturnValue({
@@ -163,8 +179,57 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     cleanup()
   })
 
-  it('should display custom model name in the trigger button', () => {
+  it('ofrece los perfiles en el selector superior y usa la selección integrada', async () => {
+    const profiles = useCharacterStore.getState().profiles
+    vi.mocked(useAvailableAssistants).mockReturnValue(profiles.map(profile => ({
+      id: `character:${profile.id}`, name: profile.name, description: profile.description,
+      instructions: '', parameters: {}, created_at: 0,
+    })))
+    vi.mocked(selectIntegratedAssistant).mockResolvedValue(undefined)
     render(<DropdownModelProvider />)
+    expect(screen.getByRole('button', { name: 'Seleccionar asistente y modelo' })).toBeInTheDocument()
+    for (const profile of profiles) expect(screen.getByTestId(`assistant-option-character:${profile.id}`)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('assistant-option-character:beto'))
+    await waitFor(() => expect(selectIntegratedAssistant).toHaveBeenCalledWith('character:beto', undefined))
+    expect(screen.queryByTestId('character-panel')).not.toBeInTheDocument()
+  })
+
+  it('permite volver a solo modelo y buscar asistentes sin alterar el catálogo de modelos', async () => {
+    vi.mocked(useAvailableAssistants).mockReturnValue(useCharacterStore.getState().profiles.map(profile => ({
+      id: `character:${profile.id}`, name: profile.name, instructions: '', parameters: {}, created_at: 0,
+    })))
+    vi.mocked(selectIntegratedAssistant).mockResolvedValue(undefined)
+    render(<DropdownModelProvider />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar asistentes' }), { target: { value: 'Nova' } })
+    expect(screen.getByTestId('assistant-option-character:nara')).toBeInTheDocument()
+    expect(screen.queryByTestId('assistant-option-character:kairo')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('assistant-option-model-only'))
+    await waitFor(() => expect(selectIntegratedAssistant).toHaveBeenCalledWith('', undefined))
+    fireEvent.click(screen.getByRole('button', { name: 'Borrar búsqueda' }))
+    fireEvent.click(screen.getByTestId('model-selector-tab'))
+    expect(screen.getByTestId('model-option-model1.gguf')).toHaveAttribute('type', 'button')
+  })
+
+  it('muestra el error real si el modelo asociado no está disponible', async () => {
+    vi.mocked(useAvailableAssistants).mockReturnValue([{ id: 'character:kairo', name: 'Kairo Voltán', instructions: '', parameters: {}, created_at: 0 }])
+    vi.mocked(selectIntegratedAssistant).mockRejectedValue(new Error('El modelo asignado ya no está disponible.'))
+    render(<DropdownModelProvider />)
+    fireEvent.click(screen.getByTestId('assistant-option-character:kairo'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('El modelo asignado ya no está disponible.'))
+  })
+
+  it('muestra y selecciona el modelo actual del perfil aunque el chat conserve otro', async () => {
+    const atlas = useCharacterStore.getState().profiles.find((item) => item.id === 'kairo')!
+    vi.mocked(useActiveCharacter).mockReturnValue({ ...atlas, modelBinding: { providerId: 'llamacpp', modelId: 'model2-very-long-filename.gguf' } })
+    render(<DropdownModelProvider model={{ provider: 'llamacpp', id: 'model1.gguf' }} />)
+    const trigger = screen.getByRole('button', { name: 'Seleccionar asistente y modelo' })
+    expect(trigger).toHaveTextContent('Short Name · Llama.cpp')
+    expect(trigger).not.toHaveTextContent('Custom Model 1')
+    await waitFor(() => expect(vi.mocked(useModelProvider)().selectModelProvider).toHaveBeenCalledWith('llamacpp', 'model2-very-long-filename.gguf'))
+  })
+
+  it('should display custom model name in the trigger button', () => {
+    render(<DropdownModelProvider allowAssistants={false} />)
 
     // Should show the display name in both trigger and dropdown
     expect(screen.getAllByText('Custom Model 1')).toHaveLength(2) // One in trigger, one in dropdown
@@ -187,13 +252,13 @@ describe('DropdownModelProvider - Display Name Integration', () => {
       updateProvider: vi.fn(),
     } as MockHookReturn)
 
-    render(<DropdownModelProvider />)
+    render(<DropdownModelProvider allowAssistants={false} />)
 
     expect(screen.getAllByText('model3.gguf')).toHaveLength(2) // Trigger and dropdown
   })
 
   it('should show display names in the model list items', () => {
-    render(<DropdownModelProvider />)
+    render(<DropdownModelProvider allowAssistants={false} />)
 
     // Check if the display names are shown in the options
     expect(screen.getAllByText('Custom Model 1')).toHaveLength(2) // Selected: Trigger + dropdown
@@ -239,7 +304,7 @@ describe('DropdownModelProvider - Display Name Integration', () => {
       updateProvider: vi.fn(),
     } as MockHookReturn)
 
-    render(<DropdownModelProvider />)
+    render(<DropdownModelProvider allowAssistants={false} />)
 
     // Verify that display name is shown in UI
     expect(screen.getAllByText('Custom Model 1')).toHaveLength(2) // Trigger + dropdown
@@ -266,10 +331,10 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     } as MockHookReturn)
 
     // Render with model2 selected
-    render(<DropdownModelProvider />)
+    render(<DropdownModelProvider allowAssistants={false} />)
 
     // Check trigger shows Short Name
-    expect(screen.getByRole('button')).toHaveTextContent('Short Name')
+    expect(screen.getByRole('button', { name: 'Seleccionar modelo' })).toHaveTextContent('Short Name')
     // Short Name appears in dropdown (at least 1 occurrence)
     expect(screen.getAllByText('Short Name').length).toBeGreaterThanOrEqual(1)
     // Custom Model 1 is also in the dropdown

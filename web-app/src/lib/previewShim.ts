@@ -10,7 +10,7 @@
  *
  * It also reports what the sandbox otherwise swallows -- uncaught exceptions,
  * unhandled rejections, resources that fail to load and CSP-blocked fetches --
- * to the parent as `{source:'jan-preview-shim', type:'error', message}`, so the
+ * to the parent as `{source:'rey30-preview-shim', type:'error', message}`, so the
  * pane can say why a page is blank instead of showing white.
  *
  * Dependency-free and CSP-safe (inlined under `script-src 'unsafe-inline'`).
@@ -18,8 +18,8 @@
  */
 export const PREVIEW_SHIM_SCRIPT = `(function () {
   'use strict'
-  if (window.__janPreviewShim) return
-  window.__janPreviewShim = true
+  if (window.__rey30PreviewShim) return
+  window.__rey30PreviewShim = true
 
   function memoryStorage() {
     var data = {}
@@ -98,7 +98,7 @@ export const PREVIEW_SHIM_SCRIPT = `(function () {
     try {
       window.parent.postMessage(
         {
-          source: 'jan-preview-shim',
+          source: 'rey30-preview-shim',
           type: 'error',
           message: String(message).slice(0, 500)
         },
@@ -136,7 +136,7 @@ export const PREVIEW_SHIM_SCRIPT = `(function () {
   })
 })()`
 
-export const PREVIEW_SHIM_SOURCE = 'jan-preview-shim'
+export const PREVIEW_SHIM_SOURCE = 'rey30-preview-shim'
 
 /** The error message carried by a shim report, or null for any other message. */
 export function previewShimError(data: unknown): string | null {

@@ -101,16 +101,16 @@ describe('useAssistant - coverage', () => {
     expect(result.current.currentAssistant).toBeUndefined()
   })
 
-  it('should delete current assistant and fallback to default', () => {
+  it('should delete current assistant and fallback to default', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const a2 = { id: 'a2', name: 'A2', avatar: '', description: '', instructions: '', created_at: 1, parameters: {} }
-    act(() => {
-      result.current.addAssistant(a2 as any)
+    await act(async () => {
+      await result.current.addAssistant(a2 as any)
       result.current.setCurrentAssistant(a2 as any)
     })
 
-    act(() => {
+    await act(async () => {
       result.current.deleteAssistant('a2')
     })
 
@@ -203,16 +203,16 @@ describe('useAssistant - coverage', () => {
     expect(result.current.defaultAssistantId).toBe('')
   })
 
-  it('updateAssistant should not change currentAssistant when different assistant updated', () => {
+  it('updateAssistant should not change currentAssistant when different assistant updated', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const a2 = { id: 'a2', name: 'A2', avatar: '', description: '', instructions: '', created_at: 1, parameters: {} }
-    act(() => {
-      result.current.addAssistant(a2 as any)
+    await act(async () => {
+      await result.current.addAssistant(a2 as any)
     })
 
-    act(() => {
-      result.current.updateAssistant({ ...a2, name: 'Updated A2' } as any)
+    await act(async () => {
+      await result.current.updateAssistant({ ...a2, name: 'Updated A2' } as any)
     })
 
     // currentAssistant should still be jan

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ThreadMessage } from '@janhq/core'
+import { ThreadMessage } from '@rey30-idvj/core'
 import { parseContextOverflow } from '@/utils/error'
 import {
   getLocalPropsExtension,

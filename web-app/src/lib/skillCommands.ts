@@ -10,6 +10,22 @@ export type ParsedSkillCommand = {
   explicit: boolean
 }
 
+const EXPLICIT_SKILL_MARKER = /^<!-- rey30-explicit-skill:((?:[A-Za-z0-9!~*'()._-]|%[0-9A-Fa-f]{2})+) -->\r?\n/
+
+export function explicitChatSkillName(text: string): string | null {
+  const match = text.match(EXPLICIT_SKILL_MARKER)
+  if (!match) return null
+  try { return decodeURIComponent(match[1]) } catch { return null }
+}
+
+export function markExplicitChatSkill(name: string, body: string): string {
+  return `<!-- rey30-explicit-skill:${encodeURIComponent(name)} -->\n${body}`
+}
+
+export function stripExplicitChatSkillMarker(text: string): string {
+  return explicitChatSkillName(text) ? text.replace(EXPLICIT_SKILL_MARKER, '') : text
+}
+
 export function parseSkillCommand(text: string): ParsedSkillCommand | null {
   const trimmed = text.trim()
   const match = trimmed.match(/^\/(?:skill:)?([^\s/]+)(?:\s+([\s\S]*))?$/)

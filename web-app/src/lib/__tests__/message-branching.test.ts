@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ContentType, MessageStatus, type ThreadMessage } from '@janhq/core'
+import { ContentType, MessageStatus, type ThreadMessage } from '@rey30-idvj/core'
 import {
   hasBranching,
   getParentId,

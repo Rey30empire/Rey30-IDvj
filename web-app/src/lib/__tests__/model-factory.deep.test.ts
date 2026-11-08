@@ -269,12 +269,12 @@ describe('model-factory deep coverage', () => {
 
     it('throws when startModel fails with Error', async () => {
       mockStartModel.mockRejectedValueOnce(new Error('GPU fail'))
-      await expect(ModelFactory.createModel('m', mkProvider('llamacpp'), {})).rejects.toThrow('Failed to start model: GPU fail')
+      await expect(ModelFactory.createModel('m', mkProvider('llamacpp'), {})).rejects.toThrow('No se pudo iniciar el modelo: GPU fail')
     })
 
     it('throws when startModel fails with non-Error', async () => {
       mockStartModel.mockRejectedValueOnce({ code: 'ENOMEM' })
-      await expect(ModelFactory.createModel('m', mkProvider('llamacpp'), {})).rejects.toThrow('Failed to start model:')
+      await expect(ModelFactory.createModel('m', mkProvider('llamacpp'), {})).rejects.toThrow('No se pudo iniciar el modelo: El motor del modelo informó de un error inesperado.')
     })
 
     // A serialized engine error is a plain object; it used to reach the user as
@@ -326,7 +326,7 @@ describe('model-factory deep coverage', () => {
 
     it('throws when startModel fails', async () => {
       mockStartModel.mockRejectedValueOnce(new Error('No MLX'))
-      await expect(ModelFactory.createModel('m', mkProvider('mlx'), {})).rejects.toThrow('Failed to start model: No MLX')
+      await expect(ModelFactory.createModel('m', mkProvider('mlx'), {})).rejects.toThrow('No se pudo iniciar el modelo: No MLX')
     })
   })
 

@@ -1,4 +1,4 @@
-import type { BaseExtension } from '@janhq/core'
+import type { BaseExtension } from '@rey30-idvj/core'
 import type { ExtensionManifest } from '@/lib/extension'
 
 type ExtensionCtor = new (
@@ -25,62 +25,62 @@ type BundledEntry = {
 // hub is ready), matching the pre-bundling load order.
 const ENTRIES: BundledEntry[] = [
   {
-    load: () => import('@janhq/assistant-extension'),
-    name: '@janhq/assistant-extension',
-    productName: 'Jan Assistant',
+    load: () => import('@rey30-idvj/assistant-extension'),
+    name: '@rey30-idvj/assistant-extension',
+    productName: 'Asistente Rey30 IDvj',
     version: '1.0.2',
     description:
-      'Powers the default AI assistant that works with all your installed models.',
+      'Asistente predeterminado para conversar con tus modelos instalados.',
   },
   {
-    load: () => import('@janhq/conversational-extension'),
-    name: '@janhq/conversational-extension',
-    productName: 'Conversational',
+    load: () => import('@rey30-idvj/conversational-extension'),
+    name: '@rey30-idvj/conversational-extension',
+    productName: 'Conversaciones',
     version: '1.0.0',
-    description: 'Enables conversations and state persistence via your file system.',
+    description: 'Conserva conversaciones y su estado en tus archivos locales.',
     mobile: true,
   },
   {
-    load: () => import('@janhq/download-extension'),
-    name: '@janhq/download-extension',
-    productName: 'Download Manager',
+    load: () => import('@rey30-idvj/download-extension'),
+    name: '@rey30-idvj/download-extension',
+    productName: 'Gestor de descargas',
     version: '1.0.0',
-    description: 'Download and manage files and AI models in Jan.',
+    description: 'Descarga y gestiona archivos y modelos en Rey30 IDvj.',
   },
   {
-    load: () => import('@janhq/llamacpp-extension'),
-    name: '@janhq/llamacpp-extension',
-    productName: 'llama.cpp Inference Engine',
+    load: () => import('@rey30-idvj/llamacpp-extension'),
+    name: '@rey30-idvj/llamacpp-extension',
+    productName: 'Motor de inferencia llama.cpp',
     version: '1.0.1',
-    description: 'This extension enables llama.cpp chat completion API calls',
+    description: 'Permite utilizar la API de chat de llama.cpp.',
   },
   {
-    load: () => import('@janhq/rag-extension'),
-    name: '@janhq/rag-extension',
-    productName: 'RAG Tools',
+    load: () => import('@rey30-idvj/rag-extension'),
+    name: '@rey30-idvj/rag-extension',
+    productName: 'Herramientas de documentos',
     version: '0.1.0',
     description:
-      'Registers RAG tools and orchestrates retrieval across parser, embeddings, and vector DB',
+      'Prepara documentos y recupera fragmentos mediante búsqueda vectorial.',
   },
   {
-    load: () => import('@janhq/vector-db-extension'),
-    name: '@janhq/vector-db-extension',
-    productName: 'Vector DB',
+    load: () => import('@rey30-idvj/vector-db-extension'),
+    name: '@rey30-idvj/vector-db-extension',
+    productName: 'Base de datos vectorial',
     version: '0.1.0',
-    description: 'Vector DB integration using sqlite-vec if available with linear fallback',
+    description: 'Búsqueda vectorial con sqlite-vec o búsqueda lineal cuando no está disponible.',
   },
 ]
 
-// The MLX extension depends on @janhq/tauri-plugin-mlx-api, which only exists
+// The MLX extension depends on @rey30-idvj/tauri-plugin-mlx-api, which only exists
 // on macOS. IS_MACOS is a build-time constant, so this import() is dead-code
 // eliminated on other platforms and never enters the bundle graph.
 if (IS_MACOS) {
   ENTRIES.push({
-    load: () => import('@janhq/mlx-extension'),
-    name: '@janhq/mlx-extension',
-    productName: 'MLX Inference Engine',
+    load: () => import('@rey30-idvj/mlx-extension'),
+    name: '@rey30-idvj/mlx-extension',
+    productName: 'Motor de inferencia MLX',
     version: '1.0.0',
-    description: 'This extension enables MLX-Swift inference on Apple Silicon Macs',
+    description: 'Permite utilizar MLX-Swift en Mac con Apple Silicon.',
   })
 }
 

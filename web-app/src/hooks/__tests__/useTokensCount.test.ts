@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { ThreadMessage } from '@janhq/core'
+import { ThreadMessage } from '@rey30-idvj/core'
 import { useTokensCount } from '../useTokensCount'
 import { useAppState } from '../useAppState'
 

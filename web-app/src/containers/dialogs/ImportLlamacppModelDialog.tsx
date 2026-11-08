@@ -1,3 +1,5 @@
+import { useTranslation } from '@/i18n/react-i18next-compat'
+import i18n from '@/i18n/setup'
 import {
   Dialog,
   DialogContent,
@@ -21,7 +23,7 @@ import {
   IconCodeCircle2,
   IconBolt,
 } from '@tabler/icons-react'
-import { readGgufMetadata } from '@janhq/tauri-plugin-llamacpp-api'
+import { readGgufMetadata } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 
 type DetectedModalities = { vision: boolean; audio: boolean }
 
@@ -65,9 +67,7 @@ function extractTokenizerInfo(
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }
-  const vocabSizeKey = Object.keys(meta).find((k) =>
-    k.endsWith('.vocab_size')
-  )
+  const vocabSizeKey = Object.keys(meta).find((k) => k.endsWith('.vocab_size'))
   return {
     tokenizerModel: meta['tokenizer.ggml.model'],
     addBos:
@@ -93,7 +93,10 @@ function findTokenizerMismatch(
     draft.tokenizerModel &&
     main.tokenizerModel !== draft.tokenizerModel
   ) {
-    return `tokenizer type "${draft.tokenizerModel}" does not match the main model's tokenizer type "${main.tokenizerModel}"`
+    return i18n.t('ui-dialogs:gguf.tokenizerTypeMismatch', {
+      draft: draft.tokenizerModel,
+      main: main.tokenizerModel,
+    })
   }
   if (
     main.addBos &&
@@ -102,7 +105,10 @@ function findTokenizerMismatch(
     draft.bosTokenId !== undefined &&
     main.bosTokenId !== draft.bosTokenId
   ) {
-    return `BOS token id ${draft.bosTokenId} does not match the main model's BOS token id ${main.bosTokenId}`
+    return i18n.t('ui-dialogs:gguf.bosMismatch', {
+      draft: draft.bosTokenId,
+      main: main.bosTokenId,
+    })
   }
   if (
     main.addEos &&
@@ -111,14 +117,21 @@ function findTokenizerMismatch(
     draft.eosTokenId !== undefined &&
     main.eosTokenId !== draft.eosTokenId
   ) {
-    return `EOS token id ${draft.eosTokenId} does not match the main model's EOS token id ${main.eosTokenId}`
+    return i18n.t('ui-dialogs:gguf.eosMismatch', {
+      draft: draft.eosTokenId,
+      main: main.eosTokenId,
+    })
   }
   if (
     main.vocabSize !== undefined &&
     draft.vocabSize !== undefined &&
     Math.abs(main.vocabSize - draft.vocabSize) > SPEC_VOCAB_MAX_SIZE_DIFFERENCE
   ) {
-    return `vocab size ${draft.vocabSize} differs from the main model's vocab size ${main.vocabSize} by more than ${SPEC_VOCAB_MAX_SIZE_DIFFERENCE} tokens`
+    return i18n.t('ui-dialogs:gguf.vocabMismatch', {
+      draft: draft.vocabSize,
+      main: main.vocabSize,
+      maximum: SPEC_VOCAB_MAX_SIZE_DIFFERENCE,
+    })
   }
   return null
 }
@@ -150,6 +163,7 @@ export const ImportLlamacppModelDialog = ({
   trigger,
   onSuccess,
 }: ImportLlamacppModelDialogProps) => {
+  const { t } = useTranslation()
   const serviceHub = useServiceHub()
   const [open, setOpen] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -176,7 +190,10 @@ export const ImportLlamacppModelDialog = ({
     useState<TokenizerInfo | null>(null)
 
   const validateGgufFile = useCallback(
-    async (filePath: string, fileType: 'model' | 'mmproj' | 'draft'): Promise<void> => {
+    async (
+      filePath: string,
+      fileType: 'model' | 'mmproj' | 'draft'
+    ): Promise<void> => {
       if (fileType === 'model') {
         setIsValidating(true)
         setValidationError(null)
@@ -222,8 +239,7 @@ export const ImportLlamacppModelDialog = ({
               }
 
               if (architecture === 'clip') {
-                const errorMessage =
-                  'This model has CLIP architecture and cannot be imported as a text generation model. CLIP models are designed for vision tasks and require different handling.'
+                const errorMessage = t('ui-dialogs:gguf.clipMain')
                 setValidationError(errorMessage)
                 console.error(
                   'CLIP architecture detected in model file:',
@@ -233,7 +249,9 @@ export const ImportLlamacppModelDialog = ({
             }
 
             if (!result.isValid) {
-              setValidationError(result.error || 'Model validation failed')
+              setValidationError(
+                result.error || t('ui-dialogs:gguf.validationFailed')
+              )
               console.error('Model validation failed:', result.error)
             }
           }
@@ -245,7 +263,9 @@ export const ImportLlamacppModelDialog = ({
             const architecture = meta?.['general.architecture']
 
             if (architecture !== 'clip') {
-              const errorMessage = `This MMProj file has "${architecture}" architecture but should have "clip" architecture. MMProj files must be CLIP models for vision or audio processing.`
+              const errorMessage = t('ui-dialogs:gguf.mmprojArchitecture', {
+                architecture: String(architecture),
+              })
               setMmprojValidationError(errorMessage)
               setDetectedModalities(null)
               console.error(
@@ -258,7 +278,9 @@ export const ImportLlamacppModelDialog = ({
               const vision = truthy(meta?.['clip.has_vision_encoder'])
               const audio = truthy(meta?.['clip.has_audio_encoder'])
               setDetectedModalities(
-                vision || audio ? { vision, audio } : { vision: true, audio: false }
+                vision || audio
+                  ? { vision, audio }
+                  : { vision: true, audio: false }
               )
             }
           } catch (directError) {
@@ -266,11 +288,12 @@ export const ImportLlamacppModelDialog = ({
               'Failed to validate mmproj file directly:',
               directError
             )
-            const errorMessage = `Failed to read MMProj metadata: ${
-              directError instanceof Error
-                ? directError.message
-                : 'Unknown error'
-            }`
+            const errorMessage = t('ui-dialogs:gguf.mmprojMetadataFailed', {
+              error:
+                directError instanceof Error
+                  ? directError.message
+                  : t('ui-dialogs:shared.unknownError'),
+            })
             setMmprojValidationError(errorMessage)
           }
         } else {
@@ -283,12 +306,10 @@ export const ImportLlamacppModelDialog = ({
               result.metadata?.metadata?.['general.architecture']
 
             if (architecture === 'clip') {
-              setDraftValidationError(
-                'This file has CLIP architecture and cannot be used as a draft model.'
-              )
+              setDraftValidationError(t('ui-dialogs:gguf.clipDraft'))
             } else if (!result.isValid) {
               setDraftValidationError(
-                result.error || 'Draft model validation failed'
+                result.error || t('ui-dialogs:gguf.draftValidationFailed')
               )
             } else if (modelTokenizerInfo) {
               const mismatch = findTokenizerMismatch(
@@ -297,7 +318,7 @@ export const ImportLlamacppModelDialog = ({
               )
               if (mismatch) {
                 setDraftValidationError(
-                  `Draft model is not compatible with the main model: ${mismatch}.`
+                  t('ui-dialogs:gguf.draftIncompatible', { reason: mismatch })
                 )
               }
             }
@@ -305,7 +326,13 @@ export const ImportLlamacppModelDialog = ({
         }
       } catch (error) {
         console.error(`Failed to validate ${fileType} file:`, error)
-        const errorMessage = `Failed to read ${fileType} metadata: ${error instanceof Error ? error.message : 'Unknown error'}`
+        const errorMessage = t('ui-dialogs:gguf.metadataFailed', {
+          fileType: t(`ui-dialogs:gguf.fileType.${fileType}`),
+          error:
+            error instanceof Error
+              ? error.message
+              : t('ui-dialogs:shared.unknownError'),
+        })
 
         if (fileType === 'model') {
           setValidationError(errorMessage)
@@ -324,7 +351,7 @@ export const ImportLlamacppModelDialog = ({
         }
       }
     },
-    [serviceHub, modelTokenizerInfo]
+    [serviceHub, modelTokenizerInfo, t]
   )
 
   const validateModelFile = useCallback(
@@ -352,6 +379,7 @@ export const ImportLlamacppModelDialog = ({
     const selectedFile = await serviceHub.dialog().open({
       multiple: false,
       directory: false,
+      filters: [{ name: 'GGUF', extensions: ['gguf'] }],
     })
 
     if (selectedFile && typeof selectedFile === 'string') {
@@ -382,22 +410,22 @@ export const ImportLlamacppModelDialog = ({
 
   const handleImport = async () => {
     if (!modelFile) {
-      toast.error('Please select a model file')
+      toast.error(t('ui-dialogs:gguf.selectModelRequired'))
       return
     }
 
     if (isMultimodal && !mmProjFile) {
-      toast.error('Please select both model and MMPROJ files for multimodal models')
+      toast.error(t('ui-dialogs:gguf.selectMultimodalRequired'))
       return
     }
 
     if (isDraftModel && !draftFile) {
-      toast.error('Please select a draft model file')
+      toast.error(t('ui-dialogs:gguf.selectDraftRequired'))
       return
     }
 
     if (!modelName) {
-      toast.error('Unable to determine model name from file')
+      toast.error(t('ui-dialogs:gguf.nameMissing'))
       return
     }
 
@@ -407,8 +435,10 @@ export const ImportLlamacppModelDialog = ({
     )
 
     if (modelExists) {
-      toast.error('Model already exists', {
-        description: `${modelName} already imported`,
+      toast.error(t('ui-dialogs:shared.modelExists'), {
+        description: t('ui-dialogs:shared.alreadyImported', {
+          name: modelName,
+        }),
       })
       return
     }
@@ -416,7 +446,7 @@ export const ImportLlamacppModelDialog = ({
     setImporting(true)
 
     try {
-      // Let backend calculate SHA256 and sizes for all files
+      // Absolute local paths are registered by reference; import does not copy weights.
       await serviceHub.models().pullModel(
         modelName,
         modelFile,
@@ -428,8 +458,8 @@ export const ImportLlamacppModelDialog = ({
         isDraftModel && draftFile ? draftFile : undefined
       )
 
-      toast.success('Model imported successfully', {
-        description: `${modelName} has been imported`,
+      toast.success(t('ui-dialogs:shared.importSuccess'), {
+        description: t('ui-dialogs:shared.imported', { name: modelName }),
       })
 
       // Reset form and close dialog
@@ -438,9 +468,11 @@ export const ImportLlamacppModelDialog = ({
       onSuccess?.(modelName)
     } catch (error) {
       console.error('Import model error:', error)
-      toast.error('Failed to import model', {
+      toast.error(t('ui-dialogs:shared.importFailed'), {
         description:
-          error instanceof Error ? error.message : 'Unknown error occurred',
+          error instanceof Error
+            ? error.message
+            : t('ui-dialogs:shared.unknownErrorOccurred'),
       })
     } finally {
       setImporting(false)
@@ -478,19 +510,17 @@ export const ImportLlamacppModelDialog = ({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => {
           e.preventDefault()
         }}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Import Model
+            {t('ui-dialogs:gguf.title')}
           </DialogTitle>
           <DialogDescription>
-            Import a GGUF model file to add it to your collection. Enable
-            multimodal support to attach an mmproj for image or audio input,
-            or draft model support for speculative decoding. Embedding models
-            are detected automatically.
+            {t('ui-dialogs:gguf.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -501,10 +531,11 @@ export const ImportLlamacppModelDialog = ({
                 <IconSparkles size={20} className="text-muted-foreground" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium">Multimodal Support</h3>
+                <h3 className="font-medium">
+                  {t('ui-dialogs:gguf.multimodal')}
+                </h3>
                 <p className="text-sm text-muted-foreground leading-normal">
-                  Enable if your model uses an mmproj for image or audio input.
-                  Modalities are detected from the projector file.
+                  {t('ui-dialogs:gguf.multimodalDescription')}
                 </p>
               </div>
               <Switch
@@ -531,11 +562,9 @@ export const ImportLlamacppModelDialog = ({
                 <IconBolt size={20} className="text-muted-foreground" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium">Draft Model Support</h3>
+                <h3 className="font-medium">{t('ui-dialogs:gguf.draft')}</h3>
                 <p className="text-sm text-muted-foreground leading-normal">
-                  Attach a smaller draft model (including MTP draft heads) for
-                  speculative decoding. The draft model must share the main
-                  model&apos;s tokenizer and vocabulary.
+                  {t('ui-dialogs:gguf.draftDescription')}
                 </p>
               </div>
               <Switch
@@ -560,12 +589,10 @@ export const ImportLlamacppModelDialog = ({
             <div className=" rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Model will be saved as:
+                  {t('ui-dialogs:shared.savedAs')}
                 </span>
               </div>
-              <p className="text-sm font-mono mt-1">
-                {modelName}
-              </p>
+              <p className="text-sm font-mono mt-1">{modelName}</p>
             </div>
           )}
 
@@ -575,10 +602,10 @@ export const ImportLlamacppModelDialog = ({
             <div className="border  rounded-lg p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <h3 className="font-medium">
-                  Model File (GGUF)
+                  {t('ui-dialogs:gguf.modelFile')}
                 </h3>
                 <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                  Required
+                  {t('ui-dialogs:shared.required')}
                 </span>
               </div>
 
@@ -588,17 +615,14 @@ export const ImportLlamacppModelDialog = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {isValidating ? (
-                          <IconLoader2
-                            size={16}
-                            className="animate-spin"
-                          />
+                          <IconLoader2 size={16} className="animate-spin" />
                         ) : validationError ? (
                           <IconAlertTriangle
                             size={16}
                             className="text-destructive"
                           />
                         ) : (
-                          <IconCheck size={16}  />
+                          <IconCheck size={16} />
                         )}
                         <span className="text-sm font-medium">
                           {modelFile.split(/[\\/]/).pop()}
@@ -610,7 +634,7 @@ export const ImportLlamacppModelDialog = ({
                         onClick={() => handleFileSelect('model')}
                         disabled={importing || isValidating}
                       >
-                        Change
+                        {t('ui-dialogs:shared.change')}
                       </Button>
                     </div>
                   </div>
@@ -625,7 +649,7 @@ export const ImportLlamacppModelDialog = ({
                         />
                         <div>
                           <p className="text-sm font-medium text-destructive">
-                            Model Validation Error
+                            {t('ui-dialogs:gguf.validationTitle')}
                           </p>
                           <p className="text-sm text-destructive/90 mt-1">
                             {validationError}
@@ -644,7 +668,7 @@ export const ImportLlamacppModelDialog = ({
                           className="text-blue-500 animate-spin"
                         />
                         <p className="text-sm text-blue-700">
-                          Validating model file...
+                          {t('ui-dialogs:gguf.validating')}
                         </p>
                       </div>
                     </div>
@@ -655,11 +679,10 @@ export const ImportLlamacppModelDialog = ({
                       <IconCodeCircle2 size={16} className="mt-0.5 shrink-0" />
                       <div>
                         <p className="text-sm font-medium">
-                          Embedding model detected
+                          {t('ui-dialogs:gguf.embeddingDetected')}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          This model will be imported for embeddings only.
-                          Multimodal options are disabled.
+                          {t('ui-dialogs:gguf.embeddingDescription')}
                         </p>
                       </div>
                     </div>
@@ -673,7 +696,7 @@ export const ImportLlamacppModelDialog = ({
                   disabled={importing}
                   className="w-full h-12 border border-dashed text-muted-foreground"
                 >
-                  Select GGUF File
+                  {t('ui-dialogs:gguf.selectFile')}
                 </Button>
               )}
             </div>
@@ -681,9 +704,11 @@ export const ImportLlamacppModelDialog = ({
             {isMultimodal && (
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium">MMPROJ File</h3>
+                  <h3 className="font-medium">
+                    {t('ui-dialogs:gguf.mmprojFile')}
+                  </h3>
                   <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                    Required for Multimodal
+                    {t('ui-dialogs:gguf.mmprojRequired')}
                   </span>
                 </div>
 
@@ -693,10 +718,7 @@ export const ImportLlamacppModelDialog = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {isValidatingMmproj ? (
-                            <IconLoader2
-                              size={16}
-                              className="animate-spin"
-                            />
+                            <IconLoader2 size={16} className="animate-spin" />
                           ) : mmprojValidationError ? (
                             <IconAlertTriangle
                               size={16}
@@ -715,7 +737,7 @@ export const ImportLlamacppModelDialog = ({
                           onClick={() => handleFileSelect('mmproj')}
                           disabled={importing || isValidatingMmproj}
                         >
-                          Change
+                          {t('ui-dialogs:shared.change')}
                         </Button>
                       </div>
                       {!isValidatingMmproj &&
@@ -723,18 +745,18 @@ export const ImportLlamacppModelDialog = ({
                         detectedModalities && (
                           <div className="flex items-center gap-2 mt-3 pt-3 border-t">
                             <span className="text-xs text-muted-foreground">
-                              Detected:
+                              {t('ui-dialogs:gguf.detected')}
                             </span>
                             {detectedModalities.vision && (
                               <span className="inline-flex items-center gap-1 text-xs bg-secondary px-2 py-0.5 rounded-sm">
                                 <IconPhoto size={12} />
-                                Vision
+                                {t('ui-dialogs:gguf.vision')}
                               </span>
                             )}
                             {detectedModalities.audio && (
                               <span className="inline-flex items-center gap-1 text-xs bg-secondary px-2 py-0.5 rounded-sm">
                                 <IconMicrophone size={12} />
-                                Audio
+                                {t('ui-dialogs:gguf.audio')}
                               </span>
                             )}
                           </div>
@@ -751,7 +773,7 @@ export const ImportLlamacppModelDialog = ({
                           />
                           <div>
                             <p className="text-sm font-medium text-destructive">
-                              MMProj Validation Error
+                              {t('ui-dialogs:gguf.mmprojValidation')}
                             </p>
                             <p className="text-sm text-destructive/90 mt-1">
                               {mmprojValidationError}
@@ -770,7 +792,7 @@ export const ImportLlamacppModelDialog = ({
                             className="text-blue-500 animate-spin"
                           />
                           <p className="text-sm text-blue-700">
-                            Validating MMProj file...
+                            {t('ui-dialogs:gguf.validatingMmproj')}
                           </p>
                         </div>
                       </div>
@@ -784,7 +806,7 @@ export const ImportLlamacppModelDialog = ({
                     disabled={importing}
                     className="w-full h-12 border border-dashed text-muted-foreground"
                   >
-                    Select MMPROJ File
+                    {t('ui-dialogs:gguf.selectMmproj')}
                   </Button>
                 )}
               </div>
@@ -793,9 +815,11 @@ export const ImportLlamacppModelDialog = ({
             {isDraftModel && (
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium">Draft Model File (GGUF)</h3>
+                  <h3 className="font-medium">
+                    {t('ui-dialogs:gguf.draftFile')}
+                  </h3>
                   <span className="text-xs bg-secondary px-2 py-1 rounded-sm">
-                    Required for Draft Model
+                    {t('ui-dialogs:gguf.draftRequired')}
                   </span>
                 </div>
 
@@ -824,7 +848,7 @@ export const ImportLlamacppModelDialog = ({
                           onClick={() => handleFileSelect('draft')}
                           disabled={importing || isValidatingDraft}
                         >
-                          Change
+                          {t('ui-dialogs:shared.change')}
                         </Button>
                       </div>
                     </div>
@@ -838,7 +862,7 @@ export const ImportLlamacppModelDialog = ({
                           />
                           <div>
                             <p className="text-sm font-medium text-destructive">
-                              Draft Model Validation Error
+                              {t('ui-dialogs:gguf.draftValidation')}
                             </p>
                             <p className="text-sm text-destructive/90 mt-1">
                               {draftValidationError}
@@ -856,7 +880,7 @@ export const ImportLlamacppModelDialog = ({
                             className="text-blue-500 animate-spin"
                           />
                           <p className="text-sm text-blue-700">
-                            Validating draft model file...
+                            {t('ui-dialogs:gguf.validatingDraft')}
                           </p>
                         </div>
                       </div>
@@ -870,7 +894,7 @@ export const ImportLlamacppModelDialog = ({
                     disabled={importing}
                     className="w-full h-12 border border-dashed text-muted-foreground"
                   >
-                    Select Draft GGUF File
+                    {t('ui-dialogs:gguf.selectDraft')}
                   </Button>
                 )}
               </div>
@@ -885,7 +909,7 @@ export const ImportLlamacppModelDialog = ({
             onClick={() => handleOpenChange(false)}
             disabled={importing}
           >
-            Cancel
+            {t('ui-dialogs:shared.cancel')}
           </Button>
           <Button
             onClick={handleImport}
@@ -905,7 +929,9 @@ export const ImportLlamacppModelDialog = ({
             }
           >
             {importing && <IconLoader2 className="mr-2 size-4 animate-spin" />}
-            {importing ? 'Importing...' : 'Import Model'}
+            {importing
+              ? t('ui-dialogs:shared.importing')
+              : t('ui-dialogs:shared.importModel')}
           </Button>
         </div>
       </DialogContent>

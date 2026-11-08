@@ -64,4 +64,19 @@ describe('what a turn shows besides its messages', () => {
     // No copy/remember/regenerate: nobody said it, so there is nothing to act on.
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+
+  it('keeps library replies as inert text even when they contain image and citation markup', () => {
+    const text = '![texto](https://image.invalid/pasaje) [[cite:https://citation.invalid/pasaje]]'
+    const { container } = render(
+      <MessageItem
+        message={{ id: 'local-text', role: 'assistant', parts: [{ type: 'text', text }] }}
+        isFirstMessage={true}
+        isLastMessage={true}
+        status="streaming"
+        privateLibrary
+      />
+    )
+    expect(screen.getByText(text)).toBeInTheDocument()
+    expect(container.querySelector('img, a, iframe')).toBeNull()
+  })
 })

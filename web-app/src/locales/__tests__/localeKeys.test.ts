@@ -38,6 +38,8 @@ const DYNAMIC_KEYS: Record<string, string[]> = {
     'checkEngineCpu',
     'checkEngineGpuUnused',
     'checkEngineVendorMismatch',
+    'checkEngineOffloadDisabled',
+    'checkEngineSelectedDevicesUnavailable',
     'checkEngineRuntimeUnreachable',
     'checkEngineMissingLibrary',
     'checkEngineProbeFailed',

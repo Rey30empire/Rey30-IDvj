@@ -1,5 +1,5 @@
 /**
- * Where a tool call came from. Jan runs five families of tools -- the native
+ * Where a tool call came from. Rey30 IDvj runs five families of tools -- the native
  * web tools, the built-in RAG tools, the built-in agent tools, subagent
  * dispatch, and MCP server tools -- and a collapsed card is ambiguous without
  * saying which.

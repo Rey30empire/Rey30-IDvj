@@ -28,7 +28,7 @@ vi.mock('@/constants/models', () => ({
   },
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   EngineManager: {
     instance: vi.fn(),
   },
@@ -79,7 +79,7 @@ vi.mock('@/lib/shortcuts/platform', () => ({
 
 import { fetch as fetchTauri } from '@tauri-apps/plugin-http'
 import { invoke } from '@tauri-apps/api/core'
-import { EngineManager } from '@janhq/core'
+import { EngineManager } from '@rey30-idvj/core'
 import { ExtensionManager } from '@/lib/extension'
 import { providerRemoteApiKeyChain } from '@/lib/provider-api-keys'
 import { TauriProvidersService } from '../tauri'

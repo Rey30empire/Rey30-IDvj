@@ -3,7 +3,7 @@ import {
   ContentType,
   MessageStatus,
   ChatCompletionRole,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 
 import { estimateConversationTokens } from '@/lib/context-manager'
 import { convertThreadMessagesToUIMessages } from '@/lib/messages'

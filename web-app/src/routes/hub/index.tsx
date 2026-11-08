@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { route } from '@/constants/routes'
@@ -62,6 +61,10 @@ import { MlxModelDownloadAction } from '@/containers/MlxModelDownloadAction'
 import { DEFAULT_MODEL_QUANTIZATIONS } from '@/constants/models'
 import { Button } from '@/components/ui/button'
 import { RenderMarkdown } from '@/containers/RenderMarkdown'
+import ImportResourcesDialog from '@/containers/dialogs/ImportResourcesDialog'
+import LocalModelInstaller from '@/containers/LocalModelInstaller'
+import { isPlatformTauri } from '@/lib/platform/utils'
+import { HubSourcePicker, WslHub, type HubSource } from './-WslHub'
 
 type SearchParams = {
   repo: string
@@ -97,7 +100,7 @@ function getQuantTier(modelId: string): QuantTier | null {
   return null
 }
 
-export const Route = createFileRoute(route.hub.index as any)({
+export const Route = createFileRoute('/hub/')({
   component: HubContent,
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     repo: search.repo as SearchParams['repo'],
@@ -105,6 +108,8 @@ export const Route = createFileRoute(route.hub.index as any)({
 })
 
 function HubContent() {
+  const [hubSource, setHubSource] = useState<HubSource>('huggingFace')
+  const [importOpen, setImportOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const parentRef = useRef(null)
   const huggingfaceToken = useGeneralSetting((state) => state.huggingfaceToken)
@@ -436,34 +441,62 @@ function HubContent() {
     )
   }
 
+  const changeHubSource = (source: HubSource) => {
+    if (source === 'wsl' && addModelSourceTimeoutRef.current) {
+      clearTimeout(addModelSourceTimeoutRef.current)
+      addModelSourceTimeoutRef.current = null
+      setIsSearching(false)
+    }
+    setHubSource(source)
+  }
+
   return (
     <div className="flex flex-col h-svh w-full">
       <div className="flex flex-col h-full w-full ">
         <HeaderPage>
-          <div className={cn("pr-3 py-3  h-10 w-full flex items-center justify-between relative z-20", !IS_MACOS && "pr-30")}>
-            <div className="flex items-center gap-2 w-full">
-              {isSearching ? (
-                <Loader className="shrink-0 size-4 animate-spin text-muted-foreground" />
-              ) : (
-                <IconSearch
-                  className="shrink-0 text-muted-foreground"
-                  size={14}
+          {hubSource === 'wsl' ? (
+            <span className="px-2 font-medium">{t('hub:wslLocal')}</span>
+          ) : (
+            <div className={cn("pr-3 py-3  h-10 w-full flex items-center justify-between relative z-20", !IS_MACOS && "pr-30")}>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {isSearching ? (
+                  <Loader className="shrink-0 size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <IconSearch
+                    className="shrink-0 text-muted-foreground"
+                    size={14}
+                  />
+                )}
+                <input
+                  placeholder={t('hub:searchPlaceholder')}
+                  value={searchValue}
+                  onChange={handleSearchChange}
+                  className="w-full focus:outline-none"
                 />
-              )}
-              <input
-                placeholder={t('hub:searchPlaceholder')}
-                value={searchValue}
-                onChange={handleSearchChange}
-                className="w-full focus:outline-none"
-              />
+              </div>
+              <div className="sm:flex items-center gap-2 shrink-0 hidden">
+                {renderFilter()}
+              </div>
+              <Button variant="outline" size="sm" className="shrink-0 ml-2" onClick={() => setImportOpen(true)}>
+                {t('integrations:title')}
+              </Button>
             </div>
-            <div className="sm:flex items-center gap-2 shrink-0 hidden">
-              {renderFilter()}
+          )}
+        </HeaderPage>
+        {IS_WINDOWS && isPlatformTauri() && (
+          <div className="w-full shrink-0 px-4 pt-2">
+            <div className="mx-auto w-full md:w-4/5 xl:w-4/6">
+              <HubSourcePicker source={hubSource} onChange={changeHubSource} />
             </div>
           </div>
-        </HeaderPage>
-        <div ref={parentRef} className="p-4 w-full h-[calc(100%-60px)] overflow-y-auto! first-step-setup-local-provider">
+        )}
+        {hubSource === 'wsl' ? <WslHub /> : (
+        <div ref={parentRef} className="p-4 w-full min-h-0 flex-1 overflow-y-auto! first-step-setup-local-provider">
           <div className="flex flex-col h-full justify-between gap-4 gap-y-3 w-full md:w-4/5 xl:w-4/6 mx-auto">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-sm text-muted-foreground">¿Ya tienes un archivo GGUF?</span>
+              <LocalModelInstaller />
+            </div>
             {/* Show skeleton immediately on navigation, then show actual content when loaded */}
             {(isInitialLoad || (loading && !filteredModels.length)) ? (
               // Skeleton loading state for better perceived performance
@@ -656,7 +689,7 @@ function HubContent() {
                                   </span>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Requires MLX engine (Apple Silicon only)</p>
+                                  <p>{t('ui-spanish:requiresMlx')}</p>
                                 </TooltipContent>
                               </Tooltip>
                             )}
@@ -794,7 +827,9 @@ function HubContent() {
             )}
           </div>
         </div>
+        )}
       </div>
+      <ImportResourcesDialog open={importOpen} onOpenChange={setImportOpen} onOpenMCP={() => navigate({ to: route.settings.mcp_servers })} />
     </div>
   )
 }

@@ -28,7 +28,7 @@ import { toast } from 'sonner'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useCoworkConfig } from '@/hooks/useCoworkConfig'
 import { getSandboxStatus } from '@/lib/agentTools'
-import type { SandboxStatus } from '@janhq/tauri-plugin-agent-tools-api'
+import type { SandboxStatus } from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import {
   storePath,
   revealStore,
@@ -43,8 +43,7 @@ import {
   type SkillMeta,
 } from '@/lib/agentWorkspace'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.cowork as any)({
+export const Route = createFileRoute('/settings/cowork')({
   beforeLoad: () => ensureCoworkEnabled(route.settings.general),
   component: CoworkSettingsContent,
 })
@@ -234,7 +233,7 @@ function CoworkSettingsContent() {
                       {t('settings:cowork.description')}
                     </p>
                   </div>
-                  {/* The path is a tooltip, not a row: it derives from the Jan
+                  {/* The path is a tooltip, not a row: it derives from the Rey30 IDvj
                       data folder that Settings > General already owns. */}
                   <Button
                     variant="link"

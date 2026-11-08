@@ -22,7 +22,7 @@ const EXAMPLE_KEYS = ['first', 'second', 'third'] as const
  *
  * The examples name the attached folder when there is one. That is the whole
  * point of them -- a fixed list of suggestions is wallpaper, but "Find every
- * TODO in jan-app" is a task you might actually run next.
+ * TODO in the app" is a task you might actually run next.
  */
 export function CoworkEmptyState({ folder, onPick }: Props) {
   const { t } = useTranslation()

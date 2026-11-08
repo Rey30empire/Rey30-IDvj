@@ -5,6 +5,7 @@ import { NavCowork } from './NavCowork'
 import { NavMain } from './NavMain'
 import { NavProjects } from './NavProjects'
 import { NavTabs } from './NavTabs'
+import { SidebarProfile } from './SidebarProfile'
 import { useLeftPanel } from '@/hooks/useLeftPanel'
 
 import {
@@ -12,6 +13,7 @@ import {
   SidebarContent,
   SidebarTrigger,
   SidebarHeader,
+  SidebarFooter,
   SidebarRail,
 } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
@@ -24,12 +26,12 @@ export function LeftSidebar() {
   const { open: isLeftPanelOpen } = useLeftPanel()
   const { pathname } = useLocation()
   const inSettings =
-    pathname === route.settings.index || pathname.startsWith('/settings/')
+    pathname === route.settings.index || pathname.startsWith('/settings/') || /^\/hub(?:\/|$)/.test(pathname)
   const [lastSurfacePath, setLastSurfacePath] = useState(pathname)
   if (!inSettings && lastSurfacePath !== pathname) setLastSurfacePath(pathname)
   const surfacePath = inSettings ? lastSurfacePath : pathname
   const isCowork = isCoworkRoute(surfacePath) && isCoworkEnabled()
-  // Right-align the header and hide "Jan" when native controls own the top-left
+  // Right-align the header and hide "Rey30 IDvj" when native controls own the top-left
   // (macOS, or a Linux DE placing buttons left).
   const leftButtons = useTitlebarLayout((s) => s.layout.left.length)
   const reserveLeft = IS_MACOS || leftButtons > 0
@@ -38,7 +40,10 @@ export function LeftSidebar() {
       <Sidebar variant="floating" collapsible="offcanvas">
         <SidebarHeader className="flex px-1">
           <div className={cn("flex items-center w-full justify-between", reserveLeft && "justify-end")}>
-            {!reserveLeft && <span className="ml-2 font-medium font-studio">Jan</span>}
+            {!reserveLeft && <div className="ml-2 flex min-w-0 items-center gap-2">
+              <img src="/images/rey30-idvj.svg" alt="" aria-hidden="true" className="size-7 shrink-0" width={28} height={28} />
+              <span className="truncate font-medium font-studio">Rey30 IDvj</span>
+            </div>}
             <div className="flex items-center">
               {isLeftPanelOpen && <DownloadManagement />}
               <SidebarTrigger className="text-muted-foreground rounded-full hover:bg-sidebar-foreground/8! -mt-0.5 relative z-50 ml-0.5" />
@@ -55,6 +60,9 @@ export function LeftSidebar() {
             </>
           )}
         </SidebarContent>
+        <SidebarFooter className="border-t border-sidebar-border bg-background/80 px-2 py-2">
+          <SidebarProfile />
+        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
     </div>

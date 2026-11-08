@@ -7,29 +7,25 @@ vi.mock('@tauri-apps/api/core', () => ({
 }))
 
 // Mock EngineManager
-vi.mock('@janhq/core', async (importOriginal) => {
+vi.mock('@rey30-idvj/core', async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
     EngineManager: {
-      instance: () => ({
+      instance: vi.fn(() => ({
         engines: new Map([
           ['engine1', {
             getLoadedModels: vi.fn().mockResolvedValue(['model1', 'model2']),
             unload: vi.fn().mockResolvedValue(undefined),
           }],
         ]),
-      }),
+      })),
     },
   }
 })
 
 vi.mock('@tauri-apps/api/event', () => ({
   emit: vi.fn(),
-}))
-
-vi.mock('../models', () => ({
-  stopAllModels: vi.fn(),
 }))
 
 // Mock the global window object
@@ -115,24 +111,24 @@ describe('TauriAppService', () => {
     })
   })
 
-  describe('getJanDataFolder', () => {
+  describe('getRey30DataFolder', () => {
     it('should get jan data folder path', async () => {
       const mockConfig = { data_folder: '/path/to/jan/data' }
       mockWindow.core.api.getAppConfigurations.mockResolvedValue(mockConfig)
 
-      const result = await appService.getJanDataFolder()
+      const result = await appService.getRey30DataFolder()
 
       expect(mockWindow.core.api.getAppConfigurations).toHaveBeenCalled()
       expect(result).toBe('/path/to/jan/data')
     })
   })
 
-  describe('relocateJanDataFolder', () => {
+  describe('relocateRey30DataFolder', () => {
     it('should relocate jan data folder', async () => {
       const newPath = '/new/path/to/jan/data'
       mockWindow.core.api.changeAppDataFolder.mockResolvedValue(undefined)
 
-      await appService.relocateJanDataFolder(newPath)
+      await appService.relocateRey30DataFolder(newPath)
 
       expect(mockWindow.core.api.changeAppDataFolder).toHaveBeenCalledWith({
         newDataFolder: newPath,
@@ -141,12 +137,18 @@ describe('TauriAppService', () => {
   })
 
   describe('factoryReset', () => {
-    it('should perform factory reset', async () => {
+    it('rejects legacy factory reset without invoking backend, clearing storage or restarting', async () => {
       const { invoke } = await import('@tauri-apps/api/core')
+      const { EngineManager } = await import('@rey30-idvj/core')
 
-      await appService.factoryReset()
+      await expect(appService.factoryReset()).rejects.toThrow('deshabilitado')
 
-      expect(invoke).toHaveBeenCalledWith('factory_reset')
+      expect(invoke).not.toHaveBeenCalled()
+      expect(EngineManager.instance).not.toHaveBeenCalled()
+      expect(mockWindow.localStorage.clear).not.toHaveBeenCalled()
+      expect(mockWindow.localStorage.removeItem).not.toHaveBeenCalled()
+      expect(mockWindow.core.api.relaunch).not.toHaveBeenCalled()
+      expect(mockWindow.core.api.changeAppDataFolder).not.toHaveBeenCalled()
     })
   })
 })

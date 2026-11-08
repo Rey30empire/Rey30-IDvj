@@ -2,7 +2,7 @@
  * Default Analytic Service - Web implementation
  */
 
-import { AppConfiguration } from '@janhq/core'
+import { AppConfiguration } from '@rey30-idvj/core'
 import type { AnalyticService } from './types'
 
 export class DefaultAnalyticService implements AnalyticService {

@@ -24,5 +24,7 @@
   "active": "Activo",
   "performance": "Rendimiento",
   "resources": "Recursos",
-  "refresh": "Actualizar"
+  "refresh": "Actualizar",
+  "gpus": "GPU",
+  "vram": "VRAM"
 }

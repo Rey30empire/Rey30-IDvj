@@ -19,8 +19,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { Bot, Command, Sparkles } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { cn } from '@/lib/utils'
-import { getLoadedModels } from '@janhq/tauri-plugin-llamacpp-api'
-import { sessionWorkspacePath } from '@janhq/tauri-plugin-agent-tools-api'
+import { getLoadedModels } from '@rey30-idvj/tauri-plugin-llamacpp-api'
+import { sessionWorkspacePath } from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import { getModelDisplayName, getProviderTitle } from '@/lib/utils'
 import { predefinedProviders } from '@/constants/providers'
 import { providerHasRemoteApiKeys } from '@/lib/provider-api-keys'
@@ -44,6 +44,12 @@ import type {
 import type { Attachment } from '@/types/attachment'
 import DropdownModelProvider from '@/containers/DropdownModelProvider'
 import { useModelProvider } from '@/hooks/useModelProvider'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
+import {
+  ensurePrivacyMode,
+  getPrivacyModeSnapshot,
+  privacyAllowsTools,
+} from '@/lib/privacyPolicy'
 import { MessageItem } from '@/containers/MessageItem'
 import SkillSelector from '@/containers/SkillSelector'
 import {
@@ -65,6 +71,7 @@ import {
   ConversationScrollButton,
 } from '@/components/ai-elements/conversation'
 import { CoworkWorkspacePill } from '@/containers/CoworkWorkspacePill'
+import { useCoworkFolderPicker } from '@/hooks/useCoworkFolderPicker'
 import { CoworkPlanToggle } from '@/containers/CoworkPlanToggle'
 import { CoworkEmptyState } from '@/containers/CoworkEmptyState'
 import { usePrompt } from '@/hooks/usePrompt'
@@ -106,6 +113,7 @@ import {
   importAttachment,
   cancelAgentThreadBash,
   activeAgentMonitorIds,
+  validateCoworkFolder,
 } from '@/lib/agentTools'
 import { isPlatformTauri } from '@/lib/platform'
 import { monitorLaneFor, type MonitorLane } from '@/lib/coworkMonitor'
@@ -149,7 +157,7 @@ import {
   skillCommandPrefix,
 } from '@/lib/skillCommands'
 
-export const Route = createFileRoute(route.cowork as any)({
+export const Route = createFileRoute('/cowork')({
   beforeLoad: () => ensureCoworkEnabled(),
   component: CoworkPage,
 })
@@ -181,6 +189,38 @@ const MANUAL_COMPACT_CONFIG: ContextManagerConfig = {
 // store write the way a fresh `[]` from the selector would.
 const NO_MONITORS: MonitorView[] = []
 const NO_TURNS: CoworkTurn[] = []
+
+async function watchCoworkProject(
+  expected: { id: string; folder: string; model?: ThreadModel },
+  onRevoke: () => void
+): Promise<() => void> {
+  const mode = await ensurePrivacyMode()
+  const permitsTools = () => privacyAllowsTools(getPrivacyModeSnapshot())
+  if (!privacyAllowsTools(mode) || !permitsTools()) {
+    throw new Error(
+      'El modo de privacidad actual desactiva las herramientas. Para trabajar con esta carpeta, revisa la configuración de privacidad.'
+    )
+  }
+  const sameProject = () => {
+    const current = useCoworkSessions.getState().sessions.find((item) => item.id === expected.id)
+    return current?.folder === expected.folder &&
+      current.model?.provider === expected.model?.provider &&
+      current.model?.id === expected.model?.id
+  }
+  if (!sameProject()) {
+    throw new Error('La carpeta o el modelo de esta sesión cambió. Revisa la selección y vuelve a enviar.')
+  }
+  const stopPrivacy = usePrivacyMode.subscribe(() => {
+    if (!permitsTools()) onRevoke()
+  })
+  const stopProject = useCoworkSessions.subscribe(() => {
+    if (!sameProject()) onRevoke()
+  })
+  return () => {
+    stopPrivacy()
+    stopProject()
+  }
+}
 
 /** The session's monitor lane, mirrored into the run store for the rail. */
 function sessionMonitorLane(sid: string): MonitorLane {
@@ -276,7 +316,7 @@ function CoworkPage() {
     if (!session?.id) return
     void (async () => {
       try {
-        const dataFolder = await serviceHub.app().getJanDataFolder()
+        const dataFolder = await serviceHub.app().getRey30DataFolder()
         if (!dataFolder) return
         const path = await sessionWorkspacePath(dataFolder, session.id)
         if (alive) setWorkspacePath(path)
@@ -302,24 +342,21 @@ function CoworkPage() {
   }, [])
 
   useEffect(() => {
-    if (!folder) {
-      setGitBranch(null)
-      return
-    }
+    setGitBranch(null)
+    if (!folder) return
+    let active = true
     invoke<string | null>('agent_git_branch', { project: folder })
-      .then(setGitBranch)
-      .catch(() => setGitBranch(null))
+      .then((branch) => { if (active) setGitBranch(branch) })
+      .catch(() => {})
+    return () => { active = false }
   }, [folder])
 
-  const attachFolder = useCallback(async () => {
-    const picked = await serviceHub.dialog().open({ directory: true })
-    if (typeof picked !== 'string') return
-    const sid = ensureCurrentSession()
-    useCoworkSessions.getState().setFolder(sid, picked)
-  }, [serviceHub])
+  const folderPicker = useCoworkFolderPicker()
 
   const detachFolder = useCallback(() => {
-    if (session?.id) useCoworkSessions.getState().setFolder(session.id, null)
+    if (session?.id && !useCoworkRun.getState().runId[session.id]) {
+      useCoworkSessions.getState().setFolder(session.id, null)
+    }
   }, [session?.id])
 
   // `liveTurns` holds only the rows this run has produced — `commitTurns`
@@ -510,7 +547,22 @@ function CoworkPage() {
     let messages = current.messages ?? []
     let outcome: RunOutcome | null = null
     let thrown: Pick<RunOutcome, 'stoppedBy' | 'errorText'> | null = null
+    let stopProjectWatch: (() => void) | undefined
     try {
+      let folderForRun: string | null = null
+      if (current.folder) {
+        stopProjectWatch = await watchCoworkProject(
+          { id: sid, folder: current.folder, model: modelChoice },
+          () => {
+            if (controller.signal.aborted) return
+            abortRun(sid, 'project_access_changed')
+            void cancelAgentThreadBash(sid)
+          }
+        )
+        if (controller.signal.aborted) return
+        folderForRun = await validateCoworkFolder(current.folder)
+        if (controller.signal.aborted) return
+      }
       // Display the invocation, but expand it only in the model's history. Keep
       // this in the shared request path so edits, retries and queued turns also
       // invoke skills instead of sending the slash text as an ordinary prompt.
@@ -614,12 +666,22 @@ function CoworkPage() {
         // Always on at depth 0, even with nothing saved: an unknown name runs as
         // a focused general-purpose subagent, as it does in Rust.
         allowSubagents: true,
+        allowProcesses: !IS_WINDOWS || !folderForRun,
         webSearch,
         workspacePath,
-        readOnlyFolder: current?.folder ?? null,
+        readOnlyFolder: folderForRun,
       }
       const transport = new CoworkChatTransport(sid, runConfig)
       await transport.refreshTools()
+      if (controller.signal.aborted) return
+      if (folderForRun) {
+        const tools = transport.advertisedTools
+        if (!tools.read || (!runConfig.planMode && (!tools.write || !tools.edit))) {
+          throw new Error(
+            'Las herramientas de archivos de Cowork no están disponibles. Revisa la configuración antes de enviar.'
+          )
+        }
+      }
 
       // Owned by this request: children cannot outlive the run whose signal
       // aborts them, so a fresh inbox per run can never hold a stale ping.
@@ -703,8 +765,9 @@ function CoworkPage() {
             withToolTiming(call.toolCallId, () =>
               dispatchCoworkTool(call, {
                 sessionId: sid,
-                readOnlyFolder: current?.folder ?? null,
+                readOnlyFolder: folderForRun,
                 planMode: runConfig.planMode,
+                allowProcesses: runConfig.allowProcesses,
                 failedReadPaths,
                 webSearch,
                 monitors: monitorLane,
@@ -857,8 +920,9 @@ function CoworkPage() {
                         parentTools: transport.advertisedTools,
                         system: {
                           workspacePath,
-                          readOnlyFolder: current?.folder ?? null,
+                          readOnlyFolder: folderForRun,
                           bashAvailable: sandboxEnforces(),
+                          allowProcesses: runConfig.allowProcesses,
                           environment,
                         },
                         signal: controller.signal,
@@ -869,8 +933,9 @@ function CoworkPage() {
                         dispatch: (call) =>
                           dispatchCoworkTool(call, {
                             sessionId: sid,
-                            readOnlyFolder: current?.folder ?? null,
+                            readOnlyFolder: folderForRun,
                             planMode: current?.planMode ?? false,
+                            allowProcesses: runConfig.allowProcesses,
                             webSearch,
                             // A child has no inbox for a watcher to ping.
                             monitors: null,
@@ -1027,6 +1092,7 @@ function CoworkPage() {
             errorText: e instanceof Error ? e.message : String(e),
           }
     } finally {
+      stopProjectWatch?.()
       // clearCodeRun below also drops the session's load state; this makes the
       // card disappear the instant the run ends, before that broader reset.
       useCoworkRun.getState().setSessionLoadingModel(sid, false)
@@ -1090,18 +1156,27 @@ function CoworkPage() {
       toast(t('common:cmdNothingToCompact'))
       return
     }
-    if (!selectedModel?.id) {
+    const boundModel = session?.model
+    const providerName = boundModel?.provider ?? selectedProvider
+    const modelId = boundModel?.id ?? selectedModel?.id
+    const provider = providers.find((p) => p.provider === providerName && p.active)
+    if (!modelId || !provider?.models.some((model) => model.id === modelId)) {
       toast.error(t('common:selectModel'))
       return
     }
-    const provider = providers.find((p) => p.provider === selectedProvider)
-    if (!provider) {
-      toast.error(t('common:selectModel'))
-      return
-    }
+    const controller = new AbortController()
+    let stopProjectWatch: (() => void) | undefined
     try {
-      const model = await ModelFactory.createModel(selectedModel.id, provider)
-      const result = await compactMessages(msgs, MANUAL_COMPACT_CONFIG, model)
+      if (session?.folder) {
+        stopProjectWatch = await watchCoworkProject(
+          { id: sid, folder: session.folder, model: boundModel },
+          () => controller.abort()
+        )
+      }
+      if (controller.signal.aborted) return
+      const model = await ModelFactory.createModel(modelId, provider)
+      const result = await compactMessages(msgs, MANUAL_COMPACT_CONFIG, model, 0, controller.signal)
+      if (controller.signal.aborted) return
       if (result.trimmedCount === 0 || !result.compactedSummary) {
         toast(t('common:cmdNothingToCompact'))
         return
@@ -1115,6 +1190,8 @@ function CoworkPage() {
       )
     } catch (e) {
       toast.error(t('common:cmdCompactFailed', { error: String(e) }))
+    } finally {
+      stopProjectWatch?.()
     }
   }
 
@@ -1483,9 +1560,10 @@ function CoworkPage() {
       <HeaderPage>
         <div className="flex items-center justify-between w-full pr-2">
           <DropdownModelProvider
+            allowAssistants={false}
             key={session?.id ?? 'new'}
             model={session?.model}
-            useLastUsedModel={!session?.model}
+            useLastUsedModel={!session?.model && !session?.folder}
             onModelChange={(model) =>
               useCoworkSessions.getState().setModel(ensureCurrentSession(), model)
             }
@@ -1732,13 +1810,26 @@ function CoworkPage() {
                               .setPlanMode(session.id, next)
                         }}
                       />
-                      <CoworkWorkspacePill
-                        folder={folder}
-                        gitBranch={gitBranch}
-                        onAttach={() => void attachFolder()}
-                        onDetach={detachFolder}
-                      />
-                      <CoworkSandboxChip />
+                      {folderPicker.available && (
+                        <CoworkWorkspacePill
+                          folder={folder}
+                          gitBranch={gitBranch}
+                          picking={folderPicker.picking}
+                          detachDisabled={running}
+                          onAttach={() => void folderPicker.openFolder()}
+                          onDetach={detachFolder}
+                        />
+                      )}
+                      {IS_WINDOWS && folder ? (
+                        <span
+                          className="inline-flex h-7 shrink-0 items-center px-2 text-xs text-muted-foreground"
+                          title="Lectura y edición en esta carpeta. Terminal y monitores desactivados."
+                        >
+                          Solo archivos
+                        </span>
+                      ) : (
+                        <CoworkSandboxChip />
+                      )}
                       <CoworkTodoChip
                         todos={session?.todos}
                         open={rail?.kind === 'todos'}

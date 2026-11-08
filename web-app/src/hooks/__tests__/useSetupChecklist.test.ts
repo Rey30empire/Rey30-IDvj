@@ -13,7 +13,7 @@ const emit = async (name: string, payload?: unknown) => {
   })
 }
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AppEvent: { onModelImported: 'onModelImported' },
   DownloadEvent: { onFileDownloadSuccess: 'onFileDownloadSuccess' },
   events: {
@@ -612,6 +612,38 @@ describe('useSetupChecklist', () => {
   })
 
   describe('gpu verdict', () => {
+    it('shows the configured AMD before the embedding check finishes', async () => {
+      armHealthy()
+      mockGetHardwareInfo.mockResolvedValue({ gpus: [{ name: 'NVIDIA RTX 3060 Ti' }, { name: 'AMD Radeon AI PRO R9700' }] })
+      mockVerifyGpuOffload.mockResolvedValue({
+        status: 'ok', backend: 'vulkan', gpuExpected: true, engineDeviceCount: 1,
+        devices: [{ id: 'Vulkan1', name: 'AMD Radeon AI PRO R9700' }],
+      })
+      let finishSearch!: () => void
+      mockVerifyEmbeddingModel.mockReturnValueOnce(new Promise((resolve) => {
+        finishSearch = () => resolve({ status: 'ok' })
+      }))
+      const { result } = renderHook(() => useSetupChecklist())
+      await waitFor(() => expect(result.current.gpu).toEqual({ willUse: true, label: 'AMD Radeon AI PRO R9700 (Vulkan1)' }))
+      expect(result.current.isRunning).toBe(true)
+      await act(async () => finishSearch())
+      expect(stageById(result.current.stages, 'engine').values).toEqual({ backend: 'AMD Radeon AI PRO R9700 (Vulkan1)' })
+    })
+
+    it('does not label the other adapter as a fallback if the configured GPU is missing', async () => {
+      armHealthy()
+      mockVerifyGpuOffload.mockResolvedValue({
+        status: 'warning', backend: '', gpuExpected: true, engineDeviceCount: 0,
+        reason: 'selectedDevicesUnavailable', missingDeviceIds: ['Vulkan1'], devices: [],
+      })
+      const { result } = renderHook(() => useSetupChecklist())
+      await waitFor(() => expect(result.current.isRunning).toBe(false))
+      expect(result.current.gpu).toEqual({ willUse: false, unavailableSelection: true, label: 'Vulkan1' })
+      expect(stageById(result.current.stages, 'engine')).toMatchObject({
+        status: 'warning', messageKey: 'checkEngineSelectedDevicesUnavailable', values: { devices: 'Vulkan1' },
+      })
+    })
+
     it('confirms GPU use and names the hardware', async () => {
       armHealthy()
 

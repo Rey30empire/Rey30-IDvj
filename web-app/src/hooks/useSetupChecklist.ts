@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AppEvent, DownloadEvent, events } from '@janhq/core'
+import { AppEvent, DownloadEvent, events } from '@rey30-idvj/core'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { activeSetupScenario } from '@/lib/setupSimulation'
 import {
@@ -46,6 +46,7 @@ const ENGINE_SETTINGS_CHANGED = 'settingsChanged'
 const ENGINE_REASON_KEYS: Record<GpuOffloadReason, string> = {
   runtimeUnreachable: 'checkEngineRuntimeUnreachable',
   missingLibrary: 'checkEngineMissingLibrary',
+  selectedDevicesUnavailable: 'checkEngineSelectedDevicesUnavailable',
 }
 
 // `missing`/`empty` mean nothing came back; `nonFinite`/`degenerate` mean a
@@ -65,8 +66,13 @@ const VECTOR_PROBLEM_KEYS: Record<EmbeddingVectorProblem, string> = {
  */
 export interface GpuVerdict {
   willUse?: boolean
+  unavailableSelection?: boolean
   /** Detected hardware, e.g. `NVIDIA RTX 4070 (8 GB)`; empty when none. */
   label: string
+}
+
+function describeEngineDevices(report: GpuOffloadReport): string {
+  return report.devices?.map(({ id, name }) => `${name} (${id})`).join(', ') ?? ''
 }
 
 function gpuVerdict(
@@ -75,6 +81,9 @@ function gpuVerdict(
 ): GpuVerdict {
   const label = describeGpus(gpus)
   if (!report || report.pending || report.unavailable) return { label }
+  if (report.reason === 'selectedDevicesUnavailable') {
+    return { willUse: false, unavailableSelection: true, label: report.missingDeviceIds?.join(', ') || label }
+  }
 
   // Metal is compiled into every macOS build and always present, so the engine
   // never reports it as "a GPU build" and never enumerates it as a device.
@@ -85,7 +94,10 @@ function gpuVerdict(
 
   // Elsewhere a GPU build that found no device runs on the CPU regardless of
   // what is installed, so the device count decides rather than the name.
-  return { willUse: report.gpuExpected && report.engineDeviceCount > 0, label }
+  return {
+    willUse: report.gpuExpected && report.engineDeviceCount > 0,
+    label: describeEngineDevices(report) || label,
+  }
 }
 
 const pendingStages = (): SetupStageState[] =>
@@ -147,6 +159,13 @@ function engineStage(
     }
   }
   if (report.status === 'ok') {
+    if (report.offloadDisabled) {
+      return { id: 'engine', status: 'ok', messageKey: 'checkEngineOffloadDisabled' }
+    }
+    const devices = describeEngineDevices(report)
+    if (devices) {
+      return { id: 'engine', status: 'ok', messageKey: 'checkEngineGpu', values: { backend: devices } }
+    }
     // The engine only reports whether a GPU build found a device. It cannot
     // report the inverse, so a GPU left idle by a CPU-only build -- or a build
     // for the wrong vendor -- is caught here instead.
@@ -204,6 +223,7 @@ function engineStage(
     values: {
       backend: report.backend,
       libraries: (report.missingLibraries ?? []).join(', '),
+      devices: (report.missingDeviceIds ?? []).join(', '),
     },
     detail: report.error,
     missingLibraries: report.missingLibraries,
@@ -276,23 +296,31 @@ export function useSetupChecklist(options?: { enabled?: boolean }) {
     const scenario = activeSetupScenario()
     // Run together and settle independently: one dead probe must not suppress
     // the verdicts of the others.
-    const [system, engine, search] = scenario
-      ? ([
+    const gpuChecks = scenario
+      ? Promise.resolve([
           { status: 'fulfilled', value: scenario.hardware },
           { status: 'fulfilled', value: scenario.gpu },
-          { status: 'fulfilled', value: scenario.embedding },
         ] as const)
-      : await Promise.allSettled([
+      : Promise.allSettled([
           hub.hardware().getHardwareInfo(),
           hub.models().verifyGpuOffload(),
-          hub.models().verifyEmbeddingModel(),
         ])
+    const searchCheck = scenario
+      ? Promise.resolve([{ status: 'fulfilled', value: scenario.embedding }] as const)
+      : Promise.allSettled([hub.models().verifyEmbeddingModel()])
+    const [system, engine] = await gpuChecks
 
     const hardware =
       system.status === 'fulfilled'
         ? (system.value as HardwareInfo | null)
         : null
 
+    setGpu(gpuVerdict(
+      engine.status === 'fulfilled' ? engine.value : undefined,
+      hardware?.gpus ?? []
+    ))
+
+    const [search] = await searchCheck
     const next: SetupStageState[] = [
       system.status === 'fulfilled'
         ? systemStage(hardware)
@@ -321,12 +349,6 @@ export function useSetupChecklist(options?: { enabled?: boolean }) {
     ]
 
     setStages(next)
-    setGpu(
-      gpuVerdict(
-        engine.status === 'fulfilled' ? engine.value : undefined,
-        hardware?.gpus ?? []
-      )
-    )
     setIsRunning(false)
     runningRef.current = false
 
@@ -350,7 +372,8 @@ export function useSetupChecklist(options?: { enabled?: boolean }) {
     const onEngineSettingChanged = (payload?: { key?: string }) => {
       if (
         payload?.key === 'llamacpp_version' ||
-        payload?.key === 'llamacpp_backend'
+        payload?.key === 'llamacpp_backend' ||
+        payload?.key === 'device'
       ) {
         void rerun()
       }

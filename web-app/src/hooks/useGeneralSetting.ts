@@ -6,6 +6,11 @@ import { getServiceHub } from '@/hooks/useServiceHub'
 import { ExtensionManager } from '@/lib/extension'
 
 export const HUGGINGFACE_TOKEN_SECRET_KEY = 'huggingface'
+
+export function migrateGeneralLanguage(persisted: unknown, version: number): Record<string, unknown> {
+  const state = persisted && typeof persisted === 'object' && !Array.isArray(persisted) ? persisted as Record<string, unknown> : {}
+  return version < 1 ? { ...state, currentLanguage: 'es' } : { ...state }
+}
 type GeneralSettingState = {
   currentLanguage: Language
   spellCheckChatInput: boolean
@@ -24,7 +29,7 @@ type GeneralSettingState = {
 export const useGeneralSetting = create<GeneralSettingState>()(
   persist(
     (set) => ({
-      currentLanguage: 'en',
+      currentLanguage: 'es',
       spellCheckChatInput: true,
       tokenCounterCompact: true,
       autoUpdateCheck: true,
@@ -49,7 +54,7 @@ export const useGeneralSetting = create<GeneralSettingState>()(
             console.warn('Failed to persist huggingface token to keyring:', err)
           )
         ExtensionManager.getInstance()
-          .getByName('@janhq/download-extension')
+          .getByName('@rey30-idvj/download-extension')
           ?.getSettings()
           .then((settings) => {
             if (settings) {
@@ -60,7 +65,7 @@ export const useGeneralSetting = create<GeneralSettingState>()(
                 return e
               })
               ExtensionManager.getInstance()
-                .getByName('@janhq/download-extension')
+                .getByName('@rey30-idvj/download-extension')
                 ?.updateSettings(newSettings)
             }
           })
@@ -73,6 +78,8 @@ export const useGeneralSetting = create<GeneralSettingState>()(
       name: localStorageKey.settingGeneral,
       storage: createJSONStorage(() => backendStorage),
       skipHydration: true,
+      version: 1,
+      migrate: (persisted, version) => migrateGeneralLanguage(persisted, version) as unknown as GeneralSettingState,
       // huggingfaceToken is a secret — kept in the OS keyring, never persisted here.
       partialize: (state) => ({
         currentLanguage: state.currentLanguage,

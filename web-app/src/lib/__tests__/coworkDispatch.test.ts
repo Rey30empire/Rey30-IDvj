@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { executeAgentTool } = vi.hoisted(() => ({ executeAgentTool: vi.fn() }))
-vi.mock('@/lib/agentTools', () => ({ executeAgentTool }))
+const { executeAgentTool, startAgentMonitor, stopAgentMonitor, listAgentMonitors } = vi.hoisted(() => ({ executeAgentTool: vi.fn(), startAgentMonitor: vi.fn(), stopAgentMonitor: vi.fn(), listAgentMonitors: vi.fn() }))
+vi.mock('@/lib/agentTools', () => ({ executeAgentTool, startAgentMonitor, stopAgentMonitor, listAgentMonitors }))
+const privacy = vi.hoisted(() => ({ mode: 'standard' }))
+vi.mock('@/lib/privacyPolicy', () => ({ getPrivacyModeSnapshot: () => privacy.mode, privacyAllowsTools: (mode: string) => mode === 'standard' }))
 
 const { executeWebTool } = vi.hoisted(() => ({ executeWebTool: vi.fn() }))
 vi.mock('@/lib/webSearchTool', () => ({
@@ -36,8 +38,25 @@ const ctx = (over = {}) => ({
 
 describe('dispatchCoworkTool', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    privacy.mode = 'standard'
     executeAgentTool.mockReset()
     executeAgentTool.mockResolvedValue({ content: 'ok' })
+  })
+
+  it.each(['web_search', 'shell', 'task', 'monitor'])('refuses a queued %s call after a deferred approval crosses a privacy change', async toolName => {
+    const context = ctx({ webSearch: true })
+    let approve!: () => void
+    const approval = new Promise<void>(resolve => { approve = resolve })
+    const queued = (async () => { await approval; return dispatchCoworkTool(call(toolName, { op: 'start' }), context) })()
+    privacy.mode = 'cloud-review'
+    approve()
+    const result = await queued
+    expect(result).toMatchObject({ isError: true, output: expect.stringContaining('privacidad') })
+    expect(executeAgentTool).not.toHaveBeenCalled()
+    expect(executeWebTool).not.toHaveBeenCalled()
+    expect(startAgentMonitor).not.toHaveBeenCalled()
+    expect(context.onTask).not.toHaveBeenCalled()
   })
 
   // The trailing 'session' is load-bearing: under the default 'thread' scope a
@@ -56,6 +75,19 @@ describe('dispatchCoworkTool', () => {
       true,
       null
     )
+  })
+
+  it('refuses unadvertised processes and still dispatches file operations for a shared Windows folder', async () => {
+    const project = { ...ctx(), readOnlyFolder: 'C:\\Owned project', allowProcesses: false, monitors: null }
+    for (const name of ['shell', 'monitor']) {
+      const result = await dispatchCoworkTool(call(name, { op: 'start' }), project)
+      expect(result.isError).toBe(true)
+      expect(result.output).toContain('carpetas de proyecto compartidas')
+    }
+    expect(executeAgentTool).not.toHaveBeenCalled()
+    expect(startAgentMonitor).not.toHaveBeenCalled()
+    await dispatchCoworkTool(call('write', { path: 'owned.txt', content: 'owned' }), project)
+    expect(executeAgentTool).toHaveBeenCalledWith('write', { path: 'owned.txt', content: 'owned' }, 's1', project.readOnlyFolder, 'session', true, true, project.readOnlyFolder)
   })
 
   // Cowork's shell network follows the Cowork setting (on by default), read

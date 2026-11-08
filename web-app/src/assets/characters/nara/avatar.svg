@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <g data-part="pigtails" class="character-pigtails" fill="var(--character-hair,#292332)" stroke="#211E2A" stroke-width="3"><path d="M62 44q-29-19-33 14l7 92q30-14 22-70l9-24Z"/><path d="M138 44q29-19 33 14l-7 92q-30-14-22-70l-9-24Z"/><path d="m38 76 5 54m119-54-5 54" stroke="var(--character-accent,#B47BC8)" stroke-width="6" stroke-linecap="round"/></g>
+    <path d="M34 235v-43q0-45 66-45t66 45v43" fill="var(--character-secondary,#25364E)"/>
+    <g data-part="arms" class="character-arms"><path d="m47 174-14 41 19 9m101-50 14 41-19 9" stroke="var(--character-primary,#4C3B70)" stroke-width="18" stroke-linecap="round"/><path d="m52 224 12-2m84 2-12-2" stroke="var(--character-skin,#C49B87)" stroke-width="8" stroke-linecap="round"/></g>
+    <path d="m77 150 23 17 23-17 17 18-21 31H81l-21-31Z" fill="var(--character-primary,#4C3B70)"/><path d="m100 169 7 66m-28-34 5 34m37-34-5 34" stroke="var(--character-accent,#B47BC8)" stroke-width="3"/><path d="M88 125h24v27l-12 16-12-16" fill="var(--character-skin,#C49B87)"/>
+    <path d="M63 65q5-37 37-37t37 37l-4 45-14 24-19 12-19-12-14-24Z" fill="var(--character-skin,#C49B87)" stroke="#74564E" stroke-width="2.5"/><path d="M61 83q-13-55 24-62 32-12 49 9 20 14 5 63l-9-39-18 20-13-31-20 29-10-10-5 31Z" fill="var(--character-hair,#292332)"/><path d="m82 58-6 19m44-15 8 23" stroke="var(--character-accent,#B47BC8)" stroke-width="5" stroke-linecap="round"/><path d="M56 43h12m64 0h12" stroke="var(--character-accent,#B47BC8)" stroke-width="7" stroke-linecap="round"/>
+    <g data-part="eyebrows" class="character-brows" stroke="#46313F" stroke-width="3" stroke-linecap="round"><path d="m72 83 15-3m26-1 15 4"/></g>
+    <g data-part="eyes" class="character-eyes"><g class="character-eye-left"><path d="M72 95q8-9 17-1" stroke="#FBF1E5" stroke-width="8" stroke-linecap="round"/><path d="M82 92v7" stroke="#925D27" stroke-width="6" stroke-linecap="round"/><path d="m68 90 5 3" stroke="#45333D" stroke-width="3" stroke-linecap="round"/></g><g class="character-eye-right"><path d="M111 94q9-8 17 1" stroke="#FBF1E5" stroke-width="8" stroke-linecap="round"/><path d="M118 92v7" stroke="#925D27" stroke-width="6" stroke-linecap="round"/><path d="m127 93 5-3" stroke="#45333D" stroke-width="3" stroke-linecap="round"/></g></g>
+    <path d="m99 100-3 10h6" stroke="#9E7466" stroke-width="2" stroke-linecap="round"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M88 122q12 7 24-1" stroke="#895164" stroke-width="3" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="100" cy="125" rx="6" ry="3" fill="#64404E" opacity="0"/></g>
+    <circle cx="70" cy="116" r="3" fill="var(--character-accent,#B47BC8)"/><circle cx="130" cy="116" r="3" fill="var(--character-accent,#B47BC8)"/>
+  </g>
+</svg>

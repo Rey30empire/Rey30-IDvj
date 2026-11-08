@@ -14,7 +14,7 @@ vi.mock('@/lib/extension', () => ({
   },
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   ExtensionTypeEnum: { RAG: 'rag' },
 }))
 

@@ -83,7 +83,7 @@ describe('isProviderUsable', () => {
     ).toBe(false)
   })
 
-  // Jan bootstraps an embedding model during first-run setup. Counting it ended
+  // Rey30 IDvj bootstraps an embedding model during first-run setup. Counting it ended
   // onboarding before the user had any model to chat with.
   it('does not count an embedding-only local provider as usable', () => {
     expect(

@@ -4,22 +4,38 @@ import { SystemEvent } from '@/types/events'
 import { useAppState } from './useAppState'
 import { useToolAvailable } from './useToolAvailable'
 import { ExtensionManager } from '@/lib/extension'
-import { ExtensionTypeEnum, MCPExtension } from '@janhq/core'
+import { ExtensionTypeEnum, MCPExtension } from '@rey30-idvj/core'
 import { mcpOrchestrator } from '@/lib/mcp-orchestrator/mcp-orchestrator'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
+import { ensurePrivacyMode, getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
 
 export const useTools = () => {
   const updateTools = useAppState((state) => state.updateTools)
   const updateRagToolNames = useAppState((state) => state.updateRagToolNames)
   const updateMcpToolNames = useAppState((state) => state.updateMcpToolNames)
+  const privacyMode = usePrivacyMode((state) => state.mode)
+  const privacyReady = usePrivacyMode((state) => state.loaded && !state.saving && !state.error)
   const { isDefaultsInitialized, setDisabledTools, markDefaultsAsInitialized } = useToolAvailable()
 
   useEffect(() => {
+    let cancelled = false
+    const clear = () => {
+      updateTools([])
+      updateMcpToolNames([])
+      updateRagToolNames([])
+    }
     async function setTools() {
+      if (cancelled) return
       try {
+        if (!privacyAllowsTools(await ensurePrivacyMode())) {
+          if (!cancelled) clear()
+          return
+        }
+        if (cancelled) return
         // A server connect/disconnect/tools-refresh fired this (mcp-update);
         // the orchestrator's per-request tool cache would otherwise only
         // notice via its own TTL, serving stale/reordered tools in the
-        // meantime and destabilizing the KV-cache prefix Jan sends.
+        // meantime and destabilizing the KV-cache prefix Rey30 IDvj sends.
         mcpOrchestrator.invalidateCache()
 
         // Get MCP extension first
@@ -32,6 +48,11 @@ export const useTools = () => {
           getServiceHub().mcp().getTools(),
           getServiceHub().rag().getToolNames?.() ?? Promise.resolve([]),
         ])
+        if (cancelled) return
+        if (!privacyAllowsTools(getPrivacyModeSnapshot())) {
+          clear()
+          return
+        }
 
         // Update MCP tools
         updateTools(mcpTools)
@@ -57,6 +78,7 @@ export const useTools = () => {
           }
         }
       } catch (error) {
+        if (!cancelled) clear()
         console.error('Failed to fetch MCP tools:', error)
       }
     }
@@ -65,11 +87,12 @@ export const useTools = () => {
     let unsubscribe = () => {}
     getServiceHub().events().listen(SystemEvent.MCP_UPDATE, setTools).then((unsub) => {
       // Unsubscribe from the event when the component unmounts
-      unsubscribe = unsub
+      if (cancelled) unsub()
+      else unsubscribe = unsub
     }).catch((error) => {
       console.error('Failed to set up MCP update listener:', error)
     })
-    return unsubscribe
+    return () => { cancelled = true; unsubscribe() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [privacyMode, privacyReady])
 }

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Extension, ExtensionManager } from '../extension'
-import { ExtensionTypeEnum } from '@janhq/core'
+import { ExtensionTypeEnum } from '@rey30-idvj/core'
 
 // Mock dependencies
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AIEngine: class MockAIEngine {},
   BaseExtension: class MockBaseExtension {
     type() { return 'base' }

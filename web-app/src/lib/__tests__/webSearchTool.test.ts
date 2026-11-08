@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@janhq/tauri-plugin-websearch-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-websearch-api', () => ({
   webSearch: vi.fn(),
   webFetch: h.webFetch,
 }))

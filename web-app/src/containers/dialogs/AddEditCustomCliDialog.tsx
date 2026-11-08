@@ -158,8 +158,7 @@ export default function AddEditCustomCliDialog({
             }}
             size="sm"
           >
-            Save
-          </Button>
+            {t('ui-details:save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -65,7 +65,7 @@ describe('LlamacppEngineInfo', () => {
       screen.getByRole('link', { name: /engineOtherVersionLink/ })
     ).toHaveAttribute(
       'href',
-      'https://jan.ai/docs/desktop/remote-models/custom-endpoint#use-a-different-llamacpp-version'
+      'https://github.com/ggml-org/llama.cpp/tree/master/tools/server'
     )
   })
 

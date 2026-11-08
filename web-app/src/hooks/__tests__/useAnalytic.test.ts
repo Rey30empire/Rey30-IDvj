@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAnalytic, useProductAnalytic, useProductAnalyticPrompt } from '../useAnalytic'
+import { usePrivacyMode } from '../usePrivacyMode'
 
 // Mock constants
 vi.mock('@/constants/localStorage', () => ({
@@ -23,6 +24,7 @@ vi.mock('zustand/middleware', () => ({
 describe('useAnalytic', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    usePrivacyMode.setState({ mode: 'standard', loaded: true, saving: false, error: null })
     // Reset stores to initial state
     useProductAnalyticPrompt.setState({
       productAnalyticPrompt: true,
@@ -73,6 +75,13 @@ describe('useAnalytic', () => {
   })
 
   describe('useProductAnalytic', () => {
+    it('refuses opt-in while privacy is protected or not yet loaded', () => {
+      for (const state of [{ mode: 'local-only' as const, loaded: true }, { mode: 'cloud-review' as const, loaded: true }, { mode: 'standard' as const, loaded: false }]) {
+        usePrivacyMode.setState(state)
+        useProductAnalytic.getState().setProductAnalytic(true)
+        expect(useProductAnalytic.getState().productAnalytic).toBe(false)
+      }
+    })
     it('should initialize with default value false', () => {
       const { result } = renderHook(() => useProductAnalytic())
       

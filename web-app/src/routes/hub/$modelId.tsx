@@ -212,7 +212,7 @@ function HubModelDetailContent() {
         </Button>
         </HeaderPage>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-muted-foreground">Model not found</p>
+          <p className="text-muted-foreground">{t('ui-details:modelNotFound')}</p>
         </div>
       </div>
     )
@@ -313,8 +313,7 @@ function HubModelDetailContent() {
                     <thead>
                       <tr className="border-b ">
                         <th className="text-left py-3 px-2 text-sm font-medium">
-                          Version
-                        </th>
+                          {t('ui-details:version')}</th>
                         <th className="text-left py-3 px-2 text-sm font-medium">
                           Format
                         </th>
@@ -453,8 +452,7 @@ function HubModelDetailContent() {
                                     className={cn(isDownloading && 'hidden')}
                                     variant="outline"
                                   >
-                                    Download
-                                  </Button>
+                                    {t('ui-details:download')}</Button>
                                 )
                               })()}
                             </td>
@@ -480,8 +478,7 @@ function HubModelDetailContent() {
                 {isLoadingReadme ? (
                   <div className="flex items-center justify-center py-8">
                     <span className="text-muted-foreground">
-                      Loading README...
-                    </span>
+                      {t('ui-details:loadingReadme')}</span>
                   </div>
                 ) : readmeContent ? (
                   <div className="prose prose-invert max-w-none">
@@ -490,8 +487,7 @@ function HubModelDetailContent() {
                 ) : (
                   <div className="flex items-center justify-center py-8">
                     <span className="text-muted-foreground">
-                      Failed to load README
-                    </span>
+                      {t('ui-details:readmeLoadFailed')}</span>
                   </div>
                 )}
               </div>

@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
 vi.mock('@/i18n/react-i18next-compat', () => ({
   useTranslation: () => ({
     t: (k: string, vars?: Record<string, unknown>) => {
-      if (k === 'settingUpJan') return 'Booting up Jan…'
+      if (k === 'settingUpRey30') return 'Booting up Rey30 IDvj…'
       if (k === 'registeringExtensions') return 'Registering extensions…'
       if (k === 'loadingExtensions')
         return `Loading extensions… (${vars?.done ?? 0}/${vars?.total ?? 0})`
@@ -33,7 +33,7 @@ vi.mock('@/lib/extension', () => ({
 
 vi.mock('@/lib/service', () => ({ APIs: {} }))
 vi.mock('@/services/events/EventEmitter', () => ({ EventEmitter: class {} }))
-vi.mock('@janhq/core', () => ({ EngineManager: class {}, ModelManager: class {} }))
+vi.mock('@rey30-idvj/core', () => ({ EngineManager: class {}, ModelManager: class {} }))
 vi.mock('@tauri-apps/api/webviewWindow', () => ({
   getCurrentWebviewWindow: () => ({ label: h.windowLabel }),
 }))

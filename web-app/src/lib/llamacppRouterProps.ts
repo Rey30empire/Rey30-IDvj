@@ -28,12 +28,12 @@ const resolveExtensionWithProps = (
  *  model; callers must fall back to a configured/default context size until then. */
 export const getLlamacppExtension = (): LlamacppExtensionLike | undefined =>
   resolveExtensionWithProps([
-    '@janhq/llamacpp-extension',
+    '@rey30-idvj/llamacpp-extension',
     'llamacpp-extension',
   ])
 
 export const getMlxExtension = (): LlamacppExtensionLike | undefined =>
-  resolveExtensionWithProps(['@janhq/mlx-extension', 'mlx-extension'])
+  resolveExtensionWithProps(['@rey30-idvj/mlx-extension', 'mlx-extension'])
 
 /** Local providers expose a launched context window via `getModelProps`; remote
  *  providers have none. Returns undefined for anything but llamacpp/mlx. */

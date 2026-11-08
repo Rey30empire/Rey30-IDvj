@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 
 // The thread route is reused across thread switches, so useChat outlives a
 // session. A turn left running in the background (#9311) keeps using its
@@ -18,7 +18,7 @@ vi.mock('@/lib/custom-chat-transport', () => ({
       this.systemMessage = systemMessage
     }
     setOnTokenUsage() {}
-    refreshTools() {}
+    refreshTools = vi.fn(async () => {})
   },
 }))
 vi.mock('@ai-sdk/react', () => ({
@@ -39,8 +39,9 @@ vi.mock('@/hooks/useAppState', () => ({
 
 import { useChat } from '../use-chat'
 import { useChatSessions } from '@/stores/chat-session-store'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
 
-type FakeTransport = { systemMessage?: string; threadId?: string }
+type FakeTransport = { systemMessage?: string; threadId?: string; refreshTools: ReturnType<typeof vi.fn> }
 
 const transportOf = (sessionId: string) =>
   useChatSessions.getState().sessions[sessionId]?.transport as unknown as
@@ -49,7 +50,17 @@ const transportOf = (sessionId: string) =>
 
 describe('useChat transport per session', () => {
   beforeEach(() => {
+    usePrivacyMode.setState({ mode: 'standard', loaded: true, saving: false, error: null })
     useChatSessions.getState().clearSessions()
+  })
+
+  it('refreshes the session tools after privacy recovery without changing the selected mode', () => {
+    usePrivacyMode.setState({ loaded: false, error: 'Read failure' })
+    renderHook(() => useChat({ sessionId: 'retry' }))
+    const transport = transportOf('retry')!
+    const previous = transport.refreshTools.mock.calls.length
+    act(() => usePrivacyMode.setState({ loaded: true, error: null }))
+    expect(transport.refreshTools.mock.calls.length).toBeGreaterThan(previous)
   })
 
   it('gives a newly opened thread its own transport', () => {

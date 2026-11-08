@@ -7,6 +7,7 @@ import {
 import { useCoworkConfig } from '@/hooks/useCoworkConfig'
 import {
   ASK_TOOL_NAME,
+  isCoworkProcessTool,
   PLAN_DENIED_TOOLS,
   TASK_TOOL_NAME,
   TODO_TOOL_NAME,
@@ -24,11 +25,13 @@ import {
   KEEP_PLANNING_LABEL,
   PLAN_REVIEW_QUESTION_ID,
 } from '@/lib/coworkPrompt'
+import { getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
 
 export type DispatchContext = {
   sessionId: string
   readOnlyFolder: string | null
   planMode: boolean
+  allowProcesses?: boolean
   /** Request-owned failure history. Omitted by children, which cannot plan. */
   failedReadPaths?: Set<string>
   /** Mirrors the advertised set. Refused when off, so a call to a tool that was
@@ -170,6 +173,15 @@ export async function dispatchCoworkTool(
   ctx: DispatchContext
 ): Promise<ToolOutcome> {
   const { toolName } = call
+  if (!privacyAllowsTools(getPrivacyModeSnapshot())) return {
+    output: 'El modo de privacidad actual bloqueó esta herramienta. No se ejecutó la llamada.', isError: true,
+  }
+  if (ctx.allowProcesses === false && isCoworkProcessTool(toolName)) {
+    return {
+      output: 'Los comandos y monitores están desactivados para carpetas de proyecto compartidas en Windows. Usa las herramientas de archivos.',
+      isError: true,
+    }
+  }
 
   if (ctx.planMode && PLAN_DENIED_TOOLS.has(toolName)) {
     return planRefusal(toolName)

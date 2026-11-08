@@ -130,9 +130,9 @@ export function getModelDisplayName(model: Model): string {
 export function getProviderLogo(provider: string) {
   switch (provider) {
     case 'jan':
-      return '/images/model-provider/jan.png'
+      return '/images/rey30-idvj.svg'
     case 'llamacpp':
-      return '/images/model-provider/llamacpp.svg'
+      return '/images/rey30-idvj.svg'
     case 'mlx':
       return '/images/model-provider/mlx.png'
     case 'anthropic':

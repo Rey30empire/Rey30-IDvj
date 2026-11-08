@@ -1,5 +1,4 @@
 ﻿import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import SettingsMenu from '@/containers/SettingsMenu'
 import HeaderPage from '@/containers/HeaderPage'
 import { Card, CardItem } from '@/containers/Card'
@@ -13,8 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.interface as any)({
+export const Route = createFileRoute('/settings/interface')({
   component: InterfaceSettings,
 })
 
@@ -57,7 +55,7 @@ function InterfaceSettings() {
               />
               <CardItem
                 title="Accent color"
-                description="Customize the accent color of the application."
+                description={t('ui-details:accentColorDescription')}
                 className="flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-y-2"
                 actions={<AccentColorPicker />}
               />

@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import SettingsMenu from '@/containers/SettingsMenu'
 import HeaderPage from '@/containers/HeaderPage'
 import { Switch } from '@/components/ui/switch'
@@ -11,12 +10,8 @@ import { useAppUpdater } from '@/hooks/useAppUpdater'
 import { useEffect, useState, useCallback } from 'react'
 import ChangeDataFolderLocation from '@/containers/dialogs/ChangeDataFolderLocation'
 import { FactoryResetDialog } from '@/containers/dialogs'
-import type { FactoryResetOptions } from '@/services/app/types'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import {
-  IconBrandDiscord,
-  IconBrandGithub,
-  IconExternalLink,
   IconFolder,
   IconLogs,
   IconCopy,
@@ -26,13 +21,12 @@ import { toast } from 'sonner'
 import { isDev } from '@/lib/utils'
 import { SystemEvent } from '@/types/events'
 import { Input } from '@/components/ui/input'
-import { useHardware } from '@/hooks/useHardware'
 import LanguageSwitcher from '@/containers/LanguageSwitcher'
 import { isRootDir } from '@/utils/path'
+import { AppResourcesDialog, type AppResource } from '@/containers/dialogs/AppResourcesDialog'
 const TOKEN_VALIDATION_TIMEOUT_MS = 10_000
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.general as any)({
+export const Route = createFileRoute('/settings/general')({
   component: General,
 })
 
@@ -58,42 +52,22 @@ function General() {
     }
   }
   const { checkForUpdate } = useAppUpdater()
-  const { pausePolling, resumePolling } = useHardware()
-  const [janDataFolder, setJanDataFolder] = useState<string | undefined>()
+  const [rey30DataFolder, setRey30DataFolder] = useState<string | undefined>()
   const [isCopied, setIsCopied] = useState(false)
   const [selectedNewPath, setSelectedNewPath] = useState<string | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [isValidatingToken, setIsValidatingToken] = useState(false)
+  const [resource, setResource] = useState<AppResource | null>(null)
 
   useEffect(() => {
     const fetchDataFolder = async () => {
-      const path = await serviceHub.app().getJanDataFolder()
-      setJanDataFolder(path)
+      const path = await serviceHub.app().getRey30DataFolder()
+      setRey30DataFolder(path)
     }
 
     fetchDataFolder()
   }, [serviceHub])
-
-  const resetApp = async (options: FactoryResetOptions) => {
-    if (isRootDir(janDataFolder ?? '/')) {
-      toast.error(t('settings:general.couldNotResetRootDirectory'))
-      return
-    }
-    pausePolling()
-    try {
-      await serviceHub.app().factoryReset(options)
-    } catch (error) {
-      // Model unloads and the backend can both fail here; the backend also
-      // refuses data folders the isRootDir check above does not list. Its
-      // message says why, so show that rather than guessing a cause.
-      console.error('Factory reset failed:', error)
-      resumePolling()
-      toast.error(t('settings:general.factoryResetFailed'), {
-        description: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
 
   const handleOpenLogs = async () => {
     try {
@@ -117,10 +91,10 @@ function General() {
     const selectedPath = await serviceHub.dialog().open({
       multiple: false,
       directory: true,
-      defaultPath: janDataFolder,
+      defaultPath: rey30DataFolder,
     })
 
-    if (selectedPath === janDataFolder) return
+    if (selectedPath === rey30DataFolder) return
     if (selectedPath !== null) {
       setSelectedNewPath(selectedPath as string)
       setIsDialogOpen(true)
@@ -137,8 +111,8 @@ function General() {
             // Prevent relocating to root directory (e.g., C:\ or D:\ on Windows, / on Unix)
             if (isRootDir(selectedNewPath))
               throw new Error(t('settings:general.couldNotRelocateToRoot'))
-            await serviceHub.app().relocateJanDataFolder(selectedNewPath)
-            setJanDataFolder(selectedNewPath)
+            await serviceHub.app().relocateRey30DataFolder(selectedNewPath)
+            setRey30DataFolder(selectedNewPath)
             // Only relaunch if relocation was successful
             window.core?.api?.relaunch()
             setSelectedNewPath(null)
@@ -155,8 +129,8 @@ function General() {
       } catch (error) {
         console.error('Failed to relocate data folder:', error)
         // Revert the data folder path on error
-        const originalPath = await serviceHub.app().getJanDataFolder()
-        setJanDataFolder(originalPath)
+        const originalPath = await serviceHub.app().getRey30DataFolder()
+        setRey30DataFolder(originalPath)
 
         toast.error(t('settings:general.failedToRelocateDataFolderDesc'))
       }
@@ -238,6 +212,15 @@ function General() {
                 title={t('common:language')}
                 actions={<LanguageSwitcher />}
               />
+              <CardItem
+                title={t('preferences-recovery:title')}
+                description={t('preferences-recovery:rowDescription')}
+                actions={
+                  <FactoryResetDialog>
+                    <Button variant="outline" size="sm">{t('preferences-recovery:resetButton')}</Button>
+                  </FactoryResetDialog>
+                }
+              />
             </Card>
 
             {/* Data folder - Desktop only */}
@@ -260,15 +243,15 @@ function General() {
                       <div className="max-w-100 bg-secondary rounded-sm px-1 py-0.5">
                         <span
                           data-testid="app-data-folder-path"
-                          title={janDataFolder}
+                          title={rey30DataFolder}
                           className="text-xs line-clamp-1 break-all"
                         >
-                          {janDataFolder}
+                          {rey30DataFolder}
                         </span>
                       </div>
                       <button
                         onClick={() =>
-                          janDataFolder && copyToClipboard(janDataFolder)
+                          rey30DataFolder && copyToClipboard(rey30DataFolder)
                         }
                         className="cursor-pointer flex items-center justify-center rounded-sm bg-secondary transition-all duration-200 ease-in-out p-1"
                         title={
@@ -310,7 +293,7 @@ function General() {
                     </Button>
                     {selectedNewPath && (
                       <ChangeDataFolderLocation
-                        currentPath={janDataFolder || ''}
+                        currentPath={rey30DataFolder || ''}
                         newPath={selectedNewPath}
                         onConfirm={confirmDataFolderChange}
                         open={isDialogOpen}
@@ -340,10 +323,10 @@ function General() {
                       size="sm"
                       className="p-0"
                       onClick={async () => {
-                        if (janDataFolder) {
+                        if (rey30DataFolder) {
                           try {
                             const logsPath = await serviceHub.path().join(
-                              janDataFolder,
+                              rey30DataFolder,
                               'logs'
                             )
                             await serviceHub.opener().openPath(logsPath)
@@ -378,41 +361,17 @@ function General() {
             </Card>
 
             {/* Advanced - Desktop only */}
-            <Card title="Advanced">
-              {IS_TAURI && (
+            {IS_TAURI && <Card title={t('ui-spanish:advanced')}>
                 <CardItem
-                  title={t('settings:general.janCli')}
-                  description={t('settings:general.janCliDesc')}
+                  title={t('settings:general.rey30Cli')}
+                  description={t('settings:general.rey30CliDesc')}
                   actions={
-                    <a
-                      href="https://www.jan.ai/docs/agent/quickstart"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="flex items-center gap-1">
-                        <span>{t('settings:general.janCliSetupGuide')}</span>
-                        <IconExternalLink size={14} />
-                      </div>
-                    </a>
+                    <Button variant="outline" size="sm" onClick={() => setResource('cli')}>
+                      {t('settings:general.rey30CliSetupGuide')}
+                    </Button>
                   }
                 />
-              )}
-              <CardItem
-                title={t('settings:others.resetFactory', {
-                  ns: 'settings',
-                })}
-                description={t('settings:others.resetFactoryDesc', {
-                  ns: 'settings',
-                })}
-                actions={
-                  <FactoryResetDialog onReset={resetApp}>
-                    <Button variant="destructive" size="sm">
-                      {t('common:reset')}
-                    </Button>
-                  </FactoryResetDialog>
-                }
-              />
-            </Card>
+            </Card>}
 
             {/* Other */}
             <Card title={t('common:others')}>
@@ -441,6 +400,9 @@ function General() {
                   <div className="flex items-center gap-2">
                     <Input
                       id="hf-token"
+                      type="password"
+                      autoComplete="off"
+                      aria-label="Token de Hugging Face"
                       value={huggingfaceToken || ''}
                       onChange={(e) => setHuggingfaceToken(e.target.value)}
                       placeholder={'hf_xxx_xxx'}
@@ -454,7 +416,7 @@ function General() {
                         const token = (huggingfaceToken || '').trim()
                         if (!token) {
                           toast.error(
-                            'Please enter a Hugging Face token to validate'
+                            t('ui-spanish:hfTokenRequired')
                           )
                           return
                         }
@@ -474,28 +436,28 @@ function General() {
                           )
                           if (resp.ok) {
                             const data = await resp.json()
-                            toast.success('Token is valid', {
+                            toast.success(t('ui-spanish:hfTokenValid'), {
                               description: data?.name
-                                ? `Signed in as ${data.name}`
-                                : 'Your Hugging Face token is valid.',
+                                ? t('ui-spanish:hfSignedIn', { name: data.name })
+                                : t('ui-spanish:hfTokenValidDescription'),
                             })
                           } else {
-                            toast.error('Token invalid', {
+                            toast.error(t('ui-spanish:hfTokenInvalid'), {
                               description:
-                                'The provided Hugging Face token is invalid. Please check your token and try again.',
+                                t('ui-spanish:hfTokenInvalidDescription'),
                             })
                           }
                         } catch (e) {
                           const name = (e as { name?: string })?.name
                           if (name === 'AbortError') {
-                            toast.error('Validation timed out', {
+                            toast.error(t('ui-spanish:hfTimeout'), {
                               description:
-                                'The validation request timed out. Please check your network connection and try again.',
+                                t('ui-spanish:hfTimeoutDescription'),
                             })
                           } else {
-                            toast.error('Validation failed', {
+                            toast.error(t('ui-spanish:hfFailed'), {
                               description:
-                                'A network error occurred while validating the token. Please check your internet connection.',
+                                t('ui-spanish:hfFailedDescription'),
                             })
                           }
                         } finally {
@@ -504,7 +466,7 @@ function General() {
                         }
                       }}
                     >
-                      Verify
+                      {t('ui-spanish:verify')}
                     </Button>
                   </div>
                 }
@@ -517,68 +479,18 @@ function General() {
                 title={t('settings:general.documentation')}
                 description={t('settings:general.documentationDesc')}
                 actions={
-                  <a
-                    href="https://jan.ai/docs"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>{t('settings:general.viewDocs')}</span>
-                      <IconExternalLink size={14} />
-                    </div>
-                  </a>
+                  <Button variant="outline" size="sm" onClick={() => setResource('readme')}>
+                    {t('settings:general.viewDocs')}
+                  </Button>
                 }
               />
               <CardItem
-                title={t('settings:general.releaseNotes')}
-                description={t('settings:general.releaseNotesDesc')}
+                title={t('settings:general.licenses')}
+                description={t('settings:general.licensesDesc')}
                 actions={
-                  <a
-                    href="https://github.com/janhq/jan/releases"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>{t('settings:general.viewReleases')}</span>
-                      <IconExternalLink size={14} />
-                    </div>
-                  </a>
-                }
-              />
-            </Card>
-
-            {/* Community */}
-            <Card title={t('settings:general.community')}>
-              <CardItem
-                title={t('settings:general.github')}
-                description={t('settings:general.githubDesc')}
-                actions={
-                  <a
-                    href="https://github.com/janhq/jan"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                      <IconBrandGithub
-                        size={18}
-                        className="text-muted-foreground"
-                      />
-                  </a>
-                }
-              />
-              <CardItem
-                title={t('settings:general.discord')}
-                description={t('settings:general.discordDesc')}
-                actions={
-                  <a
-                    href="https://discord.com/invite/FTk2MvZwJH"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <IconBrandDiscord
-                      size={18}
-                      className="text-muted-foreground"
-                    />
-                  </a>
+                  <Button variant="outline" size="sm" onClick={() => setResource('license')}>
+                    LICENSE
+                  </Button>
                 }
               />
             </Card>
@@ -589,15 +501,9 @@ function General() {
                 title={t('settings:general.reportAnIssue')}
                 description={t('settings:general.reportAnIssueDesc')}
                 actions={
-                  <a
-                    href="https://github.com/janhq/jan/issues/new"
-                    target="_blank"
-                  >
-                    <div className="flex items-center gap-1">
-                      <span>{t('settings:general.reportIssue')}</span>
-                      <IconExternalLink size={14} />
-                    </div>
-                  </a>
+                  <Button variant="outline" size="sm" onClick={() => setResource('support')}>
+                    {t('settings:general.reportIssue')}
+                  </Button>
                 }
               />
             </Card>
@@ -617,6 +523,7 @@ function General() {
           </div>
         </div>
       </div>
+      <AppResourcesDialog resource={resource} onClose={() => setResource(null)} />
     </div>
   )
 }

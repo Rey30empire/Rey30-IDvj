@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 class MockResizeObserver {
@@ -136,12 +136,12 @@ describe('AddEditAssistant', () => {
     expect(props.onSave).not.toHaveBeenCalled()
   })
 
-  it('calls onSave with the assistant object when name is present', () => {
+  it('calls onSave with the assistant object when name is present', async () => {
     const props = baseProps()
     render(<AddEditAssistant {...props} />)
     const nameInput = screen.getByPlaceholderText('assistants:enterName')
     fireEvent.change(nameInput, { target: { value: 'New Bot' } })
-    fireEvent.click(screen.getByText('assistants:save'))
+    await act(async () => { fireEvent.click(screen.getByText('assistants:save')) })
     expect(props.onSave).toHaveBeenCalledTimes(1)
     const saved = props.onSave.mock.calls[0][0]
     expect(saved.name).toBe('New Bot')
@@ -162,7 +162,7 @@ describe('AddEditAssistant', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('preserves an existing id and created_at when editing', () => {
+  it('preserves an existing id and created_at when editing', async () => {
     const props = baseProps()
     props.editingKey = 'keep'
     props.initialData = {
@@ -173,9 +173,34 @@ describe('AddEditAssistant', () => {
       created_at: 42,
     }
     render(<AddEditAssistant {...props} />)
-    fireEvent.click(screen.getByText('assistants:save'))
+    await act(async () => { fireEvent.click(screen.getByText('assistants:save')) })
     const saved = props.onSave.mock.calls[0][0]
     expect(saved.id).toBe('keep-id')
     expect(saved.created_at).toBe(42)
+  })
+})
+describe('local assistant file review', () => {
+  it('loads a file for review without saving or reusing its ID', async () => {
+    const props = baseProps()
+    render(<AddEditAssistant {...props} />)
+    const fixture = { name: 'assistant.json', size: 200, text: async () => JSON.stringify({ id: 'jan', name: 'Copia local', instructions: 'Texto de revisión', parameters: { temperature: 0.4 } }) }
+    fireEvent.change(screen.getByLabelText('Archivo de asistente'), { target: { files: [fixture] } })
+    await screen.findByText(/Archivo preparado: assistant.json/)
+    expect(props.onSave).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'assistants:save' }))
+    await waitFor(() => expect(props.onSave).toHaveBeenCalledTimes(1))
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ name: 'Copia local', instructions: 'Texto de revisión' })
+    expect(props.onSave.mock.calls[0][0].id).not.toBe('jan')
+  })
+  it('retains the review form and shows a persistence error instead of closing', async () => {
+    const props = baseProps()
+    props.onSave.mockRejectedValueOnce(new Error('fixture disk failure'))
+    render(<AddEditAssistant {...props} />)
+    const fixture = { name: 'copy.md', size: 20, text: async () => 'Instrucciones locales' }
+    fireEvent.change(screen.getByLabelText('Archivo de asistente'), { target: { files: [fixture] } })
+    await screen.findByText(/Archivo preparado: copy.md/)
+    fireEvent.click(screen.getByRole('button', { name: 'assistants:save' }))
+    await screen.findByText('fixture disk failure')
+    expect(props.onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })

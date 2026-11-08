@@ -39,7 +39,7 @@ export class TauriMCPService extends DefaultMCPService {
       return defaultResponse()
     }
 
-    if (!parsed || typeof parsed !== 'object') {
+    if (!isPlainObject(parsed)) {
       return defaultResponse()
     }
 
@@ -58,6 +58,7 @@ export class TauriMCPService extends DefaultMCPService {
     }
 
     return {
+      ...(isPlainObject(mcpServers) ? parsed : {}),
       mcpServers: normalizedServers,
       mcpSettings: normalizedSettings,
     }
@@ -128,8 +129,8 @@ export class TauriMCPService extends DefaultMCPService {
     return await invoke('deactivate_mcp_server', { name })
   }
 
-  async checkJanBrowserExtensionConnected(): Promise<boolean> {
-    return await invoke('check_jan_browser_extension_connected')
+  async checkRey30BrowserExtensionConnected(): Promise<boolean> {
+    return await invoke('check_rey30_browser_extension_connected')
   }
 
   async getMCPAuthStatus(name: string): Promise<MCPAuthStatus> {

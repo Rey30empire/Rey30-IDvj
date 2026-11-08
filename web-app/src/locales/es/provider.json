@@ -1,5 +1,18 @@
 {
   "addProvider": "Agregar proveedor",
   "addOpenAIProvider": "Agregar proveedor OpenAI",
-  "enterNameForProvider": "Ingresa un nombre para el proveedor"
+  "enterNameForProvider": "Ingresa un nombre para el proveedor",
+  "apiTypeLabel": "Formato de la API",
+  "apiTypeOpenAI": "Compatible con OpenAI",
+  "apiTypeAnthropic": "Compatible con Anthropic",
+  "baseUrlLabel": "URL base",
+  "baseUrlPlaceholder": "https://tu-endpoint/v1",
+  "baseUrlPlaceholderAnthropic": "https://api.anthropic.com/v1",
+  "apiKeyLabel": "Clave de API",
+  "apiKeyPlaceholder": "Pega tu clave de API",
+  "invalidBaseUrl": "La URL base debe ser una dirección HTTP o HTTPS válida",
+  "globalSettings": "Configuración general",
+  "stripReasoning": "Retirar el razonamiento anterior del contexto",
+  "stripReasoningDesc": "Retira el contenido de razonamiento de turnos anteriores antes de reenviar el historial. Puede mejorar la reutilización de la caché KV en modelos locales; algunos modelos recomiendan conservarlo para razonar entre varios turnos.",
+  "providerAlreadyExists": "Ya existe un proveedor llamado {{name}}."
 }

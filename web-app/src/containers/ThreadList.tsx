@@ -29,7 +29,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { RenameThreadDialog, DeleteThreadDialog } from '@/containers/dialogs'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { ThreadMessage } from '@janhq/core'
+import { ThreadMessage } from '@rey30-idvj/core'
 
 const ThreadItem = memo(
   ({
@@ -246,7 +246,7 @@ const ThreadItem = memo(
                   }}
                 >
                   <X className="size-4" />
-                  <span>Remove from project</span>
+                  <span>{t('ui-details:removeFromProject')}</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -254,9 +254,9 @@ const ThreadItem = memo(
             <DropdownMenuItem
               data-testid="thread-delete"
               variant="destructive"
-              disabled={thread.title === 'What is Jan?' && !localStorage.getItem('setup-completed')}
+              disabled={thread.title === 'What is Rey30 IDvj?' && !localStorage.getItem('setup-completed')}
               onSelect={() => {
-                if (thread.title !== 'What is Jan?' || localStorage.getItem('setup-completed')) {
+                if (thread.title !== 'What is Rey30 IDvj?' || localStorage.getItem('setup-completed')) {
                   setDeleteConfirmOpen(true)
                 }
               }}
@@ -275,7 +275,7 @@ const ThreadItem = memo(
           onOpenChange={setRenameOpen}
           withoutTrigger
         />
-        
+
         <DeleteThreadDialog
           thread={thread}
           onDelete={deleteThread}

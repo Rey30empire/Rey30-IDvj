@@ -11,6 +11,7 @@ import {
 } from '@/lib/coworkBudget'
 import { attachPings } from '@/lib/coworkPing'
 import { encodeToolImageSentinel } from '@/lib/tool-image-sentinel'
+import { getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
 
 /**
  * The Cowork agent loop.
@@ -20,7 +21,7 @@ import { encodeToolImageSentinel } from '@/lib/tool-image-sentinel'
  * keeps streaming while another is viewed. The handle map below lives outside
  * React for the same reason — route unmount must not abort a run.
  *
- * The loop is also ours because the AI SDK cannot own it here: Jan's tools are
+ * The loop is also ours because the AI SDK cannot own it here: Rey30 IDvj's tools are
  * declared without an `execute`, so `streamText` returns after one step and
  * `stopWhen` never evaluates. Every step boundary, and every cap, is explicit.
  */
@@ -122,7 +123,7 @@ export function abortRun(sid: string, reason = 'cancelled'): void {
 /**
  * Whether a rejection means "the user stopped this", not "this failed".
  *
- * Needed because the abort does not arrive as an `AbortError`: Jan streams
+ * Needed because the abort does not arrive as an `AbortError`: Rey30 IDvj streams
  * through `@tauri-apps/plugin-http`, whose `fetch` rejects with a plain
  * `Error('Request cancelled')` when the signal fires. Matched exactly rather
  * than by substring — "connection aborted" is a network failure and must keep
@@ -574,6 +575,10 @@ export async function runTurn(opts: {
     // its child has started, so the children overlap whatever this loop does.
     const outcomes = new Map<string, ToolOutcome>()
     for (const call of result.toolCalls) {
+      if (!privacyAllowsTools(getPrivacyModeSnapshot())) {
+        outcomes.set(call.toolCallId, { output: 'El modo de privacidad actual bloqueó esta herramienta. No se ejecutó la llamada.', isError: true })
+        continue
+      }
       if (signal.aborted) {
         outcomes.set(call.toolCallId, {
           output: '(interrupted)',

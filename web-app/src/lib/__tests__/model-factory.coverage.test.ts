@@ -225,7 +225,7 @@ describe('ModelFactory - coverage', () => {
     vi.mocked(invoke).mockResolvedValue(null)
     await expect(
       ModelFactory.createModel('llama-model', mkProvider('llamacpp'), {})
-    ).rejects.toThrow('No running session found')
+    ).rejects.toThrow('No hay una sesión activa para el modelo llama-model')
   })
 
   it('creates mlx model', async () => {

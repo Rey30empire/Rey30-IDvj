@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { EngineManager } from '@janhq/core'
-import type { AIEngine } from '@janhq/core'
+import { EngineManager } from '@rey30-idvj/core'
+import type { AIEngine } from '@rey30-idvj/core'
 import { DefaultModelsService } from '@/services/models/default'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useCoworkSessions } from '@/hooks/useCoworkSessions'

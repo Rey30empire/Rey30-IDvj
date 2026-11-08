@@ -12,7 +12,7 @@ import {
 
 import { toast } from 'sonner'
 import { CardItem } from '../Card'
-import { EngineManager } from '@janhq/core'
+import { EngineManager } from '@rey30-idvj/core'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useRouter } from '@tanstack/react-router'

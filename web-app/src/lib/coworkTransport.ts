@@ -19,6 +19,7 @@ import {
 } from '@/lib/coworkPrompt'
 import { getCoworkEnvironment } from '@/lib/coworkEnv'
 import { useModelProvider } from '@/hooks/useModelProvider'
+import { ensurePrivacyMode, getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
 
 export type CoworkRunConfig = CoworkToolOptions & {
   model: ThreadModel
@@ -118,7 +119,7 @@ export class CoworkChatTransport extends CustomChatTransport {
    * list, so plan mode and a withheld `shell` propagate to children for free.
    */
   get advertisedTools(): Record<string, Tool> {
-    return this.frozenTools ?? this.tools
+    return privacyAllowsTools(getPrivacyModeSnapshot()) ? this.frozenTools ?? this.tools : {}
   }
 
   /** Cowork shares slot 0 with the main chat, under a thread identity of its
@@ -141,6 +142,7 @@ export class CoworkChatTransport extends CustomChatTransport {
       readOnlyFolder: this.config.readOnlyFolder,
       planMode: this.config.planMode,
       bashAvailable: sandboxEnforces(),
+      allowProcesses: this.config.allowProcesses,
       subagentNames: this.config.allowSubagents
         ? this.config.subagentNames
         : [],
@@ -159,6 +161,15 @@ export class CoworkChatTransport extends CustomChatTransport {
   protected override assertSendable(): void {}
 
   override async refreshTools(): Promise<void> {
+    if (!privacyAllowsTools(await ensurePrivacyMode())) {
+      this.tools = {}
+      this.frozenTools = null
+      this.builtTools = null
+      this.builtSig = ''
+      this.memoryCatalog = []
+      this.environment = null
+      return
+    }
     // Frozen means frozen: once a run is under way the advertised set is fixed
     // even if the config changed, because rebuilding it would change the tool
     // JSON and discard the prompt prefix on the next of this turn's many
@@ -179,6 +190,13 @@ export class CoworkChatTransport extends CustomChatTransport {
       return
     }
     const tools = await buildCoworkTools(this.config)
+    if (!privacyAllowsTools(getPrivacyModeSnapshot())) {
+      this.tools = {}
+      this.frozenTools = null
+      this.builtTools = null
+      this.builtSig = ''
+      return
+    }
     this.builtTools = tools
     this.builtSig = sig
     this.frozenTools = tools

@@ -30,7 +30,7 @@ export const WindowControls = () => {
       .catch(() => setLayout(DEFAULT_TITLEBAR_LAYOUT))
   }, [setLayout])
 
-  // Refetch on focus so changes made in the DE's settings (KDE/GNOME) while Jan
+  // Refetch on focus so changes made in the DE's settings (KDE/GNOME) while Rey30 IDvj
   // was unfocused are picked up without a restart.
   useEffect(() => {
     refresh()
@@ -79,9 +79,9 @@ export const WindowControls = () => {
     close: <X className="size-4" />,
   }
   const labels: Record<ButtonId, string> = {
-    minimize: 'Minimize',
-    maximize: isMaximized ? 'Restore' : 'Maximize',
-    close: 'Close',
+    minimize: 'Minimizar',
+    maximize: isMaximized ? 'Restaurar' : 'Maximizar',
+    close: 'Cerrar',
   }
 
   const renderGroup = (ids: ButtonId[]) =>

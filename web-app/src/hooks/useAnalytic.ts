@@ -2,6 +2,7 @@ import { localStorageKey } from '@/constants/localStorage'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { backendStorage } from '@/lib/backendStorage'
+import { getPrivacyModeSnapshot } from '@/lib/privacyPolicy'
 
 export const useAnalytic = () => {
   const { productAnalyticPrompt, setProductAnalyticPrompt } =
@@ -64,7 +65,9 @@ export const useProductAnalytic = create<ProductAnalyticState>()(
       const initialState = {
         productAnalytic: false,
         setProductAnalytic: async (value: boolean) => {
-          set(() => ({ productAnalytic: value }))
+          set(() => ({
+            productAnalytic: value && getPrivacyModeSnapshot() === 'standard',
+          }))
         },
       }
 

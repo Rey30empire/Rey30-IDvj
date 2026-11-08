@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useState, useEffect, useCallback } from 'react'
 import {
   IconAdjustmentsHorizontal,
+  IconApps,
   IconCircles,
   IconChevronDown,
   IconChevronRight,
@@ -180,6 +181,7 @@ const SettingsMenu = () => {
       icon: IconPalette,
     },
     { title: 'common:assistants', route: route.settings.assistant, icon: IconFeather },
+    { title: 'common:hub', route: route.hub.index, icon: IconApps },
     {
       title: 'common:attachments',
       route: route.settings.attachments,

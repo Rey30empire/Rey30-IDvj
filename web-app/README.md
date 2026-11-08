@@ -1,6 +1,6 @@
-# @janhq/web-app
+# @rey30-idvj/web-app
 
-The React frontend of Jan Desktop: TypeScript, TanStack Router, Radix UI, Tailwind CSS,
+The React frontend of Rey30 IDvj Desktop: TypeScript, TanStack Router, Radix UI, Tailwind CSS,
 and Zustand. It is a Yarn workspace package, not a standalone app - it renders inside the
 Tauri shell and calls the Rust backend over Tauri IPC.
 

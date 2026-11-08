@@ -5,9 +5,18 @@ import { SystemEvent } from '@/types/events'
 // Mock functions
 const mockGetTools = vi.fn()
 const mockUpdateTools = vi.fn()
+const mockUpdateMcpToolNames = vi.fn()
+const mockUpdateRagToolNames = vi.fn()
 const mockListen = vi.fn()
 const mockUnsubscribe = vi.fn()
 const mockInvalidateCache = vi.fn()
+const privacy = vi.hoisted(() => ({ mode: 'standard' as 'standard' | 'local-only', loaded: true, saving: false, error: null as string | null }))
+vi.mock('@/hooks/usePrivacyMode', () => ({ usePrivacyMode: (selector: (state: typeof privacy) => unknown) => selector(privacy) }))
+vi.mock('@/lib/privacyPolicy', () => ({
+  ensurePrivacyMode: async () => { if (!privacy.loaded || privacy.saving || privacy.error) throw new Error('Policy unavailable'); return privacy.mode },
+  getPrivacyModeSnapshot: () => !privacy.loaded || privacy.saving || privacy.error ? 'local-only' : privacy.mode,
+  privacyAllowsTools: (mode: string) => mode === 'standard',
+}))
 
 vi.mock('@/lib/mcp-orchestrator/mcp-orchestrator', () => ({
   mcpOrchestrator: { invalidateCache: mockInvalidateCache },
@@ -15,7 +24,7 @@ vi.mock('@/lib/mcp-orchestrator/mcp-orchestrator', () => ({
 
 // Mock useAppState
 vi.mock('../useAppState', () => ({
-  useAppState: (selector: any) => selector({ updateTools: mockUpdateTools }),
+  useAppState: (selector: any) => selector({ updateTools: mockUpdateTools, updateMcpToolNames: mockUpdateMcpToolNames, updateRagToolNames: mockUpdateRagToolNames }),
 }))
 
 // Mock the ServiceHub
@@ -35,9 +44,55 @@ vi.mock('@/hooks/useServiceHub', () => ({
 
 describe('useTools', () => {
   beforeEach(() => {
+    privacy.mode = 'standard'
+    privacy.loaded = true
+    privacy.saving = false
+    privacy.error = null
     vi.clearAllMocks()
     mockListen.mockResolvedValue(mockUnsubscribe)
     mockGetTools.mockResolvedValue([])
+  })
+
+  it('rediscovers tools after a failed policy read is retried with the same standard mode', async () => {
+    privacy.loaded = false
+    privacy.error = 'Read failure'
+    const { useTools } = await import('../useTools')
+    const { rerender } = renderHook(() => useTools())
+    await act(async () => { await Promise.resolve() })
+    expect(mockGetTools).not.toHaveBeenCalled()
+    privacy.loaded = true
+    privacy.error = null
+    rerender()
+    await act(async () => { await Promise.resolve() })
+    expect(mockGetTools).toHaveBeenCalledTimes(1)
+    privacy.saving = true
+    rerender()
+    await act(async () => { await Promise.resolve() })
+    expect(mockUpdateTools).toHaveBeenLastCalledWith([])
+  })
+
+  it('clears the UI tool list without querying MCP in a protected mode', async () => {
+    privacy.mode = 'local-only'
+    const { useTools } = await import('../useTools')
+    renderHook(() => useTools())
+    await act(async () => { await Promise.resolve() })
+    expect(mockGetTools).not.toHaveBeenCalled()
+    expect(mockUpdateTools).toHaveBeenCalledWith([])
+    expect(mockUpdateMcpToolNames).toHaveBeenCalledWith([])
+    expect(mockUpdateRagToolNames).toHaveBeenCalledWith([])
+  })
+
+  it('discards a discovery response that finishes after the mode becomes protected', async () => {
+    let finish!: (tools: unknown[]) => void
+    mockGetTools.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    const { useTools } = await import('../useTools')
+    const { rerender } = renderHook(() => useTools())
+    await act(async () => { await Promise.resolve() })
+    privacy.mode = 'local-only'
+    rerender()
+    await act(async () => { finish([{ name: 'late-remote-tool' }]); await Promise.resolve() })
+    expect(mockUpdateTools).not.toHaveBeenCalledWith([{ name: 'late-remote-tool' }])
+    expect(mockUpdateTools).toHaveBeenLastCalledWith([])
   })
 
   afterEach(() => {
@@ -172,8 +227,7 @@ describe('useTools', () => {
     })
 
     expect(mockGetTools).toHaveBeenCalledTimes(1)
-    // updateTools should not be called if getTools fails
-    expect(mockUpdateTools).not.toHaveBeenCalled()
+    expect(mockUpdateTools).toHaveBeenCalledWith([])
 
     consoleErrorSpy.mockRestore()
   })
@@ -198,10 +252,11 @@ describe('useTools', () => {
     consoleErrorSpy.mockRestore()
   })
 
-  it('should only set up effect once with empty dependency array', async () => {
+  it('does not repeat discovery on rerender while the privacy mode is unchanged', async () => {
     const { useTools } = await import('../useTools')
     
     const { rerender } = renderHook(() => useTools())
+    await act(async () => { await Promise.resolve() })
 
     // Initial render
     expect(mockGetTools).toHaveBeenCalledTimes(1)

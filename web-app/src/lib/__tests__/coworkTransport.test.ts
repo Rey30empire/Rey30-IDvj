@@ -15,6 +15,7 @@ vi.mock('@/lib/coworkTools', async (orig) => ({
 
 import { CoworkChatTransport } from '../coworkTransport'
 import { CHAT_SLOT_ID } from '@/constants/models'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
 
 const config = (over = {}) => ({
   model: { provider: 'test', id: 'test-model' },
@@ -36,9 +37,25 @@ const slotParamsOf = (t: CoworkChatTransport, id: string) =>
 
 describe('CoworkChatTransport', () => {
   beforeEach(() => {
+    usePrivacyMode.setState({ mode: 'standard', loaded: true, saving: false, error: null })
     buildCoworkTools.mockReset()
     buildCoworkTools.mockResolvedValue({ read: {} })
     sandboxEnforces.mockReturnValue(true)
+  })
+
+  it('clears the frozen tool set in a protected mode and rebuilds after returning to standard', async () => {
+    const transport = new CoworkChatTransport('privacy', config())
+    await transport.refreshTools()
+    expect(transport.advertisedTools).toHaveProperty('read')
+    buildCoworkTools.mockClear()
+    usePrivacyMode.setState({ mode: 'cloud-review' })
+    expect(transport.advertisedTools).toEqual({})
+    await transport.refreshTools()
+    expect(buildCoworkTools).not.toHaveBeenCalled()
+    expect(transport.getTools()).toEqual({})
+    usePrivacyMode.setState({ mode: 'standard' })
+    await transport.refreshTools()
+    expect(buildCoworkTools).toHaveBeenCalledTimes(1)
   })
 
   // Cowork reserves no slot of its own: it shares the chat slot and is told

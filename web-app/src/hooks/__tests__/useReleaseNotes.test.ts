@@ -9,6 +9,8 @@ global.fetch = mockFetch
 describe('useReleaseNotes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubGlobal('APP_RELEASES_URL', 'https://example.test/rey30/releases')
+    vi.stubGlobal('AUTO_UPDATER_DISABLED', false)
     // Reset store state to defaults
     useReleaseNotes.setState({
       release: null,
@@ -19,6 +21,7 @@ describe('useReleaseNotes', () => {
 
   afterEach(() => {
     vi.resetAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('should initialize with default values', () => {
@@ -28,6 +31,13 @@ describe('useReleaseNotes', () => {
     expect(result.current.loading).toBe(false)
     expect(result.current.error).toBe(null)
     expect(typeof result.current.fetchLatestRelease).toBe('function')
+  })
+
+  it('does not fetch upstream releases when the fork updater is disabled', async () => {
+    vi.stubGlobal('AUTO_UPDATER_DISABLED', true)
+    await useReleaseNotes.getState().fetchLatestRelease(false)
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(useReleaseNotes.getState().release).toBeNull()
   })
 
   describe('fetchLatestRelease', () => {
@@ -65,7 +75,7 @@ describe('useReleaseNotes', () => {
       })
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.github.com/repos/janhq/jan/releases'
+        'https://example.test/rey30/releases'
       )
       expect(result.current.loading).toBe(false)
       expect(result.current.error).toBe(null)

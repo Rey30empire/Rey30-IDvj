@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import type { ProviderObject } from '@janhq/core'
+import type { ProviderObject } from '@rey30-idvj/core'
 import { ModelFactory } from '../model-factory'
 
 vi.mock('@tauri-apps/api/core', () => ({

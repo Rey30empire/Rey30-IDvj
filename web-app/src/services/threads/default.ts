@@ -3,7 +3,7 @@
  */
 
 import { ExtensionManager } from '@/lib/extension'
-import { ConversationalExtension, ExtensionTypeEnum } from '@janhq/core'
+import { ConversationalExtension, ExtensionTypeEnum } from '@rey30-idvj/core'
 import type { ThreadsService } from './types'
 import { TEMPORARY_CHAT_ID } from '@/constants/chat'
 
@@ -16,7 +16,10 @@ function fromModelResponse(
   fallback?: Thread['model']
 ): Thread['model'] | undefined {
   if (assistantModel) {
-    return { id: assistantModel.id, provider: assistantModel.engine ?? 'llamacpp' }
+    return {
+      id: assistantModel.id,
+      provider: assistantModel.engine ?? 'llamacpp',
+    }
   }
   return fallback
 }
@@ -90,9 +93,13 @@ export class DefaultThreadsService implements ThreadsService {
       ? [{ ...thread.assistants![0], model: modelPayload }]
       : [{ id: 'model-only', name: 'Model', model: modelPayload }]
 
+    const extension = ExtensionManager.getInstance().get<ConversationalExtension>(ExtensionTypeEnum.Conversational)
+    if (!extension && thread.metadata?.literaryLibrary === true) {
+      throw new Error('No se pudo guardar el chat privado de la biblioteca.')
+    }
+
     return (
-      ExtensionManager.getInstance()
-        .get<ConversationalExtension>(ExtensionTypeEnum.Conversational)
+      extension
         ?.createThread({
           ...thread,
           assistants: assistantsPayload,
@@ -102,7 +109,10 @@ export class DefaultThreadsService implements ThreadsService {
           },
         })
         .then((e) => {
-          const model = fromModelResponse(e.assistants?.[0]?.model, thread.model)
+          const model = fromModelResponse(
+            e.assistants?.[0]?.model,
+            thread.model
+          )
 
           const assistants = e.assistants
 
@@ -114,7 +124,10 @@ export class DefaultThreadsService implements ThreadsService {
             assistants,
           } as Thread
         })
-        .catch(() => thread) ?? thread
+        .catch((error) => {
+          if (thread.metadata?.literaryLibrary === true) throw error
+          return thread
+        }) ?? thread
     )
   }
 
@@ -124,25 +137,37 @@ export class DefaultThreadsService implements ThreadsService {
       return
     }
 
-    await ExtensionManager.getInstance()
-      .get<ConversationalExtension>(ExtensionTypeEnum.Conversational)
-      ?.modifyThread({
-        ...thread,
-        assistants: thread.assistants?.map((e) => ({
-          ...e,
-          model: toModelPayload(thread.model),
-        })) ?? [
-          { model: toModelPayload(thread.model), id: 'jan', name: 'Jan' },
-        ],
-        metadata: {
-          ...thread.metadata,
-          is_favorite: thread.isFavorite,
-          order: thread.order,
-        },
-        object: 'thread',
-        created: Date.now() / 1000,
-        updated: Date.now() / 1000,
-      })
+    const extension =
+      ExtensionManager.getInstance().get<ConversationalExtension>(
+        ExtensionTypeEnum.Conversational
+      )
+    if (!extension)
+      throw new Error(
+        'El almacenamiento de conversaciones todavía no está disponible. No se guardó el cambio de asistente.'
+      )
+    await extension.modifyThread({
+      ...thread,
+      assistants: thread.assistants?.length
+        ? thread.assistants.map((e) => ({
+            ...e,
+            model: toModelPayload(thread.model),
+          }))
+        : [
+            {
+              model: toModelPayload(thread.model),
+              id: 'model-only',
+              name: 'Model',
+            },
+          ],
+      metadata: {
+        ...thread.metadata,
+        is_favorite: thread.isFavorite,
+        order: thread.order,
+      },
+      object: 'thread',
+      created: Date.now() / 1000,
+      updated: Date.now() / 1000,
+    })
   }
 
   async deleteThread(threadId: string): Promise<void> {

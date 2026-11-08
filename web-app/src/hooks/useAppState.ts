@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ThreadMessage } from '@janhq/core'
+import { ThreadMessage } from '@rey30-idvj/core'
 import { MCPTool } from '@/types/completion'
 
 export type PromptProgress = {

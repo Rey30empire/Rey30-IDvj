@@ -7,7 +7,7 @@ import {
   ConversationalExtension,
   ExtensionTypeEnum,
   ThreadMessage,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import { TEMPORARY_CHAT_ID } from '@/constants/chat'
 import type { MessagesService } from './types'
 

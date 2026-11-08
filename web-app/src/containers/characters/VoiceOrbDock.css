@@ -1,0 +1,31 @@
+.voice-orb {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  border: 2px solid var(--voice-color);
+  border-radius: 50%;
+  background: var(--background);
+  color: var(--voice-color);
+  cursor: pointer;
+  transition: border-color 180ms ease, color 180ms ease;
+}
+.voice-orb-dock { --voice-color: var(--muted-foreground); }
+.voice-orb-dock[data-state='listening'] { --voice-color: #19715e; }
+.voice-orb-dock[data-state='thinking'] { --voice-color: #95611e; }
+.voice-orb-dock[data-state='speaking'] { --voice-color: #b64b34; }
+.dark .voice-orb-dock[data-state='listening'] { --voice-color: #63c8af; }
+.dark .voice-orb-dock[data-state='thinking'] { --voice-color: #e0af67; }
+.dark .voice-orb-dock[data-state='speaking'] { --voice-color: #f19f89; }
+.voice-orb-dock[data-state='error'] { --voice-color: var(--destructive); }
+.voice-orb-core { width: 36px; height: 36px; border: 1px solid var(--voice-ring); border-radius: 50%; background: radial-gradient(circle at 30% 25%, var(--voice-detail), transparent 52%), var(--voice-sphere); box-shadow: inset 4px 4px 8px #ffffff35, inset -5px -5px 9px #00000035; }
+.voice-orb::before { content: ''; position: absolute; inset: -5px; padding: 2px; border-radius: 50%; background: conic-gradient(from 0deg, transparent, var(--voice-color), transparent); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; opacity: 0; pointer-events: none; }
+.voice-orb-dock:is([data-state='listening'],[data-state='thinking'],[data-state='speaking']):not([data-motion='0']) .voice-orb::before { opacity: .8; animation: voice-orb-halo 4s linear infinite; }
+.voice-orb-dock[data-state='listening']:not([data-motion='0']) .voice-orb-core { animation: voice-orb-listening 1.8s ease-in-out infinite; }
+.voice-orb-dock[data-state='speaking']:not([data-motion='0']) .voice-orb-core { transform: scale(calc(.8 + var(--voice-level, 0) * .35)); transition: transform 60ms linear; }
+@keyframes voice-orb-listening { 50% { transform: scale(.88); } }
+@keyframes voice-orb-halo { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .voice-orb-dock .voice-orb, .voice-orb-dock .voice-orb-core, .voice-orb-dock .voice-orb::before { animation: none !important; transition: none !important; transform: none !important; }
+}

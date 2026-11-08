@@ -81,11 +81,10 @@ export async function generateThreadTitle(
 
     const provider = getProviderByName(selectedProvider)
     if (!provider) {
-      console.warn('[ThreadTitle] Provider not found:', selectedProvider)
+      console.warn('[ThreadTitle] Provider not found')
       return null
     }
 
-    console.log('[ThreadTitle] Creating model:', selectedModel.id, 'provider:', selectedProvider)
     // Slot 0 like every other surface, but under its own thread identity: the
     // engine parks the chat's KV prefix before this call takes the slot and
     // restores it on the next chat turn. Sending no thread_id would overwrite
@@ -104,7 +103,6 @@ export async function generateThreadTitle(
       params
     )
 
-    console.log('[ThreadTitle] Calling generateText...')
     const { text } = await generateText({
       model,
       messages: [{ role: 'user', content: buildSummarizePrompt(transcript) }],
@@ -112,14 +110,12 @@ export async function generateThreadTitle(
       abortSignal,
     })
 
-    console.log('[ThreadTitle] Raw response:', JSON.stringify(text))
     const cleaned = cleanTitle(text)
-    console.log('[ThreadTitle] Cleaned title:', cleaned)
     return cleaned
   } catch (error) {
     // Silently swallow abort errors — this is expected when the user sends a new message
     if ((error as Error).name === 'AbortError') return null
-    console.error('[ThreadTitle] Failed to generate title:', error)
+    console.error('[ThreadTitle] Failed to generate title')
     return null
   }
 }

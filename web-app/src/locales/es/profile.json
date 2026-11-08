@@ -1,0 +1,14 @@
+{
+  "title": "Perfil",
+  "local": "Perfil local",
+  "openMenu": "Abrir menú de perfil de {{name}}",
+  "localDescription": "Tu nombre e iniciales se guardan en este dispositivo. La conexión con GitHub es opcional e independiente de tu perfil local.",
+  "name": "Nombre",
+  "initials": "Iniciales del avatar",
+  "initialsHint": "Usa de 1 a 3 letras o números.",
+  "save": "Guardar perfil",
+  "invalidName": "Escribe un nombre de 1 a 60 caracteres.",
+  "invalidInitials": "Usa de 1 a 3 letras o números para el avatar.",
+  "saveFailed": "No se pudo guardar tu perfil en este dispositivo. Vuelve a intentarlo.",
+  "documentation": "Ayuda y documentación"
+}

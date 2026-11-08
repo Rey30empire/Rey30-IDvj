@@ -7,6 +7,12 @@ const activateMCPServer = vi.fn()
 const deactivateMCPServer = vi.fn()
 const getConnectedServers = vi.fn().mockResolvedValue([])
 const updateSettings = vi.fn()
+const json = vi.hoisted(() => ({
+  onSave: undefined as undefined | ((value: unknown) => Promise<void>),
+  updateMCPConfig: vi.fn(),
+  getMCPConfig: vi.fn().mockResolvedValue({}),
+  setState: vi.fn(),
+}))
 
 vi.mock('@/containers/SettingsMenu', () => ({
   default: () => <div data-testid="settings-menu">Settings Menu</div>,
@@ -19,7 +25,13 @@ vi.mock('@/containers/HeaderPage', () => ({
 }))
 
 vi.mock('@/containers/Card', () => ({
-  Card: ({ header, children }: { header?: React.ReactNode; children: React.ReactNode }) => (
+  Card: ({
+    header,
+    children,
+  }: {
+    header?: React.ReactNode
+    children: React.ReactNode
+  }) => (
     <div data-testid="card">
       {header}
       {children}
@@ -51,6 +63,13 @@ vi.mock('@/containers/dialogs/DeleteMCPServerConfirm', () => ({
 }))
 
 vi.mock('@/containers/dialogs/EditJsonMCPserver', () => ({
+  default: ({ onSave }: { onSave: (value: unknown) => Promise<void> }) => {
+    json.onSave = onSave
+    return null
+  },
+}))
+
+vi.mock('@/containers/dialogs/ImportResourcesDialog', () => ({
   default: () => null,
 }))
 
@@ -90,7 +109,9 @@ vi.mock('@/components/ui/switch', () => ({
 }))
 
 vi.mock('@/components/ui/input', () => ({
-  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
+  Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input {...props} />
+  ),
 }))
 
 vi.mock('@/hooks/useServiceHub', () => ({
@@ -99,6 +120,8 @@ vi.mock('@/hooks/useServiceHub', () => ({
       activateMCPServer,
       deactivateMCPServer,
       getConnectedServers,
+      updateMCPConfig: json.updateMCPConfig,
+      getMCPConfig: json.getMCPConfig,
     }),
   }),
 }))
@@ -108,6 +131,18 @@ vi.mock('@/hooks/useToolApproval', () => ({
     allowAllMCPPermissions: true,
     setAllowAllMCPPermissions: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/useMcpAuth', () => ({
+  useMcpAuth: () => ({
+    statuses: {},
+    authorizing: {},
+    consentUrls: {},
+    refresh: vi.fn(),
+    authorize: vi.fn(),
+    clearAuth: vi.fn(),
+  }),
+  needsAuthDetail: () => null,
 }))
 
 vi.mock('@/hooks/useModelProvider', () => ({
@@ -124,40 +159,43 @@ vi.mock('@/hooks/useMCPServers', () => ({
     routerModelId: '',
     maxToolOutputChars: 40000,
   },
-  useMCPServers: () => ({
-    mcpServers: {
-      NotesMCP: {
+  useMCPServers: Object.assign(
+    () => ({
+      mcpServers: {
+        NotesMCP: {
+          command: 'npx',
+          args: ['notes'],
+          env: {},
+          type: 'stdio',
+          active: false,
+        },
+      },
+      settings: {
+        toolCallTimeoutSeconds: 60,
+        enableSmartToolRouting: false,
+        useLightweightRouterModel: false,
+        routerModelProvider: '',
+        routerModelId: '',
+        maxToolOutputChars: 40000,
+      },
+      addServer: vi.fn(),
+      editServer: vi.fn(),
+      renameServer: vi.fn(),
+      deleteServer: vi.fn(),
+      syncServers: vi.fn(),
+      syncServersAndRestart: vi.fn(),
+      getServerConfig: () => ({
         command: 'npx',
         args: ['notes'],
         env: {},
         type: 'stdio',
         active: false,
-      },
-    },
-    settings: {
-      toolCallTimeoutSeconds: 60,
-      enableSmartToolRouting: false,
-      useLightweightRouterModel: false,
-      routerModelProvider: '',
-      routerModelId: '',
-      maxToolOutputChars: 40000,
-    },
-    addServer: vi.fn(),
-    editServer: vi.fn(),
-    renameServer: vi.fn(),
-    deleteServer: vi.fn(),
-    syncServers: vi.fn(),
-    syncServersAndRestart: vi.fn(),
-    getServerConfig: () => ({
-      command: 'npx',
-      args: ['notes'],
-      env: {},
-      type: 'stdio',
-      active: false,
+      }),
+      setSettings: vi.fn(),
+      updateSettings,
     }),
-    setSettings: vi.fn(),
-    updateSettings,
-  }),
+    { setState: json.setState }
+  ),
 }))
 
 vi.mock('@/i18n/react-i18next-compat', () => ({
@@ -178,7 +216,7 @@ vi.mock('@/types/events', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: (_path: string) => (config: { component: React.ComponentType }) => config,
+  createFileRoute: () => (config: { component: React.ComponentType }) => config,
 }))
 
 vi.mock('@/constants/routes', () => ({
@@ -199,6 +237,7 @@ vi.mock('sonner', () => ({
 describe('MCP servers route error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    json.getMCPConfig.mockReset().mockResolvedValue({})
     useAppState.setState({
       errorMessage: undefined,
     })
@@ -211,6 +250,7 @@ describe('MCP servers route error handling', () => {
     const Component = McpServersRoute.component as React.ComponentType
     render(<Component />)
 
+    fireEvent.click(screen.getByText('mcp-servers:catalog.browser.advanced'))
     const toggles = screen.getAllByRole('button', { name: 'toggle' })
     await act(async () => {
       fireEvent.click(toggles[toggles.length - 1])
@@ -225,18 +265,82 @@ describe('MCP servers route error handling', () => {
   })
 
   it('stores a normalized activation error when activation rejects with an object payload', async () => {
-    activateMCPServer.mockRejectedValueOnce({ message: 'wrapped startup failed' })
+    activateMCPServer.mockRejectedValueOnce({
+      message: 'wrapped startup failed',
+    })
 
     const Component = McpServersRoute.component as React.ComponentType
     render(<Component />)
 
+    fireEvent.click(screen.getByText('mcp-servers:catalog.browser.advanced'))
     const toggles = screen.getAllByRole('button', { name: 'toggle' })
     await act(async () => {
       fireEvent.click(toggles[toggles.length - 1])
     })
 
     await waitFor(() => {
-      expect(useAppState.getState().errorMessage?.message).toBe('wrapped startup failed')
+      expect(useAppState.getState().errorMessage?.message).toBe(
+        'wrapped startup failed'
+      )
+    })
+  })
+
+  it('rejects invalid JSON payloads before touching saved or running servers', async () => {
+    const Component = McpServersRoute.component as React.ComponentType
+    await act(async () => {
+      render(<Component />)
+    })
+    for (const invalid of [[], null, { mcpServers: [] }, { broken: null }]) {
+      await expect(json.onSave?.(invalid)).rejects.toThrow()
+    }
+    expect(json.updateMCPConfig).not.toHaveBeenCalled()
+    expect(json.setState).not.toHaveBeenCalled()
+    expect(deactivateMCPServer).not.toHaveBeenCalled()
+    expect(activateMCPServer).not.toHaveBeenCalled()
+  })
+
+  it('keeps visible and running servers untouched if the configuration write fails', async () => {
+    json.updateMCPConfig.mockRejectedValueOnce(new Error('disk full'))
+    const Component = McpServersRoute.component as React.ComponentType
+    await act(async () => {
+      render(<Component />)
+    })
+    await expect(
+      json.onSave?.({ replacement: { command: 'node' } })
+    ).rejects.toThrow('disk full')
+    expect(json.setState).not.toHaveBeenCalled()
+    expect(deactivateMCPServer).not.toHaveBeenCalled()
+    expect(activateMCPServer).not.toHaveBeenCalled()
+  })
+
+  it('preserves latest metadata and future settings when JSON replaces the explicit server map', async () => {
+    json.getMCPConfig.mockResolvedValue({
+      mcpServers: { NotesMCP: { command: 'old' } },
+      mcpSettings: { futureSetting: null },
+      customMetadata: { nested: [1, null] },
+      futureField: false,
+      nullable: null,
+    })
+    const Component = McpServersRoute.component as React.ComponentType
+    await act(async () => {
+      render(<Component />)
+    })
+    await act(async () => {
+      await json.onSave?.({
+        mcpServers: { replacement: { command: 'node', active: false } },
+        mcpSettings: { maxToolOutputChars: 0 },
+        newMetadata: null,
+      })
+    })
+    const saved = JSON.parse(json.updateMCPConfig.mock.calls.at(-1)![0])
+    expect(saved.customMetadata).toEqual({ nested: [1, null] })
+    expect(saved.futureField).toBe(false)
+    expect(saved.nullable).toBeNull()
+    expect(saved.newMetadata).toBeNull()
+    expect(saved.mcpSettings.futureSetting).toBeNull()
+    expect(saved.mcpSettings.maxToolOutputChars).toBe(0)
+    expect(saved.mcpServers).toEqual({
+      replacement: { command: 'node', active: false },
     })
   })
 })
@@ -249,6 +353,10 @@ describe('max tool output characters control', () => {
   })
 
   const capInput = (): HTMLInputElement => {
+    const details = screen.getByTestId(
+      'mcp-advanced-settings'
+    ) as HTMLDetailsElement
+    if (!details.open) fireEvent.click(details.querySelector('summary')!)
     const inputs = screen.getAllByRole<HTMLInputElement>('spinbutton')
     const found = inputs.find((i) => i.value === '40000')
     if (!found) throw new Error('cap input not rendered')

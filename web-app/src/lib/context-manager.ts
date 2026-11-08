@@ -182,8 +182,10 @@ export async function compactMessages(
   messages: UIMessage[],
   config: ContextManagerConfig,
   model: LanguageModel,
-  systemPromptTokens: number = 0
+  systemPromptTokens: number = 0,
+  abortSignal?: AbortSignal
 ): Promise<TrimResult> {
+  if (abortSignal?.aborted) throw new DOMException('Operación cancelada.', 'AbortError')
   const { maxContextTokens, maxOutputTokens } = config
 
   if (maxContextTokens <= 0) {
@@ -240,6 +242,7 @@ export async function compactMessages(
       system: COMPACT_SYSTEM_PROMPT,
       prompt: `Summarize this conversation excerpt:\n\n${truncated}`,
       maxOutputTokens: summaryOutputTokens,
+      abortSignal,
     })
 
     // Inject the summary as a system message so models treat it as context
@@ -268,7 +271,8 @@ export async function compactMessages(
       compactedSummary: summary,
     }
   } catch (error) {
-    console.warn('Auto-compact summarization failed, falling back to trim:', error)
+    if (abortSignal?.aborted || error instanceof Error && error.name === 'AbortError') throw new DOMException('Operación cancelada.', 'AbortError')
+    console.warn('Auto-compact summarization failed, falling back to trim')
     return trimResult
   }
 }

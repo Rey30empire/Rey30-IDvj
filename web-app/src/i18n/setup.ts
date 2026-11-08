@@ -56,9 +56,9 @@ const getStoredLanguage = (): string => {
   try {
     const stored = localStorage.getItem(localStorageKey.settingGeneral)
     const parsed = stored ? JSON.parse(stored) : {}
-    return parsed?.state?.currentLanguage || 'en'
+    return parsed?.version >= 1 ? parsed?.state?.currentLanguage || 'es' : 'es'
   } catch {
-    return 'en'
+    return 'es'
   }
 }
 
@@ -78,6 +78,7 @@ const translate = (key: string, options: Record<string, unknown> = {}): string =
   
   // Helper function to get nested value from object using dot notation
   const getNestedValue = (obj: Record<string, unknown>, path: string): string | undefined => {
+    if (obj && Object.prototype.hasOwnProperty.call(obj, path) && typeof obj[path] === 'string') return obj[path]
     return path.split('.').reduce((current, key) => {
       return current && typeof current === 'object' && current !== null && key in current
         ? (current as Record<string, unknown>)[key]
@@ -135,6 +136,7 @@ const changeLanguage = (lng: string): void => {
       const stored = localStorage.getItem(localStorageKey.settingGeneral)
       const parsed = stored ? JSON.parse(stored) : { state: {} }
       parsed.state.currentLanguage = lng
+      parsed.version = 1
       localStorage.setItem(localStorageKey.settingGeneral, JSON.stringify(parsed))
     } catch (error) {
       console.error('Failed to save language preference:', error)
@@ -148,7 +150,7 @@ const initI18n = (): I18nInstance => {
   
   i18nInstance = {
     language: currentLanguage,
-    fallbackLng: 'en',
+    fallbackLng: 'es',
     resources,
     namespaces,
     defaultNS: 'common',

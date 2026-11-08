@@ -20,6 +20,7 @@ import {
   type FitTier,
 } from '@/lib/modelCompatibility'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 interface ModelInfoHoverCardProps {
   model: CatalogModel
@@ -75,6 +76,7 @@ export const ModelInfoHoverCard = ({
   defaultModelQuantizations,
   children,
 }: ModelInfoHoverCardProps) => {
+  const { t } = useTranslation()
   const hardwareData = useHardware((s) => s.hardwareData)
 
   const displayVariant = model.is_mlx
@@ -91,6 +93,7 @@ export const ModelInfoHoverCard = ({
   )
   const style = TRIGGER_STYLES[tier]
   const Icon = style.icon
+  const label = t(`ui-spanish:fit.${tier}`)
 
   const trigger = children ?? (
     <button
@@ -100,10 +103,10 @@ export const ModelInfoHoverCard = ({
         isDefaultVariant ? 'text-xs px-2 py-1' : 'text-[11px] px-1.5 py-0.5',
         style.pill
       )}
-      aria-label={`Device compatibility: ${style.label}`}
+      aria-label={`${t('ui-spanish:deviceCompatibility')}: ${label}`}
     >
       <Icon size={isDefaultVariant ? 14 : 12} />
-      {isDefaultVariant && <span>{style.label}</span>}
+      {isDefaultVariant && <span>{label}</span>}
     </button>
   )
 
@@ -118,8 +121,8 @@ export const ModelInfoHoverCard = ({
             </h4>
             <p className="text-xs text-muted-foreground mt-1">
               {!isDefaultVariant
-                ? 'Model Variant Information'
-                : 'Model Information'}
+                ? t('ui-spanish:modelVariantInformation')
+                : t('ui-spanish:modelInformation')}
             </p>
           </div>
 
@@ -127,17 +130,17 @@ export const ModelInfoHoverCard = ({
             {!model.is_mlx && (
               <div>
                 <span className="text-muted-foreground block">
-                  {isDefaultVariant ? 'Default Quantization' : 'Quantization'}
+                  {t(isDefaultVariant ? 'ui-spanish:defaultQuantization' : 'ui-spanish:quantization')}
                 </span>
                 <span className="font-medium mt-1 inline-block">
-                  {extractQuantLabel(displayVariant?.model_id) || 'N/A'}
+                  {extractQuantLabel(displayVariant?.model_id) || t('ui-spanish:notAvailable')}
                 </span>
               </div>
             )}
 
             <div>
               <span className="text-muted-foreground block">
-                Device compatibility
+                {t('ui-spanish:deviceCompatibility')}
               </span>
               <div className="flex items-start gap-2 mt-1">
                 <div
@@ -147,13 +150,12 @@ export const ModelInfoHoverCard = ({
                   )}
                 />
                 <div>
-                  <p className="font-medium">{style.label}</p>
-                  <p className="text-muted-foreground mt-0.5">{style.detail}</p>
+                  <p className="font-medium">{label}</p>
+                  <p className="text-muted-foreground mt-0.5">{t(`ui-spanish:fitDetail.${tier}`)}</p>
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2 italic">
-                Estimated from file size and your hardware. Actual performance
-                depends on quantization and context length.
+                {t('ui-spanish:fitEstimate')}
               </p>
             </div>
           </div>
@@ -161,17 +163,17 @@ export const ModelInfoHoverCard = ({
           {((model.num_mmproj ?? 0) > 0 || model.tools) && (
             <div className="border-t pt-3">
               <h5 className="text-xs font-medium text-muted-foreground mb-2">
-                Features
+                {t('ui-spanish:features')}
               </h5>
               <div className="flex flex-wrap gap-2">
                 {model.tools && (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-secondary rounded-sm">
-                    <span className="text-xs font-medium">Tools</span>
+                    <span className="text-xs font-medium">{t('ui-spanish:tools')}</span>
                   </div>
                 )}
                 {(model.num_mmproj ?? 0) > 0 && (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-secondary rounded-sm">
-                    <span className="text-xs font-medium">Vision</span>
+                    <span className="text-xs font-medium">{t('ui-spanish:vision')}</span>
                   </div>
                 )}
               </div>

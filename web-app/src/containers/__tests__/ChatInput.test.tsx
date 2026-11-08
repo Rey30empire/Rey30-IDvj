@@ -33,16 +33,19 @@ const updateCurrentThreadModelMock = vi.fn()
 const createThreadMock = vi.fn()
 const getCurrentThreadMock = vi.fn(() => undefined)
 
-vi.mock('@/hooks/useThreads', () => ({
-  useThreads: (selector: any) =>
-    selector({
+vi.mock('@/hooks/useThreads', () => {
+  const state = () => ({
       currentThreadId: 'thread-1',
+      threads: {},
       getCurrentThread: getCurrentThreadMock,
       updateCurrentThreadAssistant: updateCurrentThreadAssistantMock,
       updateCurrentThreadModel: updateCurrentThreadModelMock,
       createThread: createThreadMock,
-    }),
-}))
+  })
+  return {
+    useThreads: Object.assign((selector: any) => selector(state()), { getState: state }),
+  }
+})
 
 let appStateOverrides: any = {}
 vi.mock('@/hooks/useAppState', () => ({
@@ -100,7 +103,8 @@ vi.mock('@/hooks/useTokensCount', () => ({
 }))
 
 vi.mock('@/hooks/useAssistant', () => ({
-  useAssistant: () => ({
+  useAssistant: (selector?: (state: any) => any) => {
+    const state = {
     loading: false,
     currentAssistant: { id: 'a1', name: 'Global assistant', avatar: '' },
     setCurrentAssistant: vi.fn(),
@@ -108,7 +112,16 @@ vi.mock('@/hooks/useAssistant', () => ({
       { id: 'a1', name: 'Global assistant', avatar: '' },
       { id: 'a2', name: 'Project assistant', avatar: '' },
     ],
-  }),
+    }
+    return selector ? selector(state) : state
+  },
+}))
+vi.mock('@/hooks/useAvailableAssistants', () => ({
+  useAvailableAssistants: () => [
+    { id: 'a1', name: 'Global assistant', avatar: '' },
+    { id: 'a2', name: 'Project assistant', avatar: '' },
+  ],
+  useActiveCharacter: () => undefined,
 }))
 
 let agentModeOn = false
@@ -177,8 +190,8 @@ vi.mock('@/hooks/useChatAttachments', () => ({
   ),
 }))
 
-vi.mock('@/hooks/useJanBrowserExtension', () => ({
-  useJanBrowserExtension: () => ({
+vi.mock('@/hooks/useBrowserExtension', () => ({
+  useBrowserExtension: () => ({
     hasConfig: false,
     isActive: false,
     isLoading: false,
@@ -235,7 +248,7 @@ vi.mock('@/lib/extension', () => ({
   },
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   ExtensionTypeEnum: { MCP: 'mcp', VectorDB: 'vectordb' },
   MCPExtension: class {},
   VectorDBExtension: class {},
@@ -256,7 +269,7 @@ vi.mock('@/i18n/react-i18next-compat', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { info: vi.fn(), error: vi.fn(), success: vi.fn() },
+  toast: { info: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn() },
 }))
 
 vi.mock('ai', () => ({ generateId: () => 'gen-id-1' }))
@@ -277,7 +290,7 @@ vi.mock('@/containers/AvatarEmoji', () => ({
 vi.mock('@/containers/McpExtensionToolLoader', () => ({
   McpExtensionToolLoader: () => null,
 }))
-vi.mock('@/containers/dialogs/JanBrowserExtensionDialog', () => ({
+vi.mock('@/containers/dialogs/BrowserExtensionDialog', () => ({
   __esModule: true,
   default: () => null,
 }))
@@ -302,7 +315,23 @@ vi.mock('@/components/ui/dropdown-menu', () => {
         {children}
       </button>
     ),
+    DropdownMenuCheckboxItem: ({ children, checked, disabled, onSelect, onCheckedChange, ...props }: any) => (
+      <button
+        {...props}
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={(event) => {
+          onSelect?.(event)
+          onCheckedChange?.(!checked)
+        }}
+      >
+        {children}
+      </button>
+    ),
     DropdownMenuTrigger: Pass,
+    DropdownMenuLabel: Pass,
     DropdownMenuSeparator: () => null,
     DropdownMenuSub: Pass,
     DropdownMenuSubContent: Pass,
@@ -373,12 +402,12 @@ describe('ChatInput', () => {
     expect(document.querySelector('[data-test-id="send-message-button"]')).toBeTruthy()
   })
 
-  it('shows the project assistant for a new conversation', () => {
+  it('keeps the project assistant in chat options without a second central selector', async () => {
     renderInput({ projectId: 'project-1', projectAssistantId: 'a2' })
-
-    expect(
-      screen.getByRole('button', { name: 'Switch assistant' })
-    ).toHaveTextContent('Project assistant')
+    expect(screen.queryByRole('button', { name: 'Switch assistant' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'ui-details:samplingParameters' }))
+    expect(await screen.findByText('Project assistant')).toBeInTheDocument()
+    expect(screen.queryByText('Global assistant')).not.toBeInTheDocument()
   })
 
   it('disables the send button when prompt is empty', () => {

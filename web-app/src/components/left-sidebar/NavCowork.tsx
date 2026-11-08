@@ -29,6 +29,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { route } from '@/constants/routes'
 import {
   Box,
+  FolderOpen,
   SlidersHorizontal,
   MoreHorizontal,
   Trash2,
@@ -39,10 +40,6 @@ import {
   MessageCircleIcon,
   type MessageCircleIconHandle,
 } from '@/components/animated-icon/message-circle'
-import {
-  SettingsIcon,
-  type SettingsIconHandle,
-} from '@/components/animated-icon/settings'
 import {
   AnimatedLucideIcon,
   type AnimatedLucideIconHandle,
@@ -56,6 +53,8 @@ import {
 import { useCoworkRun, useIsSessionActive } from '@/hooks/useCoworkRun'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import SkillsManagerDialog from '@/containers/dialogs/SkillsManagerDialog'
+import { useCoworkFolderPicker } from '@/hooks/useCoworkFolderPicker'
+import { basenameOf } from '@/lib/coworkPreview'
 
 type CoworkNavItem = {
   title: string
@@ -64,9 +63,7 @@ type CoworkNavItem = {
   onClick: () => void
 }
 
-// Leaving a session behind is the moment an abandoned empty one becomes
-// unreachable (it has no sidebar row) — sweep those out of the store, keeping
-// any session whose first run is still streaming its turns in useCoworkRun.
+// An unbound, untouched session can be discarded once it leaves the sidebar.
 const pruneEmpty = () => {
   const running = Object.keys(useCoworkRun.getState().runId)
   useCoworkSessions.getState().pruneEmptySessions(running)
@@ -92,17 +89,20 @@ const SessionItem = memo(function SessionItem({
 }) {
   const { t } = useTranslation()
   const isRunning = useIsSessionActive(session.id)
+  const label = session.folder ? basenameOf(session.folder) : session.title === 'New session' ? t('common:newSession') : session.title
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={isCurrent}
         onClick={() => onSelect(session.id)}
+        title={session.folder ?? label}
+        data-testid={session.folder ? 'workspace-folder-session' : undefined}
       >
         {isRunning && (
           <Loader2 className="size-3 shrink-0 animate-spin text-muted-foreground" />
         )}
-        <span className="truncate">{session.title}</span>
+        <span className="truncate">{label}</span>
       </SidebarMenuButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -111,7 +111,7 @@ const SessionItem = memo(function SessionItem({
             className="hover:bg-sidebar-foreground/8"
           >
             <MoreHorizontal />
-            <span className="sr-only">More</span>
+            <span className="sr-only">{t('common:workspace.sessionOptions', { name: label })}</span>
           </SidebarMenuAction>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -122,7 +122,7 @@ const SessionItem = memo(function SessionItem({
           <DropdownMenuItem
             variant="destructive"
             onSelect={() =>
-              onRequestDelete({ id: session.id, title: session.title })
+              onRequestDelete({ id: session.id, title: label })
             }
           >
             <Trash2 />
@@ -165,13 +165,10 @@ export function NavCowork() {
   const { isMobile } = useSidebar()
   const sessions = useCoworkSessions((s) => s.sessions)
   const currentId = useCoworkSessions((s) => s.currentId)
-  // A session only earns a sidebar row once it has messages. A first run's
-  // turns are transient in useCoworkRun until committed, so a streaming
-  // session stays listed via its active run — otherwise switching away
-  // mid-first-run would make it unreachable.
+  // An explicitly opened folder remains reachable before its first question.
   const runIds = useCoworkRun((s) => s.runId)
   const visibleSessions = useMemo(
-    () => sessions.filter((s) => s.turns.length > 0 || runIds[s.id] != null),
+    () => sessions.filter((s) => !!s.folder || s.turns.length > 0 || !!s.messages?.length || runIds[s.id] != null),
     [sessions, runIds]
   )
   const [skillsOpen, setSkillsOpen] = useState(false)
@@ -182,8 +179,8 @@ export function NavCowork() {
   } | null>(null)
 
   const goCowork = useCallback(() => navigate({ to: route.cowork }), [navigate])
+  const folderPicker = useCoworkFolderPicker(goCowork)
   const newSessionIconRef = useRef<MessageCircleIconHandle>(null)
-  const settingsIconRef = useRef<SettingsIconHandle>(null)
   const newSession = () => {
     startNewSession(Object.keys(useCoworkRun.getState().runId))
     goCowork()
@@ -242,23 +239,21 @@ export function NavCowork() {
             <span>{t('common:newSession')}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
+        {folderPicker.available && (
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              data-testid="open-project-folder"
+              disabled={folderPicker.picking}
+              onClick={() => void folderPicker.openFolder()}
+            >
+              <FolderOpen aria-hidden="true" className="size-4 text-foreground/70" />
+              <span>{t('common:workspace.openFolder')}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
         {items.map((item) => (
           <CoworkNavItemRow key={item.title} item={item} />
         ))}
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            onClick={() => navigate({ to: route.settings.general })}
-            onMouseEnter={() => settingsIconRef.current?.startAnimation()}
-            onMouseLeave={() => settingsIconRef.current?.stopAnimation()}
-          >
-            <SettingsIcon
-              ref={settingsIconRef}
-              className="text-foreground/70"
-              size={16}
-            />
-            <span>{t('common:settings')}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
 
       {/* px-0: the group's own p-2 would indent the session rows past the nav

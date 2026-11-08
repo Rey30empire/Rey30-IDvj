@@ -18,14 +18,18 @@ import { useSkills, type HubSkill } from '@/hooks/useSkills'
 export default function SkillsManagerDialog({
   open,
   onOpenChange,
+  folderOverride,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  folderOverride?: string | null
 }) {
   const { t } = useTranslation()
   const sessions = useCoworkSessions((s) => s.sessions)
   const currentId = useCoworkSessions((s) => s.currentId)
-  const folder = sessions.find((s) => s.id === currentId)?.folder ?? null
+  const folder = folderOverride === undefined
+    ? sessions.find((s) => s.id === currentId)?.folder ?? null
+    : folderOverride
 
   const { skills, remove, write, read, hubList, hubImport } = useSkills(folder)
   const localNames = new Set(skills.map((s) => s.name))

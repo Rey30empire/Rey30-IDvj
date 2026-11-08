@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { Route as GeneralRoute } from '../general'
 
 // Mock all the dependencies
@@ -128,16 +128,19 @@ vi.mock('@/components/ui/input', () => ({
     value,
     onChange,
     placeholder,
+    type,
   }: {
     value: string
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     placeholder?: string
+    type?: string
   }) => (
     <input
       data-testid="input"
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      type={type}
     />
   ),
 }))
@@ -172,8 +175,8 @@ vi.mock('@/components/ui/dialog', () => ({
 vi.mock('@/services/app/web', () => ({
   WebAppService: vi.fn().mockImplementation(() => ({
     factoryReset: vi.fn(),
-    getJanDataFolder: vi.fn().mockResolvedValue('/test/data/folder'),
-    relocateJanDataFolder: vi.fn(),
+    getRey30DataFolder: vi.fn().mockResolvedValue('/test/data/folder'),
+    relocateRey30DataFolder: vi.fn(),
   })),
 }))
 
@@ -189,8 +192,8 @@ vi.mock('@/hooks/useServiceHub', () => ({
   useServiceHub: () => ({
     app: () => ({
       factoryReset: mockFactoryReset,
-      getJanDataFolder: vi.fn().mockResolvedValue('/test/data/folder'),
-      relocateJanDataFolder: vi.fn(),
+      getRey30DataFolder: vi.fn().mockResolvedValue('/test/data/folder'),
+      relocateRey30DataFolder: vi.fn(),
     }),
     models: () => ({
       stopAllModels: vi.fn(),
@@ -353,6 +356,7 @@ describe('General Settings Route', () => {
     const input = screen.getByTestId('input')
     expect(input).toBeInTheDocument()
     expect(input).toHaveValue('test-token')
+    expect(input).toHaveAttribute('type', 'password')
   })
 
   it('should handle spell check toggle', async () => {
@@ -441,35 +445,27 @@ describe('General Settings Route', () => {
     expect(screen.getByTestId('dialog-content')).toBeInTheDocument()
   })
 
-  it('reports a failed factory reset with its reason and resumes polling', async () => {
-    const { toast } = await import('sonner')
-    const { useHardware } = await import('@/hooks/useHardware')
-    mockFactoryReset.mockRejectedValueOnce('Refusing to reset /home/jan')
+  it('offers the translated settings reset action without invoking a destructive reset', async () => {
     const Component = GeneralRoute.component as React.ComponentType
-    await act(async () => {
-      render(<Component />)
-    })
-
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText('settings:general.reset'))
-    })
-
-    expect(toast.error).toHaveBeenCalledWith(
-      'settings:general.factoryResetFailed',
-      { description: 'Refusing to reset /home/jan' }
-    )
-    expect(useHardware.getState().pollingPaused).toBe(false)
+    await act(async () => { render(<Component />) })
+    const trigger = screen.getByTestId('dialog-trigger')
+    expect(within(trigger).getByRole('button', { name: 'preferences-recovery:resetButton' })).toBeInTheDocument()
+    const languageRow = screen.getByTestId('language-switcher').closest('[data-testid="card-item"]')
+    expect(languageRow?.nextElementSibling).toBe(trigger.closest('[data-testid="card-item"]'))
+    expect(screen.queryByLabelText('settings:general.reset')).not.toBeInTheDocument()
+    expect(mockFactoryReset).not.toHaveBeenCalled()
   })
 
-  it('should render external links', async () => {
+  it('opens the bundled license locally without an upstream application link', async () => {
     const Component = GeneralRoute.component as React.ComponentType
     await act(async () => {
       render(<Component />)
     })
 
-    // Check for external links
-    const links = screen.getAllByRole('link')
-    expect(links.length).toBeGreaterThan(0)
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'LICENSE' }))
+    expect(screen.getByText('Rey30 IDvj · LICENSE')).toBeInTheDocument()
+    expect(screen.getByText(/Copyright 2025 Menlo Research/)).toBeInTheDocument()
   })
 
   it('should handle logs window opening', async () => {

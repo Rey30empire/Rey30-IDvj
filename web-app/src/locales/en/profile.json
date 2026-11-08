@@ -1,0 +1,14 @@
+{
+  "title": "Profile",
+  "local": "Local profile",
+  "openMenu": "Open profile menu for {{name}}",
+  "localDescription": "Your name and initials are saved on this device. GitHub connection is optional and separate from your local profile.",
+  "name": "Name",
+  "initials": "Avatar initials",
+  "initialsHint": "Use 1 to 3 letters or numbers.",
+  "save": "Save profile",
+  "invalidName": "Enter a name of 1 to 60 characters.",
+  "invalidInitials": "Use 1 to 3 letters or numbers for your avatar.",
+  "saveFailed": "Your profile could not be saved on this device. Try again.",
+  "documentation": "Help and documentation"
+}

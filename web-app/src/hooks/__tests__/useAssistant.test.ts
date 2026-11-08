@@ -16,6 +16,7 @@ describe('useAssistant', () => {
       useAssistant.setState({
         assistants: [defaultAssistant],
         currentAssistant: defaultAssistant,
+        loading: true,
       })
     })
   })
@@ -27,7 +28,23 @@ describe('useAssistant', () => {
     expect(result.current.currentAssistant).toEqual(defaultAssistant)
   })
 
-  it('should add assistant', () => {
+  it('renames only the legacy default assistant and retains its model and custom instructions', () => {
+    const legacy = {
+      ...defaultAssistant,
+      name: 'Jan',
+      model: { id: 'Jan-v3.5-4B-Q4_K_XL', engine: 'llamacpp' },
+      instructions: 'Keep my custom instructions.',
+      description: 'My saved description.',
+    }
+    const custom = { ...defaultAssistant, id: 'custom', name: 'My assistant' }
+    act(() => useAssistant.getState().setAssistants([legacy, custom]))
+
+    const restored = useAssistant.getState().assistants
+    expect(restored[0]).toEqual({ ...legacy, name: 'Rey30 IDvj' })
+    expect(restored[1]).toEqual(custom)
+  })
+
+  it('should add assistant', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const newAssistant = {
@@ -40,32 +57,76 @@ describe('useAssistant', () => {
       parameters: {},
     }
 
-    act(() => {
-      result.current.addAssistant(newAssistant)
+    await act(async () => {
+      await result.current.addAssistant(newAssistant)
     })
 
     expect(result.current.assistants).toHaveLength(2)
     expect(result.current.assistants).toContain(newAssistant)
   })
 
-  it('should update assistant', () => {
+  it.each(
+    ['Jan', 'Rey30 IDvj'].flatMap((legacyName) =>
+      ["'", '\u2019'].map((apostrophe) => ({ legacyName, apostrophe }))
+    )
+  )(
+    'migrates only the exact $legacyName default description with apostrophe $apostrophe while keeping custom instructions and parameters',
+    ({ legacyName, apostrophe }) => {
+      const legacy = {
+        ...defaultAssistant,
+        name: legacyName,
+        avatar: '👋',
+        description: `${legacyName} is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user${apostrophe}s behalf.`,
+        instructions: 'Instrucciones propias que deben conservarse.',
+        parameters: { temperature: 0.37 },
+        model: { id: 'owned-model', engine: 'llamacpp' },
+      }
+      act(() => useAssistant.getState().setAssistants([legacy]))
+      expect(useAssistant.getState().assistants[0]).toEqual({
+        ...legacy,
+        name: defaultAssistant.name,
+        avatar: '/images/rey30-idvj.svg',
+        description: defaultAssistant.description,
+      })
+    }
+  )
+
+  it('preserves a customized Jan avatar/description and leaves other assistants unchanged', () => {
+    const custom = {
+      ...defaultAssistant,
+      name: 'Mi asistente',
+      avatar: '/images/owned.svg',
+      description:
+        'Rey30 IDvj is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user\u2019s behalf. Mi descripción personalizada.',
+    }
+    const other = {
+      ...custom,
+      id: 'owned-assistant',
+      name: 'Jan',
+      avatar: '👋',
+    }
+    act(() => useAssistant.getState().setAssistants([custom, other]))
+    expect(useAssistant.getState().assistants).toEqual([custom, other])
+  })
+
+  it('should update assistant', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const updatedAssistant = {
       ...defaultAssistant,
-      name: 'Updated Jan',
+      name: 'Updated Rey30 IDvj',
       description: 'Updated description',
     }
 
-    act(() => {
-      result.current.updateAssistant(updatedAssistant)
+    await act(async () => {
+      await result.current.updateAssistant(updatedAssistant)
     })
 
-    expect(result.current.assistants[0].name).toBe('Updated Jan')
+    expect(result.current.assistants[0].name).toBe('Updated Rey30 IDvj')
     expect(result.current.assistants[0].description).toBe('Updated description')
   })
 
-  it('should delete assistant', () => {
+  it('should delete assistant', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const assistant2 = {
@@ -78,13 +139,13 @@ describe('useAssistant', () => {
       parameters: {},
     }
 
-    act(() => {
-      result.current.addAssistant(assistant2)
+    await act(async () => {
+      await result.current.addAssistant(assistant2)
     })
 
     expect(result.current.assistants).toHaveLength(2)
 
-    act(() => {
+    await act(async () => {
       result.current.deleteAssistant('assistant-2')
     })
 
@@ -152,8 +213,10 @@ describe('useAssistant', () => {
     const { result } = renderHook(() => useAssistant())
 
     expect(result.current.currentAssistant.id).toBe('jan')
-    expect(result.current.currentAssistant.name).toBe('Jan')
-    expect(result.current.currentAssistant.avatar).toBe('👋')
+    expect(result.current.currentAssistant.name).toBe('Rey30 IDvj')
+    expect(result.current.currentAssistant.avatar).toBe(
+      '/images/rey30-idvj.svg'
+    )
     expect(result.current.currentAssistant.instructions).toContain(
       'Before engaging any tools, articulate your complete thought process in natural language'
     )
@@ -171,18 +234,18 @@ describe('useAssistant', () => {
     expect(result.current.assistants).toEqual([])
   })
 
-  it('should update assistant in current assistant if it matches', () => {
+  it('should update assistant in current assistant if it matches', async () => {
     const { result } = renderHook(() => useAssistant())
 
     const updatedDefaultAssistant = {
       ...defaultAssistant,
-      name: 'Updated Jan Name',
+      name: 'Updated Rey30 IDvj Name',
     }
 
-    act(() => {
-      result.current.updateAssistant(updatedDefaultAssistant)
+    await act(async () => {
+      await result.current.updateAssistant(updatedDefaultAssistant)
     })
 
-    expect(result.current.currentAssistant.name).toBe('Updated Jan Name')
+    expect(result.current.currentAssistant.name).toBe('Updated Rey30 IDvj Name')
   })
 })

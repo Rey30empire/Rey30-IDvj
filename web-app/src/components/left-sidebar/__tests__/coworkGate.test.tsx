@@ -38,6 +38,7 @@ vi.mock('@/containers/DownloadManegement', () => ({
 vi.mock('../NavCowork', () => ({ NavCowork: () => <div>Cowork sessions</div> }))
 vi.mock('../NavMain', () => ({ NavMain: () => <div>Chat navigation</div> }))
 vi.mock('../NavChats', () => ({ NavChats: () => <div>Chat threads</div> }))
+vi.mock('../NavAssistants', () => ({ NavAssistants: () => null }))
 vi.mock('../NavProjects', () => ({ NavProjects: () => null }))
 vi.mock('@/components/ui/sidebar', () => {
   const Box = ({ children }: { children: ReactNode }) => <div>{children}</div>
@@ -45,10 +46,13 @@ vi.mock('@/components/ui/sidebar', () => {
     Sidebar: Box,
     SidebarContent: Box,
     SidebarHeader: Box,
+    SidebarFooter: Box,
     SidebarTrigger: () => null,
     SidebarRail: () => null,
   }
 })
+
+vi.mock('../SidebarProfile', () => ({ SidebarProfile: () => <div>Local profile menu</div> }))
 
 import { LeftSidebar } from '..'
 

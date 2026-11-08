@@ -69,8 +69,16 @@ import {
 import { defaultModel } from '@/lib/models'
 import { cancelAgentThreadBash, getSandboxStatus } from '@/lib/agentTools'
 import { useChatShell } from '@/hooks/useChatShell'
+import { expandChatSkill } from '@/lib/chatSkills'
+import ChatSkillsMenu from '@/containers/ChatSkillsMenu'
 import { useAssistant } from '@/hooks/useAssistant'
-import { AssistantSwitcher } from '@/containers/AssistantSwitcher'
+import CharacterPanel, { CharacterAudioRuntime } from '@/containers/characters/CharacterPanel'
+import VoiceOrbDock from '@/containers/characters/VoiceOrbDock'
+import { useAvailableAssistants } from '@/hooks/useAvailableAssistants'
+import { selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
+import { isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
+import { useCharacterAudio } from '@/lib/characters/audio'
+import { isPendingVoiceTurn, useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import DropdownToolsAvailable from '@/containers/DropdownToolsAvailable'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useTools } from '@/hooks/useTools'
@@ -84,7 +92,7 @@ import {
   MCPExtension,
   fs,
   VectorDBExtension,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import { ExtensionManager } from '@/lib/extension'
 import { useAttachments } from '@/hooks/useAttachments'
 import { useImageAttachmentConfig } from '@/hooks/useImageAttachmentConfig'
@@ -111,8 +119,8 @@ import {
   resolveAutoInlineBudget,
 } from '@/lib/attachmentProcessing'
 import { activePathTokens } from '@/lib/message-branching'
-import JanBrowserExtensionDialog from '@/containers/dialogs/JanBrowserExtensionDialog'
-import { useJanBrowserExtension } from '@/hooks/useJanBrowserExtension'
+import BrowserExtensionDialog from '@/containers/dialogs/BrowserExtensionDialog'
+import { useBrowserExtension } from '@/hooks/useBrowserExtension'
 import { useAgentMode } from '@/hooks/useAgentMode'
 import { useWebSearchConfig } from '@/hooks/useWebSearchConfig'
 import {
@@ -143,8 +151,9 @@ type ChatInputProps = {
     documents?: Attachment[],
     /** What the user typed, before @path references were expanded into
      * `text`, so a cancelled send can hand it back unchanged. */
-    draft?: string
-  ) => void
+    draft?: string,
+    voiceGeneration?: number
+  ) => void | Promise<void>
   onStop?: () => void
   chatStatus?: ChatStatus
   /**
@@ -306,12 +315,14 @@ const ChatInput = memo(function ChatInput({
   useTools()
   const router = useRouter()
   const createThread = useThreads((state) => state.createThread)
-  const { 
+  const {
     loading,
     currentAssistant,
     setCurrentAssistant,
-    assistants
   } = useAssistant()
+  const assistants = useAvailableAssistants()
+  const privateLibraryChat = isLiteraryThread(currentThread) ||
+    (!currentThreadId && (projectAssistantId || currentAssistant?.id) === literaryAssistantId)
 
   // Agent mode
   // Use TEMPORARY_CHAT_ID as fallback key on the home screen (same pattern as attachments)
@@ -320,9 +331,9 @@ const ChatInput = memo(function ChatInput({
     state.agentThreads[agentModeKey] === true
   )
   // When projectId is present, treat as normal chat (disable agent mode UI)
-  const effectiveAgentMode = isAgentMode && !projectId
+  const effectiveAgentMode = isAgentMode && !projectId && !privateLibraryChat
   // Gate for the controls that shape which tools the model is offered.
-  const showToolControls = ownsToolSet && !effectiveAgentMode
+  const showToolControls = ownsToolSet && !effectiveAgentMode && !privateLibraryChat
   const webSearchEnabled = useWebSearchConfig((s) => s.webSearchEnabled)
   const setWebSearchEnabled = useWebSearchConfig((s) => s.setWebSearchEnabled)
   const shellEnabled = useChatShell((s) => s.shellEnabled)
@@ -496,21 +507,20 @@ const ChatInput = memo(function ChatInput({
 
   useEffect(() => {
     setSelectedAssistantId(projectAssistantId || currentAssistant?.id || '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, projectAssistantId])
+  },[loading, projectAssistantId, currentAssistant?.id])
 
   // Jan Browser Extension hook
   const {
-    hasConfig: hasJanBrowserMCPConfig,
-    isActive: janBrowserMCPActive,
-    isLoading: isJanBrowserMCPLoading,
+    hasConfig: hasBrowserMCPConfig,
+    isActive: browserMCPActive,
+    isLoading: isBrowserMCPLoading,
     dialogOpen: extensionDialogOpen,
     dialogState: extensionDialogState,
     toggleBrowser: handleBrowseClick,
     disableDueToIncompatibleModel,
     handleCancel: handleExtensionDialogCancel,
     setDialogOpen: setExtensionDialogOpen,
-  } = useJanBrowserExtension()
+  } = useBrowserExtension()
 
   // Check if model supports browser feature (requires both vision and tools)
   const modelSupportsBrowser = useMemo(() => {
@@ -520,12 +530,12 @@ const ChatInput = memo(function ChatInput({
 
   // Auto-disable browser feature when model doesn't support it
   useEffect(() => {
-    if (janBrowserMCPActive && !modelSupportsBrowser) {
+    if (browserMCPActive && !modelSupportsBrowser) {
       disableDueToIncompatibleModel()
     }
     // disableDueToIncompatibleModel omitted: its !isActive guard makes stale closures safe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [janBrowserMCPActive, modelSupportsBrowser])
+  }, [browserMCPActive, modelSupportsBrowser])
 
   const attachmentsEnabled = useAttachments((s) => s.enabled)
   const parsePreference = useAttachments((s) => s.parseMode)
@@ -632,19 +642,43 @@ const ChatInput = memo(function ChatInput({
   const mcpExtension = extensionManager.get<MCPExtension>(ExtensionTypeEnum.MCP)
   const MCPToolComponent = mcpExtension?.getToolComponent?.()
 
-  const handleSendMessage = async (prompt: string) => {
+  const handleSendMessage = async (prompt: string, voiceGeneration?: number) => {
     if (!selectedModel) {
       setMessage('Please select a model to start chatting.')
       return
+    }
+
+    const voiceTurn = voiceGeneration !== undefined
+    if (privateLibraryChat && window.location.search.includes(`${TEMPORARY_CHAT_QUERY_ID}=true`)) {
+      const error = 'Abre un chat guardado para usar la biblioteca literaria.'
+      if (voiceTurn) throw new Error(error)
+      toast.error(error)
+      return
+    }
+    if (!voiceTurn && ownsToolSet) {
+      const session = useAvatarVoiceSession.getState()
+      if (session.active && session.threadId === (currentThreadId ?? null)) {
+        useCharacterAudio.getState().stop(`avatar:${session.generation}`)
+        session.pause()
+      }
     }
 
     // Expand @path references that resolve to a file or folder; any other
     // `@token` (a pasted decorator) stays in the text as typed.
     const { text: resolvedText, resolvedContents } =
       await expandPromptReferences(prompt, workingDir)
+    let taskText = resolvedText
+    if (ownsToolSet && !privateLibraryChat) {
+      try {
+        taskText = await expandChatSkill(resolvedText)
+      } catch (error) {
+        toast.error(String(error))
+        return
+      }
+    }
     const effectivePrompt = resolvedContents
-      ? `${resolvedText}\n\n---\nReferenced file contents:\n\n${resolvedContents}`
-      : resolvedText
+      ? `${taskText}\n\n---\nReferenced file contents:\n\n${resolvedContents}`
+      : taskText
 
     if (!effectivePrompt.trim() && !hasSendableMedia) {
       return
@@ -653,6 +687,7 @@ const ChatInput = memo(function ChatInput({
       toast.info('Please wait for attachments to finish processing')
       return
     }
+    if (voiceTurn && !isPendingVoiceTurn(voiceGeneration, currentThreadId ?? null)) return
 
     setMessage('')
     addToHistory(effectivePrompt)
@@ -663,6 +698,7 @@ const ChatInput = memo(function ChatInput({
       // running, queue the message for later. The queue waits for the tools, so
       // a second turn never starts under a tool loop that Stop still has to end.
       if ((isStreaming || toolsRunning) && queueId) {
+        if (voiceTurn) throw new Error('Espera a que termine la respuesta antes de hablar.')
         useMessageQueue.getState().enqueue(queueId, {
           id: generateId(),
           text: effectivePrompt,
@@ -698,14 +734,16 @@ const ChatInput = memo(function ChatInput({
         (att) => att.type === 'document' && att.path
       )
 
-      onSubmit(
+      const submission = onSubmit(
         effectivePrompt,
         files.length > 0 ? files : undefined,
         documents.length > 0 ? documents : undefined,
-        prompt
+        prompt,
+        ...(voiceTurn ? [voiceGeneration] : [])
       )
       setPrompt('')
       clearAttachmentsForThread(attachmentsKey)
+      if (voiceTurn) await submission
     } else {
       // No onSubmit provided - create a new thread and navigate to it.
       // Media attachments (image/audio/video) are NOT serialized into
@@ -721,9 +759,11 @@ const ChatInput = memo(function ChatInput({
         text: effectivePrompt,
         draft: prompt,
         files: [] as Array<{ type: string; mediaType: string; url: string }>,
+        voiceGeneration,
       }
 
       if (isTemporaryChat) {
+        if (voiceTurn) throw new Error('Abre un chat de asistente para usar la voz.')
         // For temporary chat, store message and navigate to temporary thread
         sessionStorage.setItem(
           SESSION_STORAGE_KEY.INITIAL_MESSAGE_TEMPORARY,
@@ -770,6 +810,7 @@ const ChatInput = memo(function ChatInput({
           ? assistants.find((a) => a.id === projectAssistantId)
           : assistants.find((a) => a.id === selectedAssistantId)
 
+        if (voiceTurn && !isPendingVoiceTurn(voiceGeneration, null)) return
         setCurrentAssistant(assistant)
 
         const newThread = await createThread(
@@ -781,6 +822,11 @@ const ChatInput = memo(function ChatInput({
           assistant,
           projectMetadata
         )
+
+        if (voiceTurn && !isPendingVoiceTurn(voiceGeneration, newThread.id)) {
+          if (!isPendingVoiceTurn(voiceGeneration, null)) return
+          if (!useAvatarVoiceSession.getState().adoptThread(newThread.id)) return
+        }
 
         // Transfer agent mode from home screen to the new thread
         if (isAgentMode) {
@@ -863,6 +909,7 @@ const ChatInput = memo(function ChatInput({
 
   const stopStreaming = useCallback(
     (threadId: string) => {
+      useCharacterAudio.getState().stop()
       // Use onStop prop if available (AI SDK), otherwise use legacy abort
       if (onStop) {
         onStop()
@@ -951,14 +998,14 @@ const ChatInput = memo(function ChatInput({
   const handleAttachDocsIngest = async () => {
     try {
       if (!attachmentsEnabled) {
-        toast.info('Attachments are disabled in Settings')
+        toast.info(t('ui-details:attachmentsDisabled'))
         return
       }
       const selection = await serviceHub.dialog().open({
         multiple: true,
         filters: [
           {
-            name: 'Documents & Code',
+            name: t('ui-details:filterDocuments'),
             extensions: [
               // Documents
               'pdf',
@@ -1098,7 +1145,7 @@ const ChatInput = memo(function ChatInput({
             ],
           },
           {
-            name: 'All Files',
+            name: t('ui-details:filterAll'),
             extensions: ['*'],
           },
         ],
@@ -1142,7 +1189,7 @@ const ChatInput = memo(function ChatInput({
           (att) => typeof att.size === 'number' && att.size > maxFileSizeBytes
         )
         if (hasOversized) {
-          toast.error('File too large', {
+          toast.error(t('ui-details:fileTooLarge'), {
             description: `One or more files exceed the ${maxFileSizeMB}MB limit`,
           })
           return
@@ -1183,9 +1230,9 @@ const ChatInput = memo(function ChatInput({
 
       if (newDocAttachments.length > 0) {
         if (!modelSupportsTools) {
-          toast.info('Documents are added to the prompt', {
+          toast.info(t('ui-details:documentsInPrompt'), {
             description:
-              "This model can't search files, so each document is sent as text with your message.",
+              t('ui-details:documentsAsText'),
           })
         }
         await processNewDocumentAttachments(newDocAttachments)
@@ -1193,7 +1240,7 @@ const ChatInput = memo(function ChatInput({
     } catch (e) {
       console.error('Failed to attach documents:', e)
       const desc = e instanceof Error ? e.message : JSON.stringify(e)
-      toast.error('Failed to attach documents', { description: desc })
+      toast.error(t('ui-details:attachDocumentsFailed'), { description: desc })
     }
   }
 
@@ -1217,7 +1264,7 @@ const ChatInput = memo(function ChatInput({
         }
       } catch (error) {
         console.error('Failed to delete attachment from backend:', error)
-        toast.error('Failed to remove attachment', {
+        toast.error(t('ui-details:removeAttachmentFailed'), {
           description: error instanceof Error ? error.message : String(error),
         })
         return
@@ -1585,7 +1632,7 @@ const ChatInput = memo(function ChatInput({
       try {
         const selected = await serviceHub.dialog().open({
           multiple: true,
-          filters: [{ name: 'Audio', extensions: ['wav', 'mp3'] }],
+          filters: [{ name: t('ui-details:filterAudio'), extensions: ['wav', 'mp3'] }],
         })
         if (selected) {
           const paths = Array.isArray(selected) ? selected : [selected]
@@ -1603,7 +1650,7 @@ const ChatInput = memo(function ChatInput({
               files.push(new File([blob], fileName, { type: mimeType }))
             } catch (error) {
               console.error('Failed to read audio file:', error)
-              toast.error('Failed to read audio file', {
+              toast.error(t('ui-details:readAudioFailed'), {
                 description: error instanceof Error ? error.message : String(error),
               })
             }
@@ -1617,7 +1664,7 @@ const ChatInput = memo(function ChatInput({
     } else {
       audioInputRef.current?.click()
     }
-  }, [serviceHub, processAudioFiles])
+  }, [serviceHub, processAudioFiles, t])
 
   const processVideoFiles = useCallback(
     async (files: File[]) => {
@@ -1719,7 +1766,7 @@ const ChatInput = memo(function ChatInput({
       try {
         const selected = await serviceHub.dialog().open({
           multiple: true,
-          filters: [{ name: 'Video', extensions: VIDEO_EXTS }],
+          filters: [{ name: t('ui-details:filterVideo'), extensions: VIDEO_EXTS }],
         })
         if (selected) {
           const paths = Array.isArray(selected) ? selected : [selected]
@@ -1736,7 +1783,7 @@ const ChatInput = memo(function ChatInput({
               files.push(new File([blob], fileName, { type: videoMimeForExt(ext) }))
             } catch (error) {
               console.error('Failed to read video file:', error)
-              toast.error('Failed to read video file', {
+              toast.error(t('ui-details:readVideoFailed'), {
                 description: error instanceof Error ? error.message : String(error),
               })
             }
@@ -1750,7 +1797,7 @@ const ChatInput = memo(function ChatInput({
     } else {
       videoInputRef.current?.click()
     }
-  }, [serviceHub, processVideoFiles])
+  }, [serviceHub, processVideoFiles, t])
 
   // Open the image picker dialog (extracted for reuse)
   const openImagePicker = useCallback(async () => {
@@ -1760,7 +1807,7 @@ const ChatInput = memo(function ChatInput({
           multiple: true,
           filters: [
             {
-              name: 'Images',
+              name: t('ui-details:filterImages'),
               extensions: ['jpg', 'jpeg', 'png'],
             },
           ],
@@ -1797,7 +1844,7 @@ const ChatInput = memo(function ChatInput({
               files.push(file)
             } catch (error) {
               console.error('Failed to read file:', error)
-              toast.error('Failed to read file', {
+              toast.error(t('ui-details:readFileFailed'), {
                 description:
                   error instanceof Error ? error.message : String(error),
               })
@@ -1819,7 +1866,7 @@ const ChatInput = memo(function ChatInput({
       // Fallback to input click for web
       fileInputRef.current?.click()
     }
-  }, [serviceHub, processImageFiles])
+  }, [serviceHub, processImageFiles, t])
 
   const dropAcceptsAnything = hasMmproj || audioSupported || videoSupported
 
@@ -2031,9 +2078,16 @@ const ChatInput = memo(function ChatInput({
   }
 
   const isStreaming = chatStatus === 'submitted' || chatStatus === 'streaming'
+  const handleVoiceMessage = async (text: string, generation: number) => {
+    if (!selectedModel) throw new Error('Selecciona un modelo para este asistente antes de hablar.')
+    if (ingestingAny) throw new Error('Espera a que los adjuntos terminen de procesarse antes de hablar.')
+    await handleSendMessage(text, generation)
+  }
 
   return (
     <div className="relative">
+      {ownsToolSet && !effectiveAgentMode && <CharacterAudioRuntime busy={isStreaming || !!toolsRunning} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
+      {ownsToolSet && !effectiveAgentMode && <VoiceOrbDock busy={isStreaming || !!toolsRunning} onVoiceMessage={handleVoiceMessage} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
       <div className="relative">
         <div
           className={cn(
@@ -2334,6 +2388,9 @@ const ChatInput = memo(function ChatInput({
                 collapsed={collapseControls}
                 label={t('common:moreControls')}
               >
+              {ownsToolSet && (privateLibraryChat
+                ? <span className="px-2 text-xs font-medium text-muted-foreground">Biblioteca · Solo local</span>
+                : <ChatSkillsMenu />)}
               <div
                 className={cn(
                   'px-1 flex flex-wrap items-center gap-1',
@@ -2341,7 +2398,7 @@ const ChatInput = memo(function ChatInput({
                 )}
               >
                 {/* Dropdown for attachments — hidden in agent mode */}
-                {!effectiveAgentMode && (
+                {!effectiveAgentMode && !privateLibraryChat && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="icon-sm" className='rounded-full mr-2 mb-1'>
@@ -2352,7 +2409,7 @@ const ChatInput = memo(function ChatInput({
                     {hasMmproj && (
                       <DropdownMenuItem onClick={() => void openImagePicker()}>
                         <IconPhoto size={18} className="text-muted-foreground" />
-                        <span>Add Images</span>
+                        <span>{t('ui-details:addImages')}</span>
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -2365,7 +2422,7 @@ const ChatInput = memo(function ChatInput({
                     {audioSupported && (
                       <DropdownMenuItem onClick={() => void openAudioPicker()}>
                         <IconMusic size={18} className="text-muted-foreground" />
-                        <span>Add Audio</span>
+                        <span>{t('ui-details:addAudio')}</span>
                         <input
                           type="file"
                           ref={audioInputRef}
@@ -2379,7 +2436,7 @@ const ChatInput = memo(function ChatInput({
                     {videoSupported && (
                       <DropdownMenuItem onClick={() => void openVideoPicker()}>
                         <IconVideo size={18} className="text-muted-foreground" />
-                        <span>Add Video</span>
+                        <span>{t('ui-details:addVideo')}</span>
                         <input
                           type="file"
                           ref={videoInputRef}
@@ -2420,13 +2477,7 @@ const ChatInput = memo(function ChatInput({
                     useLastUsedModel={initialMessage}
                   />
                 )} */}
-                <AssistantSwitcher
-                  assistants={assistants}
-                  currentThread={currentThread}
-                  selectedAssistantId={selectedAssistantId}
-                  setSelectedAssistantId={setSelectedAssistantId}
-                  updateCurrentThreadAssistant={updateCurrentThreadAssistant}
-                />
+                {ownsToolSet && !effectiveAgentMode && <CharacterPanel presentation="compact" busy={isStreaming || !!toolsRunning} onVoiceMessage={handleVoiceMessage} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
                 <SamplerPopover
                   providerId={selectedProvider}
                   modelId={selectedModel?.id}
@@ -2434,25 +2485,25 @@ const ChatInput = memo(function ChatInput({
                     assistants,
                     currentThread,
                     selectedAssistantId,
-                    setSelectedAssistantId,
+                    setSelectedAssistantId: (id: string) => { void selectIntegratedAssistant(id, currentThreadId).then(() => setSelectedAssistantId(id)).catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'No se pudo seleccionar el asistente.')) },
                     updateCurrentThreadAssistant,
                   }}
                 />
-                {showToolControls && hasJanBrowserMCPConfig && modelSupportsBrowser && (
+                {showToolControls && hasBrowserMCPConfig && modelSupportsBrowser && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        disabled={isJanBrowserMCPLoading}
-                        className={cn(janBrowserMCPActive && "text-primary")}
+                        disabled={isBrowserMCPLoading}
+                        className={cn(browserMCPActive && "text-primary")}
                         onClick={
-                          isJanBrowserMCPLoading
+                          isBrowserMCPLoading
                             ? undefined
                             : handleBrowseClick
                         }
                       >
-                        {isJanBrowserMCPLoading ? (
+                        {isBrowserMCPLoading ? (
                           <IconLoader2
                             size={18}
                             className="text-primary animate-spin"
@@ -2462,7 +2513,7 @@ const ChatInput = memo(function ChatInput({
                             size={18}
                             className={cn(
                               'text-muted-foreground',
-                              janBrowserMCPActive && 'text-primary'
+                              browserMCPActive && 'text-primary'
                             )}
                           />
                         )}
@@ -2470,9 +2521,9 @@ const ChatInput = memo(function ChatInput({
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
-                        {isJanBrowserMCPLoading
+                        {isBrowserMCPLoading
                           ? t('common:starting')
-                          : janBrowserMCPActive
+                          : browserMCPActive
                             ? t('common:browse') + t('common:activeSuffix')
                             : t('common:browse')}
                       </p>
@@ -2823,13 +2874,11 @@ const ChatInput = memo(function ChatInput({
                     const setThinkingBudget = (level: ThinkingBudgetLevelKey) =>
                       updateModelSetting(
                         'thinking_budget_tokens',
-                        'Thinking Budget',
+                        t('ui-details:thinkingBudget'),
                         'dropdown',
                         level
                       )
-                    const currentBudgetLabel = THINKING_BUDGET_LEVELS.find(
-                      (l) => l.key === currentBudgetLevel
-                    )!.label
+                    const currentBudgetLabel = t(`ui-details:budgetLevel.${currentBudgetLevel}`)
                     // Best-effort preview only; the request-time value may
                     // differ once the model is loaded and fit settles n_ctx.
                     const approxContextSize =
@@ -2890,7 +2939,7 @@ const ChatInput = memo(function ChatInput({
                               <DropdownMenuSeparator />
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
-                                  <span className="flex-1">Thinking Budget</span>
+                                  <span className="flex-1">{t('ui-details:thinkingBudget')}</span>
                                   <span className="text-xs text-muted-foreground">
                                     {currentBudgetLabel}
                                   </span>
@@ -2913,7 +2962,7 @@ const ChatInput = memo(function ChatInput({
                                         className="gap-2"
                                       >
                                         <span className="flex-1">
-                                          {level.label}
+                                          {t(`ui-details:budgetLevel.${level.key}`)}
                                         </span>
                                         <span className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
                                           {approxTokens === -1
@@ -3037,7 +3086,7 @@ const ChatInput = memo(function ChatInput({
         </div>
       )}
 
-      <JanBrowserExtensionDialog
+      <BrowserExtensionDialog
         open={extensionDialogOpen}
         onOpenChange={setExtensionDialogOpen}
         state={extensionDialogState}

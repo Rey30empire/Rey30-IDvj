@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none" aria-hidden="true" focusable="false">
+  <g data-part="portrait" class="character-portrait">
+    <path d="M30 235v-47q0-43 70-43t70 43v47" fill="var(--character-primary,#68714C)"/>
+    <g data-part="arms" class="character-arms"><path d="m44 177-9 41 35 2m86-43 9 41-34 2" stroke="var(--character-primary,#68714C)" stroke-width="20" stroke-linecap="round"/><path d="m67 219 15-4m51 4-15-4" stroke="var(--character-skin,#C39373)" stroke-width="8" stroke-linecap="round"/></g>
+    <path d="m83 150 17 19 17-19 3 85H80Z" fill="var(--character-secondary,#E7D8B6)"/><path d="m74 152-12 18 17 15m47-33 12 18-17 15" stroke="#49563B" stroke-width="3"/><path d="M87 128h26v27l-13 14-13-14" fill="var(--character-skin,#C39373)"/><path d="M130 187h17v25h-17Z" fill="var(--character-accent,#BA845A)"/><path d="M134 190v19" stroke="#8B5E43" stroke-width="2"/>
+    <path d="M63 69q5-36 37-36t37 36l-3 48-19 27H85l-19-27Z" fill="var(--character-skin,#C39373)" stroke="#795945" stroke-width="3"/><path d="M62 88q-12-48 10-53 5-20 26-15 27-9 38 12 18 12 4 54l-7-31q-23 9-34-10-13 17-29 14Z" fill="var(--character-hair,#504238)"/><path d="M77 36q12-10 20-3m13-4q14 0 19 12" stroke="#82705A" stroke-width="4" stroke-linecap="round"/>
+    <g data-part="eyebrows" class="character-brows" stroke="#5A4437" stroke-width="3" stroke-linecap="round"><path d="m72 79 16-2m23 0 17 3"/></g>
+    <g data-part="eyes" class="character-eyes"><path d="M75 95h13m24 0h13" stroke="#F6EBDE" stroke-width="6" stroke-linecap="round"/><path d="M82 93v5m36-5v5" stroke="#443F36" stroke-width="4" stroke-linecap="round"/></g>
+    <g data-part="glasses" stroke="#343E3C" stroke-width="3"><circle cx="81" cy="95" r="15"/><circle cx="119" cy="95" r="15"/><path d="M96 94h8m-38-2-8-3m76 3 8-3"/></g>
+    <path d="m100 99-5 13h8m-24 3-4 7m46-7 4 7" stroke="#A17354" stroke-width="2" stroke-linecap="round"/>
+    <g data-part="mouth"><path class="character-mouth-rest" d="M87 127q13 6 26-1" stroke="#72513F" stroke-width="3" stroke-linecap="round"/><ellipse class="character-mouth-open" cx="100" cy="129" rx="6" ry="3" fill="#644739" opacity="0"/></g>
+  </g>
+</svg>

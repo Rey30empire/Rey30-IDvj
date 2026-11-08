@@ -12,11 +12,16 @@ import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom/vitest'
 import React from 'react'
 import { ModelCombobox } from '../ModelCombobox'
+import uiDetailsEs from '@/locales/es/ui-details.json'
 
 // Mock translation hook
 vi.mock('@/i18n/react-i18next-compat', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) => {
+      if (key.startsWith('ui-details:')) {
+        const value = (uiDetailsEs as Record<string, unknown>)[key.slice('ui-details:'.length)]
+        return typeof value === 'string' ? value : key
+      }
       if (key === 'common:failedToLoadModels') return 'Failed to load models'
       if (key === 'common:loading') return 'Loading'
       if (key === 'common:noModelsFoundFor')
@@ -437,19 +442,13 @@ describe('ModelCombobox', () => {
         '[data-dropdown="model-combobox"]'
       )
       expect(dropdown).toBeInTheDocument()
-      const refreshButton = document.querySelector(
-        '[aria-label="Refresh models"]'
-      )
+      const refreshButton = screen.getByRole('button', { name: 'Actualizar modelos' })
       expect(refreshButton).toBeInTheDocument()
     })
 
-    const refreshButton = document.querySelector(
-      '[aria-label="Refresh models"]'
-    )
-    if (refreshButton) {
-      await user.click(refreshButton)
-      expect(localMockOnRefresh).toHaveBeenCalledTimes(1)
-    }
+    const refreshButton = screen.getByRole('button', { name: 'Actualizar modelos' })
+    await user.click(refreshButton)
+    expect(localMockOnRefresh).toHaveBeenCalledTimes(1)
   })
 
   it('opens dropdown when pressing ArrowDown', async () => {

@@ -63,7 +63,7 @@ describe('Local API server page: starting on a public address', () => {
       clickStart()
 
       expect(toast.error).toHaveBeenCalledTimes(1)
-      expect(vi.mocked(toast.error).mock.calls[0][1]?.description).toContain('0.0.0.0')
+      expect(vi.mocked(toast.error).mock.calls[0][1]?.description).toBe('api-connection:networkKeyRequired')
       expect(ensureModelForServer).not.toHaveBeenCalled()
       expect(startServer).not.toHaveBeenCalled()
       expect(useAppState.getState().serverStatus).toBe('stopped')

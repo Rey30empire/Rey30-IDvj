@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect } from 'vitest'
 import i18n from '../setup'
 
 /**
@@ -8,6 +8,9 @@ import i18n from '../setup'
  * raw key renders at the user.
  */
 describe('i18n plural resolution', () => {
+  let previousLanguage: string
+  beforeEach(() => { previousLanguage = i18n.language; i18n.language = 'en' })
+  afterEach(() => { i18n.language = previousLanguage })
   it('picks the _one form for count 1', () => {
     expect(i18n.t('common:subagentToolUses', { count: 1 })).toBe('1 tool use')
   })

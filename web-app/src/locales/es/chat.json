@@ -9,5 +9,30 @@
   "sendMessage": "Enviar mensaje",
   "newConversation": "Nueva conversación",
   "clearHistory": "Borrar historial",
-  "done": "Done"
+  "done": "Done",
+  "embeddings": {
+    "title": "Preparando tus documentos",
+    "description": "Se están indexando los adjuntos para poder buscarlos y citarlos. Los documentos grandes pueden tardar un poco."
+  },
+  "actions": {
+    "regenerate": "Generar otra respuesta",
+    "askAgain": "Preguntar de nuevo",
+    "continue": "Continuar generando",
+    "remember": "Guardar en memoria",
+    "rememberSaved": "Guardado en memoria como «{{name}}»",
+    "rememberExists": "Ya está en memoria como «{{name}}»",
+    "rememberFailed": "No se pudo guardar en memoria"
+  },
+  "webSources": "{{count}} fuente(s)",
+  "reasoning": {
+    "label": "Razonando…",
+    "thinking": "Pensando",
+    "working": "Trabajando…",
+    "showFullTimeline": "Mostrar toda la actividad",
+    "showCurrentStep": "Mostrar sólo el paso actual",
+    "thoughtForAWhile": "Pensó durante unos segundos",
+    "thoughtFor": "Pensó durante {{duration}}",
+    "workedForAWhile": "Trabajó durante unos segundos",
+    "workedFor": "Trabajó durante {{duration}}"
+  }
 }

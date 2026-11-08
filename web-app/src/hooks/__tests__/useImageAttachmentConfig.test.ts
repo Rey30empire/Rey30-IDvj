@@ -16,7 +16,7 @@ vi.mock('@/lib/backendStorage', () => ({
 vi.mock('@/lib/extension', () => ({
   ExtensionManager: { getInstance: () => ({ get: () => undefined }) },
 }))
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   ExtensionTypeEnum: { RAG: 'rag' },
 }))
 

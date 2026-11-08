@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import HeaderPage from '@/containers/HeaderPage'
 import SettingsMenu from '@/containers/SettingsMenu'
 import { Card, CardItem } from '@/containers/Card'
@@ -10,8 +9,7 @@ import { EyeOff, Eye } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useProxyConfig } from '@/hooks/useProxyConfig'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.https_proxy as any)({
+export const Route = createFileRoute('/settings/https-proxy')({
   component: HTTPSProxyContent,
 })
 

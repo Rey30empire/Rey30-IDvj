@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Folder, File, FileCode, FileText, ImageIcon, FileJson, FileType } from 'lucide-react'
 import type { FilePickerEntry } from '@/types/path-reference'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 // ─── File-type icon helper ───────────────────────────────────────────────────
 const extIconMap: Record<string, typeof FileCode> = {
@@ -75,6 +76,7 @@ export function FilePickerPopover({
   onClose,
   textareaRef,
 }: FilePickerPopoverProps) {
+  const { t } = useTranslation()
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map())
@@ -156,7 +158,7 @@ export function FilePickerPopover({
           </span>
         )}
         <span className="ml-auto text-[10px] opacity-60">
-          ↑↓ navigate · Tab/Enter select · Esc dismiss
+          {t('ui-details:filePickerKeys')}
         </span>
       </div>
       <div ref={listRef}>
@@ -183,7 +185,7 @@ export function FilePickerPopover({
               <div className="flex items-center gap-1.5">
                 <span className="font-medium truncate">{entry.name}</span>
                 <span className="text-[10px] text-muted-foreground/50 uppercase shrink-0">
-                  {entry.kind === 'directory' ? 'folder' : entry.extension}
+                  {entry.kind === 'directory' ? t('ui-spanish:folder') : entry.extension}
                 </span>
               </div>
               <div className="text-[11px] text-muted-foreground/60 truncate">

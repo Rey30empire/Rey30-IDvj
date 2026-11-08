@@ -16,24 +16,24 @@ import { isPlatformTauri } from '@/lib/platform/utils'
 
 const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/jan-browser-mcp/mkciifcjehgnpaigoiaakdgabbpfppal'
 
-export type JanBrowserExtensionDialogState =
+export type BrowserExtensionDialogState =
   | 'closed'
   | 'checking'
   | 'not_installed'
 
-interface JanBrowserExtensionDialogProps {
+interface BrowserExtensionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  state: JanBrowserExtensionDialogState
+  state: BrowserExtensionDialogState
   onCancel?: () => void
 }
 
-export default function JanBrowserExtensionDialog({
+export default function BrowserExtensionDialog({
   open,
   onOpenChange,
   state,
   onCancel,
-}: JanBrowserExtensionDialogProps) {
+}: BrowserExtensionDialogProps) {
   const { t } = useTranslation()
 
   const handleOpenChromeStore = useCallback(async () => {

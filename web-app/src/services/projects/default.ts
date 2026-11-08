@@ -9,7 +9,7 @@ import { localStorageKey } from '@/constants/localStorage'
 export class DefaultProjectsService implements ProjectsService {
   private storageKey = localStorageKey.threadManagement
 
-  private loadFromStorage(): ThreadFolder[] {
+  private loadFromStorage(requireReadable = false): ThreadFolder[] {
     try {
       const stored = localStorage.getItem(this.storageKey)
       if (!stored) return []
@@ -17,19 +17,22 @@ export class DefaultProjectsService implements ProjectsService {
       return data.state?.folders || []
     } catch (error) {
       console.error('Error loading projects from localStorage:', error)
+      if (requireReadable) throw new Error('No se pudieron leer los proyectos guardados.')
       return []
     }
   }
 
-  private saveToStorage(projects: ThreadFolder[]): void {
+  private saveToStorage(projects: ThreadFolder[]): boolean {
     try {
       const data = {
         state: { folders: projects },
         version: 0,
       }
       localStorage.setItem(this.storageKey, JSON.stringify(data))
+      return true
     } catch (error) {
       console.error('Error saving projects to localStorage:', error)
+      return false
     }
   }
 
@@ -50,6 +53,20 @@ export class DefaultProjectsService implements ProjectsService {
     this.saveToStorage(updatedProjects)
 
     return newProject
+  }
+
+  async openWorkspaceProject(workspaceFolder: string): Promise<ThreadFolder> {
+    const projects = this.loadFromStorage(true)
+    const existing = projects.find(project => project.workspaceFolder === workspaceFolder)
+    if (existing) return existing
+
+    const baseName = workspaceFolder.split(/[\\/]/).filter(Boolean).at(-1) ?? workspaceFolder
+    const names = new Set(projects.map(project => project.name.toLowerCase()))
+    let name = baseName
+    for (let suffix = 2; names.has(name.toLowerCase()); suffix++) name = `${baseName} (${suffix})`
+    const project = { id: ulid(), name, updated_at: Date.now(), workspaceFolder }
+    if (!this.saveToStorage([...projects, project])) throw new Error('No se pudo guardar el proyecto con su carpeta local.')
+    return project
   }
 
   async updateProject(id: string, name: string, assistantId?: string): Promise<void> {

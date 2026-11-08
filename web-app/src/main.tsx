@@ -65,9 +65,8 @@ declare module '@tanstack/react-router' {
   }
 }
 
-// Consume a pending factory-reset sentinel and prune persisted UI state BEFORE
-// any store module loads (Zustand persist hydrates synchronously at import).
-// This is the only race-free, cross-platform way to clear webview localStorage.
+// Consume legacy reset markers before store hydration. The compatibility
+// handler retains persisted UI state; preference recovery is explicit.
 const consumePendingWebdataReset = async () => {
   try {
     const flags = await invoke<WebdataResetFlags | null>(
@@ -86,7 +85,7 @@ const boot = async () => {
 
   await consumePendingWebdataReset()
 
-  // Dynamic imports keep store hydration AFTER the localStorage prune above.
+  // Keep store hydration after legacy marker handling.
   const { routeTree } = await import('./routeTree.gen')
   await import('./i18n')
 

@@ -2,18 +2,37 @@ import posthog from 'posthog-js'
 import { useEffect } from 'react'
 
 import { useServiceHub } from '@/hooks/useServiceHub'
-import { useAnalytic } from '@/hooks/useAnalytic'
+import { useAnalytic, useProductAnalytic } from '@/hooks/useAnalytic'
+import { usePrivacyMode } from '@/hooks/usePrivacyMode'
+import { ensurePrivacyMode, getPrivacyModeSnapshot } from '@/lib/privacyPolicy'
 
 export function AnalyticProvider() {
   const { productAnalytic } = useAnalytic()
   const serviceHub = useServiceHub()
+  const { mode, loaded, saving, error } = usePrivacyMode()
 
   useEffect(() => {
+    let active = true
+    const allowed = () =>
+      active &&
+      useProductAnalytic.getState().productAnalytic &&
+      getPrivacyModeSnapshot() === 'standard'
+    if (!loaded && !error && !saving) void ensurePrivacyMode().catch(() => {})
+    if (!productAnalytic || !loaded || saving || error || mode !== 'standard') {
+      posthog.opt_out_capturing()
+      return () => {
+        active = false
+        posthog.opt_out_capturing()
+      }
+    }
     if (!POSTHOG_KEY || !POSTHOG_HOST) {
       console.warn(
         'PostHog not initialized: Missing POSTHOG_KEY or POSTHOG_HOST environment variables'
       )
-      return
+      return () => {
+        active = false
+        posthog.opt_out_capturing()
+      }
     }
     if (productAnalytic) {
       posthog.init(POSTHOG_KEY, {
@@ -51,17 +70,27 @@ export function AnalyticProvider() {
         .analytic()
         .getAppDistinctId()
         .then((id) => {
+          if (!allowed()) return
           if (id) posthog.identify(id)
-        })
-        .finally(() => {
+          if (!allowed()) return
           posthog.opt_in_capturing()
           posthog.register({ app_version: VERSION })
-          serviceHub.analytic().updateDistinctId(posthog.get_distinct_id())
+          if (allowed())
+            return serviceHub
+              .analytic()
+              .updateDistinctId(posthog.get_distinct_id())
+        })
+        .catch(() => {
+          if (active) posthog.opt_out_capturing()
         })
     } else {
       posthog.opt_out_capturing()
     }
-  }, [productAnalytic, serviceHub])
+    return () => {
+      active = false
+      posthog.opt_out_capturing()
+    }
+  }, [productAnalytic, serviceHub, mode, loaded, saving, error])
 
   // This component doesn't render anything
   return null

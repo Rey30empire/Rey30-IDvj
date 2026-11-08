@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render as renderComponent, screen, act } from '@testing-library/react'
 import { renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import { TranslationContext } from '@/i18n/context'
+import i18n from '@/i18n/setup'
 
 import {
   Reasoning,
@@ -9,6 +11,14 @@ import {
   ReasoningContent,
   useReasoning,
 } from '../reasoning'
+
+const render = (ui: ReactNode) => renderComponent(ui, {
+  wrapper: ({ children }) => (
+    <TranslationContext.Provider value={{ t: i18n.t, i18n }}>
+      {children}
+    </TranslationContext.Provider>
+  ),
+})
 
 const streamdown = vi.hoisted(() => ({
   components: undefined as
@@ -42,6 +52,7 @@ vi.mock('../shimmer', () => ({
 
 describe('Reasoning', () => {
   beforeEach(() => {
+    i18n.changeLanguage('es')
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-01-01T00:00:00Z'))
   })
@@ -69,7 +80,7 @@ describe('Reasoning', () => {
     )
 
     expect(screen.getByTestId('shimmer')).toBeInTheDocument()
-    expect(screen.getByText('Thinking...')).toBeInTheDocument()
+    expect(screen.getByText('Pensando…')).toBeInTheDocument()
   })
 
   it('shows "Thought for X seconds" when not streaming and duration is set', () => {
@@ -79,7 +90,7 @@ describe('Reasoning', () => {
       </Reasoning>
     )
 
-    expect(screen.getByText('Thought for 5 seconds')).toBeInTheDocument()
+    expect(screen.getByText('Razonamiento durante 5 s')).toBeInTheDocument()
   })
 
   it('shows "Thought for a few seconds" when duration is undefined and not streaming', () => {
@@ -90,7 +101,7 @@ describe('Reasoning', () => {
     )
 
     expect(
-      screen.getByText('Thought for a few seconds')
+      screen.getByText('Razonamiento durante unos segundos')
     ).toBeInTheDocument()
   })
 
@@ -112,7 +123,7 @@ describe('Reasoning', () => {
       </Reasoning>
     )
 
-    expect(screen.getByText('Thought for 3 seconds')).toBeInTheDocument()
+    expect(screen.getByText('Razonamiento durante 3 s')).toBeInTheDocument()
   })
 
   it('ceils duration to next second', () => {
@@ -132,7 +143,7 @@ describe('Reasoning', () => {
       </Reasoning>
     )
 
-    expect(screen.getByText('Thought for 3 seconds')).toBeInTheDocument()
+    expect(screen.getByText('Razonamiento durante 3 s')).toBeInTheDocument()
   })
 
   it('calls custom getThinkingMessage with correct args', () => {

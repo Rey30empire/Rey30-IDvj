@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render as renderComponent, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import userEvent from '@testing-library/user-event'
 import { TokenCounter } from '../TokenCounter'
 import { useTokensCount } from '@/hooks/useTokensCount'
+import { TranslationContext } from '@/i18n/context'
+import i18n from '@/i18n/setup'
 vi.mock('@/hooks/useTokensCount', () => ({
   useTokensCount: vi.fn(),
 }))
@@ -27,6 +30,14 @@ vi.mock('@/components/ui/tooltip', async () => {
 
 const mockUseTokensCount = vi.mocked(useTokensCount)
 
+const render = (ui: ReactNode) => renderComponent(ui, {
+  wrapper: ({ children }) => (
+    <TranslationContext.Provider value={{ t: i18n.t, i18n }}>
+      {children}
+    </TranslationContext.Provider>
+  ),
+})
+
 function mockTokens(overrides: Partial<ReturnType<typeof useTokensCount>> = {}) {
   const defaults = {
     tokenCount: 0,
@@ -40,6 +51,7 @@ function mockTokens(overrides: Partial<ReturnType<typeof useTokensCount>> = {}) 
 
 describe('TokenCounter', () => {
   beforeEach(() => {
+    i18n.changeLanguage('es')
     vi.clearAllMocks()
     mockTokens()
   })
@@ -149,8 +161,8 @@ describe('TokenCounter', () => {
     mockTokens({ tokenCount: 500, maxTokens: 1000 })
     render(<TokenCounter />)
     const tooltipContent = screen.getByTestId('tooltip-content')
-    expect(tooltipContent.textContent).toContain('Used')
-    expect(tooltipContent.textContent).toContain('Remaining')
+    expect(tooltipContent.textContent).toContain('Usados')
+    expect(tooltipContent.textContent).toContain('Disponibles')
   })
 
   it('shows Context window header', () => {
@@ -172,24 +184,22 @@ describe('TokenCounter', () => {
     mockTokens({ tokenCount: 1500, maxTokens: 1000 })
     const { container } = render(<TokenCounter />)
     const tooltipContent = screen.getByTestId('tooltip-content')
-    expect(tooltipContent.textContent).toContain('Remaining')
-    expect(tooltipContent.textContent).toMatch(/Remaining\s*0/)
+    expect(tooltipContent.textContent).toContain('Disponibles')
+    expect(tooltipContent.textContent).toMatch(/Disponibles\s*0/)
   })
 
   it('shows the overflow note and failing-request numbers when isOverflow', () => {
     mockTokens({ tokenCount: 1200, maxTokens: 1000, isOverflow: true })
     const { container } = render(<TokenCounter />)
     const tooltipContent = screen.getByTestId('tooltip-content')
-    expect(tooltipContent.textContent).toMatch(/overflow/i)
+    expect(tooltipContent).toHaveTextContent(i18n.t('model-errors:lastRequestOverflowed'))
     expect(screen.getAllByText('120.0%').length).toBeGreaterThanOrEqual(1)
   })
 
   it('does not show the overflow note when not overflowing', () => {
     mockTokens({ tokenCount: 500, maxTokens: 1000, isOverflow: false })
     render(<TokenCounter />)
-    expect(screen.getByTestId('tooltip-content').textContent).not.toMatch(
-      /overflow/i
-    )
+    expect(screen.getByTestId('tooltip-content')).not.toHaveTextContent(i18n.t('model-errors:lastRequestOverflowed'))
   })
 
   it('accepts className prop', () => {

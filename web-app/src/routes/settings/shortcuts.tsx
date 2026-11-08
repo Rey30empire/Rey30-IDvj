@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { route } from '@/constants/routes'
 import SettingsMenu from '@/containers/SettingsMenu'
 import { Card, CardItem } from '@/containers/Card'
 import { useTranslation } from '@/i18n/react-i18next-compat'
@@ -8,8 +7,7 @@ import { PlatformMetaKey } from '@/containers/PlatformMetaKey'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import HeaderPage from '@/containers/HeaderPage'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const Route = createFileRoute(route.settings.shortcuts as any)({
+export const Route = createFileRoute('/settings/shortcuts')({
   component: Shortcuts,
 })
 

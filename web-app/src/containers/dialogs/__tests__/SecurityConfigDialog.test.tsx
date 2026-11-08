@@ -1,6 +1,21 @@
+import type { ReactNode } from 'react'
+import { TranslationContext } from '@/i18n/context'
+import i18n from '@/i18n/setup'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import {
+  render as baseRender,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react'
 import '@testing-library/jest-dom'
+
+const render = (ui: ReactNode) =>
+  baseRender(
+    <TranslationContext.Provider value={{ t: i18n.t, i18n }}>
+      {ui}
+    </TranslationContext.Provider>
+  )
 
 const hoisted = vi.hoisted(() => ({
   invoke: vi.fn(),
@@ -42,12 +57,15 @@ const setInvokeMap = (map: Record<string, unknown>) => {
 
 describe('SecurityConfigDialog', () => {
   beforeEach(() => {
+    i18n.changeLanguage('es')
     vi.clearAllMocks()
   })
 
   it('does not render content when closed', () => {
     render(<SecurityConfigDialog isOpen={false} onClose={vi.fn()} />)
-    expect(screen.queryByText('Security Settings')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Configuración de seguridad')
+    ).not.toBeInTheDocument()
   })
 
   it('fetches status on open and renders the auth tab', async () => {
@@ -56,8 +74,10 @@ describe('SecurityConfigDialog', () => {
     await waitFor(() =>
       expect(hoisted.invoke).toHaveBeenCalledWith('security_get_status')
     )
-    expect(await screen.findByText('Security Settings')).toBeInTheDocument()
-    expect(await screen.findByText('Current Status')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Configuración de seguridad')
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Estado actual')).toBeInTheDocument()
   })
 
   it('shows an error toast if status fetch fails', async () => {
@@ -65,7 +85,7 @@ describe('SecurityConfigDialog', () => {
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
     await waitFor(() =>
       expect(hoisted.toast.error).toHaveBeenCalledWith(
-        'Failed to load security settings'
+        'No se pudo cargar la configuración de seguridad'
       )
     )
   })
@@ -74,7 +94,7 @@ describe('SecurityConfigDialog', () => {
     setInvokeMap({ security_get_status: statusNone })
     const onClose = vi.fn()
     render(<SecurityConfigDialog isOpen={true} onClose={onClose} />)
-    const closeBtns = await screen.findAllByText('Close')
+    const closeBtns = await screen.findAllByText('Cerrar')
     // The visible footer button is the non-sr-only one; click the last.
     fireEvent.click(closeBtns[closeBtns.length - 1])
     expect(onClose).toHaveBeenCalled()
@@ -95,8 +115,10 @@ describe('SecurityConfigDialog', () => {
       ],
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    await screen.findByText('Security Settings')
-    fireEvent.click(await screen.findByRole('button', { name: /devices/i }))
+    await screen.findByText('Configuración de seguridad')
+    fireEvent.click(
+      await screen.findByRole('button', { name: /dispositivos/i })
+    )
     await waitFor(() =>
       expect(hoisted.invoke).toHaveBeenCalledWith('security_get_devices')
     )
@@ -109,14 +131,16 @@ describe('SecurityConfigDialog', () => {
       security_get_logs: [],
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    await screen.findByText('Security Settings')
-    fireEvent.click(await screen.findByRole('button', { name: /logs/i }))
+    await screen.findByText('Configuración de seguridad')
+    fireEvent.click(await screen.findByRole('button', { name: /registros/i }))
     await waitFor(() =>
       expect(hoisted.invoke).toHaveBeenCalledWith('security_get_logs', {
         limit: 100,
       })
     )
-    expect(await screen.findByText('No access logs')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No hay registros de acceso')
+    ).toBeInTheDocument()
   })
 
   it('generates a new token via the auth tab', async () => {
@@ -125,14 +149,14 @@ describe('SecurityConfigDialog', () => {
       security_generate_token: 'abcdef1234567890',
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    const genBtn = await screen.findByText('Generate New Token')
+    const genBtn = await screen.findByText('Generar nuevo token')
     fireEvent.click(genBtn)
     await waitFor(() =>
       expect(hoisted.invoke).toHaveBeenCalledWith('security_generate_token')
     )
     await waitFor(() =>
       expect(hoisted.toast.success).toHaveBeenCalledWith(
-        'New access token generated'
+        'Se generó un nuevo token de acceso'
       )
     )
   })
@@ -142,15 +166,15 @@ describe('SecurityConfigDialog', () => {
       security_get_status: { ...statusNone, auth_mode: 'password' },
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    await screen.findAllByText('Set Password')
-    const pw = screen.getByPlaceholderText('Enter password')
-    const confirm = screen.getByPlaceholderText('Confirm password')
+    await screen.findAllByText('Guardar contraseña')
+    const pw = screen.getByPlaceholderText('Introduce la contraseña')
+    const confirm = screen.getByPlaceholderText('Confirma la contraseña')
     fireEvent.change(pw, { target: { value: 'longenough' } })
     fireEvent.change(confirm, { target: { value: 'different' } })
     // Inline message renders
-    expect(screen.getByText('Passwords do not match')).toBeInTheDocument()
+    expect(screen.getByText('Las contraseñas no coinciden')).toBeInTheDocument()
     // Save button disabled due to mismatch
-    const setBtns = screen.getAllByText('Set Password')
+    const setBtns = screen.getAllByText('Guardar contraseña')
     const btn = setBtns
       .map((el) => el.closest('button'))
       .find((b): b is HTMLButtonElement => !!b)!
@@ -163,11 +187,11 @@ describe('SecurityConfigDialog', () => {
       security_set_password: undefined,
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    const pw = await screen.findByPlaceholderText('Enter password')
-    const confirm = screen.getByPlaceholderText('Confirm password')
+    const pw = await screen.findByPlaceholderText('Introduce la contraseña')
+    const confirm = screen.getByPlaceholderText('Confirma la contraseña')
     fireEvent.change(pw, { target: { value: 'longenough' } })
     fireEvent.change(confirm, { target: { value: 'longenough' } })
-    const setBtns = screen.getAllByText('Set Password')
+    const setBtns = screen.getAllByText('Guardar contraseña')
     const btn = setBtns
       .map((el) => el.closest('button'))
       .find((b): b is HTMLButtonElement => !!b)!
@@ -186,9 +210,11 @@ describe('SecurityConfigDialog', () => {
       security_set_require_pairing: undefined,
     })
     render(<SecurityConfigDialog isOpen={true} onClose={vi.fn()} />)
-    await screen.findByText('Security Settings')
-    fireEvent.click(await screen.findByRole('button', { name: /devices/i }))
-    await screen.findByText('Require Device Pairing')
+    await screen.findByText('Configuración de seguridad')
+    fireEvent.click(
+      await screen.findByRole('button', { name: /dispositivos/i })
+    )
+    await screen.findByText('Exigir vinculación de dispositivos')
     // Radix Switch exposes role="switch"
     const sw = screen.getByRole('switch')
     fireEvent.click(sw)

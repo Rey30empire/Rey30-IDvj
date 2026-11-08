@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 import { useTranslation } from '@/i18n/react-i18next-compat'
-import { events, AppEvent } from '@janhq/core'
+import { events, AppEvent } from '@rey30-idvj/core'
 import { useEffect, useState } from 'react'
 import { useIsOnboarding } from '@/hooks/useIsOnboarding'
 import { DependencyAdvice } from './DependencyAdvice'

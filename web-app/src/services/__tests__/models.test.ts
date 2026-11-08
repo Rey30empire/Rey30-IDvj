@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DefaultModelsService } from '../models/default'
 import type { HuggingFaceRepo, CatalogModel } from '../models/types'
-import { EngineManager, events, DownloadEvent } from '@janhq/core'
+import { EngineManager, events, DownloadEvent } from '@rey30-idvj/core'
 
 const { mockEvents, mockDownloadEvent } = vi.hoisted(() => ({
   mockEvents: { emit: vi.fn() },
   mockDownloadEvent: { onFileDownloadStopped: 'onFileDownloadStopped' } as Record<string, string>,
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   EngineManager: { instance: vi.fn() },
   events: mockEvents,
   DownloadEvent: mockDownloadEvent,

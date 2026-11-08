@@ -2,7 +2,7 @@
  * MCP Service Types
  */
 
-import { MCPTool, MCPToolCallResult } from '@janhq/core'
+import { MCPTool, MCPToolCallResult } from '@rey30-idvj/core'
 import type { MCPServerConfig, MCPServers, MCPSettings } from '@/hooks/useMCPServers'
 
 export interface MCPConfig {
@@ -83,7 +83,7 @@ export interface MCPService {
   // MCP Server lifecycle management
   activateMCPServer(name: string, config: MCPServerConfig): Promise<void>
   deactivateMCPServer(name: string): Promise<void>
-  checkJanBrowserExtensionConnected(): Promise<boolean>
+  checkRey30BrowserExtensionConnected(): Promise<boolean>
 
   // OAuth for remote (http/sse) servers
   /** Local read, no network: safe to call per row. */

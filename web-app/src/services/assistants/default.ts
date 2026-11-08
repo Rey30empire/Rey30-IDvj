@@ -3,7 +3,7 @@
  */
 
 import { ExtensionManager } from '@/lib/extension'
-import { Assistant, AssistantExtension, ExtensionTypeEnum } from '@janhq/core'
+import { Assistant, AssistantExtension, ExtensionTypeEnum } from '@rey30-idvj/core'
 import type { AssistantsService } from './types'
 
 export class DefaultAssistantsService implements AssistantsService {
@@ -21,9 +21,9 @@ export class DefaultAssistantsService implements AssistantsService {
   }
 
   async createAssistant(assistant: Assistant): Promise<void> {
-    await ExtensionManager.getInstance()
-      .get<AssistantExtension>(ExtensionTypeEnum.Assistant)
-      ?.createAssistant(assistant)
+    const extension = ExtensionManager.getInstance().get<AssistantExtension>(ExtensionTypeEnum.Assistant)
+    if (!extension) throw new Error('El servicio de asistentes no está disponible. Espera a que termine de iniciarse.')
+    await extension.createAssistant(assistant)
   }
 
   async deleteAssistant(assistant: Assistant): Promise<void> {

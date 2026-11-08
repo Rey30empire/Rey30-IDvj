@@ -2,7 +2,7 @@
  * Default MCP Service - Generic implementation with minimal returns
  */
 
-import { MCPTool, MCPToolCallResult } from '@janhq/core'
+import { MCPTool, MCPToolCallResult } from '@rey30-idvj/core'
 import type { MCPServerConfig } from '@/hooks/useMCPServers'
 import type {
   MCPService,
@@ -86,7 +86,7 @@ export class DefaultMCPService implements MCPService {
     // No-op - not implemented in default service
   }
 
-  async checkJanBrowserExtensionConnected(): Promise<boolean> {
+  async checkRey30BrowserExtensionConnected(): Promise<boolean> {
     return false
   }
 

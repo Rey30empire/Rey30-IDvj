@@ -119,14 +119,14 @@ describe('TauriMCPService – coverage', () => {
     })
   })
 
-  describe('checkJanBrowserExtensionConnected', () => {
-    it('invokes check_jan_browser_extension_connected', async () => {
+  describe('checkRey30BrowserExtensionConnected', () => {
+    it('invokes check_rey30_browser_extension_connected', async () => {
       const { invoke } = await import('@tauri-apps/api/core')
       vi.mocked(invoke).mockResolvedValue(true)
 
-      const result = await svc.checkJanBrowserExtensionConnected()
+      const result = await svc.checkRey30BrowserExtensionConnected()
 
-      expect(invoke).toHaveBeenCalledWith('check_jan_browser_extension_connected')
+      expect(invoke).toHaveBeenCalledWith('check_rey30_browser_extension_connected')
       expect(result).toBe(true)
     })
   })
@@ -146,6 +146,48 @@ describe('TauriMCPService – coverage', () => {
         ...DEFAULT_MCP_SETTINGS,
         maxToolRoundtrips: 5,
       })
+    })
+
+    it('preserves unknown envelope, settings and server fields through activation and a read/write roundtrip', async () => {
+      const config = {
+        mcpServers: { fs: { command: 'node', args: ['server.js'], active: false, customServer: { owner: 'kept' } } },
+        mcpSettings: { ...DEFAULT_MCP_SETTINGS, customSetting: ['keep', 3] },
+        customMetadata: { command: 'metadata, not a legacy server', nested: [1, null, { enabled: false }] },
+        schemaVersion: 7,
+        optionalMetadata: null,
+      }
+      mockCore.api.getMcpConfigs.mockResolvedValueOnce(JSON.stringify(config))
+      const current = await svc.getMCPConfig()
+      const next = { ...current, mcpServers: { ...current.mcpServers, fs: { ...current.mcpServers!.fs, active: true } } }
+      mockCore.api.saveMcpConfigs.mockResolvedValueOnce(undefined)
+      await svc.updateMCPConfig(JSON.stringify(next))
+      const saved = mockCore.api.saveMcpConfigs.mock.calls.at(-1)![0].configs
+      expect(JSON.parse(saved)).toEqual({ ...config, mcpServers: { fs: { ...config.mcpServers.fs, active: true } } })
+      mockCore.api.getMcpConfigs.mockResolvedValueOnce(saved)
+      expect(await svc.getMCPConfig()).toEqual(JSON.parse(saved))
+      expect(Object.keys(next.mcpServers)).toEqual(['fs'])
+    })
+
+    it('normalizes legacy servers without duplicating their top-level entries when saved', async () => {
+      const legacy = { myServer: { command: 'node', args: ['s.js'] }, mcpSettings: { maxToolOutputChars: 0 } }
+      mockCore.api.getMcpConfigs.mockResolvedValueOnce(JSON.stringify(legacy))
+      const normalized = await svc.getMCPConfig()
+      mockCore.api.saveMcpConfigs.mockResolvedValueOnce(undefined)
+      await svc.updateMCPConfig(JSON.stringify(normalized))
+      const saved = JSON.parse(mockCore.api.saveMcpConfigs.mock.calls.at(-1)![0].configs)
+      expect(saved).toEqual({ mcpServers: { myServer: legacy.myServer }, mcpSettings: { ...DEFAULT_MCP_SETTINGS, maxToolOutputChars: 0 } })
+      expect(saved).not.toHaveProperty('myServer')
+    })
+
+    it.each([null, [], [{ command: 'node' }], 42, true, 'scalar'])('rejects non-object top-level shapes without treating them as legacy servers: %j', async (value) => {
+      mockCore.api.getMcpConfigs.mockResolvedValueOnce(JSON.stringify(value))
+      expect(await svc.getMCPConfig()).toEqual({ mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS } })
+      expect(mockCore.api.saveMcpConfigs).not.toHaveBeenCalled()
+    })
+
+    it('preserves envelope metadata while normalizing invalid settings shape', async () => {
+      mockCore.api.getMcpConfigs.mockResolvedValueOnce(JSON.stringify({ mcpServers: {}, mcpSettings: [], metadata: { retained: true } }))
+      expect(await svc.getMCPConfig()).toEqual({ mcpServers: {}, mcpSettings: { ...DEFAULT_MCP_SETTINGS }, metadata: { retained: true } })
     })
 
     it('handles whitespace-only config string', async () => {

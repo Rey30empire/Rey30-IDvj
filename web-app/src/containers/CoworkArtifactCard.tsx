@@ -29,7 +29,7 @@ const GROUP_TINT: Record<CoworkArtifact['group'], string> = {
 }
 
 /**
- * Card for something the agent produced (jan-internal #242), shared by the
+ * Card for something the agent produced (upstream-internal #242), shared by the
  * Cowork transcript and the artifacts library.
  *
  * Rendered by the Cowork transcript itself rather than by `MessageItem`, which

@@ -8,6 +8,7 @@ type ThreadManagementState = {
   folders: ThreadFolder[]
   setFolders: (folders: ThreadFolder[]) => void
   addFolder: (name: string, assistantId?: string) => Promise<ThreadFolder>
+  openWorkspaceProject: (folder: string) => Promise<ThreadFolder>
   updateFolder: (id: string, name: string, assistantId?: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>
   deleteFolderWithThreads: (id: string) => Promise<void>
@@ -28,6 +29,13 @@ const useThreadManagementStore = create<ThreadManagementState>()((set, get) => (
     const updatedProjects = await projectsService.getProjects()
     set({ folders: updatedProjects })
     return newFolder
+  },
+
+  openWorkspaceProject: async (folder) => {
+    const projects = getServiceHub().projects()
+    const project = await projects.openWorkspaceProject(folder)
+    set({ folders: await projects.getProjects() })
+    return project
   },
 
   updateFolder: async (id, name, assistantId) => {

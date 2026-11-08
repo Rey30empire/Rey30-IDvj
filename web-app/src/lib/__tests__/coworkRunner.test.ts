@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import type { UIMessage, UIMessageChunk } from 'ai'
 import {
   runTurn,
@@ -18,6 +18,9 @@ import {
 import { MAX_SESSION_TOKENS } from '../coworkBudget'
 import { encodeToolImageSentinel } from '../tool-image-sentinel'
 import { coworkTurnsToUIMessages } from '../coworkTurns'
+const privacy = vi.hoisted(() => ({ mode: 'standard' }))
+vi.mock('@/lib/privacyPolicy', () => ({ getPrivacyModeSnapshot: () => privacy.mode, privacyAllowsTools: (mode: string) => mode === 'standard' }))
+beforeEach(() => { privacy.mode = 'standard' })
 
 const streamOf = (chunks: UIMessageChunk[]): ReadableStream<UIMessageChunk> =>
   new ReadableStream({
@@ -156,6 +159,20 @@ describe('consumeStep', () => {
 })
 
 describe('runTurn', () => {
+  it('refuses tools emitted by a stream that finishes after the privacy mode changes', async () => {
+    const d = deps([toolStep('shell'), textStep('Sin herramientas')])
+    const original = d.sendStep.getMockImplementation()!
+    d.sendStep.mockImplementationOnce(async (...args) => {
+      const stream = await original(...args)
+      privacy.mode = 'local-only'
+      return stream
+    })
+    const result = await runTurn({ messages: [user('Petición')], deps: d, signal: new AbortController().signal })
+    expect(d.dispatch).not.toHaveBeenCalled()
+    const serialized = JSON.stringify(result.messages)
+    expect(serialized).toContain('privacidad')
+    expect(serialized).toContain('output-error')
+  })
   it('stops when the model answers without asking for tools', async () => {
     const d = deps([textStep('done')])
     const out = await runTurn({

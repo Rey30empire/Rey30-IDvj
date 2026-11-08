@@ -114,7 +114,8 @@ describe('SettingsMenu', () => {
   it('renders core settings links', () => {
     render(<SettingsMenu />)
     expect(screen.getByText('common:keyboardShortcuts')).toBeInTheDocument()
-    expect(screen.getByText('common:assistants')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'common:assistants' })).toHaveAttribute('href', '/settings/assistant')
+    expect(screen.getByRole('link', { name: 'common:hub' })).toHaveAttribute('href', '/hub/')
     expect(screen.getByText('common:local_api_server')).toBeInTheDocument()
     expect(screen.getByText('common:privacy')).toBeInTheDocument()
   })

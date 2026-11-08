@@ -47,6 +47,7 @@ import { useGroundingStore } from '@/stores/grounding-store'
 import { useWebCitationStore } from '@/stores/web-citation-store'
 import { WebSourcesRow } from '@/components/WebSourcesRow'
 import { injectCitationMarkers } from '@/lib/grounding'
+import { normalizePlumaDisplayText } from '@/lib/characters/pluma-text'
 
 export type MessageItemProps = {
   message: UIMessage
@@ -73,6 +74,7 @@ export type MessageItemProps = {
    * e.g. while a continue is pending and re-running would be ambiguous. */
   hideActions?: boolean
   highlightedPrefix?: string | null
+  privateLibrary?: boolean
 }
 
 // Footer icon buttons: 28px boxes (a roomier hover highlight at the same pitch
@@ -104,6 +106,7 @@ export const MessageItem = memo(
     versionInfo,
     onSwitchVersion,
     highlightedPrefix,
+    privateLibrary = false,
   }: MessageItemProps) => {
     const { t } = useTranslation()
     // Footer controls fade in on hover or keyboard focus. Keyboard only
@@ -298,14 +301,15 @@ export const MessageItem = memo(
 
     // Get full text content for copy button
     const getFullTextContent = useCallback(() => {
-      return message.parts
+      const text = message.parts
         .filter(
           (part): part is { type: 'text'; text: string } =>
             part.type === CONTENT_TYPE.TEXT
         )
         .map((part) => part.text)
         .join('\n')
-    }, [message.parts])
+      return privateLibrary && message.role === 'assistant' ? normalizePlumaDisplayText(text) : text
+    }, [message.parts, message.role, privateLibrary])
 
     // Copy stays visible on the last message, the one most often copied, and
     // on any message with versions, where it anchors the always-visible
@@ -402,6 +406,8 @@ export const MessageItem = memo(
                 )}
               </div>
             </div>
+          ) : privateLibrary ? (
+            <div dir="auto" className="select-text whitespace-pre-wrap wrap-break-word">{isStreaming ? part.text : normalizePlumaDisplayText(part.text)}</div>
           ) : (
             <>
               <RenderMarkdown
@@ -535,6 +541,7 @@ export const MessageItem = memo(
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i]
         const t = part.type
+        if (privateLibrary && t !== CONTENT_TYPE.TEXT) continue
         // A settled ask leaves the trace as a Q&A card, so the answers stay in
         // view instead of being folded into "Worked for…".
         if (t === `tool-${ASK_TOOL_NAME}` && part.state === 'output-available') {
@@ -574,6 +581,7 @@ export const MessageItem = memo(
       grounding,
       awaitingApproval,
       citationOffsets,
+      privateLibrary,
     ])
 
     const versionNav =
@@ -585,7 +593,7 @@ export const MessageItem = memo(
             className="hover:text-foreground disabled:opacity-40"
             disabled={versionInfo.index <= 1}
             onClick={() => onSwitchVersion(message.id, -1)}
-            title="Previous version"
+            title={t('ui-details:previousVersion')}
           >
             <IconChevronLeft size={14} />
           </button>
@@ -598,7 +606,7 @@ export const MessageItem = memo(
             className="hover:text-foreground disabled:opacity-40"
             disabled={versionInfo.index >= versionInfo.count}
             onClick={() => onSwitchVersion(message.id, 1)}
-            title="Next version"
+            title={t('ui-details:nextVersion')}
           >
             <IconChevronRight size={14} />
           </button>
@@ -639,7 +647,7 @@ export const MessageItem = memo(
             answer paragraphs, and with no gap the two read as one block. */}
         <div className="flex flex-col gap-3">{renderedParts}</div>
 
-        {message.role === 'assistant' &&
+        {!privateLibrary && message.role === 'assistant' &&
           !isStreaming &&
           webCitations.length > 0 && <WebSourcesRow citations={webCitations} />}
 
@@ -674,8 +682,7 @@ export const MessageItem = memo(
             />
             <div className="flex-1 min-w-0">
               <div className="font-medium text-destructive">
-                Generation failed
-              </div>
+                {t('ui-details:generationFailed')}</div>
               <div className="text-muted-foreground break-words">
                 {messageError}
               </div>

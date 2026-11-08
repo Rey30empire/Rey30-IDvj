@@ -19,8 +19,8 @@ export interface AppService {
   factoryReset(options?: FactoryResetOptions): Promise<void>
   readLogs(): Promise<LogEntry[]>
   parseLogLine(line: string): LogEntry
-  getJanDataFolder(): Promise<string | undefined>
-  relocateJanDataFolder(path: string): Promise<void>
+  getRey30DataFolder(): Promise<string | undefined>
+  relocateRey30DataFolder(path: string): Promise<void>
   getServerStatus(): Promise<boolean>
   setServerRunInBackground(enabled: boolean): Promise<void>
   readYaml<T = unknown>(path: string): Promise<T>

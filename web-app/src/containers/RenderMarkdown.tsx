@@ -29,6 +29,7 @@ import { CitationLink } from '@/components/CitationLink'
 import { WebCitationChip } from '@/components/WebCitationChip'
 import { MarkdownTable } from '@/components/MarkdownTable'
 import { externalHref, openExternalUrl } from '@/lib/externalLink'
+import { stripExplicitChatSkillMarker } from '@/lib/skillCommands'
 
 // Do not resolve model-generated links against the app's own origin.
 function isWebLink(href: string | undefined): boolean {
@@ -265,8 +266,9 @@ function RenderMarkdownComponent({
   // while new tokens arrive and skips intermediates under load, so the memoized
   // Streamdown subtree re-renders far less than once per token. Always converges
   // to the latest value, so it can't get stuck. Non-streaming uses content as-is.
-  const deferredContent = useDeferredValue(content)
-  const effectiveContent = isStreaming ? deferredContent : content
+  const displayContent = isUser ? stripExplicitChatSkillMarker(content) : content
+  const deferredContent = useDeferredValue(displayContent)
+  const effectiveContent = isStreaming ? deferredContent : displayContent
 
   // normalizeLatex is O(n) over the full string and its cache misses every chunk;
   // skip it while streaming (LaTeX can't render mid-token) to avoid O(n²) cost.

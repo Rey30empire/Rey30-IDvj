@@ -43,7 +43,7 @@ export type ToolCallBar =
 
 /**
  * Owned by the RAG extension (extensions/rag-extension/src/tools.ts) and not
- * exported through @janhq/core, so this must stay in sync with it. Only
+ * exported through @rey30-idvj/core, so this must stay in sync with it. Only
  * `retrieve` gets a bar; the other RAG tools fall back to the generic card.
  */
 export const RAG_RETRIEVE_TOOL = 'retrieve'

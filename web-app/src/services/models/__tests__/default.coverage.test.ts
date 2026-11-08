@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DefaultModelsService } from '../default'
-import { EngineManager, events, DownloadEvent, ContentType } from '@janhq/core'
+import { EngineManager, events, DownloadEvent, ContentType } from '@rey30-idvj/core'
 
 const { mockEvents } = vi.hoisted(() => ({
   mockEvents: { emit: vi.fn() },
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   EngineManager: { instance: vi.fn() },
   events: mockEvents,
   DownloadEvent: {
@@ -32,7 +32,7 @@ Object.defineProperty(global, 'MODEL_CATALOG_URL', {
   writable: true,
   configurable: true,
 })
-Object.defineProperty(global, 'LATEST_JAN_MODEL_URL', {
+Object.defineProperty(global, 'LATEST_DEFAULT_MODEL_URL', {
   value: 'https://example.com/latest',
   writable: true,
   configurable: true,
@@ -415,10 +415,11 @@ describe('DefaultModelsService - coverage supplement', () => {
 
   // ── pullModel with no engine ──
   describe('pullModel', () => {
-    it('returns undefined when no engine', async () => {
+    it('rejects installation when no engine exists without importing or emitting success', async () => {
       mockEngineManager.get.mockReturnValueOnce(undefined)
-      const result = await svc.pullModel('id1', '/path')
-      expect(result).toBeUndefined()
+      await expect(svc.pullModel('id1', '/path')).rejects.toThrow('El motor local no está disponible')
+      expect(mockEngine.import).not.toHaveBeenCalled()
+      expect(mockEvents.emit).not.toHaveBeenCalled()
     })
   })
 })

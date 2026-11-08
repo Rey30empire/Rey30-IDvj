@@ -48,6 +48,29 @@ describe('DefaultProjectsService', () => {
     expect(stored).toHaveLength(1)
   })
 
+  it('keeps a workspace project after a fresh load and avoids duplicate canonical folders', async () => {
+    seedStorage([{ id: 'plain', name: 'Mi proyecto', updated_at: 1 }])
+    const folder = 'C:\\Proyectos\\Mi proyecto'
+    const first = await new DefaultProjectsService().openWorkspaceProject(folder)
+    const reopened = new DefaultProjectsService()
+    expect(first).toMatchObject({ name: 'Mi proyecto (2)', workspaceFolder: folder })
+    expect(await reopened.openWorkspaceProject(folder)).toEqual(first)
+    await reopened.updateProject(first.id, 'Nombre nuevo')
+    expect(await reopened.getProjects()).toEqual([
+      expect.objectContaining({ id: 'plain', name: 'Mi proyecto' }),
+      expect.objectContaining({ id: first.id, name: 'Nombre nuevo', workspaceFolder: folder }),
+    ])
+  })
+
+  it('keeps the previous project data when loading fails', async () => {
+    localStorage.setItem(STORAGE_KEY, 'datos-previos-incompletos')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(new DefaultProjectsService().openWorkspaceProject('C:\\proyecto')).rejects.toThrow('proyectos guardados')
+      expect(localStorage.getItem(STORAGE_KEY)).toBe('datos-previos-incompletos')
+    } finally { spy.mockRestore() }
+  })
+
   it('updateProject updates name and assistantId', async () => {
     seedStorage([{ id: 'x', name: 'Old', updated_at: 1 }])
     const svc = new DefaultProjectsService()

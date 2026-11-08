@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { IconSearch } from '@tabler/icons-react'
@@ -18,14 +17,14 @@ import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useCoworkSessions } from '@/hooks/useCoworkSessions'
 import { useCoworkRun } from '@/hooks/useCoworkRun'
 import { getServiceHub } from '@/hooks/useServiceHub'
-import { sessionWorkspacePath } from '@janhq/tauri-plugin-agent-tools-api'
+import { sessionWorkspacePath } from '@rey30-idvj/tauri-plugin-agent-tools-api'
 import {
   ARTIFACT_GROUP_NAMES,
   artifactsFromTurns,
   type CoworkArtifact,
 } from '@/lib/coworkArtifacts'
 
-export const Route = createFileRoute(route.artifacts as any)({
+export const Route = createFileRoute('/artifacts')({
   beforeLoad: () => ensureCoworkEnabled(),
   component: ArtifactsPage,
 })
@@ -51,7 +50,7 @@ function useSessionWorkspaces(sessionIds: string[]): Record<string, string> {
   useEffect(() => {
     let alive = true
     void (async () => {
-      const dataFolder = await getServiceHub().app().getJanDataFolder()
+      const dataFolder = await getServiceHub().app().getRey30DataFolder()
       if (!dataFolder) return
       const found = await Promise.all(
         key
@@ -135,7 +134,7 @@ function ArtifactsPage() {
   return (
     <div className="flex h-svh w-full flex-col">
       {/* Search in the header, dropdown filter on the right — the hub page's
-          layout, so this reads as part of Jan rather than its own thing. */}
+          layout, so this reads as part of Rey30 IDvj rather than its own thing. */}
       <HeaderPage>
         <div className="relative z-20 flex h-10 w-full items-center justify-between py-3 pr-3">
           <div className="flex w-full items-center gap-2">

@@ -2,20 +2,20 @@ import { useState, useCallback, useRef } from 'react'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useMCPServers } from '@/hooks/useMCPServers'
 import { toast } from 'sonner'
-import type { JanBrowserExtensionDialogState } from '@/containers/dialogs/JanBrowserExtensionDialog'
+import type { BrowserExtensionDialogState } from '@/containers/dialogs/BrowserExtensionDialog'
 
-const JAN_BROWSER_MCP_NAME = 'Jan Browser MCP'
+const BROWSER_MCP_NAME = 'Jan Browser MCP'
 
 // Timeout and polling configuration
 const PING_TIMEOUT_MS = 6000 // Backend ping takes up to 3s
 const POLL_INTERVAL_MS = 500
 const SERVER_START_DELAY_MS = 1000
 
-export function useJanBrowserExtension() {
+export function useBrowserExtension() {
   const serviceHub = useServiceHub()
   const { mcpServers, editServer, syncServers } = useMCPServers()
 
-  const [dialogState, setDialogState] = useState<JanBrowserExtensionDialogState>('closed')
+  const [dialogState, setDialogState] = useState<BrowserExtensionDialogState>('closed')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
@@ -24,16 +24,16 @@ export function useJanBrowserExtension() {
   const cancelDeactivationPromiseRef = useRef<Promise<void> | null>(null)
   const operationInProgressRef = useRef(false)
 
-  const janBrowserConfig = mcpServers[JAN_BROWSER_MCP_NAME]
-  const hasConfig = !!janBrowserConfig
-  const isActive = janBrowserConfig?.active ?? false
+  const browserConfig = mcpServers[BROWSER_MCP_NAME]
+  const hasConfig = !!browserConfig
+  const isActive = browserConfig?.active ?? false
 
   /**
    * Check if the browser extension is connected (single check)
    */
   const checkExtensionConnection = useCallback(async (): Promise<boolean> => {
     try {
-      return await serviceHub.mcp().checkJanBrowserExtensionConnected()
+      return await serviceHub.mcp().checkRey30BrowserExtensionConnected()
     } catch (error) {
       console.error('Error checking extension connection:', error)
       return false
@@ -79,16 +79,16 @@ export function useJanBrowserExtension() {
     setDialogState('closed')
     setIsLoading(false)
 
-    if (janBrowserConfig) {
+    if (browserConfig) {
       setIsCancelling(true)
 
-      editServer(JAN_BROWSER_MCP_NAME, {
-        ...janBrowserConfig,
+      editServer(BROWSER_MCP_NAME, {
+        ...browserConfig,
         active: false,
       })
 
       const deactivationPromise = Promise.all([
-        serviceHub.mcp().deactivateMCPServer(JAN_BROWSER_MCP_NAME),
+        serviceHub.mcp().deactivateMCPServer(BROWSER_MCP_NAME),
         syncServers(),
       ])
         .then(() => {})
@@ -102,7 +102,7 @@ export function useJanBrowserExtension() {
 
       cancelDeactivationPromiseRef.current = deactivationPromise
     }
-  }, [janBrowserConfig, serviceHub, editServer, syncServers])
+  }, [browserConfig, serviceHub, editServer, syncServers])
 
   /**
    * Deactivate the Jan Browser MCP because the selected model lacks required capabilities.
@@ -113,7 +113,7 @@ export function useJanBrowserExtension() {
     operationInProgressRef.current = true
 
     try {
-      if (!janBrowserConfig || !isActive) return
+      if (!browserConfig || !isActive) return
 
       if (cancelDeactivationPromiseRef.current) {
         await cancelDeactivationPromiseRef.current
@@ -122,11 +122,11 @@ export function useJanBrowserExtension() {
       cancelledRef.current = false
       setIsLoading(true)
 
-      await serviceHub.mcp().deactivateMCPServer(JAN_BROWSER_MCP_NAME)
+      await serviceHub.mcp().deactivateMCPServer(BROWSER_MCP_NAME)
       toast.warning('Jan Browser MCP disabled — model doesn\'t support vision.')
 
-      editServer(JAN_BROWSER_MCP_NAME, {
-        ...janBrowserConfig,
+      editServer(BROWSER_MCP_NAME, {
+        ...browserConfig,
         active: false,
       })
       await syncServers()
@@ -136,7 +136,7 @@ export function useJanBrowserExtension() {
       setIsLoading(false)
       operationInProgressRef.current = false
     }
-  }, [janBrowserConfig, isActive, serviceHub, editServer, syncServers])
+  }, [browserConfig, isActive, serviceHub, editServer, syncServers])
 
   /**
    * Toggle the Jan Browser MCP (called when clicking the browser icon)
@@ -147,7 +147,7 @@ export function useJanBrowserExtension() {
     operationInProgressRef.current = true
 
     try {
-      if (!janBrowserConfig) {
+      if (!browserConfig) {
         toast.error('Jan Browser MCP not found', {
           description: 'Please check your MCP server configuration',
         })
@@ -164,16 +164,16 @@ export function useJanBrowserExtension() {
       setIsLoading(true)
       if (newActiveState) {
         // Activate the server
-        await serviceHub.mcp().activateMCPServer(JAN_BROWSER_MCP_NAME, {
-          ...janBrowserConfig,
+        await serviceHub.mcp().activateMCPServer(BROWSER_MCP_NAME, {
+          ...browserConfig,
           active: true,
         })
 
         // Check if cancelled during activation
         if (cancelledRef.current) return
 
-        editServer(JAN_BROWSER_MCP_NAME, {
-          ...janBrowserConfig,
+        editServer(BROWSER_MCP_NAME, {
+          ...browserConfig,
           active: true,
         })
         await syncServers()
@@ -198,11 +198,11 @@ export function useJanBrowserExtension() {
         }
       } else {
         // Deactivate the server
-        await serviceHub.mcp().deactivateMCPServer(JAN_BROWSER_MCP_NAME)
+        await serviceHub.mcp().deactivateMCPServer(BROWSER_MCP_NAME)
         toast.success('Jan Browser MCP disabled')
 
-        editServer(JAN_BROWSER_MCP_NAME, {
-          ...janBrowserConfig,
+        editServer(BROWSER_MCP_NAME, {
+          ...browserConfig,
           active: false,
         })
         await syncServers()
@@ -221,7 +221,7 @@ export function useJanBrowserExtension() {
       operationInProgressRef.current = false
     }
   }, [
-    janBrowserConfig,
+    browserConfig,
     isActive,
     serviceHub,
     editServer,

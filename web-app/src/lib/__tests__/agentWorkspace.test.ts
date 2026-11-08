@@ -22,15 +22,15 @@ const api = {
   threadWorkspaceDelete: vi.fn(),
   threadWorkspaceSweep: vi.fn(),
 }
-const getJanDataFolder = vi.fn()
+const getRey30DataFolder = vi.fn()
 const revealItemInDir = vi.fn()
 const openPath = vi.fn()
 
-vi.mock('@janhq/tauri-plugin-agent-tools-api', () => api)
+vi.mock('@rey30-idvj/tauri-plugin-agent-tools-api', () => api)
 
 vi.mock('@/hooks/useServiceHub', () => ({
   getServiceHub: () => ({
-    app: () => ({ getJanDataFolder }),
+    app: () => ({ getRey30DataFolder }),
     opener: () => ({ revealItemInDir, openPath }),
   }),
 }))
@@ -40,7 +40,7 @@ describe('agentWorkspace', () => {
     vi.resetModules()
     Object.values(api).forEach((fn) => fn.mockReset())
     api.workspacePath.mockResolvedValue('/data/agent-workspace')
-    getJanDataFolder.mockReset().mockResolvedValue('/data')
+    getRey30DataFolder.mockReset().mockResolvedValue('/data')
     revealItemInDir.mockReset()
     openPath.mockReset()
   })
@@ -152,7 +152,7 @@ describe('agentWorkspace', () => {
   })
 
   it('fails clearly when the data folder is unavailable', async () => {
-    getJanDataFolder.mockResolvedValue(undefined)
+    getRey30DataFolder.mockResolvedValue(undefined)
     const ws = await import('../agentWorkspace')
     await expect(ws.listMemories()).rejects.toThrow('data folder')
     expect(api.memoryList).not.toHaveBeenCalled()

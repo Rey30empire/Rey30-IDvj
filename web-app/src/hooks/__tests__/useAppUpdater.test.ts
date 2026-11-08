@@ -7,7 +7,7 @@ vi.mock('@/lib/utils', () => ({
   isDev: vi.fn(() => false),
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   events: {
     on: vi.fn(),
     off: vi.fn(),
@@ -65,7 +65,7 @@ Object.defineProperty(global, 'AUTO_UPDATER_DISABLED', {
 })
 
 import { isDev } from '@/lib/utils'
-import { events } from '@janhq/core'
+import { events } from '@rey30-idvj/core'
 
 describe('useAppUpdater', () => {
   const mockEvents = events as any

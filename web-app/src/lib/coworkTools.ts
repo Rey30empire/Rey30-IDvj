@@ -28,6 +28,8 @@ export const PLAN_DENIED_TOOLS = new Set([
   MONITOR_TOOL_NAME,
 ])
 
+const FILE_SEARCH_TOOLS = new Set(['ls', 'find', 'grep'])
+
 /** Named `todo` to match the Rust tool: the plan-mode addendum instructs the
  * model to call `todo` by name, so renaming it here breaks that prompt. */
 export const TODO_TOOL_NAME = 'todo'
@@ -188,6 +190,8 @@ export type CoworkToolOptions = {
   subagentNames: string[]
   /** Depth 1+ cannot spawn further subagents; mirrors the Rust loop's cap. */
   allowSubagents: boolean
+  /** Shell and monitors can alter ACLs on a shared Windows project. */
+  allowProcesses?: boolean
   /**
    * Follows the global web-search setting, the same one chat reads. Cowork has
    * no toggle of its own: the surface configures nothing about its tool set, so
@@ -210,9 +214,20 @@ export function coworkToolSignature(
   return [
     opts.planMode ? 'plan' : 'normal',
     sandboxEnforces ? 'jail' : 'nojail',
+    opts.allowProcesses === false ? 'file-tools' : 'process-tools',
     opts.allowSubagents ? opts.subagentNames.join(',') : 'nosub',
     opts.webSearch ? 'web' : 'noweb',
   ].join('|')
+}
+
+export function isCoworkProcessTool(name: string): boolean {
+  return name === 'shell' || name === MONITOR_TOOL_NAME
+}
+
+function toolAllowed(name: string, opts: CoworkToolOptions): boolean {
+  if (opts.allowProcesses === false && isCoworkProcessTool(name)) return false
+  if (opts.planMode && PLAN_DENIED_TOOLS.has(name)) return false
+  return name !== TASK_TOOL_NAME || opts.allowSubagents
 }
 
 /** Filter a name list down to what this mode may call. */
@@ -220,22 +235,27 @@ export function allowedToolNames(
   names: string[],
   opts: CoworkToolOptions
 ): string[] {
-  return names.filter((name) => {
-    if (opts.planMode && PLAN_DENIED_TOOLS.has(name)) return false
-    if (name === TASK_TOOL_NAME && !opts.allowSubagents) return false
-    return true
-  })
+  // Native search replaces the shell for discovery when it is withheld.
+  const shellAvailable = names.includes('shell') && toolAllowed('shell', opts)
+  return names.filter(
+    (name) =>
+      toolAllowed(name, opts) &&
+      (!shellAvailable || !FILE_SEARCH_TOOLS.has(name))
+  )
 }
 
 export async function buildCoworkTools(
   opts: CoworkToolOptions
 ): Promise<Record<string, Tool>> {
   const schemas = await getAgentToolSchemas()
+  const available = new Set(
+    allowedToolNames(schemas.map((schema) => schema.function.name), opts)
+  )
   const tools: Record<string, Tool> = {}
 
   for (const s of schemas) {
     const name = s.function.name
-    if (opts.planMode && PLAN_DENIED_TOOLS.has(name)) continue
+    if (!available.has(name)) continue
     tools[name] = {
       description: s.function.description,
       inputSchema: jsonSchema(
@@ -261,7 +281,7 @@ export async function buildCoworkTools(
   if (opts.allowSubagents && !opts.planMode) {
     tools[TASK_TOOL_NAME] = taskTool(opts.subagentNames)
   }
-  if (!opts.planMode) {
+  if (toolAllowed(MONITOR_TOOL_NAME, opts)) {
     tools[MONITOR_TOOL_NAME] = monitorTool()
   }
   return tools

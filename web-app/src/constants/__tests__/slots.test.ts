@@ -7,7 +7,7 @@ import {
 
 // llama.cpp wraps an out-of-range id_slot modulo the slot count instead of
 // rejecting it, so any pin above 0 silently lands back on slot 0 whenever the
-// resolved count disagrees. Jan therefore reserves no slot and pins every
+// resolved count disagrees. Rey30 IDvj therefore reserves no slot and pins every
 // surface to 0, separating them by thread_id instead -- which only works while
 // those identities stay distinct.
 describe('llama.cpp slot allocation', () => {

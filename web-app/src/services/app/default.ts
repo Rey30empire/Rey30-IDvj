@@ -6,8 +6,8 @@ import type { AppService, FactoryResetOptions, LogEntry } from './types'
 
 export class DefaultAppService implements AppService {
   async factoryReset(options?: FactoryResetOptions): Promise<void> {
-    console.log('factoryReset called with options:', options)
-    // No-op
+    void options
+    throw new Error('El restablecimiento de fábrica está deshabilitado. Usa la recuperación de preferencias.')
   }
 
   async readLogs(): Promise<LogEntry[]> {
@@ -23,12 +23,12 @@ export class DefaultAppService implements AppService {
     }
   }
 
-  async getJanDataFolder(): Promise<string | undefined> {
+  async getRey30DataFolder(): Promise<string | undefined> {
     return undefined
   }
 
-  async relocateJanDataFolder(path: string): Promise<void> {
-    console.log('relocateJanDataFolder called with path:', path)
+  async relocateRey30DataFolder(path: string): Promise<void> {
+    console.log('relocateRey30DataFolder called with path:', path)
     // No-op - not implemented in default service
   }
 

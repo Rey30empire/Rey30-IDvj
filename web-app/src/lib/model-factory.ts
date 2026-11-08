@@ -57,8 +57,8 @@ import { createXai } from '@ai-sdk/xai'
 import { createMistral } from '@ai-sdk/mistral'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { invoke } from '@tauri-apps/api/core'
-import { findSessionByModel } from '@janhq/tauri-plugin-llamacpp-api'
-import { SessionInfo } from '@janhq/core'
+import { findSessionByModel } from '@rey30-idvj/tauri-plugin-llamacpp-api'
+import { SessionInfo } from '@rey30-idvj/core'
 import { fetch as httpFetch } from '@tauri-apps/plugin-http'
 import { hasAudioSentinel, splitAudioSentinels } from './audio-sentinel'
 import { hasVideoSentinel, splitVideoSentinels } from './video-sentinel'
@@ -84,6 +84,8 @@ import { i18n } from '@/i18n/react-i18next-compat'
 import { useAppState } from '@/hooks/useAppState'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { ensureAnthropicHeaders } from '@/lib/remoteModelCatalog'
+import { assertNativeSessionPort, assertPrivacyFactoryParameters, assertPrivacyLoopbackUrl, assertPrivacyProvider, ensurePrivacyMode, getPrivacyModeSnapshot, nativePrivacyProvider } from '@/lib/privacyPolicy'
+import { withPrivacyRemoteGuard, wrapModelWithPrivacy } from '@/lib/privacyMiddleware'
 
 /**
  * Llama.cpp timings structure from the response
@@ -239,8 +241,8 @@ export function reconcileConstraintParams(body: Record<string, unknown>): void {
         let parsed: unknown
         try {
           parsed = JSON.parse(trimmed)
-        } catch (e) {
-          console.warn('Ignoring JSON Schema that is not valid JSON:', e)
+        } catch {
+          console.warn('Ignoring JSON Schema that is not valid JSON')
           delete body.json_schema
         }
         if ('json_schema' in body) {
@@ -644,11 +646,13 @@ function notifySamplingStripped(reason: string): void {
   void import('sonner')
     .then(({ toast }) => {
       toast.warning('Sampling parameters dropped', {
-        description: `${cleanUpstreamErrorMessage(reason)} — request retried without your sampling overrides. Adjust in the Sampling popover.`,
+        description: getPrivacyModeSnapshot() === 'standard'
+          ? `${cleanUpstreamErrorMessage(reason)} — request retried without your sampling overrides. Adjust in the Sampling popover.`
+          : 'El proveedor rechazó opciones de muestreo. Se reintentó sin esas opciones.',
       })
     })
     .catch(() => {
-      console.warn('[sampling-retry]', reason)
+      console.warn('[sampling-retry] Provider rejected sampling options')
     })
 }
 
@@ -907,8 +911,11 @@ export const LOOPBACK_DIRECT_PROXY = {
   all: { url: 'http://127.0.0.1:9', noProxy: 'localhost,127.0.0.1,::1' },
 }
 
-export const loopbackFetch: typeof globalThis.fetch = (input, init) =>
-  httpFetch(input, { ...init, proxy: LOOPBACK_DIRECT_PROXY })
+export const loopbackFetch: typeof globalThis.fetch = async (input, init) => {
+  const mode = await ensurePrivacyMode()
+  if (mode !== 'standard') assertPrivacyLoopbackUrl(requestUrlOf(input))
+  return httpFetch(input, { ...init, proxy: LOOPBACK_DIRECT_PROXY, ...(mode !== 'standard' ? { redirect: 'error' as const, maxRedirections: 0 } : {}) })
+}
 
 function getRuntimeFetch(): typeof globalThis.fetch {
   const maybeWindow = globalThis as typeof globalThis & {
@@ -919,9 +926,10 @@ function getRuntimeFetch(): typeof globalThis.fetch {
     typeof maybeWindow.__TAURI__ !== 'undefined' ||
     typeof maybeWindow.__TAURI_INTERNALS__ !== 'undefined'
 
-  return isPlatformTauri() && hasTauriRuntime
+  const runtimeFetch = isPlatformTauri() && hasTauriRuntime
     ? (httpFetch as typeof globalThis.fetch)
     : globalThis.fetch
+  return withPrivacyRemoteGuard(runtimeFetch)
 }
 
 /**
@@ -960,6 +968,26 @@ export class ModelFactory {
    * Create a language model instance based on the provider configuration
    */
   static async createModel(
+    modelId: string,
+    provider: ProviderObject,
+    parameters: Record<string, unknown> = {},
+    nativeOnly = false
+  ): Promise<LanguageModel> {
+    const mode = await ensurePrivacyMode()
+    const name = provider.provider.toLowerCase()
+    const nativeEngine = nativePrivacyProvider(name) && getProviderApiType(provider) !== 'anthropic'
+    assertPrivacyProvider(nativeOnly ? 'local-only' : mode, nativeEngine && (!nativeOnly || isPlatformTauri()))
+    assertPrivacyFactoryParameters(mode, parameters, nativeEngine)
+    const defaults: Record<string, string> = { anthropic: 'https://api.anthropic.com/v1', google: 'https://generativelanguage.googleapis.com/v1beta', gemini: 'https://generativelanguage.googleapis.com/v1beta', mistral: 'https://api.mistral.ai/v1', xai: 'https://api.x.ai/v1' }
+    const model = await this.createUnprotectedModel(modelId, provider, parameters)
+    return wrapModelWithPrivacy(model as Parameters<typeof wrapLanguageModel>[0]['model'], {
+      provider: provider.provider, model: modelId,
+      endpoint: (provider.base_url || defaults[name] || 'https://api.openai.com/v1').replace(name === 'google' || name === 'gemini' ? /\/openai\/?$/ : /\/$/, ''),
+      nativeEngine, parameters: { ...parameters },
+    })
+  }
+
+  private static async createUnprotectedModel(
     modelId: string,
     provider: ProviderObject,
     parameters: Record<string, unknown> = {}
@@ -1029,7 +1057,7 @@ export class ModelFactory {
           await serviceHub.models().startModel(provider, modelId)
         }
       } catch (error) {
-        console.error('Failed to start llamacpp model:', error)
+        console.error('Failed to start llamacpp model')
         // A serialized engine error is a plain object, so the previous
         // `instanceof Error` path stringified it into raw JSON for the user.
         // It rides along as `cause` so an outer layer describes the failure
@@ -1046,6 +1074,7 @@ export class ModelFactory {
         i18n.t('model-errors:noRunningSession', { model: modelId })
       )
     }
+    assertNativeSessionPort(sessionInfo.port)
 
     const onLlamacppServerError = provider
       ? () => {
@@ -1054,8 +1083,8 @@ export class ModelFactory {
               const { useServiceStore } = await import('@/hooks/useServiceHub')
               const hub = useServiceStore.getState().serviceHub
               await hub?.models().reloadModel(provider, modelId)
-            } catch (e) {
-              console.warn('[llamacpp] reload after crash failed:', e)
+            } catch {
+              console.warn('[llamacpp] reload after crash failed')
             }
           })()
         }
@@ -1113,7 +1142,7 @@ export class ModelFactory {
           await serviceHub.models().startModel(provider, modelId)
         }
       } catch (error) {
-        console.error('Failed to start MLX model:', error)
+        console.error('Failed to start MLX model')
         throw engineFailure('model-errors:startModelFailed', error)
       }
     }
@@ -1127,6 +1156,7 @@ export class ModelFactory {
     if (!sessionInfo) {
       throw new Error(`No running MLX session found for model: ${modelId}`)
     }
+    assertNativeSessionPort(sessionInfo.port)
 
     const baseUrl = `http://localhost:${sessionInfo.port}`
     const authHeaders = {

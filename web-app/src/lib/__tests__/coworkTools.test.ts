@@ -20,7 +20,9 @@ const schema = (name: string) => ({
   function: { name, description: name, parameters: { type: 'object' } },
 })
 
-const ALL = ['read', 'ls', 'grep', 'write', 'edit', 'shell', 'memory_write']
+const SEARCH = ['ls', 'find', 'grep']
+const BASE = ['read', 'write', 'edit', 'shell', 'memory_write']
+const ALL = [...BASE, ...SEARCH]
 
 const opts = (over: Partial<Parameters<typeof buildCoworkTools>[0]> = {}) => ({
   planMode: false,
@@ -36,12 +38,32 @@ describe('buildCoworkTools', () => {
     getAgentToolSchemas.mockResolvedValue(ALL.map(schema))
   })
 
-  it('advertises the built-ins plus the client-only tools', async () => {
+  it('keeps the existing compact tool set when shell is available', async () => {
     const tools = await buildCoworkTools(opts())
-    for (const n of ALL) expect(tools[n]).toBeDefined()
+    for (const n of BASE) expect(tools[n]).toBeDefined()
+    for (const n of SEARCH) expect(tools[n]).toBeUndefined()
     expect(tools[TODO_TOOL_NAME]).toBeDefined()
     expect(tools[ASK_TOOL_NAME]).toBeDefined()
     expect(tools[TASK_TOOL_NAME]).toBeDefined()
+  })
+
+  it('keeps file tools without shell or monitor on a shared Windows project', async () => {
+    const restricted = opts({ allowProcesses: false })
+    const tools = await buildCoworkTools(restricted)
+    for (const name of ['read', 'write', 'edit', ...SEARCH]) {
+      expect(tools[name]).toBeDefined()
+    }
+    expect(tools.shell).toBeUndefined()
+    expect(tools.monitor).toBeUndefined()
+    expect(coworkToolSignature(restricted, true)).not.toBe(coworkToolSignature(opts(), true))
+    expect(allowedToolNames(['read', 'write', 'shell', 'monitor'], restricted)).toEqual(['read', 'write'])
+  })
+
+  it('uses native search when the sandbox has withheld shell', async () => {
+    getAgentToolSchemas.mockResolvedValue(ALL.filter(name => name !== 'shell').map(schema))
+    const tools = await buildCoworkTools(opts())
+    for (const name of SEARCH) expect(tools[name]).toBeDefined()
+    expect(tools.shell).toBeUndefined()
   })
 
   // Plan mode's guarantee is that nothing can mutate. Withholding is only half
@@ -143,7 +165,7 @@ describe('web tools', () => {
 describe('allowedToolNames', () => {
   it('refuses the same set plan mode withholds', () => {
     const out = allowedToolNames([...ALL, TASK_TOOL_NAME], opts({ planMode: true }))
-    expect(out).toEqual(['read', 'ls', 'grep'])
+    expect(out).toEqual(['read', ...SEARCH])
   })
 
   it('refuses task past the subagent depth cap', () => {

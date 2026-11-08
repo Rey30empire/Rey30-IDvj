@@ -4,7 +4,7 @@
 
 import { predefinedProviders } from '@/constants/providers'
 import { providerModels } from '@/constants/models'
-import { EngineManager, SettingComponentProps } from '@janhq/core'
+import { EngineManager, SettingComponentProps } from '@rey30-idvj/core'
 import { ModelCapabilities } from '@/types/models'
 import { modelSettings } from '@/lib/predefined'
 import { ExtensionManager } from '@/lib/extension'

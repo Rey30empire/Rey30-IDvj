@@ -21,7 +21,10 @@ export function ApiKeyInput({
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
+  const [copyFailed, setCopyFailed] = useState(false)
   const { t } = useTranslation()
+
+  useEffect(() => setInputValue(apiKey.toString()), [apiKey])
 
   const validateApiKey = useCallback(
     (value: string) => {
@@ -62,19 +65,28 @@ export function ApiKeyInput({
     }
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!inputValue) return
-    navigator.clipboard.writeText(inputValue)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(inputValue)
+      setCopyFailed(false)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+      setCopyFailed(true)
+      setError(t('api-connection:copyFailed'))
+    }
   }
 
-  const hasError = error && showError
+  const hasError = error && (showError || copyFailed)
 
   return (
     <div className="relative w-full">
       <Input
         type={showPassword ? 'text' : 'password'}
+        aria-label={t('settings:localApiServer.apiKey')}
+        disabled={isServerRunning}
         value={inputValue}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -91,6 +103,7 @@ export function ApiKeyInput({
           onClick={() => setShowPassword(!showPassword)}
           className="p-1 rounded hover:bg-secondary/50 text-muted-foreground"
           type="button"
+          aria-label={t(showPassword ? 'api-connection:hideKey' : 'api-connection:showKey')}
         >
           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
@@ -99,6 +112,7 @@ export function ApiKeyInput({
           disabled={!inputValue}
           className="p-1 rounded hover:bg-secondary/50 text-muted-foreground disabled:opacity-40 disabled:pointer-events-none"
           type="button"
+          aria-label={t('api-connection:copyKey')}
         >
           {copied ? (
             <CopyCheck size={16} className="text-primary" />

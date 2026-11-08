@@ -1,9 +1,11 @@
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useThreadManagement } from '@/hooks/useThreadManagement'
 import { useThreads } from '@/hooks/useThreads'
-import { useAssistant } from '@/hooks/useAssistant'
+import { useAvailableAssistants } from '@/hooks/useAvailableAssistants'
+import { useModelProvider } from '@/hooks/useModelProvider'
+import { selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 
 import ChatInput from '@/containers/ChatInput'
@@ -11,7 +13,13 @@ import HeaderPage from '@/containers/HeaderPage'
 import ThreadList from '@/containers/ThreadList'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
 
-import { FolderPenIcon, MessageCircle, MoreHorizontal, PencilIcon, Trash2 } from 'lucide-react'
+import {
+  FolderPenIcon,
+  MessageCircle,
+  MoreHorizontal,
+  PencilIcon,
+  Trash2,
+} from 'lucide-react'
 import ProjectFiles from '@/containers/ProjectFiles'
 import DropdownModelProvider from '@/containers/DropdownModelProvider'
 import {
@@ -36,8 +44,14 @@ function ProjectPageContent() {
   const { projectId } = useParams({ from: '/project/$projectId' })
   const { getFolderById, updateFolder } = useThreadManagement()
   const threads = useThreads((state) => state.threads)
-  const deleteAllThreadsByProject = useThreads((state) => state.deleteAllThreadsByProject)
-  const { assistants } = useAssistant()
+  const deleteAllThreadsByProject = useThreads(
+    (state) => state.deleteAllThreadsByProject
+  )
+  const assistants = useAvailableAssistants()
+  const providers = useModelProvider((state) => state.providers)
+  const selectedProvider = useModelProvider((state) => state.selectedProvider)
+  const selectedModel = useModelProvider((state) => state.selectedModel)
+  const [assistantError, setAssistantError] = useState<string | null>(null)
 
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -45,6 +59,29 @@ function ProjectPageContent() {
 
   // Find the project
   const project = getFolderById(projectId)
+  const assignedProjectId = project?.id
+  const assignedProjectAssistantId = project?.assistantId
+  useEffect(() => {
+    useThreads.getState().setCurrentThreadId(undefined)
+    setAssistantError(null)
+    if (!assignedProjectId || providers.length === 0) return
+    let disposed = false
+    void selectIntegratedAssistant(assignedProjectAssistantId ?? '')
+      .then(() => {
+        if (!disposed) setAssistantError(null)
+      })
+      .catch((error: unknown) => {
+        if (!disposed)
+          setAssistantError(
+            error instanceof Error
+              ? error.message
+              : 'No se pudo seleccionar el asistente del proyecto.'
+          )
+      })
+    return () => {
+      disposed = true
+    }
+  }, [assignedProjectId, assignedProjectAssistantId, providers])
 
   // Find the assigned assistant
   const projectAssistant = useMemo(() => {
@@ -89,7 +126,28 @@ function ProjectPageContent() {
     <div className="flex flex-col h-svh w-full">
       <HeaderPage>
         <div className="flex items-center justify-between w-full">
-          <DropdownModelProvider />
+          <DropdownModelProvider
+            assistantId={project.assistantId ?? ''}
+            onAssistantChange={async (id) => {
+              try {
+                await updateFolder(project.id, project.name, id || undefined)
+                setAssistantError(null)
+              } catch (error) {
+                try {
+                  await selectIntegratedAssistant(project.assistantId ?? '')
+                  if (selectedModel)
+                    useModelProvider
+                      .getState()
+                      .selectModelProvider(selectedProvider, selectedModel.id)
+                } catch {
+                  setAssistantError(
+                    'No se pudo recuperar la selección anterior. Revisa el asistente del proyecto antes de enviar.'
+                  )
+                }
+                throw error
+              }
+            }}
+          />
         </div>
       </HeaderPage>
 
@@ -97,9 +155,7 @@ function ProjectPageContent() {
         <div className="mx-auto w-full md:w-4/5 xl:w-4/6">
           {/* Project Name with Dropdown */}
           <div className="flex items-center justify-between gap-2 mb-4">
-            <h1 className="text-2xl font-semibold">
-              {project.name}
-            </h1>
+            <h1 className="text-2xl font-semibold">{project.name}</h1>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon-xs">
@@ -126,6 +182,11 @@ function ProjectPageContent() {
 
           {/* Chat Input */}
           <div className="mb-6">
+            {assistantError && (
+              <p role="alert" className="mb-2 text-sm text-destructive">
+                {assistantError}
+              </p>
+            )}
             <ChatInput
               showSpeedToken={false}
               initialMessage={true}
@@ -141,7 +202,10 @@ function ProjectPageContent() {
                 <h2 className="text-base font-medium">
                   {t('projects.conversation')}
                 </h2>
-                <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+                <DropdownMenu
+                  open={dropdownOpen}
+                  onOpenChange={setDropdownOpen}
+                >
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon-xs">
                       <MoreHorizontal className="size-4" />
@@ -175,7 +239,9 @@ function ProjectPageContent() {
                 {t('projects.noConversationsIn', { projectName: project.name })}
               </h3>
               <p className="text-sm text-muted-foreground">
-                {t('projects.startNewConversation', { projectName: project.name })}
+                {t('projects.startNewConversation', {
+                  projectName: project.name,
+                })}
               </p>
             </div>
           )}
@@ -185,7 +251,9 @@ function ProjectPageContent() {
             {/* Assistant Section */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex flex-col gap-1">
-                <h3 className="text-sm font-medium">{t('projects.addProjectDialog.assistant')}</h3>
+                <h3 className="text-sm font-medium">
+                  {t('projects.addProjectDialog.assistant')}
+                </h3>
                 {projectAssistant ? (
                   <div className="flex items-center gap-1.5 mt-1">
                     {projectAssistant.avatar && (
@@ -195,7 +263,9 @@ function ProjectPageContent() {
                         textClassName="text-sm"
                       />
                     )}
-                    <span className="text-sm text-muted-foreground">{projectAssistant.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {projectAssistant.name}
+                    </span>
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">

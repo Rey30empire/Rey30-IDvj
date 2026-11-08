@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 type Format = 'markdown' | 'csv'
 
@@ -60,6 +61,7 @@ export function MarkdownTable({
   className,
   ...props
 }: HTMLAttributes<HTMLTableElement>) {
+  const { t } = useTranslation()
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
 
@@ -113,31 +115,31 @@ export function MarkdownTable({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              title="Export table"
-              aria-label="Export table"
+              title={t('ui-details:exportTable')}
+              aria-label={t('ui-details:exportTable')}
               className="inline-flex items-center gap-1 rounded-md p-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
               {copied ? <Check size={14} /> : <Download size={14} />}
-              <span>Export</span>
+              <span>{t('ui-details:export')}</span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[180px]">
             <DropdownMenuItem onSelect={() => copy('markdown')}>
               <ClipboardCopy size={14} />
-              Copy as Markdown
+              {t('ui-details:copyMarkdown')}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => copy('csv')}>
               <ClipboardCopy size={14} />
-              Copy as CSV
+              {t('ui-details:copyCsv')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => download('markdown')}>
               <Download size={14} />
-              Download .md
+              {t('ui-details:downloadMarkdown')}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => download('csv')}>
               <Download size={14} />
-              Download .csv
+              {t('ui-details:downloadCsv')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -31,7 +31,9 @@
     "description": "¿Estás seguro de que deseas eliminar este modelo? Esta acción no se puede deshacer.",
     "success": "El modelo {{modelId}} ha sido eliminado permanentemente.",
     "cancel": "Cancelar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "importedDescription": "¿Retirar este modelo importado de Rey30 IDvj? El archivo local se conservará.",
+    "removeFromRey30": "Retirar de Rey30 IDvj"
   },
   "deleteProvider": {
     "title": "Eliminar proveedor",
@@ -54,9 +56,71 @@
     "warning": {
       "title": "Proceder con precaución",
       "description": "Modificar las capacidades del modelo puede afectar el rendimiento y la funcionalidad. Configuraciones incorrectas podrían causar comportamientos inesperados o errores."
-    }
+    },
+    "audio": "Audio",
+    "video": "Vídeo"
   },
   "addProvider": "Agregar proveedor",
   "addOpenAIProvider": "Agregar proveedor OpenAI",
-  "enterNameForProvider": "Ingresa un nombre para el proveedor"
+  "enterNameForProvider": "Ingresa un nombre para el proveedor",
+  "limitedSupport": "Este proveedor puede tener compatibilidad parcial. Sus capacidades de herramientas, visión y audio no se detectan automáticamente. Agrega modelos y configura sus capacidades manualmente.",
+  "mlxExperimental": "La compatibilidad con MLX es experimental. No admite embeddings, el control de razonamiento aún no está conectado y algunas arquitecturas recientes pueden fallar al cargar. Informa del problema con los datos de la versión.",
+  "engineBundled": "El motor de inferencia está integrado en Rey30 IDvj y no necesita una descarga o actualización separada. Incluye esta versión al informar de un fallo de carga.",
+  "engineOtherVersion": "Para utilizar otra versión de llama.cpp, ejecuta tu propio llama-server y agrégalo como proveedor OpenAI compatible.",
+  "engineOtherVersionLink": "Ver instrucciones",
+  "engineReleaseNotes": "Notas de la versión",
+  "engineBuild": "Compilación",
+  "engineCommit": "Revisión",
+  "backendInstalled": "Instalado",
+  "backendHistoryShow": "Mostrar historial de actualizaciones",
+  "backendHistoryHide": "Ocultar historial de actualizaciones",
+  "backendHistoryLoading": "Cargando historial de actualizaciones…",
+  "backendHistoryEmpty": "Todavía no hay actualizaciones del motor registradas.",
+  "backendHistoryNone": "ninguna",
+  "backendHistoryUpdated": "Actualizado",
+  "backendHistoryRolledBack": "Versión anterior restaurada",
+  "backendHistoryRollbackFailed": "No se pudo restaurar la versión anterior",
+  "backendHistoryFailed": "Error",
+  "chatModels": "Modelos de chat",
+  "embeddingModels": "Modelos de embeddings",
+  "embeddingModelsDesc": "Se utilizan para recuperación de documentos y búsqueda vectorial. El modelo seleccionado será el predeterminado al generar embeddings.",
+  "embeddingModelDefault": "Predeterminado",
+  "embeddingModelSetDefault": "Usar como modelo de embeddings predeterminado",
+  "embeddingModelIsDefault": "Modelo de embeddings predeterminado",
+  "imported": "Importado",
+  "importedTooltip": "Importado desde un archivo local. Retirarlo de Rey30 IDvj no elimina el archivo del disco.",
+  "noModelFoundRemoteDesc": "Los modelos disponibles aparecerán aquí. Usa el botón de actualización para consultarlos al proveedor o agrégalos manualmente con +.",
+  "deleteAllModels": {
+    "button": "Eliminar todos",
+    "title": "¿Eliminar todos los modelos descargados?",
+    "description": "Se eliminarán permanentemente {{count}} modelo(s) del disco.",
+    "sizeLabel": "Espacio que se liberará:",
+    "calculating": "Calculando…",
+    "warning": "Esta acción no se puede deshacer.",
+    "importedExcluded": "Se conservarán {{count}} modelo(s) importado(s), cuyos archivos no fueron descargados por Rey30 IDvj.",
+    "confirm": "Eliminar {{count}} modelo(s)",
+    "deleting": "Eliminando…",
+    "success": "Se eliminaron {{count}} modelo(s).",
+    "partialFailure": "No se pudieron eliminar {{count}} modelo(s). Consulta los detalles en la consola."
+  },
+  "baseUrl": {
+    "title": "URL base",
+    "azureDescription": "Endpoint de Azure OpenAI. Sustituye YOUR-RESOURCE-NAME por el nombre de tu recurso de Azure."
+  },
+  "apiKeys": {
+    "title": "Claves de API",
+    "description": "Introduce tu clave de API. Puedes agregar claves de respaldo en Opciones avanzadas; si una falla, Rey30 IDvj intentará la siguiente.",
+    "placeholder": "sk-…\nsk-…",
+    "primaryPlaceholder": "Introduce la clave principal",
+    "keyPlaceholder": "Introduce una clave de API",
+    "primaryBadge": "Principal",
+    "test": "Comprobar claves",
+    "testing": "Comprobando…",
+    "testHint": "Consulta /models con cada clave y muestra su estado.",
+    "advanced": "Opciones avanzadas",
+    "hideAdvanced": "Ocultar opciones avanzadas",
+    "oneKeyHint": "Las claves de respaldo opcionales se agregan en Opciones avanzadas.",
+    "addKey": "Agregar clave",
+    "removeKey": "Retirar clave"
+  }
 }

@@ -6,9 +6,9 @@ import { localStorageKey, CACHE_EXPIRY_MS } from '@/constants/localStorage'
 import { useDownloadStore } from '@/hooks/useDownloadStore'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useEffect, useMemo, useCallback, useState, useRef } from 'react'
-import { AppEvent, events } from '@janhq/core'
+import { AppEvent, events } from '@rey30-idvj/core'
 import { SETUP_SCREEN_QUANTIZATIONS } from '@/constants/models'
-import { useLatestJanModel } from '@/hooks/useLatestJanModel'
+import { useLatestDefaultModel } from '@/hooks/useLatestDefaultModel'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -77,7 +77,7 @@ function ModelCard({
       className="bg-secondary/50 p-3 rounded-lg border flex items-center gap-3"
     >
       <div className="shrink-0 size-12 bg-background rounded-xl flex items-center justify-center">
-        <img src="/images/jan-logo.png" alt="Jan Logo" className="size-6" />
+        <img src="/images/rey30-idvj.svg" alt="Rey30 IDvj" className="size-6" />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -206,10 +206,10 @@ function SetupScreen() {
   const [quickStartInitiated, setQuickStartInitiated] = useState(false)
   const [quickStartQueued, setQuickStartQueued] = useState(false)
   const {
-    model: janNewModel,
+    model: defaultModel,
     error: metadataFetchFailed,
-    fetchLatestJanModel,
-  } = useLatestJanModel()
+    fetchLatestDefaultModel,
+  } = useLatestDefaultModel()
   const [supportedVariants, setSupportedVariants] = useState<
     Map<string, 'RED' | 'YELLOW' | 'GREEN' | 'GREY'>
   >(new Map())
@@ -240,20 +240,20 @@ function SetupScreen() {
   }, [productAnalyticPrompt])
 
 
-  // Check model support for variants when janNewModel is available
+  // Check model support for variants when defaultModel is available
   useEffect(() => {
     const checkModelSupport = async () => {
-      if (!janNewModel) return
+      if (!defaultModel) return
 
       if (
         supportCheckInProgress.current ||
-        checkedModelId.current === janNewModel.model_name
+        checkedModelId.current === defaultModel.model_name
       ) {
         return
       }
 
       supportCheckInProgress.current = true
-      checkedModelId.current = janNewModel.model_name
+      checkedModelId.current = defaultModel.model_name
       setIsSupportCheckComplete(false)
 
       const variantSupportMap = new Map<
@@ -262,7 +262,7 @@ function SetupScreen() {
       >()
 
       for (const quantization of SETUP_SCREEN_QUANTIZATIONS) {
-        const variant = janNewModel.quants?.find((quant) =>
+        const variant = defaultModel.quants?.find((quant) =>
           quant.model_id.toLowerCase().includes(quantization)
         )
 
@@ -302,15 +302,15 @@ function SetupScreen() {
     }
 
     checkModelSupport()
-  }, [janNewModel, serviceHub])
+  }, [defaultModel, serviceHub])
 
   useEffect(() => {
-    fetchLatestJanModel(true)
-  }, [fetchLatestJanModel])
+    fetchLatestDefaultModel(true)
+  }, [fetchLatestDefaultModel])
 
 
   const defaultVariant = useMemo(() => {
-    if (!janNewModel) return null
+    if (!defaultModel) return null
 
     const priorityOrder: Array<'GREEN' | 'YELLOW' | 'GREY'> = [
       'GREEN',
@@ -320,7 +320,7 @@ function SetupScreen() {
 
     for (const status of priorityOrder) {
       for (const quantization of SETUP_SCREEN_QUANTIZATIONS) {
-        const variant = janNewModel.quants?.find((quant) =>
+        const variant = defaultModel.quants?.find((quant) =>
           quant.model_id.toLowerCase().includes(quantization)
         )
 
@@ -331,7 +331,7 @@ function SetupScreen() {
     }
 
     for (const quantization of SETUP_SCREEN_QUANTIZATIONS) {
-      const variant = janNewModel.quants?.find((quant) =>
+      const variant = defaultModel.quants?.find((quant) =>
         quant.model_id.toLowerCase().includes(quantization)
       )
 
@@ -341,30 +341,30 @@ function SetupScreen() {
     }
 
     for (const quantization of SETUP_SCREEN_QUANTIZATIONS) {
-      const variant = janNewModel.quants?.find((quant) =>
+      const variant = defaultModel.quants?.find((quant) =>
         quant.model_id.toLowerCase().includes(quantization)
       )
       if (variant) return variant
     }
 
-    return janNewModel.quants?.[0]
-  }, [janNewModel, supportedVariants])
+    return defaultModel.quants?.[0]
+  }, [defaultModel, supportedVariants])
 
   // The recommended model as a uniform option, so the download path stays
   // independent of how the quant was chosen.
   const selected = useMemo<SetupModelOption | null>(() => {
-    if (!janNewModel || !defaultVariant) return null
+    if (!defaultModel || !defaultVariant) return null
     return {
-      modelName: janNewModel.model_name,
+      modelName: defaultModel.model_name,
       displayName:
-        janNewModel.display_name?.trim() || janNewModel.model_name || '',
+        defaultModel.display_name?.trim() || defaultModel.model_name || '',
       modelId: defaultVariant.model_id,
       path: defaultVariant.path,
       fileSize: defaultVariant.file_size,
-      multimodal: (janNewModel.mmproj_models?.length ?? 0) > 0,
-      mmprojPath: pickMmproj(janNewModel),
+      multimodal: (defaultModel.mmproj_models?.length ?? 0) > 0,
+      mmprojPath: pickMmproj(defaultModel),
     }
-  }, [janNewModel, defaultVariant])
+  }, [defaultModel, defaultVariant])
 
   // The quant depends on the per-variant fit check, so a click before it lands
   // has to be queued rather than acted on.
@@ -767,7 +767,9 @@ function SetupScreen() {
                         gpu.willUse ? 'text-green-400' : 'text-muted-foreground'
                       )}
                     >
-                      {gpu.willUse === undefined ? (
+                      {gpu.unavailableSelection ? (
+                        <IconAlertTriangle size={15} />
+                      ) : gpu.willUse === undefined ? (
                         <IconLoader2 size={15} className="animate-spin" />
                       ) : gpu.willUse ? (
                         <IconCheck size={15} />
@@ -782,14 +784,16 @@ function SetupScreen() {
                           gpu.willUse ? 'text-green-400' : 'text-foreground'
                         )}
                       >
-                        {gpu.willUse === undefined
+                        {gpu.unavailableSelection
+                          ? t('setup:badgeGpuUnavailable')
+                          : gpu.willUse === undefined
                           ? t('setup:badgeGpuUnknown')
                           : gpu.willUse
                             ? t('setup:badgeGpu')
                             : t('setup:badgeCpu')}
                       </p>
                       {gpu.label && (
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        <p className="mt-0.5 break-words text-xs text-muted-foreground">
                           {gpu.label}
                         </p>
                       )}
@@ -882,7 +886,7 @@ function SetupScreen() {
                     <ModelCard
                       option={selected}
                       fallbackName={
-                        janNewModel?.display_name ?? janNewModel?.model_name
+                        defaultModel?.display_name ?? defaultModel?.model_name
                       }
                       progress={downloadProgress}
                       isDownloading={isDownloading}

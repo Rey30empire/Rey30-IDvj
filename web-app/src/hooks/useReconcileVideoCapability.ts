@@ -19,7 +19,7 @@ type LlamacppLike = {
 const getLlamacppExtension = (): LlamacppLike | undefined => {
   const mgr = ExtensionManager.getInstance()
   const candidates = [
-    mgr.getByName('@janhq/llamacpp-extension'),
+    mgr.getByName('@rey30-idvj/llamacpp-extension'),
     mgr.getByName('llamacpp-extension'),
   ]
   for (const c of candidates) {

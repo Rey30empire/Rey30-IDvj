@@ -17,7 +17,7 @@ export class TauriHardwareService extends DefaultHardwareService {
 
   async getLlamacppDevices(): Promise<DeviceList[]> {
     const extensionManager = window.core.extensionManager
-    const llamacppExtension = extensionManager.getByName('@janhq/llamacpp-extension')
+    const llamacppExtension = extensionManager.getByName('@rey30-idvj/llamacpp-extension')
 
     if (!llamacppExtension) {
       throw new Error('llamacpp extension not found')
@@ -28,7 +28,7 @@ export class TauriHardwareService extends DefaultHardwareService {
 
   async reconcileLlamacppDevices(): Promise<'unchanged' | 'restarted' | 'busy'> {
     const llamacppExtension = window.core.extensionManager.getByName(
-      '@janhq/llamacpp-extension'
+      '@rey30-idvj/llamacpp-extension'
     )
     if (!llamacppExtension?.reconcileEngineDevices) return 'unchanged'
     return llamacppExtension.reconcileEngineDevices()

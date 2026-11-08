@@ -14,7 +14,7 @@ export function PromptAnalytic() {
     <div className="fixed bottom-4 right-4 z-50 p-4 shadow-lg bg-background w-4/5 md:w-100 border rounded-lg">
       <div className="mb-2 flex items-center gap-2">
         <IconFileTextShield className="text-muted-foreground" />
-        <h2 className="font-medium">{t('helpUsImproveJan')}</h2>
+        <h2 className="font-medium">{t('helpUsImproveRey30')}</h2>
       </div>
       <AnalyticConsent />
     </div>

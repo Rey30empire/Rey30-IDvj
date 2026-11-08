@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { useDownloadStore } from '@/hooks/useDownloadStore'
 import { useAppUpdateDownload } from '@/stores/app-update-download-store'
 import { useServiceHub } from '@/hooks/useServiceHub'
-import { events, AppEvent } from '@janhq/core'
+import { events, AppEvent } from '@rey30-idvj/core'
 import { IconPlayerPause, IconPlayerPlay, IconX } from '@tabler/icons-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -172,7 +172,7 @@ export function DownloadManagement() {
       removeLocalDownloadingModel(id)
       if (id.startsWith('llamacpp') || id.startsWith('mlx')) {
         const downloadManager = window.core.extensionManager.getByName(
-          '@janhq/download-extension'
+          '@rey30-idvj/download-extension'
         )
         downloadManager.cancelDownload(id)
       } else {
@@ -317,7 +317,7 @@ export function DownloadManagement() {
                                 <IconPlayerPlay
                                   size={16}
                                   className="text-muted-foreground cursor-pointer"
-                                  title="Resume download"
+                                  title={t('ui-details:resumeDownload')}
                                 />
                               </Button>
                             ) : (
@@ -329,7 +329,7 @@ export function DownloadManagement() {
                                 <IconPlayerPause
                                   size={16}
                                   className="text-muted-foreground cursor-pointer"
-                                  title="Pause download"
+                                  title={t('ui-details:pauseDownload')}
                                 />
                               </Button>
                             ))}
@@ -343,7 +343,7 @@ export function DownloadManagement() {
                             <IconX
                               size={16}
                               className="text-muted-foreground cursor-pointer"
-                              title="Cancel download"
+                              title={t('ui-details:cancelDownload')}
                             />
                           </Button>
                         </div>
@@ -394,7 +394,7 @@ export function DownloadManagement() {
               <div className="px-3 py-8 flex flex-col items-center justify-center text-center space-y-2">
                 <DownloadIcon className="text-muted-foreground/50 size-6" />
                 <p className="text-muted-foreground leading-normal">
-                  Your download progress <br /> will appear here
+                  {t('ui-details:downloadProgress')}<br />{t('ui-details:willAppearHere')}
                 </p>
               </div>
             )}

@@ -11,7 +11,7 @@ type ToolChunk = {
  * The AI SDK rejects a call to a tool that was not advertised: the stream
  * carries `tool-input-error` plus `tool-output-error` and the chat never learns
  * a call was made, so no tool loop runs and no follow-up request is sent. For
- * a tool Jan refuses on purpose (the shell switched off) that ends the turn
+ * a tool Rey30 IDvj refuses on purpose (the shell switched off) that ends the turn
  * instead of telling the model "turned off" and letting it continue.
  *
  * This rewrites such a call into an ordinary `tool-input-available`, which

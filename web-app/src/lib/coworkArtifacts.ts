@@ -5,7 +5,7 @@ import { isRecordedShellCall } from '@/lib/agentTools'
 
 /**
  * Artifacts a run produced, derived from its `write`/`edit` tool calls
- * (jan-internal #242 / #304).
+ * (upstream-internal #242 / #304).
  *
  * Two filters, because either alone is wrong:
  *

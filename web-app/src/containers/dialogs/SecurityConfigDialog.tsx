@@ -1,3 +1,4 @@
+import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
@@ -74,6 +75,7 @@ export function SecurityConfigDialog({
   onClose,
   onSave,
 }: SecurityConfigDialogProps) {
+  const { t } = useTranslation()
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('auth')
 
@@ -126,11 +128,11 @@ export function SecurityConfigDialog({
       setAuthMode(result.auth_mode)
       setRequirePairing(result.require_pairing)
     } catch {
-      toast.error('Failed to load security settings')
+      toast.error(t('ui-dialogs:security.loadFailed'))
     } finally {
       setIsLoadingStatus(false)
     }
-  }, [])
+  }, [t])
 
   // Fetch devices
   const fetchDevices = useCallback(async () => {
@@ -139,24 +141,26 @@ export function SecurityConfigDialog({
       const result = await invoke<DeviceInfo[]>('security_get_devices')
       setDevices(result)
     } catch {
-      toast.error('Failed to load devices')
+      toast.error(t('ui-dialogs:security.devicesFailed'))
     } finally {
       setIsLoadingDevices(false)
     }
-  }, [])
+  }, [t])
 
   // Fetch logs
   const fetchLogs = useCallback(async () => {
     setIsLoadingLogs(true)
     try {
-      const result = await invoke<AccessLogEntry[]>('security_get_logs', { limit: 100 })
+      const result = await invoke<AccessLogEntry[]>('security_get_logs', {
+        limit: 100,
+      })
       setLogs(result)
     } catch {
-      toast.error('Failed to load access logs')
+      toast.error(t('ui-dialogs:security.logsFailed'))
     } finally {
       setIsLoadingLogs(false)
     }
-  }, [])
+  }, [t])
 
   // Load data when dialog opens
   useEffect(() => {
@@ -199,10 +203,14 @@ export function SecurityConfigDialog({
       setAuthMode(newMode)
       setGeneratedToken(null)
       await fetchStatus()
-      toast.success(`Authentication mode changed to ${newMode}`)
+      toast.success(
+        t('ui-dialogs:security.modeChanged', {
+          mode: t(`ui-dialogs:security.mode.${newMode}`),
+        })
+      )
       onSave?.()
     } catch {
-      toast.error('Failed to change authentication mode')
+      toast.error(t('ui-dialogs:security.modeFailed'))
     } finally {
       setIsChangingAuthMode(false)
       setConfirmAction({ type: null })
@@ -217,10 +225,10 @@ export function SecurityConfigDialog({
       setGeneratedToken(token)
       setShowToken(true)
       await fetchStatus()
-      toast.success('New access token generated')
+      toast.success(t('ui-dialogs:security.tokenGenerated'))
       onSave?.()
     } catch {
-      toast.error('Failed to generate token')
+      toast.error(t('ui-dialogs:security.tokenFailed'))
     } finally {
       setIsGeneratingToken(false)
     }
@@ -232,22 +240,22 @@ export function SecurityConfigDialog({
     try {
       await navigator.clipboard.writeText(generatedToken)
       setTokenCopied(true)
-      toast.success('Token copied to clipboard')
+      toast.success(t('ui-dialogs:security.tokenCopied'))
       setTimeout(() => setTokenCopied(false), 2000)
     } catch {
-      toast.error('Failed to copy token')
+      toast.error(t('ui-dialogs:security.copyFailed'))
     }
   }
 
   // Set password
   const handleSetPassword = async () => {
     if (!password || password !== confirmPassword) {
-      toast.error('Passwords do not match')
+      toast.error(t('ui-dialogs:security.passwordMismatch'))
       return
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters')
+      toast.error(t('ui-dialogs:security.passwordMinimum'))
       return
     }
 
@@ -257,10 +265,10 @@ export function SecurityConfigDialog({
       setPassword('')
       setConfirmPassword('')
       await fetchStatus()
-      toast.success('Password set successfully')
+      toast.success(t('ui-dialogs:security.passwordSaved'))
       onSave?.()
     } catch {
-      toast.error('Failed to set password')
+      toast.error(t('ui-dialogs:security.passwordFailed'))
     } finally {
       setIsSettingPassword(false)
     }
@@ -274,11 +282,13 @@ export function SecurityConfigDialog({
       setRequirePairing(enabled)
       await fetchStatus()
       toast.success(
-        enabled ? 'Device pairing required' : 'Device pairing disabled'
+        enabled
+          ? t('ui-dialogs:security.pairingRequired')
+          : t('ui-dialogs:security.pairingDisabled')
       )
       onSave?.()
     } catch {
-      toast.error('Failed to update pairing setting')
+      toast.error(t('ui-dialogs:security.pairingFailed'))
     } finally {
       setIsTogglingPairing(false)
     }
@@ -291,10 +301,10 @@ export function SecurityConfigDialog({
       await invoke('security_revoke_device', { device_id: deviceId })
       await fetchDevices()
       await fetchStatus()
-      toast.success('Device access revoked')
+      toast.success(t('ui-dialogs:security.deviceRevoked'))
       onSave?.()
     } catch {
-      toast.error('Failed to revoke device access')
+      toast.error(t('ui-dialogs:security.revokeFailed'))
     } finally {
       setRevokingDeviceId(null)
       setConfirmAction({ type: null })
@@ -307,9 +317,9 @@ export function SecurityConfigDialog({
     try {
       await invoke('security_clear_logs')
       setLogs([])
-      toast.success('Access logs cleared')
+      toast.success(t('ui-dialogs:security.logsCleared'))
     } catch {
-      toast.error('Failed to clear logs')
+      toast.error(t('ui-dialogs:security.clearFailed'))
     } finally {
       setIsClearingLogs(false)
       setConfirmAction({ type: null })
@@ -345,7 +355,7 @@ export function SecurityConfigDialog({
         )}
       >
         <IconKey size={16} />
-        Authentication
+        {t('ui-dialogs:security.authentication')}
       </button>
       <button
         onClick={() => setActiveTab('devices')}
@@ -357,7 +367,7 @@ export function SecurityConfigDialog({
         )}
       >
         <IconDevices size={16} />
-        Devices
+        {t('ui-dialogs:security.devices')}
       </button>
       <button
         onClick={() => setActiveTab('logs')}
@@ -369,7 +379,7 @@ export function SecurityConfigDialog({
         )}
       >
         <IconHistory size={16} />
-        Logs
+        {t('ui-dialogs:security.logs')}
       </button>
     </div>
   )
@@ -380,18 +390,40 @@ export function SecurityConfigDialog({
       {/* Current Status */}
       {status && (
         <div className="bg-secondary/30 rounded-lg p-4 space-y-2">
-          <h4 className="font-medium text-foreground text-sm">Current Status</h4>
+          <h4 className="font-medium text-foreground text-sm">
+            {t('ui-dialogs:security.currentStatus')}
+          </h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <span className="text-muted-foreground">Auth Mode:</span>
-            <span className="text-foreground capitalize">{status.auth_mode}</span>
-            <span className="text-muted-foreground">Has Token:</span>
-            <span className="text-foreground">{status.has_token ? 'Yes' : 'No'}</span>
-            <span className="text-muted-foreground">Has Password:</span>
-            <span className="text-foreground">{status.has_password ? 'Yes' : 'No'}</span>
+            <span className="text-muted-foreground">
+              {t('ui-dialogs:security.authModeLabel')}
+            </span>
+            <span className="text-foreground capitalize">
+              {t(`ui-dialogs:security.mode.${status.auth_mode}`)}
+            </span>
+            <span className="text-muted-foreground">
+              {t('ui-dialogs:security.hasToken')}
+            </span>
+            <span className="text-foreground">
+              {status.has_token
+                ? t('ui-dialogs:shared.yes')
+                : t('ui-dialogs:shared.no')}
+            </span>
+            <span className="text-muted-foreground">
+              {t('ui-dialogs:security.hasPassword')}
+            </span>
+            <span className="text-foreground">
+              {status.has_password
+                ? t('ui-dialogs:shared.yes')
+                : t('ui-dialogs:shared.no')}
+            </span>
             {status.recent_auth_failures > 0 && (
               <>
-                <span className="text-muted-foreground">Recent Failures:</span>
-                <span className="text-destructive">{status.recent_auth_failures}</span>
+                <span className="text-muted-foreground">
+                  {t('ui-dialogs:security.recentFailures')}
+                </span>
+                <span className="text-destructive">
+                  {status.recent_auth_failures}
+                </span>
               </>
             )}
           </div>
@@ -401,7 +433,7 @@ export function SecurityConfigDialog({
       {/* Auth Mode Selection */}
       <div className="space-y-3">
         <label className="text-sm font-medium text-foreground">
-          Authentication Mode
+          {t('ui-dialogs:security.authMode')}
         </label>
         <RadioGroup
           value={authMode}
@@ -412,27 +444,33 @@ export function SecurityConfigDialog({
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
             <RadioGroupItem value="token" id="auth-token" />
             <label htmlFor="auth-token" className="flex-1 cursor-pointer">
-              <span className="font-medium text-foreground">Token</span>
+              <span className="font-medium text-foreground">
+                {t('ui-dialogs:security.token')}
+              </span>
               <p className="text-sm text-muted-foreground">
-                Require a secret token for API access
+                {t('ui-dialogs:security.tokenDescription')}
               </p>
             </label>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
             <RadioGroupItem value="password" id="auth-password" />
             <label htmlFor="auth-password" className="flex-1 cursor-pointer">
-              <span className="font-medium text-foreground">Password</span>
+              <span className="font-medium text-foreground">
+                {t('ui-dialogs:security.password')}
+              </span>
               <p className="text-sm text-muted-foreground">
-                Require a password for access
+                {t('ui-dialogs:security.passwordDescription')}
               </p>
             </label>
           </div>
           <div className="flex items-center space-x-3 p-3 rounded-lg border border-border hover:bg-secondary/30 transition-colors">
             <RadioGroupItem value="none" id="auth-none" />
             <label htmlFor="auth-none" className="flex-1 cursor-pointer">
-              <span className="font-medium text-foreground">None</span>
+              <span className="font-medium text-foreground">
+                {t('ui-dialogs:security.none')}
+              </span>
               <p className="text-sm text-muted-foreground">
-                No authentication required (not recommended)
+                {t('ui-dialogs:security.noneDescription')}
               </p>
             </label>
           </div>
@@ -442,7 +480,9 @@ export function SecurityConfigDialog({
       {/* Token Section */}
       {authMode === 'token' && (
         <div className="space-y-3 p-4 border border-border rounded-lg">
-          <h4 className="font-medium text-foreground">Access Token</h4>
+          <h4 className="font-medium text-foreground">
+            {t('ui-dialogs:security.accessToken')}
+          </h4>
 
           {generatedToken ? (
             <div className="space-y-3">
@@ -454,13 +494,23 @@ export function SecurityConfigDialog({
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={t(
+                      showToken
+                        ? 'ui-dialogs:security.hideToken'
+                        : 'ui-dialogs:security.showToken'
+                    )}
                     onClick={() => setShowToken(!showToken)}
                   >
-                    {showToken ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                    {showToken ? (
+                      <IconEyeOff size={16} />
+                    ) : (
+                      <IconEye size={16} />
+                    )}
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={t('ui-dialogs:security.copyToken')}
                     onClick={handleCopyToken}
                   >
                     {tokenCopied ? (
@@ -473,17 +523,14 @@ export function SecurityConfigDialog({
               </div>
               <div className="flex items-start gap-2 text-amber-500 text-sm">
                 <IconAlertTriangle size={16} className="shrink-0 mt-0.5" />
-                <span>
-                  Save this token now. It cannot be retrieved later. You will
-                  need to generate a new one if lost.
-                </span>
+                <span>{t('ui-dialogs:security.tokenWarning')}</span>
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
               {status?.has_token
-                ? 'A token is already configured. Generate a new one to replace it.'
-                : 'No token configured. Generate one to enable token authentication.'}
+                ? t('ui-dialogs:security.tokenConfigured')
+                : t('ui-dialogs:security.tokenMissing')}
             </p>
           )}
 
@@ -496,12 +543,12 @@ export function SecurityConfigDialog({
             {isGeneratingToken ? (
               <>
                 <IconLoader2 className="animate-spin mr-2 h-4 w-4" />
-                Generating...
+                {t('ui-dialogs:security.generating')}
               </>
             ) : (
               <>
                 <IconKey className="mr-2 h-4 w-4" />
-                Generate New Token
+                {t('ui-dialogs:security.generateToken')}
               </>
             )}
           </Button>
@@ -511,11 +558,13 @@ export function SecurityConfigDialog({
       {/* Password Section */}
       {authMode === 'password' && (
         <div className="space-y-3 p-4 border border-border rounded-lg">
-          <h4 className="font-medium text-foreground">Set Password</h4>
+          <h4 className="font-medium text-foreground">
+            {t('ui-dialogs:security.setPassword')}
+          </h4>
           <p className="text-sm text-muted-foreground">
             {status?.has_password
-              ? 'Enter a new password to replace the existing one.'
-              : 'Set a password to enable password authentication.'}
+              ? t('ui-dialogs:security.replacePassword')
+              : t('ui-dialogs:security.enablePassword')}
           </p>
 
           <div className="space-y-3">
@@ -524,30 +573,41 @@ export function SecurityConfigDialog({
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder={t('ui-dialogs:security.passwordPlaceholder')}
                 className="pr-10"
               />
               <Button
                 variant="ghost"
                 size="icon-sm"
                 className="absolute right-1 top-1/2 -translate-y-1/2"
+                aria-label={t(
+                  showPassword
+                    ? 'ui-dialogs:security.hidePassword'
+                    : 'ui-dialogs:security.showPassword'
+                )}
                 onClick={() => setShowPassword(!showPassword)}
               >
-                {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                {showPassword ? (
+                  <IconEyeOff size={16} />
+                ) : (
+                  <IconEye size={16} />
+                )}
               </Button>
             </div>
             <Input
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm password"
+              placeholder={t('ui-dialogs:security.confirmPassword')}
             />
             {password && confirmPassword && password !== confirmPassword && (
-              <p className="text-sm text-destructive">Passwords do not match</p>
+              <p className="text-sm text-destructive">
+                {t('ui-dialogs:security.passwordMismatch')}
+              </p>
             )}
             {password && password.length < 8 && (
               <p className="text-sm text-amber-500">
-                Password must be at least 8 characters
+                {t('ui-dialogs:security.passwordMinimum')}
               </p>
             )}
           </div>
@@ -565,10 +625,10 @@ export function SecurityConfigDialog({
             {isSettingPassword ? (
               <>
                 <IconLoader2 className="animate-spin mr-2 h-4 w-4" />
-                Setting...
+                {t('ui-dialogs:security.setting')}
               </>
             ) : (
-              'Set Password'
+              t('ui-dialogs:security.setPassword')
             )}
           </Button>
         </div>
@@ -582,12 +642,15 @@ export function SecurityConfigDialog({
       {/* Pairing Toggle */}
       <div className="flex items-center justify-between p-4 border border-border rounded-lg">
         <div className="space-y-1">
-          <h4 className="font-medium text-foreground">Require Device Pairing</h4>
+          <h4 className="font-medium text-foreground">
+            {t('ui-dialogs:security.requirePairing')}
+          </h4>
           <p className="text-sm text-muted-foreground">
-            Devices must be approved before they can access
+            {t('ui-dialogs:security.pairingDescription')}
           </p>
         </div>
         <Switch
+          aria-label={t('ui-dialogs:security.requirePairing')}
           checked={requirePairing}
           onCheckedChange={handleTogglePairing}
           loading={isTogglingPairing}
@@ -598,10 +661,13 @@ export function SecurityConfigDialog({
       {/* Approved Devices */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-foreground">Approved Devices</h4>
+          <h4 className="font-medium text-foreground">
+            {t('ui-dialogs:security.approvedDevices')}
+          </h4>
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label={t('ui-dialogs:security.refreshDevices')}
             onClick={fetchDevices}
             disabled={isLoadingDevices}
           >
@@ -619,7 +685,7 @@ export function SecurityConfigDialog({
         ) : devices.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <IconDevices size={32} className="mx-auto mb-2 opacity-50" />
-            <p>No approved devices</p>
+            <p>{t('ui-dialogs:security.noDevices')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -638,13 +704,21 @@ export function SecurityConfigDialog({
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    <span>User: {device.user_id}</span>
+                    <span>
+                      {t('ui-dialogs:security.userLabel')} {device.user_id}
+                    </span>
                     <span className="mx-2">|</span>
-                    <span>Approved: {formatDate(device.approved_at)}</span>
+                    <span>
+                      {t('ui-dialogs:security.approvedLabel')}{' '}
+                      {formatDate(device.approved_at)}
+                    </span>
                     {device.last_access && (
                       <>
                         <span className="mx-2">|</span>
-                        <span>Last: {formatDate(device.last_access)}</span>
+                        <span>
+                          {t('ui-dialogs:security.lastLabel')}{' '}
+                          {formatDate(device.last_access)}
+                        </span>
                       </>
                     )}
                   </div>
@@ -652,6 +726,7 @@ export function SecurityConfigDialog({
                 <Button
                   variant="ghost"
                   size="icon-sm"
+                  aria-label={t('ui-dialogs:security.revokeTitle')}
                   onClick={() =>
                     setConfirmAction({ type: 'revoke', data: device.id })
                   }
@@ -677,11 +752,14 @@ export function SecurityConfigDialog({
     <div className="space-y-4">
       {/* Header with actions */}
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-foreground">Recent Access Logs</h4>
+        <h4 className="font-medium text-foreground">
+          {t('ui-dialogs:security.recentLogs')}
+        </h4>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label={t('ui-dialogs:security.refreshLogs')}
             onClick={fetchLogs}
             disabled={isLoadingLogs}
           >
@@ -698,7 +776,7 @@ export function SecurityConfigDialog({
             className="text-destructive hover:text-destructive"
           >
             <IconTrash size={16} className="mr-1" />
-            Clear
+            {t('ui-dialogs:security.clear')}
           </Button>
         </div>
       </div>
@@ -711,7 +789,7 @@ export function SecurityConfigDialog({
       ) : logs.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <IconHistory size={32} className="mx-auto mb-2 opacity-50" />
-          <p>No access logs</p>
+          <p>{t('ui-dialogs:security.noLogs')}</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -743,9 +821,19 @@ export function SecurityConfigDialog({
                 </span>
               </div>
               <div className="text-muted-foreground text-xs space-x-3">
-                <span>User: {log.user_id}</span>
-                {log.ip_address && <span>IP: {log.ip_address}</span>}
-                {log.device_id && <span>Device: {log.device_id}</span>}
+                <span>
+                  {t('ui-dialogs:security.userLabel')} {log.user_id}
+                </span>
+                {log.ip_address && (
+                  <span>
+                    {t('ui-dialogs:security.ipLabel')} {log.ip_address}
+                  </span>
+                )}
+                {log.device_id && (
+                  <span>
+                    {t('ui-dialogs:security.deviceLabel')} {log.device_id}
+                  </span>
+                )}
               </div>
               {log.error && (
                 <p className="text-destructive text-xs mt-1">{log.error}</p>
@@ -768,24 +856,21 @@ export function SecurityConfigDialog({
 
     switch (confirmAction.type) {
       case 'revoke':
-        title = 'Revoke Device Access'
-        description =
-          'Are you sure you want to revoke access for this device? The device will need to be approved again to access.'
-        confirmText = 'Revoke'
+        title = t('ui-dialogs:security.revokeTitle')
+        description = t('ui-dialogs:security.revokeDescription')
+        confirmText = t('ui-dialogs:security.revoke')
         onConfirm = () => handleRevokeDevice(confirmAction.data as string)
         break
       case 'clear_logs':
-        title = 'Clear Access Logs'
-        description =
-          'Are you sure you want to clear all access logs? This action cannot be undone.'
-        confirmText = 'Clear Logs'
+        title = t('ui-dialogs:security.clearTitle')
+        description = t('ui-dialogs:security.clearDescription')
+        confirmText = t('ui-dialogs:security.clearLogs')
         onConfirm = handleClearLogs
         break
       case 'change_auth_mode':
-        title = 'Change Authentication Mode'
-        description =
-          'Changing the authentication mode will affect how clients access your Jan instance. Are you sure you want to continue?'
-        confirmText = 'Change'
+        title = t('ui-dialogs:security.changeTitle')
+        description = t('ui-dialogs:security.changeDescription')
+        confirmText = t('ui-dialogs:shared.change')
         onConfirm = () => changeAuthMode(confirmAction.data as AuthMode)
         break
     }
@@ -806,7 +891,7 @@ export function SecurityConfigDialog({
               size="sm"
               onClick={() => setConfirmAction({ type: null })}
             >
-              Cancel
+              {t('ui-dialogs:shared.cancel')}
             </Button>
             <Button variant="destructive" size="sm" onClick={onConfirm}>
               {confirmText}
@@ -824,10 +909,10 @@ export function SecurityConfigDialog({
           <DialogHeader>
             <div className="flex items-center gap-2">
               <IconShield size={24} className="text-primary" />
-              <DialogTitle>Security Settings</DialogTitle>
+              <DialogTitle>{t('ui-dialogs:security.title')}</DialogTitle>
             </div>
             <DialogDescription>
-              Configure authentication, device management, and view access logs
+              {t('ui-dialogs:security.description')}
             </DialogDescription>
           </DialogHeader>
 
@@ -846,7 +931,7 @@ export function SecurityConfigDialog({
 
           <DialogFooter>
             <Button variant="ghost" size="sm" onClick={onClose}>
-              Close
+              {t('ui-dialogs:shared.close')}
             </Button>
           </DialogFooter>
         </DialogContent>

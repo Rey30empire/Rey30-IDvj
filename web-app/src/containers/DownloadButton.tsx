@@ -14,8 +14,7 @@ import { toast } from 'sonner'
 import { cn, sanitizeModelId } from '@/lib/utils'
 import { pickSpecSibling } from '@/lib/specDraft'
 import { CatalogModel } from '@/services/models/types'
-import { DownloadEvent, DownloadState, events } from '@janhq/core'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useShallow } from 'zustand/shallow'
 import { DEFAULT_MODEL_QUANTIZATIONS } from '@/constants/models'
 
@@ -44,12 +43,10 @@ export function DownloadButtonPlaceholder({
     }))
   )
   const { t } = useTranslation()
-  const getProviderByName = useModelProvider((state) => state.getProviderByName)
-  const llamaProvider = getProviderByName('llamacpp')
+  const llamaProvider = useModelProvider(state => state.providers.find(provider => provider.provider === 'llamacpp'))
 
   const serviceHub = useServiceHub()
   const huggingfaceToken = useGeneralSetting((state) => state.huggingfaceToken)
-  const [isDownloaded, setDownloaded] = useState<boolean>(false)
 
   const quant = selectDefaultQuant(model.quants, DEFAULT_MODEL_QUANTIZATIONS)
 
@@ -77,24 +74,11 @@ export function DownloadButtonPlaceholder({
     [downloads]
   )
 
-  useEffect(() => {
-    const isDownloaded = llamaProvider?.models.some(
+  const isDownloaded = Boolean(llamaProvider?.models.some(
       (m: { id: string }) =>
         m.id === modelId ||
         m.id === `${model.developer}/${sanitizeModelId(modelId)}`
-    )
-    setDownloaded(!!isDownloaded)
-  }, [llamaProvider, modelId, model.developer])
-
-  useEffect(() => {
-    const handler = (state: DownloadState) => {
-      if (state.modelId === modelId) setDownloaded(true)
-    }
-    events.on(DownloadEvent.onFileDownloadAndVerificationSuccess, handler)
-    return () => {
-      events.off(DownloadEvent.onFileDownloadAndVerificationSuccess, handler)
-    }
-  }, [modelId])
+  ))
 
   const isRecommendedModel = useCallback((modelId: string) => {
     return (extractModelName(modelId)?.toLowerCase() ===

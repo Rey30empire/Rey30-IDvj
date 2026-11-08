@@ -9,6 +9,7 @@ import {
 import { useLocalApiServer } from '@/hooks/useLocalApiServer'
 import { cn } from '@/lib/utils'
 import { ChevronsUpDown } from 'lucide-react'
+import { useTranslation } from '@/i18n/react-i18next-compat'
 
 const hostOptions = [
   { value: '127.0.0.1', label: '127.0.0.1' },
@@ -21,6 +22,7 @@ export function ServerHostSwitcher({
   isServerRunning?: boolean
 }) {
   const { serverHost, setServerHost } = useLocalApiServer()
+  const { t } = useTranslation()
 
   return (
     <DropdownMenu>
@@ -28,7 +30,7 @@ export function ServerHostSwitcher({
         asChild
         className={cn(isServerRunning && 'opacity-50 pointer-events-none')}
       >
-        <Button variant="outline" size="sm" className="w-full justify-between" title="Edit Server Host">
+        <Button variant="outline" size="sm" className="w-full justify-between" title={t('ui-spanish:editServerHost')}>
           {serverHost}
           <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground ml-2" />
         </Button>

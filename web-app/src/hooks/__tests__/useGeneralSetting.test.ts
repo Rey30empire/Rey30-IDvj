@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useGeneralSetting } from '../useGeneralSetting'
+import { migrateGeneralLanguage, useGeneralSetting } from '../useGeneralSetting'
 
 // Mock constants
 vi.mock('@/constants/localStorage', () => ({
@@ -44,7 +44,7 @@ describe('useGeneralSetting', () => {
 
     // Reset store state to defaults
     useGeneralSetting.setState({
-      currentLanguage: 'en',
+      currentLanguage: 'es',
       spellCheckChatInput: true,
       tokenCounterCompact: true,
       huggingfaceToken: undefined,
@@ -64,12 +64,20 @@ describe('useGeneralSetting', () => {
   it('should initialize with default values', () => {
     const { result } = renderHook(() => useGeneralSetting())
 
-    expect(result.current.currentLanguage).toBe('en')
+    expect(result.current.currentLanguage).toBe('es')
+    expect(useGeneralSetting.getInitialState().currentLanguage).toBe('es')
     expect(result.current.spellCheckChatInput).toBe(true)
     expect(result.current.huggingfaceToken).toBeUndefined()
     expect(typeof result.current.setCurrentLanguage).toBe('function')
     expect(typeof result.current.setSpellCheckChatInput).toBe('function')
     expect(typeof result.current.setHuggingfaceToken).toBe('function')
+  })
+
+  it('migrates the legacy language once while preserving every other setting', () => {
+    const existing = { currentLanguage: 'en', spellCheckChatInput: false, custom: { retained: true } }
+    expect(migrateGeneralLanguage(existing, 0)).toEqual({ ...existing, currentLanguage: 'es' })
+    expect(existing.currentLanguage).toBe('en')
+    expect(migrateGeneralLanguage({ ...existing, currentLanguage: 'id' }, 1)).toEqual({ ...existing, currentLanguage: 'id' })
   })
 
   describe('setCurrentLanguage', () => {
@@ -223,7 +231,7 @@ describe('useGeneralSetting', () => {
       })
 
       expect(mockExtensionManager.getInstance).toHaveBeenCalled()
-      expect(mockGetByName).toHaveBeenCalledWith('@janhq/download-extension')
+      expect(mockGetByName).toHaveBeenCalledWith('@rey30-idvj/download-extension')
 
       // Wait for async operations
       await new Promise((resolve) => setTimeout(resolve, 0))

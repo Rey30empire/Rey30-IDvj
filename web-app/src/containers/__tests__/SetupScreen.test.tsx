@@ -5,9 +5,9 @@ import '@testing-library/jest-dom'
 // ---- Module mocks ----------------------------------------------------------
 
 const hoisted = vi.hoisted(() => ({
-  janModel: null as any,
+  defaultModel: null as any,
   metadataError: null as any,
-  fetchLatestJanModel: vi.fn(),
+  fetchLatestDefaultModel: vi.fn(),
   downloadStore: {
     downloads: {} as Record<string, any>,
     localDownloadingModels: new Set<string>(),
@@ -63,11 +63,11 @@ vi.mock('@/hooks/useServiceHub', () => {
   return { useServiceHub: stub, getServiceHub: stub }
 })
 
-vi.mock('@/hooks/useLatestJanModel', () => ({
-  useLatestJanModel: () => ({
-    model: hoisted.janModel,
+vi.mock('@/hooks/useLatestDefaultModel', () => ({
+  useLatestDefaultModel: () => ({
+    model: hoisted.defaultModel,
     error: hoisted.metadataError,
-    fetchLatestJanModel: hoisted.fetchLatestJanModel,
+    fetchLatestDefaultModel: hoisted.fetchLatestDefaultModel,
   }),
 }))
 
@@ -94,7 +94,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => hoisted.navigateMock,
 }))
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AppEvent: { onModelImported: 'onModelImported' },
   DownloadEvent: { onFileDownloadSuccess: 'onFileDownloadSuccess' },
   events: {
@@ -191,7 +191,7 @@ const currentPage = () =>
 describe('SetupScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    hoisted.janModel = sampleModel
+    hoisted.defaultModel = sampleModel
     hoisted.metadataError = null
     hoisted.productAnalyticPrompt = false
     hoisted.downloadStore.downloads = {}
@@ -223,9 +223,9 @@ describe('SetupScreen', () => {
     expect(screen.getByTestId('header-page')).toBeInTheDocument()
   })
 
-  it('calls fetchLatestJanModel on mount', async () => {
+  it('calls fetchLatestDefaultModel on mount', async () => {
     await renderStarted()
-    expect(hoisted.fetchLatestJanModel).toHaveBeenCalledWith(true)
+    expect(hoisted.fetchLatestDefaultModel).toHaveBeenCalledWith(true)
   })
 
   it('runs the engine and embedding probes on mount', async () => {
@@ -236,7 +236,7 @@ describe('SetupScreen', () => {
 
   it('routes all visible copy through i18n', async () => {
     await renderStarted()
-    expect(screen.queryByText('Hey, welcome to Jan!')).not.toBeInTheDocument()
+    expect(screen.queryByText('Hey, welcome to Rey30 IDvj!')).not.toBeInTheDocument()
     expect(screen.queryByText('Recommended model')).not.toBeInTheDocument()
     expect(screen.queryByText('Download')).not.toBeInTheDocument()
   })
@@ -571,7 +571,7 @@ describe('SetupScreen', () => {
     })
 
     it('renders the card before the metadata lands', async () => {
-      hoisted.janModel = null
+      hoisted.defaultModel = null
 
       await renderPastSetup()
 
@@ -628,13 +628,13 @@ describe('SetupScreen', () => {
     })
 
     it('queues the download until the metadata lands, keeping the HF token', async () => {
-      hoisted.janModel = null
+      hoisted.defaultModel = null
       const { rerender } = await renderPastSetup()
 
       fireEvent.click(screen.getByText('setup:download'))
       expect(hoisted.pullModelWithMetadataMock).not.toHaveBeenCalled()
 
-      hoisted.janModel = sampleModel
+      hoisted.defaultModel = sampleModel
       await act(async () => {
         rerender(<SetupScreen />)
       })
@@ -651,7 +651,7 @@ describe('SetupScreen', () => {
     })
 
     it('shows an error toast when the queued download loses its metadata', async () => {
-      hoisted.janModel = null
+      hoisted.defaultModel = null
       const { rerender } = await renderPastSetup()
       fireEvent.click(screen.getByText('setup:download'))
 

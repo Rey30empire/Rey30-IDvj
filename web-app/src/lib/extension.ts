@@ -1,6 +1,15 @@
-import { AIEngine, BaseExtension, ExtensionTypeEnum } from '@janhq/core'
+import { AIEngine, BaseExtension, ExtensionTypeEnum } from '@rey30-idvj/core'
 
 import { getServiceHub } from '@/hooks/useServiceHub'
+
+const LEGACY_EXTENSION_SCOPE = '@' + 'janhq/'
+const EXTENSION_SCOPE = '@rey30-idvj/'
+
+function extensionKey(name: string): string {
+  return name.startsWith(LEGACY_EXTENSION_SCOPE)
+    ? EXTENSION_SCOPE + name.slice(LEGACY_EXTENSION_SCOPE.length)
+    : name
+}
 
 /**
  * Extension manifest object.
@@ -77,7 +86,7 @@ export class ExtensionManager {
    */
   register<T extends BaseExtension>(name: string, extension: T) {
     // Register for naming use
-    this.extensions.set(name, extension)
+    this.extensions.set(extensionKey(name), extension)
 
     // Register AI Engines
     if ('provider' in extension && typeof extension.provider === 'string') {
@@ -113,7 +122,7 @@ export class ExtensionManager {
    * @returns The extension, if found.
    */
   getByName(name: string): BaseExtension | undefined {
-    return this.extensions.get(name) as BaseExtension | undefined
+    return this.extensions.get(extensionKey(name)) as BaseExtension | undefined
   }
 
   /**
@@ -192,7 +201,7 @@ export class ExtensionManager {
         manifest.extensionInstance // Pass the extension instance if available
       )
     })
-    
+
     return extensions
   }
 
@@ -208,7 +217,7 @@ export class ExtensionManager {
       console.log(`Extension '${extension.name}' registered with pre-loaded instance`)
       return
     }
-    
+
     // Import class for Tauri extensions
     const extensionUrl = extension.url
     await import(/* @vite-ignore */ getServiceHub().core().convertFileSrc(extensionUrl)).then(

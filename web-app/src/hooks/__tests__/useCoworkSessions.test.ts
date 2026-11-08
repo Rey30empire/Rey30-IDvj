@@ -269,6 +269,40 @@ describe('useCoworkSessions', () => {
   })
 })
 
+describe('sesiones vinculadas a carpetas', () => {
+  beforeEach(reset)
+
+  it('reopens an inactive folder with its conversation and model intact', () => {
+    const store = useCoworkSessions.getState()
+    const model = { provider: 'llamacpp', id: 'test-model' }
+    const id = store.openFolder('C:\\Projects\\A', [], model)!
+    store.commitTurns(id, [{ role: 'user', content: 'Revisa el proyecto' }], [], [])
+    const other = store.openFolder('C:\\Projects\\B', [])
+    expect(other).not.toBe(id)
+    expect(store.openFolder('C:\\Projects\\A', [], { provider: 'other', id: 'other-model' })).toBe(id)
+    expect(useCoworkSessions.getState()).toMatchObject({ currentId: id })
+    expect(useCoworkSessions.getState().sessions.find((session) => session.id === id)).toMatchObject({ folder: 'C:\\Projects\\A', turns: [{ role: 'user', content: 'Revisa el proyecto' }], model })
+  })
+
+  it('does not reassign or duplicate the only session running in the selected folder', () => {
+    const store = useCoworkSessions.getState()
+    const id = store.openFolder('C:\\Projects\\A', [])!
+    const other = store.openFolder('C:\\Projects\\B', [id])
+    expect(store.openFolder('C:\\Projects\\A', [id])).toBeNull()
+    expect(useCoworkSessions.getState()).toMatchObject({ currentId: other })
+    expect(useCoworkSessions.getState().sessions).toHaveLength(2)
+    expect(useCoworkSessions.getState().sessions.find((session) => session.id === id)?.folder).toBe('C:\\Projects\\A')
+  })
+
+  it('keeps folder sessions reachable before their first turn when starting a blank session', () => {
+    const store = useCoworkSessions.getState()
+    const folderId = store.openFolder('C:\\Projects\\Empty', [])!
+    const newId = startNewSession([])
+    expect(newId).not.toBe(folderId)
+    expect(useCoworkSessions.getState().sessions.find((session) => session.id === folderId)).toMatchObject({ folder: 'C:\\Projects\\Empty', turns: [], messages: [] })
+  })
+})
+
 describe('useCoworkSessions createSession reuse', () => {
   beforeEach(reset)
 

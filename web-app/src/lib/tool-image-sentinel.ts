@@ -9,11 +9,11 @@
 import type { UIMessage } from '@ai-sdk/react'
 import type { ModelMessage } from 'ai'
 
-const PREFIX = ' __JAN_TOOL_IMAGE__'
+const PREFIX = ' __REY30_TOOL_IMAGE__'
 const SUFFIX = ' '
 
 const SENTINEL_REGEX =
-  / __JAN_TOOL_IMAGE__(data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+) /g
+  / __(?:REY30|JAN)_TOOL_IMAGE__(data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+) /g
 
 const DATA_URL_REGEX = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/
 
@@ -26,7 +26,7 @@ export function encodeToolImageSentinel(dataUrl: string): string {
 }
 
 export function hasToolImageSentinel(text: string): boolean {
-  return text.includes(PREFIX)
+  return text.includes(PREFIX) || text.includes(PREFIX.replace('REY30', 'JAN'))
 }
 
 export type ImageUrlPart = {

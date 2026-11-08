@@ -15,6 +15,12 @@ import { stripUnsupportedImageParts } from '../custom-chat-transport'
 const png = 'data:image/png;base64,iVBORw0KGgo='
 
 describe('tool-image-sentinel', () => {
+  it('decodes image results serialized before the application rename', () => {
+    expect(splitToolImageSentinels(` __JAN_TOOL_IMAGE__${png} `)).toEqual([
+      { type: 'image_url', image_url: { url: png, detail: 'auto' } },
+    ])
+    expect(encodeToolImageSentinel(png)).toContain('__REY30_TOOL_IMAGE__')
+  })
   it('round-trips a sentinel back to an image_url part', () => {
     const encoded = encodeToolImageSentinel(png)
     expect(hasToolImageSentinel(encoded)).toBe(true)

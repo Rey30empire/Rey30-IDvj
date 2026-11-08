@@ -37,7 +37,7 @@ describe('TauriHardwareService – coverage', () => {
       const result = await svc.getLlamacppDevices()
 
       expect(window.core.extensionManager.getByName).toHaveBeenCalledWith(
-        '@janhq/llamacpp-extension'
+        '@rey30-idvj/llamacpp-extension'
       )
       expect(result).toEqual(devices)
     })
@@ -60,7 +60,7 @@ describe('TauriHardwareService – coverage', () => {
 
       await expect(svc.reconcileLlamacppDevices()).resolves.toBe('restarted')
       expect(window.core.extensionManager.getByName).toHaveBeenCalledWith(
-        '@janhq/llamacpp-extension'
+        '@rey30-idvj/llamacpp-extension'
       )
     })
 

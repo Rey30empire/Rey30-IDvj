@@ -163,21 +163,27 @@ export const useMCPServers = create<MCPServerStoreState>()((set, get) => ({
       }
     }),
   syncServers: async () => {
+    const service = getServiceHub().mcp()
+    const current = await service.getMCPConfig()
     const { mcpServers, settings } = get()
-    await getServiceHub().mcp().updateMCPConfig(
+    await service.updateMCPConfig(
       JSON.stringify({
+        ...current,
         mcpServers,
-        mcpSettings: settings,
+        mcpSettings: { ...current.mcpSettings, ...settings },
       })
     )
   },
   syncServersAndRestart: async () => {
+    const service = getServiceHub().mcp()
+    const current = await service.getMCPConfig()
     const { mcpServers, settings } = get()
-    await getServiceHub().mcp().updateMCPConfig(
+    await service.updateMCPConfig(
       JSON.stringify({
+        ...current,
         mcpServers,
-        mcpSettings: settings,
+        mcpSettings: { ...current.mcpSettings, ...settings },
       })
-    ).then(() => getServiceHub().mcp().restartMCPServers())
+    ).then(() => service.restartMCPServers())
   },
 }))
