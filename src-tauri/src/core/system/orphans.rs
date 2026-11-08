@@ -1,20 +1,20 @@
-//! Startup sweep for engines that an older Jan left running across an update.
+//! Startup sweep for engines that an older Rey30 IDvj left running across an update.
 //!
 //! Up to 0.8.4 the engine was a `llama-server` router child of the desktop app.
 //! The in-app updater leaves the old app without running its exit cleanup (see
 //! `shutdown`), and 0.8.4 has shipped, so that version cannot be fixed. Every
 //! user who updates from it ends up with its router still running, holding RAM
 //! and VRAM and, on Linux, pinning the old AppImage mount. On Windows it also
-//! survives uninstalling Jan, because the binary lives in the data folder.
+//! survives uninstalling Rey30 IDvj, because the binary lives in the data folder.
 //! The only place left to clean it up is the new version's startup.
 //!
 //! A process is swept only when all of these hold:
 //! - it is `llama-server`,
 //! - it was started with `--models-preset <data folder>/llamacpp/router.preset.ini`,
-//!   the preset file Jan writes, so it belongs to this data folder,
-//! - its parent is gone, is not a Jan process, or cannot be the process that
-//!   started it (see below), so a Jan that is still running (another instance,
-//!   or this one) keeps its engine. That includes a detached `jan serve` from
+//!   the preset file Rey30 IDvj writes, so it belongs to this data folder,
+//! - its parent is gone, is not a Rey30 IDvj process, or cannot be the process that
+//!   started it (see below), so a Rey30 IDvj that is still running (another instance,
+//!   or this one) keeps its engine. That includes a detached `rey30-idvj serve` from
 //!   0.8.4, which keeps its router as a live child.
 //!
 //! Its descendants, the per-model children the router spawns, go with it.
@@ -23,7 +23,7 @@
 //! a different, later process. Start times settle it: a process counts as a
 //! descendant only if it started no earlier than the parent it names, and a
 //! parent that started after its child is not its owner. When a start time is
-//! unknown the order cannot be told: a router keeps its Jan, and a process is
+//! unknown the order cannot be told: a router keeps its Rey30 IDvj, and a process is
 //! never swept as a child on that evidence.
 //!
 //! `mlx-server` (macOS) is swept too, with a stricter rule. It is a direct
@@ -31,14 +31,14 @@
 //! running its exit cleanup (a crash, `kill -9`) leaves it holding the model in
 //! unified memory. Its name, path and flags can all belong to a server someone
 //! runs themselves, so it is only taken when it carries the environment marker
-//! Jan sets when it starts one, and nothing is left above it (macOS reparents
+//! Rey30 IDvj sets when it starts one, and nothing is left above it (macOS reparents
 //! it to launchd). A server started by a version before the marker existed
 //! cannot be told apart and is left alone.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use jan_utils::MLX_OWNER_ENV;
+use rey30_idvj_utils::MLX_OWNER_ENV;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 const ROUTER_BINARY: &str = "llama-server";
@@ -56,9 +56,9 @@ pub struct ProcInfo {
     pub cmd: Vec<String>,
     /// Seconds since the epoch; 0 when the OS would not say.
     pub start_time: u64,
-    /// Carries the environment marker Jan sets on the `mlx-server` it starts.
+    /// Carries the environment marker Rey30 IDvj sets on the `mlx-server` it starts.
     /// Only read for `mlx-server` processes; false for everything else.
-    pub jan_launched: bool,
+    pub rey30_launched: bool,
 }
 
 fn normalize(path: &str) -> String {
@@ -99,8 +99,8 @@ fn preset_arg(cmd: &[String]) -> Option<&str> {
     None
 }
 
-/// Whether `proc` is a router started from Jan's preset under `llamacpp_dir`.
-fn is_jan_router(proc: &ProcInfo, llamacpp_dir: &str) -> bool {
+/// Whether `proc` is a router started from Rey30 IDvj's preset under `llamacpp_dir`.
+fn is_rey30_router(proc: &ProcInfo, llamacpp_dir: &str) -> bool {
     if !is_router_binary(&proc.name) {
         return false;
     }
@@ -116,23 +116,24 @@ fn is_mlx_binary(name: &str) -> bool {
     name.eq_ignore_ascii_case(MLX_BINARY)
 }
 
-/// Whether `proc` is an MLX server that a Jan started. There is no preset file
+/// Whether `proc` is an MLX server that a Rey30 IDvj started. There is no preset file
 /// tying it to a data folder, and its name, path and flags are all things
 /// someone running their own `mlx-server` can have, so the only proof is the
-/// marker Jan puts in the server's environment when it starts one.
-fn is_jan_mlx_server(proc: &ProcInfo) -> bool {
-    is_mlx_binary(&proc.name) && proc.jan_launched
+/// marker Rey30 IDvj puts in the server's environment when it starts one.
+fn is_rey30_mlx_server(proc: &ProcInfo) -> bool {
+    is_mlx_binary(&proc.name) && proc.rey30_launched
 }
 
-/// A Jan process, judged by name: `Jan`, `jan`, `Jan.exe`, `Jan-Desktop.exe`.
-fn is_jan(name: &str) -> bool {
-    name.to_ascii_lowercase().contains("jan")
+/// A Rey30 IDvj process, judged by name: `Rey30 IDvj`, `rey30-idvj`, `Rey30 IDvj.exe`, `Rey30-IDvj.exe`.
+fn is_rey30(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    name.contains("rey30-idvj") || name.contains("rey30 idvj")
 }
 
 /// Whether `parent` could really be the parent of `child`: a parent cannot have
 /// started after its child. Windows never reparents and reuses pids, so the
-/// pid an old Jan had can be handed to a process started later, such as the
-/// freshly launched new Jan. When either start time is unknown (0) the order
+/// pid an old Rey30 IDvj had can be handed to a process started later, such as the
+/// freshly launched new Rey30 IDvj. When either start time is unknown (0) the order
 /// cannot be told and the parent is given the benefit of the doubt.
 fn could_be_parent(parent: &ProcInfo, child: &ProcInfo) -> bool {
     parent.start_time == 0 || child.start_time == 0 || parent.start_time <= child.start_time
@@ -147,7 +148,7 @@ fn is_child_of(child: &ProcInfo, parent: &ProcInfo) -> bool {
 }
 
 /// Orphaned when the parent no longer exists, was adopted by init (pid 1), is
-/// something other than Jan, or cannot be the process that started it. The
+/// something other than Rey30 IDvj, or cannot be the process that started it. The
 /// third case covers a systemd user session adopting the process on Linux,
 /// where the new parent is not pid 1.
 fn is_orphaned(proc: &ProcInfo, by_pid: &HashMap<u32, &ProcInfo>) -> bool {
@@ -155,7 +156,7 @@ fn is_orphaned(proc: &ProcInfo, by_pid: &HashMap<u32, &ProcInfo>) -> bool {
         None | Some(1) => true,
         Some(parent) => by_pid
             .get(&parent)
-            .is_none_or(|p| !is_jan(&p.name) || !could_be_parent(p, proc)),
+            .is_none_or(|p| !is_rey30(&p.name) || !could_be_parent(p, proc)),
     }
 }
 
@@ -214,7 +215,7 @@ pub fn orphaned_engine_pids(procs: &[ProcInfo], data_folder: &Path) -> Vec<u32> 
     let mut seen = HashSet::new();
     for router in procs
         .iter()
-        .filter(|p| is_jan_router(p, llamacpp_dir) && is_orphaned(p, &by_pid))
+        .filter(|p| is_rey30_router(p, llamacpp_dir) && is_orphaned(p, &by_pid))
     {
         // Reversed, so killing the router never leaves a child to be adopted.
         for pid in with_descendants(router.pid, &children).into_iter().rev() {
@@ -228,7 +229,7 @@ pub fn orphaned_engine_pids(procs: &[ProcInfo], data_folder: &Path) -> Vec<u32> 
     // parent of any kind, a shell included, means someone started it on purpose.
     for server in procs
         .iter()
-        .filter(|p| is_jan_mlx_server(p) && has_no_live_parent(p, &by_pid))
+        .filter(|p| is_rey30_mlx_server(p) && has_no_live_parent(p, &by_pid))
     {
         if seen.insert(server.pid) {
             victims.push(server.pid);
@@ -237,7 +238,7 @@ pub fn orphaned_engine_pids(procs: &[ProcInfo], data_folder: &Path) -> Vec<u32> 
     victims
 }
 
-/// Kills every engine an older Jan left behind. Returns how many processes were
+/// Kills every engine an older Rey30 IDvj left behind. Returns how many processes were
 /// killed. Blocking: run it off the async runtime.
 pub fn sweep_orphaned_engines(data_folder: &Path) -> usize {
     // A fresh install, or a user who never ran the llama.cpp engine, has
@@ -253,7 +254,7 @@ pub fn sweep_orphaned_engines(data_folder: &Path) -> usize {
         true,
         ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
     );
-    // Only an `mlx-server` can carry Jan's marker, and reading a process's
+    // Only an `mlx-server` can carry Rey30 IDvj's marker, and reading a process's
     // environment costs a call each, so ask for those alone.
     let mlx_pids: Vec<Pid> = system
         .processes()
@@ -277,7 +278,7 @@ pub fn sweep_orphaned_engines(data_folder: &Path) -> usize {
             parent: p.parent().map(Pid::as_u32),
             name: p.name().to_string_lossy().into_owned(),
             start_time: p.start_time(),
-            jan_launched: p
+            rey30_launched: p
                 .environ()
                 .iter()
                 .any(|kv| kv.to_string_lossy().starts_with(&marker)),
@@ -297,7 +298,7 @@ pub fn sweep_orphaned_engines(data_folder: &Path) -> usize {
         };
         let name = process.name().to_string_lossy();
         log::warn!(
-            "Killing {name} left running by a previous Jan: pid {pid}, parent {:?}",
+            "Killing {name} left running by a previous Rey30 IDvj: pid {pid}, parent {:?}",
             process.parent()
         );
         if process.kill() {
@@ -314,8 +315,8 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    const DATA: &str = "/home/u/.local/share/Jan/data";
-    const PRESET: &str = "/home/u/.local/share/Jan/data/llamacpp/router.preset.ini";
+    const DATA: &str = "/home/u/.local/share/Rey30 IDvj/data";
+    const PRESET: &str = "/home/u/.local/share/Rey30 IDvj/data/llamacpp/router.preset.ini";
 
     fn proc(pid: u32, parent: Option<u32>, name: &str, cmd: &[&str]) -> ProcInfo {
         ProcInfo {
@@ -323,7 +324,7 @@ mod tests {
             parent,
             name: name.to_string(),
             start_time: 0,
-            jan_launched: false,
+            rey30_launched: false,
             cmd: cmd.iter().map(|s| s.to_string()).collect(),
         }
     }
@@ -381,12 +382,12 @@ mod tests {
     }
 
     #[test]
-    fn a_router_whose_jan_is_still_running_is_left_alone() {
-        // `jan-cli` is the 0.8.4 CLI: `jan serve --detach` keeps its router as
+    fn a_router_whose_rey30_is_still_running_is_left_alone() {
+        // `rey30-idvj-cli` is the 0.8.4 CLI: `rey30-idvj serve --detach` keeps its router as
         // a live child, so a detached server is not an orphan.
-        for jan in ["Jan", "jan", "Jan.exe", "Jan-Desktop.exe", "jan-cli"] {
-            let procs = [proc(50, Some(1), jan, &[jan]), router(200, Some(50))];
-            assert!(sweep(&procs).is_empty(), "{jan} still owns its engine");
+        for rey30 in ["Rey30 IDvj", "rey30-idvj", "Rey30 IDvj.exe", "Rey30-IDvj.exe", "rey30-idvj-cli"] {
+            let procs = [proc(50, Some(1), rey30, &[rey30]), router(200, Some(50))];
+            assert!(sweep(&procs).is_empty(), "{rey30} still owns its engine");
         }
     }
 
@@ -422,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn a_llama_server_that_is_not_a_jan_router_is_left_alone() {
+    fn a_llama_server_that_is_not_a_rey30_router_is_left_alone() {
         // The user's own llama-server, with or without a preset of their own.
         let plain = proc(
             200,
@@ -448,7 +449,7 @@ mod tests {
             &[
                 "llama-server",
                 "--models-preset",
-                "/home/u/.local/share/Jan/data/llamacpp-other/router.preset.ini",
+                "/home/u/.local/share/Rey30 IDvj/data/llamacpp-other/router.preset.ini",
             ],
         );
         assert!(sweep(&[plain, own_preset, lookalike]).is_empty());
@@ -461,13 +462,13 @@ mod tests {
             Some(4242),
             "llama-server.exe",
             &[
-                "C:\\Users\\u\\AppData\\Roaming\\Jan\\data\\llamacpp\\backends\\b1\\llama-server.exe",
-                "--models-preset=C:\\Users\\u\\AppData\\Roaming\\Jan\\data\\llamacpp\\router.preset.ini",
+                "C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj\\data\\llamacpp\\backends\\b1\\llama-server.exe",
+                "--models-preset=C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj\\data\\llamacpp\\router.preset.ini",
             ],
         );
         let victims = orphaned_engine_pids(
             &[eq],
-            &PathBuf::from("C:\\Users\\u\\AppData\\Roaming\\Jan\\data"),
+            &PathBuf::from("C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj\\data"),
         );
         assert_eq!(victims, vec![200]);
     }
@@ -479,13 +480,13 @@ mod tests {
         for (pid, preset, data) in [
             (
                 200,
-                "\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Jan\\data\\llamacpp\\router.preset.ini",
-                "C:\\Users\\u\\AppData\\Roaming\\Jan\\data",
+                "\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj\\data\\llamacpp\\router.preset.ini",
+                "C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj\\data",
             ),
             (
                 201,
-                "\\\\?\\UNC\\srv\\share\\Jan\\data\\llamacpp\\router.preset.ini",
-                "\\\\srv\\share\\Jan\\data",
+                "\\\\?\\UNC\\srv\\share\\Rey30 IDvj\\data\\llamacpp\\router.preset.ini",
+                "\\\\srv\\share\\Rey30 IDvj\\data",
             ),
         ] {
             let router = proc(
@@ -548,20 +549,20 @@ mod tests {
     }
 
     #[test]
-    fn a_jan_that_started_after_the_router_is_not_its_owner() {
-        // Windows handed the old Jan's pid to the freshly launched new Jan.exe,
+    fn a_rey30_that_started_after_the_router_is_not_its_owner() {
+        // Windows handed the old Rey30 IDvj's pid to the freshly launched new Rey30 IDvj.exe,
         // which started after the router and so cannot be its parent.
         let procs = [
-            started_at(proc(50, Some(1), "Jan.exe", &["Jan.exe"]), 900),
+            started_at(proc(50, Some(1), "Rey30 IDvj.exe", &["Rey30 IDvj.exe"]), 900),
             started_at(router(200, Some(50)), 500),
         ];
         assert_eq!(sweep(&procs), vec![200]);
     }
 
     #[test]
-    fn a_jan_that_started_before_the_router_still_owns_it() {
+    fn a_rey30_that_started_before_the_router_still_owns_it() {
         let procs = [
-            started_at(proc(50, Some(1), "Jan.exe", &["Jan.exe"]), 100),
+            started_at(proc(50, Some(1), "Rey30 IDvj.exe", &["Rey30 IDvj.exe"]), 100),
             started_at(router(200, Some(50)), 500),
         ];
         assert!(sweep(&procs).is_empty());
@@ -601,14 +602,14 @@ mod tests {
         assert_eq!(sweep(&procs), vec![200]);
     }
 
-    /// An `mlx-server` carrying the marker Jan sets when it starts one.
+    /// An `mlx-server` carrying the marker Rey30 IDvj sets when it starts one.
     fn mlx_server(pid: u32, parent: Option<u32>) -> ProcInfo {
         let mut server = proc(
             pid,
             parent,
             "mlx-server",
             &[
-                "/Applications/Jan.app/Contents/Resources/resources/bin/mlx-server",
+                "/Applications/Rey30 IDvj.app/Contents/Resources/resources/bin/mlx-server",
                 "--model",
                 "/Users/u/models/qwen",
                 "--port",
@@ -617,7 +618,7 @@ mod tests {
                 "qwen",
             ],
         );
-        server.jan_launched = true;
+        server.rey30_launched = true;
         server
     }
 
@@ -632,9 +633,9 @@ mod tests {
     }
 
     #[test]
-    fn an_mlx_server_whose_jan_is_still_running_is_left_alone() {
+    fn an_mlx_server_whose_rey30_is_still_running_is_left_alone() {
         let procs = [
-            proc(100, Some(1), "Jan-Desktop", &["Jan"]),
+            proc(100, Some(1), "Rey30-IDvj", &["Rey30 IDvj"]),
             mlx_server(200, Some(100)),
         ];
         assert!(sweep(&procs).is_empty());
@@ -642,7 +643,7 @@ mod tests {
 
     #[test]
     fn an_mlx_server_under_a_live_shell_is_left_alone() {
-        // Run by hand from a terminal: its parent is alive and is not a Jan.
+        // Run by hand from a terminal: its parent is alive and is not a Rey30 IDvj.
         for shell in ["zsh", "bash", "tmux: server"] {
             let procs = [
                 proc(100, Some(1), shell, &[shell]),
@@ -653,10 +654,10 @@ mod tests {
     }
 
     #[test]
-    fn a_lookalike_mlx_server_without_jans_marker_is_left_alone_even_when_orphaned() {
+    fn a_lookalike_mlx_server_without_rey30_marker_is_left_alone_even_when_orphaned() {
         // Run by hand, e.g. `/Users/u/tools/resources/bin/mlx-server ...`, whose
         // shell has exited so launchd owns it. Path, flags and parent all fit;
-        // only the marker Jan sets when it starts the server is missing.
+        // only the marker Rey30 IDvj sets when it starts the server is missing.
         let theirs = proc(
             200,
             Some(1),
@@ -675,7 +676,7 @@ mod tests {
     }
 
     #[test]
-    fn a_process_with_jans_marker_but_another_name_is_left_alone() {
+    fn a_process_with_rey30_marker_but_another_name_is_left_alone() {
         let mut other = mlx_server(200, Some(1));
         other.name = "python3".to_string();
         assert!(sweep(&[other]).is_empty());

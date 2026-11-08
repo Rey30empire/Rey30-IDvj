@@ -519,13 +519,13 @@ mod tests {
 
     #[test]
     fn a_frame_may_load_only_what_its_window_was_registered_for() {
-        let dir = std::env::temp_dir().join(format!("jan-shot-frames-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rey30-idvj-shot-frames-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let page = dir.join("chart.html");
         std::fs::write(&page, "<svg></svg>").unwrap();
-        let other = std::env::temp_dir().join(format!("jan-shot-frames-{}-key", std::process::id()));
+        let other = std::env::temp_dir().join(format!("rey30-idvj-shot-frames-{}-key", std::process::id()));
         std::fs::write(&other, "secret").unwrap();
-        let label = "jan-shot-frame-test";
+        let label = "rey30-idvj-shot-frame-test";
         let page_url = tauri::Url::from_file_path(page.canonicalize().unwrap()).unwrap();
         let other_url = tauri::Url::from_file_path(other.canonicalize().unwrap()).unwrap();
 
@@ -535,7 +535,7 @@ mod tests {
             .unwrap();
         assert!(frame_allowed(label, page_url.as_str()));
         assert!(!frame_allowed(label, other_url.as_str()));
-        assert!(!frame_allowed("jan-shot-elsewhere", page_url.as_str()));
+        assert!(!frame_allowed("rey30-idvj-shot-elsewhere", page_url.as_str()));
         assert!(frame_allowed(label, "about:srcdoc"));
         assert!(frame_allowed(label, "about:blank"));
         assert!(!frame_allowed(label, "https://example.com/"));

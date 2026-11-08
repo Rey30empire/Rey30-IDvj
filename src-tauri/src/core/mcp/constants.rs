@@ -1,6 +1,13 @@
 // Default MCP runtime settings
 pub const DEFAULT_MCP_TOOL_CALL_TIMEOUT_SECS: u64 = 30;
 
+pub const BROWSER_MCP_NAME: &str = "Jan Browser MCP";
+pub const BROWSER_MCP_COMPAT_NAME: &str = "Rey30 IDvj Browser MCP";
+
+pub fn is_browser_mcp_server_name(name: &str) -> bool {
+    name == BROWSER_MCP_NAME || name == BROWSER_MCP_COMPAT_NAME
+}
+
 /// Per-tool-result character cap applied before the result enters conversation
 /// history. A single unbounded result (a full browser page snapshot, say) can
 /// otherwise consume the whole model context. Roughly 12k tokens at ~3.5

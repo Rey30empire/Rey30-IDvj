@@ -84,7 +84,7 @@ pub(crate) struct OrchestrationArgs {
     pub mlx_sessions: Arc<Mutex<HashMap<i32, MlxBackendSession>>>,
     pub mcp_servers: SharedMcpServers,
     pub mcp_settings: Arc<Mutex<McpSettings>>,
-    pub jan_data_folder: String,
+    pub rey30_data_folder: String,
     pub permissions: tauri_plugin_agent_tools::permissions::ToolPermissions,
     pub project_root: Option<std::path::PathBuf>,
     pub permission_requests: PermissionRegistry,
@@ -95,7 +95,7 @@ pub(crate) struct OrchestrationArgs {
     pub host_tools: crate::core::agent::host_tools::HostToolSet,
     #[cfg(feature = "cli")]
     pub host_tool_requests: crate::core::agent::host_tools::HostToolRegistry,
-    /// The host's own callback is the permission gate for its tools: Jan never
+    /// The host's own callback is the permission gate for its tools: Rey30 IDvj never
     /// emits a `permission_request` for a host tool, whatever its capability.
     /// Built-ins are unaffected. Inherited by children with the tool set.
     #[cfg(feature = "cli")]
@@ -120,7 +120,7 @@ pub(crate) struct OrchestrationArgs {
     /// A host's whole system prompt (RPC `session/start` `systemPrompt`), sent
     /// verbatim in place of the composed one: no identity, guides, environment,
     /// date, git state, plan/todo guidance or project memory. A host that owns
-    /// the prompt owns all of it; Jan's guides would describe tools a host-only
+    /// the prompt owns all of it; Rey30 IDvj's guides would describe tools a host-only
     /// session does not have. Never inherited by a child, which runs on its
     /// definition's prompt.
     pub host_system_prompt: Option<String>,
@@ -148,7 +148,7 @@ pub(crate) struct OrchestrationArgs {
     /// stronger than auto-approval's prompt suppression (it cannot override this).
     pub run_mode: crate::core::agent::plan::RunMode,
     /// Stable identity for this run's session, used to key the persistent
-    /// `bash` `/tmp` scratch directory (`<temp>/jan-agent-<session_id>`) and
+    /// `bash` `/tmp` scratch directory (`<temp>/rey30-idvj-agent-<session_id>`) and
     /// wiped at the session boundary specific to each surface. `None` on
     /// code paths with no session (server proxy runs) keeps the default
     /// throwaway per-command tmpfs.
@@ -717,9 +717,9 @@ struct CompositeToolInvoker {
     /// reaches a built-in, the shell or an MCP server.
     allowed_names: Option<std::collections::HashSet<String>>,
     /// Where `memory/` and `skills/` live: the project's store under
-    /// `~/.jan/projects`. The desktop points this at its permanent store.
+    /// `~/.rey30-idvj/projects`. The desktop points this at its permanent store.
     store_root: std::path::PathBuf,
-    /// `~/.jan`, for the `user:` memory scope and other projects' stores.
+    /// `~/.rey30-idvj`, for the `user:` memory scope and other projects' stores.
     memory_home: Option<std::path::PathBuf>,
     /// Whether other projects' memory is readable (`memory_cross_project`).
     cross_project: bool,
@@ -738,7 +738,7 @@ struct CompositeToolInvoker {
     sandbox: bool,
     /// How a `shell` call asking to escalate is answered; see [`Escalation`].
     escalation: Escalation,
-    /// The Jan home, refused to the general tools and masked from the shell
+    /// The Rey30 IDvj home, refused to the general tools and masked from the shell
     /// while sandboxed (`project::hidden_root`). Kept beside `sandbox` and set
     /// with it, so the two cannot disagree.
     hidden_root: Option<std::path::PathBuf>,
@@ -748,7 +748,7 @@ struct CompositeToolInvoker {
     scratch_root: std::path::PathBuf,
     /// Host env-var names/globs the shell may inherit beyond the base allowlist,
     /// and explicit key=value overrides. Resolved once per run by merging
-    /// `~/.jan/config.toml` with the project's `[tools]` section.
+    /// `~/.rey30-idvj/config.toml` with the project's `[tools]` section.
     env_passthrough: Vec<String>,
     env_set: Vec<(String, String)>,
     /// Backend for `web_search`/`web_fetch`, resolved once per run from
@@ -851,7 +851,7 @@ fn resolve_allow_network(configured: Option<bool>) -> bool {
 ///
 /// The CLI needs it for `git`/`ssh` credential helpers, so its shell binds
 /// `$HOME` read-only. The desktop keeps the full isolation and masks the home
-/// (the Jan data folder lives inside `$HOME`, so exposing it read-only would
+/// (the Rey30 IDvj data folder lives inside `$HOME`, so exposing it read-only would
 /// leak `settings.json` API keys, thread workspaces, and the memory store).
 #[cfg(feature = "cli")]
 const DEFAULT_ALLOW_HOME_READ: bool = true;
@@ -874,7 +874,7 @@ fn resolve_allow_home_read(configured: Option<bool>) -> bool {
 /// other tool they run there already has -- and the shell is what the agent
 /// does most of its work with, so confining it breaks the tools the project
 /// builds with far more often than it stops anything. Confinement is opt-in per
-/// invocation (`--sandbox`), per user (`sandbox` in `~/.jan/config.toml`) or
+/// invocation (`--sandbox`), per user (`sandbox` in `~/.rey30-idvj/config.toml`) or
 /// per project (`[tools].sandbox`). The permission gate is unchanged either
 /// way: an unconfined command is still one the user approved.
 #[cfg(feature = "cli")]
@@ -949,7 +949,7 @@ fn resolve_escalation(sandbox: bool, allow: bool) -> Escalation {
 }
 
 /// Whether `bash` would be confined in `project_root` with no `--sandbox` flag
-/// passed: the answer `jan cli agent status` reports and the TUI notices on.
+/// passed: the answer `rey30-idvj cli agent status` reports and the TUI notices on.
 pub fn effective_sandbox(project_root: &std::path::Path) -> bool {
     resolve_sandbox(
         None,
@@ -1003,7 +1003,7 @@ fn resolve_run_settings(
 /// Merge the global `env_passthrough` with the project's: the union of both
 /// name lists (order-preserving, global first), since each entry is only a name
 /// to match against the host env. The global scope is the CLI's
-/// `~/.jan/config.toml`; the desktop has none, so it contributes nothing there.
+/// `~/.rey30-idvj/config.toml`; the desktop has none, so it contributes nothing there.
 fn resolve_env_passthrough(project: Vec<String>) -> Vec<String> {
     #[cfg(feature = "cli")]
     let global = crate::core::agent::global_config::env_passthrough_setting();
@@ -1023,7 +1023,7 @@ fn resolve_env_set(project: Vec<(String, String)>) -> Vec<(String, String)> {
 }
 
 /// The web tools' backend for this run. `[web_search]` lives in the CLI's
-/// `~/.jan/config.toml`; the desktop has no such file and keeps the default.
+/// `~/.rey30-idvj/config.toml`; the desktop has no such file and keeps the default.
 fn resolve_web_search() -> Option<tauri_plugin_websearch::provider::WebSearchConfig> {
     #[cfg(feature = "cli")]
     return Some(crate::core::agent::global_config::resolve_web_search());
@@ -1201,8 +1201,8 @@ impl CompositeToolInvoker {
         };
         // The model's skill tools resolve through the same layering as the
         // system-prompt catalog (project, plugin, user, built-in), and
-        // `skill_write` `scope:"user"` lands in `~/.jan/skills` (the same
-        // `~/.jan` as the user memory scope).
+        // `skill_write` `scope:"user"` lands in `~/.rey30-idvj/skills` (the same
+        // `~/.rey30-idvj` as the user memory scope).
         let ctx = ctx
             .with_skill_source(crate::core::agent::skills::CoreSkillSource::shared(
                 &self.project_root,
@@ -1304,7 +1304,7 @@ impl CompositeToolInvoker {
     /// opt-in on a command the run would have run confined without asking,
     /// lets it through: auto-approval or a session grant alone never does, and
     /// "allow always" is not offered. The gate has already refused the hard
-    /// denies (the Jan home, a denied shell) before this is reached.
+    /// denies (the Rey30 IDvj home, a denied shell) before this is reached.
     async fn escalate(
         &self,
         name: &str,
@@ -2022,7 +2022,7 @@ impl CompositeToolInvoker {
 /// from the same constants the messages are built from.
 pub(crate) const DENIED_BY_USER: &str = "denied by user";
 pub(crate) const DENIED_BY_POLICY: &str = "denied by project policy";
-pub(crate) const HIDDEN_PATH_REFUSED: &str = "refused: the Jan home";
+pub(crate) const HIDDEN_PATH_REFUSED: &str = "refused: the Rey30 IDvj home";
 pub(crate) const PLAN_MODE_UNAVAILABLE: &str = "unavailable in plan_mode_read_only";
 pub(crate) const HOOK_DENIED: &str = "denied: ";
 
@@ -2035,11 +2035,11 @@ fn denied_by_policy_msg(name: &str, project_root: &std::path::Path) -> String {
     )
 }
 
-/// Refusal for a path or command reaching the Jan home. Structural, not a
+/// Refusal for a path or command reaching the Rey30 IDvj home. Structural, not a
 /// policy the user edits, so it points at the dedicated tools instead.
 fn hidden_path_msg(name: &str) -> String {
     format!(
-        "ERROR: tool '{name}' {HIDDEN_PATH_REFUSED} (~/.jan) holds the agent's own \
+        "ERROR: tool '{name}' {HIDDEN_PATH_REFUSED} (~/.rey30-idvj) holds the agent's own \
          configuration and state and is hidden from every tool -- do not try to reach it \
          another way. Skills and memory are available through the skill_*/memory_* tools."
     )
@@ -2049,6 +2049,9 @@ fn hard_deny_msg(name: &str, reason: DenyReason, project_root: &std::path::Path)
     match reason {
         DenyReason::Policy => denied_by_policy_msg(name, project_root),
         DenyReason::Hidden => hidden_path_msg(name),
+        DenyReason::PrivateLibrary => format!(
+            "ERROR: {}", tauri_plugin_agent_tools::workspace::PLUMA_LIBRARY_DENIED
+        ),
     }
 }
 
@@ -2891,7 +2894,7 @@ pub(crate) async fn run_server_side_openai_orchestration(
     mlx_sessions: Arc<Mutex<HashMap<i32, MlxBackendSession>>>,
     mcp_servers: SharedMcpServers,
     mcp_settings: Arc<Mutex<McpSettings>>,
-    jan_data_folder: &str,
+    rey30_data_folder: &str,
 ) -> Result<serde_json::Value, String> {
     let (tx, _rx) = mpsc::unbounded_channel();
     let args = OrchestrationArgs {
@@ -2901,7 +2904,7 @@ pub(crate) async fn run_server_side_openai_orchestration(
         mlx_sessions,
         mcp_servers,
         mcp_settings,
-        jan_data_folder: jan_data_folder.to_string(),
+        rey30_data_folder: rey30_data_folder.to_string(),
         permissions: tauri_plugin_agent_tools::permissions::ToolPermissions::allow_all(),
         project_root: None,
         permission_requests: Arc::new(Mutex::new(HashMap::new())),
@@ -3352,15 +3355,18 @@ fn build_run_system_prompt(
             )
             .map(Some)
         }
-        // No project to compose around, but the model still needs to know what
-        // day it is: the snapshot follows the base prompt, and alone makes one.
+        // Projectless runs still use the date snapshot and shared response guidance.
         None => {
-            let prefix = [base.map(str::to_string), session_start.map(|s| s.block())]
+            let prefix = [
+                base.map(str::to_string),
+                session_start.map(|s| s.block()),
+                Some(crate::core::agent::context::response_guidance().to_string()),
+            ]
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>()
                 .join("\n\n");
-            Ok((!prefix.is_empty()).then_some(ComposedPrompt {
+            Ok(Some(ComposedPrompt {
                 prefix,
                 tail: Vec::new(),
             }))
@@ -3517,10 +3523,10 @@ async fn todo_prompt_addendum(
 /// under a host prompt: a TUI `/resume` of a host-prompted thread can run in
 /// Plan mode, and without the warning the model only learns of it from
 /// refusals. It sits in the tail, so the host's cached prefix is unaffected.
-/// Todo guidance is Jan's own prose and is withheld like every other block.
+/// Todo guidance is Rey30 IDvj's own prose and is withheld like every other block.
 async fn turn_addendum(
     run_mode: crate::core::agent::plan::RunMode,
-    jan_owns_prompt: bool,
+    rey30_owns_prompt: bool,
     eager_todo_plan: bool,
     todo_registry: &Option<crate::core::agent::todo::TodoRegistry>,
 ) -> Option<(Composer, &'static str)> {
@@ -3530,7 +3536,7 @@ async fn turn_addendum(
             crate::core::agent::plan::plan_mode_prompt_addendum(),
         ));
     }
-    if !jan_owns_prompt {
+    if !rey30_owns_prompt {
         return None;
     }
     todo_prompt_addendum(eager_todo_plan, todo_registry)
@@ -3577,7 +3583,7 @@ async fn orchestrate_inner(
         mlx_sessions,
         mcp_servers,
         mcp_settings,
-        jan_data_folder,
+        rey30_data_folder,
         permissions,
         project_root,
         permission_requests,
@@ -3634,7 +3640,7 @@ async fn orchestrate_inner(
         .filter(|v| !v.is_empty());
 
     let (assistant_instructions, assistant_model_hint) = if let Some(assistant_id) = assistant_id {
-        load_assistant_config(jan_data_folder, assistant_id)?
+        load_assistant_config(rey30_data_folder, assistant_id)?
     } else {
         (None, None)
     };
@@ -3662,7 +3668,7 @@ async fn orchestrate_inner(
         .as_ref()
         .map(|s| s.prompt.clone())
         .unwrap_or_default();
-    // A host prompt replaces the composition outright: nothing Jan writes is
+    // A host prompt replaces the composition outright: nothing Rey30 IDvj writes is
     // placed around it, above the cache line or below the history.
     let stable_system = match host_system_prompt.as_deref() {
         Some(prompt) => Some(ComposedPrompt {
@@ -3681,15 +3687,15 @@ async fn orchestrate_inner(
             Some(&run_session_start(session_start.as_ref(), project_root.as_deref())),
         )?,
     };
-    let jan_owns_prompt = host_system_prompt.is_none();
+    let rey30_owns_prompt = host_system_prompt.is_none();
 
     let mut volatile_parts: Vec<(Composer, String)> = Vec::new();
     // Normal parent runs recall project memory for the current query before it
     // is indexed. Child runs keep their isolated history and skip memory. A
     // host-prompted run still indexes its answers but is never sent recall:
-    // that is a block Jan would write into a prompt the host owns.
+    // that is a block Rey30 IDvj would write into a prompt the host owns.
     let use_memory = *project_memory && system_prompt_override.is_none();
-    if use_memory && jan_owns_prompt {
+    if use_memory && rey30_owns_prompt {
         if let Some(root) = project_root {
             if let Some(query) = latest_user_text(&conversation_messages) {
                 // Indexed answers are plain-string `content`, so that is all an
@@ -3712,7 +3718,7 @@ async fn orchestrate_inner(
     // top-level run from a subagent's isolated context.
     // `/goal` is a per-request flag like `run_mode`: the TUI sets it while a
     // goal is active, and nothing else does, so every other surface (a plain
-    // turn, `jan cli agent run`, a subagent) leaves the model free to reach for
+    // turn, `rey30-idvj cli agent run`, a subagent) leaves the model free to reach for
     // `todo` on its own.
     let goal_mode = json_body
         .get("goal_mode")
@@ -3722,7 +3728,7 @@ async fn orchestrate_inner(
         && system_prompt_override.is_none()
         && should_force_goal_todo_plan(goal_mode, todo_registry).await;
     if let Some((composer, addendum)) =
-        turn_addendum(run_mode, jan_owns_prompt, eager_todo_plan, todo_registry).await
+        turn_addendum(run_mode, rey30_owns_prompt, eager_todo_plan, todo_registry).await
     {
         volatile_parts.push((composer, addendum.to_string()));
     }
@@ -4480,7 +4486,7 @@ async fn open_todo_summary(
 
 /// Turn cap for a request body. No cap by default: the agent runs as long as
 /// the task needs, guarded by the session token budget and cancellation.
-/// `max_turns` survives only for callers that have neither guard (`jan cli
+/// `max_turns` survives only for callers that have neither guard (`rey30-idvj cli
 /// agent step`, the API-server proxy); `0` and absent both mean unbounded.
 fn body_turn_cap(json_body: &serde_json::Value) -> usize {
     json_body
@@ -5884,7 +5890,7 @@ mod tests {
 
     /// The invoker sends the custom headers of the provider that serves the
     /// request's model -- looked up the way the upstream was resolved, so a
-    /// `provider/model` id finds its provider -- plus Jan's session headers, and
+    /// `provider/model` id finds its provider -- plus Rey30 IDvj's session headers, and
     /// never a second `Authorization`. This is also the desktop's path: the
     /// headers it registers for a provider now reach the wire.
     #[tokio::test]
@@ -5928,7 +5934,7 @@ mod tests {
                 custom_headers: vec![
                     crate::core::state::ProviderCustomHeader {
                         header: "X-Client-Name".into(),
-                        value: "jan-agent".into(),
+                        value: "rey30-idvj-agent".into(),
                     },
                     crate::core::state::ProviderCustomHeader {
                         header: "authorization".into(),
@@ -5968,14 +5974,14 @@ mod tests {
             .recv_timeout(std::time::Duration::from_secs(10))
             .expect("the request reached the stub")
             .to_ascii_lowercase();
-        assert!(seen.contains("\r\nx-client-name: jan-agent\r\n"), "{seen}");
-        assert!(seen.contains("\r\nx-client-request-id: jan-sess-9\r\n"), "{seen}");
+        assert!(seen.contains("\r\nx-client-name: rey30-idvj-agent\r\n"), "{seen}");
+        assert!(seen.contains("\r\nx-client-request-id: rey30-idvj-sess-9\r\n"), "{seen}");
         assert!(seen.contains("\r\nx-session-id: sess-9\r\n"), "{seen}");
         assert_eq!(seen.matches("\r\nauthorization: ").count(), 1, "{seen}");
         assert!(seen.contains("\r\nauthorization: bearer real-key\r\n"), "{seen}");
         assert!(
             !seen.contains("\r\nuser-agent:"),
-            "a library build sets no User-Agent; only the jan binary does: {seen}"
+            "a library build sets no User-Agent; only the rey30-idvj binary does: {seen}"
         );
     }
 
@@ -6049,14 +6055,14 @@ mod tests {
     async fn plan_guidance_reaches_a_host_prompted_turn_but_todo_guidance_does_not() {
         use crate::core::agent::plan::RunMode;
         let staged = Some(staged_todo_registry());
-        for jan_owns_prompt in [true, false] {
+        for rey30_owns_prompt in [true, false] {
             assert_eq!(
-                turn_addendum(RunMode::Plan, jan_owns_prompt, false, &staged).await,
+                turn_addendum(RunMode::Plan, rey30_owns_prompt, false, &staged).await,
                 Some((
                     Composer::PlanAddendum,
                     crate::core::agent::plan::plan_mode_prompt_addendum()
                 )),
-                "jan_owns_prompt={jan_owns_prompt}"
+                "rey30_owns_prompt={rey30_owns_prompt}"
             );
         }
         assert_eq!(
@@ -8768,7 +8774,7 @@ mod tests {
     fn unique_project_root() -> std::path::PathBuf {
         let n = TEST_ROOT_SEQ.fetch_add(1, Ordering::SeqCst);
         let dir =
-            std::env::temp_dir().join(format!("jan_loop_perm_test_{}_{}", std::process::id(), n));
+            std::env::temp_dir().join(format!("rey30_loop_perm_test_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).expect("create test root");
         dir
     }
@@ -8847,7 +8853,7 @@ mod tests {
 
     fn hooks_root(tag: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!(
-            "jan_loop_hooks_{tag}_{}",
+            "rey30_loop_hooks_{tag}_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -8934,7 +8940,7 @@ mod tests {
     #[tokio::test]
     async fn the_cli_skill_tools_read_plugin_skills() {
         let root = std::env::temp_dir().join(format!(
-            "jan_loop_plugin_skill_{}_{}",
+            "rey30_loop_plugin_skill_{}_{}",
             std::process::id(),
             std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap().as_nanos()
         ));
@@ -9560,7 +9566,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// With the host owning the gate its callback is the only prompt: Jan
+    /// With the host owning the gate its callback is the only prompt: Rey30 IDvj
     /// raises no `permission_request` for any host tool class, even with
     /// `auto_approve` off.
     #[cfg(feature = "cli")]
@@ -10000,7 +10006,7 @@ mod tests {
     #[test]
     fn agent_toml_network_setting_reaches_the_invoker() {
         let root = std::env::temp_dir().join(format!(
-            "jan_loop_net_{}",
+            "rey30_loop_net_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -10186,7 +10192,7 @@ mod tests {
     #[test]
     #[cfg(feature = "cli")]
     fn cli_tool_context_allows_network() {
-        let root = std::path::PathBuf::from("/tmp/jan-net-check");
+        let root = std::path::PathBuf::from("/tmp/rey30-idvj-net-check");
         let (tx, _rx) = mpsc::unbounded_channel();
         let invoker =
             build_prompting_invoker(root, tx, Arc::new(tokio::sync::Mutex::new(HashMap::new())));
@@ -10201,7 +10207,7 @@ mod tests {
     #[test]
     #[cfg(feature = "cli")]
     fn cli_tool_context_reads_home() {
-        let root = std::path::PathBuf::from("/tmp/jan-home-check");
+        let root = std::path::PathBuf::from("/tmp/rey30-idvj-home-check");
         let (tx, _rx) = mpsc::unbounded_channel();
         let invoker =
             build_prompting_invoker(root, tx, Arc::new(tokio::sync::Mutex::new(HashMap::new())));
@@ -10212,12 +10218,12 @@ mod tests {
     }
 
     /// The desktop keeps the full isolation: the sandbox masks `$HOME` rather
-    /// than binding it read-only, so the Jan data folder (which lives inside
+    /// than binding it read-only, so the Rey30 IDvj data folder (which lives inside
     /// `$HOME`) stays unreadable.
     #[test]
     #[cfg(not(feature = "cli"))]
     fn desktop_tool_context_withholds_home() {
-        let root = std::path::PathBuf::from("/tmp/jan-home-check");
+        let root = std::path::PathBuf::from("/tmp/rey30-idvj-home-check");
         let (tx, _rx) = mpsc::unbounded_channel();
         let invoker =
             build_prompting_invoker(root, tx, Arc::new(tokio::sync::Mutex::new(HashMap::new())));
@@ -10229,7 +10235,7 @@ mod tests {
     #[test]
     #[cfg(not(feature = "cli"))]
     fn desktop_tool_context_withholds_network() {
-        let root = std::path::PathBuf::from("/tmp/jan-net-check");
+        let root = std::path::PathBuf::from("/tmp/rey30-idvj-net-check");
         let (tx, _rx) = mpsc::unbounded_channel();
         let invoker =
             build_prompting_invoker(root, tx, Arc::new(tokio::sync::Mutex::new(HashMap::new())));
@@ -11700,7 +11706,7 @@ mod tests {
     /// dispatch shape, in a throwaway project dir.
     fn advertised_for(subagents_enabled: bool, has_parent: bool) -> Vec<String> {
         let root = std::env::temp_dir().join(format!(
-            "jan-advertise-{}-{}",
+            "rey30-idvj-advertise-{}-{}",
             std::process::id(),
             subagents_enabled as u8 * 2 + has_parent as u8
         ));
@@ -11731,7 +11737,7 @@ mod tests {
     /// somehow names it is refused rather than panicking on the missing link.
     #[test]
     fn message_main_agent_from_the_main_agent_is_refused() {
-        let root = std::env::temp_dir().join(format!("jan-msg-main-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-msg-main-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let (tx, _rx) = mpsc::unbounded_channel();
         let invoker =
@@ -11811,7 +11817,7 @@ mod tests {
     /// search at all. Without an allowlist they stay out.
     #[test]
     fn search_tools_are_advertised_only_when_an_allowlist_names_them() {
-        let root = std::env::temp_dir().join(format!("jan-advertise-search-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-advertise-search-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let advertised = |allowed: Option<&std::collections::HashSet<String>>| {
             let mut tools = Vec::new();
@@ -11848,7 +11854,7 @@ mod tests {
     /// dispatch nor the steering tool is advertised.
     #[test]
     fn plan_mode_advertises_no_subagent_messaging() {
-        let root = std::env::temp_dir().join(format!("jan-advertise-plan-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-advertise-plan-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let mut tools = Vec::new();
         advertise_local_tools(
@@ -12106,7 +12112,7 @@ mod tests {
     #[cfg(feature = "cli")]
     #[tokio::test]
     async fn stop_and_message_subagent_calls_reach_a_live_child_by_name() {
-        let root = std::env::temp_dir().join(format!("jan-stop-tool-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-stop-tool-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let bg = Arc::new(crate::core::agent::subagent::BackgroundSubagents::default());
         let inbox = crate::core::agent::subagent::tests::register_live_child(&bg, "sub-w-1", "w");
@@ -12135,7 +12141,7 @@ mod tests {
     #[cfg(feature = "cli")]
     #[tokio::test]
     async fn stop_subagent_on_a_bad_call_is_an_error_string_not_a_panic() {
-        let root = std::env::temp_dir().join(format!("jan-stop-bad-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-stop-bad-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let bg = Arc::new(crate::core::agent::subagent::BackgroundSubagents::default());
         let invoker = invoker_with_registry(root.clone(), bg);
@@ -12162,7 +12168,7 @@ mod tests {
     #[test]
     fn a_denied_stop_subagent_is_not_advertised() {
         use tauri_plugin_agent_tools::permissions::{PermissionDefault, ToolPermissions};
-        let root = std::env::temp_dir().join(format!("jan-advertise-deny-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30-idvj-advertise-deny-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let mut tools = Vec::new();
         advertise_local_tools(

@@ -49,16 +49,51 @@ fn invalid(path: &Path) -> io::Error {
 
 /// Read the file at the resolved `path`.
 pub fn read(path: &Path) -> io::Result<Vec<u8>> {
-    let mut file = imp::open_leaf(path, false)?;
+    let mut file = imp::open_leaf(path, false, false)?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)?;
     Ok(buf)
 }
 
+/// Read a bounded regular file and refuse all reparse points on Windows,
+/// including cloud placeholders that could initiate a download.
+pub fn read_regular_capped(path: &Path, limit: u64) -> io::Result<Vec<u8>> {
+    let file = open_regular_capped(path, limit)?;
+    let mut bytes = Vec::new();
+    file.take(limit.saturating_add(1)).read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "file exceeds read limit",
+        ));
+    }
+    Ok(bytes)
+}
+
+/// Open the same kind of checked file for a bounded random-access parser.
+pub fn open_regular_capped(path: &Path, limit: u64) -> io::Result<std::fs::File> {
+    let file = imp::open_leaf(path, false, true)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() || metadata.len() > limit {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "not a bounded regular file",
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if metadata.nlink() != 1 {
+            return Err(refused());
+        }
+    }
+    Ok(file)
+}
+
 /// Create or truncate the file at the resolved `path` and write `bytes`,
 /// creating any missing parent directories on the way.
 pub fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
-    let mut file = imp::open_leaf(path, true)?;
+    let mut file = imp::open_leaf(path, true, false)?;
     file.write_all(bytes)?;
     file.flush()
 }
@@ -103,7 +138,7 @@ mod imp {
         }
     }
 
-    pub(super) fn open_leaf(path: &Path, create: bool) -> io::Result<File> {
+    pub(super) fn open_leaf(path: &Path, create: bool, _strict: bool) -> io::Result<File> {
         let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
             return Err(invalid(path));
         };
@@ -146,9 +181,11 @@ mod imp {
     use super::{invalid, refused};
     use std::fs::{File, OpenOptions};
     use std::io;
-    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
+    use std::os::windows::io::AsRawHandle;
     use std::path::{Component, Path, PathBuf};
     use windows_sys::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT,
         FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
         FILE_SHARE_READ, FILE_SHARE_WRITE,
     };
@@ -160,21 +197,23 @@ mod imp {
     /// Refuse a link or junction. `File::metadata` reads the reparse tag, so
     /// `is_symlink` is true only for name-surrogate tags: a OneDrive
     /// placeholder is also a reparse point and must stay writable.
-    fn reject_link(file: &File) -> io::Result<std::fs::Metadata> {
+    fn reject_link(file: &File, strict: bool) -> io::Result<std::fs::Metadata> {
         let meta = file.metadata()?;
-        if meta.file_type().is_symlink() {
+        if meta.file_type().is_symlink()
+            || (strict && meta.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
+        {
             return Err(refused());
         }
         Ok(meta)
     }
 
-    fn pin_dir(path: &Path) -> io::Result<File> {
+    fn pin_dir(path: &Path, strict: bool) -> io::Result<File> {
         let dir = OpenOptions::new()
             .access_mode(FILE_READ_ATTRIBUTES)
             .share_mode(SHARE)
             .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
             .open(path)?;
-        if !reject_link(&dir)?.is_dir() {
+        if !reject_link(&dir, strict)?.is_dir() {
             return Err(io::Error::new(
                 io::ErrorKind::NotADirectory,
                 format!("not a directory: {}", path.display()),
@@ -211,7 +250,7 @@ mod imp {
         }
     }
 
-    pub(super) fn open_leaf(path: &Path, create: bool) -> io::Result<File> {
+    pub(super) fn open_leaf(path: &Path, create: bool, strict: bool) -> io::Result<File> {
         let (Some(parent), Some(_)) = (path.parent(), path.file_name()) else {
             return Err(invalid(path));
         };
@@ -239,7 +278,7 @@ mod imp {
                 }
                 _ => return Err(invalid(path)),
             }
-            held.push(pin_dir(&walked)?);
+            held.push(pin_dir(&walked, strict)?);
         }
         // The leaf is checked through a probe and used through a second, plain
         // open. Opening it with OPEN_REPARSE_POINT for real would hand back a
@@ -247,16 +286,30 @@ mod imp {
         // stub. The probe holds the leaf without FILE_SHARE_DELETE, so it is
         // still the same file when the plain open follows.
         let probe = probe_leaf(path, create)?;
-        reject_link(&probe)?;
+        reject_link(&probe, strict)?;
         let mut opts = OpenOptions::new();
-        opts.share_mode(SHARE);
+        opts.share_mode(if strict { FILE_SHARE_READ } else { SHARE });
         if create {
             // Not `truncate`: kept symmetric with the probe; emptied below.
             opts.write(true);
         } else {
             opts.read(true);
         }
+        if strict {
+            opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+        }
         let file = opts.open(path)?;
+        if strict {
+            reject_link(&file, true)?;
+            let mut info = BY_HANDLE_FILE_INFORMATION::default();
+            // SAFETY: file owns a live handle and info has the native output layout.
+            if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            if info.nNumberOfLinks != 1 {
+                return Err(refused());
+            }
+        }
         drop(probe);
         if create {
             file.set_len(0)?;
@@ -315,8 +368,8 @@ mod tests {
 
     fn dir() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let d = std::env::temp_dir()
-            .join(format!("jan_nofollow_test_{}_{}", std::process::id(), n));
+        let d =
+            std::env::temp_dir().join(format!("rey30_nofollow_test_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&d).unwrap();
         // Unix: macOS's temp dir sits behind the `/var -> /private/var` link,
         // which the walk would rightly refuse. Windows: keep the plain

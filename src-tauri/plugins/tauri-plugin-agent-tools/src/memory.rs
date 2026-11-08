@@ -2,9 +2,9 @@
 //! indexed by a generated `<store_root>/MEMORY.md`.
 //!
 //! Every function takes a store root rather than a project root, so the same
-//! implementation serves the desktop's permanent store in the Jan data folder,
-//! a project's store under `~/.jan/projects/<slug>`, and the user-wide store at
-//! `~/.jan` itself (whose `MEMORY.md` is the root index: user notes plus one
+//! implementation serves the desktop's permanent store in the Rey30 IDvj data folder,
+//! a project's store under `~/.rey30-idvj/projects/<slug>`, and the user-wide store at
+//! `~/.rey30-idvj` itself (whose `MEMORY.md` is the root index: user notes plus one
 //! pointer per project). Memory deliberately outlives the ephemeral per-thread
 //! sandbox the filesystem tools run in.
 //!
@@ -222,10 +222,10 @@ pub struct ProjectPointer {
     pub notes: usize,
 }
 
-/// Every project store under `<jan_home>/projects` that holds at least one
+/// Every project store under `<rey30_home>/projects` that holds at least one
 /// note, except `exclude` (the current project). Sorted by slug.
-pub fn project_pointers(jan_home: &Path, exclude: Option<&Path>) -> Vec<ProjectPointer> {
-    let Ok(rd) = std::fs::read_dir(projects_dir(jan_home)) else {
+pub fn project_pointers(rey30_home: &Path, exclude: Option<&Path>) -> Vec<ProjectPointer> {
+    let Ok(rd) = std::fs::read_dir(projects_dir(rey30_home)) else {
         return Vec::new();
     };
     let mut out: Vec<ProjectPointer> = rd
@@ -262,16 +262,16 @@ fn pointer_rows(pointers: &[ProjectPointer]) -> Vec<String> {
         .collect()
 }
 
-/// The root `~/.jan/MEMORY.md`: user-wide notes, then (when `cross_project`) a
+/// The root `~/.rey30-idvj/MEMORY.md`: user-wide notes, then (when `cross_project`) a
 /// pointer to every project with memory. Empty when there is nothing to list.
-pub fn root_index(jan_home: &Path, cross_project: bool) -> String {
+pub fn root_index(rey30_home: &Path, cross_project: bool) -> String {
     let mut sections = Vec::new();
-    let user = note_rows(USER_PREFIX, &catalog(jan_home));
+    let user = note_rows(USER_PREFIX, &catalog(rey30_home));
     if !user.is_empty() {
         sections.push(format!("## User notes (all projects)\n\n{}", user.join("\n")));
     }
     if cross_project {
-        let projects = pointer_rows(&project_pointers(jan_home, None));
+        let projects = pointer_rows(&project_pointers(rey30_home, None));
         if !projects.is_empty() {
             sections.push(format!("## Projects\n\n{}", projects.join("\n")));
         }
@@ -283,12 +283,12 @@ pub fn root_index(jan_home: &Path, cross_project: bool) -> String {
 }
 
 /// Regenerate the root index. Best-effort, like [`write_index`].
-pub fn write_root_index(jan_home: &Path, cross_project: bool) {
-    let path = jan_home.join(INDEX_FILE);
-    let body = root_index(jan_home, cross_project);
+pub fn write_root_index(rey30_home: &Path, cross_project: bool) {
+    let path = rey30_home.join(INDEX_FILE);
+    let body = root_index(rey30_home, cross_project);
     if body.is_empty() {
         let _ = std::fs::remove_file(&path);
-    } else if std::fs::create_dir_all(jan_home).is_ok() {
+    } else if std::fs::create_dir_all(rey30_home).is_ok() {
         let _ = std::fs::write(&path, body);
     }
 }
@@ -298,7 +298,7 @@ pub fn write_root_index(jan_home: &Path, cross_project: bool) {
 pub struct Scopes<'a> {
     /// The current store: unprefixed names read and write here.
     pub store: &'a Path,
-    /// `~/.jan`, holding the user-wide notes and every project's store. `None`
+    /// `~/.rey30-idvj`, holding the user-wide notes and every project's store. `None`
     /// on the desktop, whose store is the data folder's and has no user scope.
     pub home: Option<&'a Path>,
     /// Whether other projects are listed and readable.
@@ -364,7 +364,7 @@ impl<'a> Scopes<'a> {
         }
         if !self.cross_project {
             return Err(
-                "ERROR: cross-project memory is off (memory_cross_project = false in ~/.jan/config.toml)"
+                "ERROR: cross-project memory is off (memory_cross_project = false in ~/.rey30-idvj/config.toml)"
                     .to_string(),
             );
         }
@@ -465,7 +465,7 @@ mod tests {
 
     fn unique_root() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!("jan_memory_test_{}_{}", std::process::id(), n))
+        std::env::temp_dir().join(format!("rey30_memory_test_{}_{}", std::process::id(), n))
     }
 
     #[tokio::test]

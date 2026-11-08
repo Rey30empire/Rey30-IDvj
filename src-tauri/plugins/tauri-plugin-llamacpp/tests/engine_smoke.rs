@@ -1,6 +1,6 @@
 //! End-to-end check that the in-process engine loads a real model and streams.
 //!
-//! Opt-in: set JAN_TEST_GGUF to a small model. It needs the `engine` feature
+//! Opt-in: set REY30_TEST_GGUF to a small model. It needs the `engine` feature
 //! (so a compiled llama.cpp) and a few hundred MB of RAM, neither of which the
 //! default test job has.
 #![cfg(feature = "engine")]
@@ -15,7 +15,7 @@ fn model_path() -> Option<String> {
     // model fails with no backend registered at all. Called from here because
     // it gates every test in the file and is idempotent.
     tauri_plugin_llamacpp::engine::load_backend_modules();
-    std::env::var("JAN_TEST_GGUF").ok().filter(|p| !p.is_empty())
+    std::env::var("REY30_TEST_GGUF").ok().filter(|p| !p.is_empty())
 }
 
 fn start(model: &str) -> Engine {
@@ -36,7 +36,7 @@ fn start(model: &str) -> Engine {
 #[test]
 fn a_failed_load_reports_the_reason_llama_cpp_logged() {
     tauri_plugin_llamacpp::engine::load_backend_modules();
-    let missing = std::env::temp_dir().join("jan-no-such-model.gguf");
+    let missing = std::env::temp_dir().join("rey30-idvj-no-such-model.gguf");
     let args: Vec<String> = [
         "llama-server",
         "-m",
@@ -62,7 +62,7 @@ fn a_failed_load_reports_the_reason_llama_cpp_logged() {
 #[test]
 fn loads_a_model_and_answers_health_and_models() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let engine = start(&model);
@@ -84,7 +84,7 @@ fn loads_a_model_and_answers_health_and_models() {
 #[test]
 fn a_chat_completion_applies_the_template_and_reports_usage() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let engine = start(&model);
@@ -117,7 +117,7 @@ fn a_chat_completion_applies_the_template_and_reports_usage() {
 #[test]
 fn a_streaming_completion_yields_sse_chunks_then_finishes() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let engine = start(&model);
@@ -147,7 +147,7 @@ fn a_streaming_completion_yields_sse_chunks_then_finishes() {
 #[test]
 fn an_unknown_route_is_a_404_not_a_crash() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let engine = start(&model);
@@ -164,7 +164,7 @@ fn an_unknown_route_is_a_404_not_a_crash() {
 #[test]
 fn two_engines_coexist_in_one_process() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let a = start(&model);
@@ -198,7 +198,7 @@ fn two_engines_coexist_in_one_process() {
 #[test]
 fn an_engine_stops_promptly_even_if_it_never_served_a_request() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     // Repeat: the failure is a race, so one pass proves little.
@@ -224,7 +224,7 @@ fn an_engine_stops_promptly_even_if_it_never_served_a_request() {
 #[test]
 fn a_preset_without_parallel_gets_the_server_side_auto_default() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     let dir = tempfile::tempdir().expect("tempdir");
@@ -260,7 +260,7 @@ fn a_preset_without_parallel_gets_the_server_side_auto_default() {
 #[test]
 fn a_load_reports_its_progress_through_the_state_callback() {
     let Some(model) = model_path() else {
-        eprintln!("skipping: set JAN_TEST_GGUF to run");
+        eprintln!("skipping: set REY30_TEST_GGUF to run");
         return;
     };
     use std::sync::{Arc, Mutex};

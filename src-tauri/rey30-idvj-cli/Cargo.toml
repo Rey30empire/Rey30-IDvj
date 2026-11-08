@@ -1,0 +1,55 @@
+[package]
+name = "rey30-idvj-cli"
+version = "0.9.3"
+description = "Headless CLI for Rey30 IDvj: chat with remote AI models in an interactive agent console."
+authors = ["Reinier Tamayo"]
+license = "Apache-2.0"
+
+edition = "2021"
+# Matches ../Cargo.toml: `agent-client-protocol` (behind `rey30-idvj acp`) needs 1.88.
+rust-version = "1.88"
+
+# A standalone crate (NOT a workspace member of ../Cargo.toml) so the Tauri
+# bundler never enumerates it as a bin target of the desktop app -- tauri-cli
+# ignores required-features and would otherwise try to copy a `rey30-idvj` binary the
+# desktop build never produces. Standalone also keeps it clear of the desktop
+# build's `ctoml package.name "Rey30 IDvj-<channel>"` rename, which a member could not
+# resolve its `package = "Rey30-IDvj"` dep against. `.cargo/config.toml` redirects
+# output to this crate's own target directory, separate from the desktop.
+[[bin]]
+name = "rey30-idvj"
+path = "src/main.rs"
+
+[features]
+cli = ["app_lib/cli"]
+
+[dependencies]
+app_lib = { path = "..", package = "Rey30-IDvj", default-features = false }
+tauri-plugin-agent-tools = { path = "../plugins/tauri-plugin-agent-tools", default-features = false }
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+console = "0.15"
+env_logger = "0.11"
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+
+# Real-PTY tests (tests/tui_panic.rs, tests/tui_suspend.rs): nix's safe
+# `openpty`, `kill` and `waitpid` keep them free of `unsafe`. Pinned to the
+# version ../Cargo.toml uses.
+[target.'cfg(unix)'.dev-dependencies]
+nix = { version = "=0.30.1", features = ["term", "signal", "process"] }
+
+# Mirror the desktop crate's release profile: the CLI inherited it while it was a
+# bin of ../Cargo.toml, and a standalone crate would otherwise fall back to the
+# default (opt-level 3, no LTO) and ship a differently sized binary.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+strip = "symbols"
+codegen-units = 1
+panic = "unwind"
+overflow-checks = false
+debug = false
+debug-assertions = false
+incremental = false
+rpath = false

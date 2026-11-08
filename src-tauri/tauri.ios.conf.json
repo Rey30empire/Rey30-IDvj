@@ -1,5 +1,5 @@
 {
-  "identifier": "jan.ai.app.ios",
+  "identifier": "rey30-idvj.ai.app.ios",
   "build": {
     "devUrl": null,
     "frontendDist": "../web-app/dist",
@@ -8,7 +8,9 @@
   },
   "app": {
     "security": {
-      "capabilities": ["mobile"]
+      "capabilities": [
+        "mobile"
+      ]
     }
   },
   "plugins": {},
@@ -18,7 +20,9 @@
       "developmentTeam": "<DEVELOPMENT_TEAM_ID>"
     },
     "resources": [
-      "resources/LICENSE"
+      "resources/LICENSE",
+      "resources/NOTICE",
+      "resources/LICENSE-APACHE-2.0.txt"
     ],
     "externalBin": []
   }

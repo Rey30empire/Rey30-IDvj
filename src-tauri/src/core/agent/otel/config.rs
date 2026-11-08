@@ -1,9 +1,9 @@
 //! Whether telemetry is on, and where it goes.
 //!
 //! Off unless something turns it on. Precedence for the switch, highest first:
-//! `JAN_AGENT_ENABLE_TELEMETRY` (any explicit value, so `=0` can switch off a
+//! `REY30_AGENT_ENABLE_TELEMETRY` (any explicit value, so `=0` can switch off a
 //! config that enables it), the project's `agent.toml` `[telemetry].enabled`,
-//! then `~/.jan/config.toml` `[telemetry].enabled`. `OTEL_SDK_DISABLED=true`
+//! then `~/.rey30-idvj/config.toml` `[telemetry].enabled`. `OTEL_SDK_DISABLED=true`
 //! beats all of them, as the OpenTelemetry spec asks.
 //!
 //! Everything about the destination is read from the standard `OTEL_*`
@@ -78,8 +78,8 @@ pub struct Config {
 }
 
 pub const DEFAULT_ENDPOINT: &str = "http://localhost:4318";
-pub const DEFAULT_SERVICE_NAME: &str = "jan-agent";
-pub const ENABLE_ENV: &str = "JAN_AGENT_ENABLE_TELEMETRY";
+pub const DEFAULT_SERVICE_NAME: &str = "rey30-idvj-agent";
+pub const ENABLE_ENV: &str = "REY30_AGENT_ENABLE_TELEMETRY";
 
 /// `1/true/yes/on` and `0/false/no/off`, case-insensitively; anything else is
 /// no answer at all.
@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(m.url, "http://localhost:4318/v1/metrics");
         assert_eq!(m.protocol, Protocol::HttpProtobuf);
         assert_eq!(c.logs.unwrap().url, "http://localhost:4318/v1/logs");
-        assert_eq!(c.resource, vec![("service.name".into(), "jan-agent".into())]);
+        assert_eq!(c.resource, vec![("service.name".into(), "rey30-idvj-agent".into())]);
         assert_eq!(c.metric_interval, Duration::from_secs(60));
         assert!(!c.log_user_prompts && !c.log_tool_details);
         assert!(c.metrics_session_id);

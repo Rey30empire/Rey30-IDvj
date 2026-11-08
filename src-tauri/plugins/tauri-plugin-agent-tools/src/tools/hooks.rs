@@ -152,7 +152,7 @@ pub struct Hook {
     pub command: String,
     /// Seconds before the hook is killed. Defaults to [`DEFAULT_TIMEOUT_SECS`].
     pub timeout_secs: u64,
-    /// The file this hook was read from, for `jan cli agent status`. A user
+    /// The file this hook was read from, for `rey30-idvj cli agent status`. A user
     /// looking at surprising behavior needs to know which of the three layers
     /// put it there.
     pub source: PathBuf,
@@ -178,7 +178,7 @@ impl Hook {
 /// the event name is validated. `event` and `command` are the only required
 /// fields, so the smallest useful hook is two lines.
 ///
-/// `Serialize` as well as `Deserialize` because `~/.jan/config.toml` is
+/// `Serialize` as well as `Deserialize` because `~/.rey30-idvj/config.toml` is
 /// round-tripped through its typed struct on every write; without it, saving a
 /// provider would silently drop the user's hooks.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -632,7 +632,7 @@ mod tests {
         use std::sync::atomic::{AtomicU32, Ordering};
         static COUNTER: AtomicU32 = AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("jan-hooks-{tag}-{}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rey30-idvj-hooks-{tag}-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -741,11 +741,11 @@ mod tests {
         let mut set = HookSet::new();
         set.extend_from(
             vec![entry("SessionEnd", None, "true")],
-            Path::new("/home/u/.jan/config.toml"),
+            Path::new("/home/u/.rey30-idvj/config.toml"),
         );
         assert_eq!(
             set.all()[0].source,
-            PathBuf::from("/home/u/.jan/config.toml")
+            PathBuf::from("/home/u/.rey30-idvj/config.toml")
         );
     }
 

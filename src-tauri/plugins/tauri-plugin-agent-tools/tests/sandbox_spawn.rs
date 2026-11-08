@@ -37,7 +37,7 @@ mod windows {
         // Deliberately the raw `TEMP` path: on a runner it is the 8.3
         // `RUNNER~1` form, as it is for any user with a long name, and the
         // helper must still give the shell a working directory it can use.
-        let ws = std::env::temp_dir().join(format!("jan_sandbox_spawn_{}", std::process::id()));
+        let ws = std::env::temp_dir().join(format!("rey30_sandbox_spawn_{}", std::process::id()));
         std::fs::create_dir_all(&ws).expect("create workspace");
         let rt = tokio::runtime::Runtime::new().expect("runtime");
 
@@ -162,10 +162,10 @@ mod shell_tool {
     use tauri_plugin_agent_tools::tools::{handlers, jail, lookup, ToolContext};
 
     pub fn run() {
-        let base = std::env::temp_dir().join(format!("jan_shell_tool_{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30_shell_tool_{}", std::process::id()));
         let ws = base.join("ws");
         std::fs::create_dir_all(&ws).expect("create workspace");
-        // A store under the test's own dir, so nothing lands in the real Jan home.
+        // A store under the test's own dir, so nothing lands in the real Rey30 IDvj home.
         let store = tauri_plugin_agent_tools::workspace::project_store_in(&base.join("home"), &ws);
         let rt = tokio::runtime::Runtime::new().expect("runtime");
         let shell = |command: &str, extra: serde_json::Value| {

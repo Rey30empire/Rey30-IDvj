@@ -230,11 +230,11 @@ mod tests {
         let shells = BackgroundShells::default();
         shells.start(handoff(1, 30));
         assert!(shells.has_pending_work(), "a running command is owed");
-        shells.finish(done(false, Some("/tmp/jan-bash/out.txt")));
+        shells.finish(done(false, Some("/tmp/rey30-idvj-bash/out.txt")));
         let notices = shells.take_notices();
         assert_eq!(notices.len(), 1);
         assert!(
-            notices[0].text.contains("/tmp/jan-bash/out.txt"),
+            notices[0].text.contains("/tmp/rey30-idvj-bash/out.txt"),
             "must point at the output: {}",
             notices[0].text
         );
@@ -259,7 +259,7 @@ mod tests {
     fn the_ping_does_not_promise_more_than_the_file_holds() {
         let shells = BackgroundShells::default();
         shells.start(handoff(1, 30));
-        shells.finish(done(false, Some("/tmp/jan-bash/out.txt")));
+        shells.finish(done(false, Some("/tmp/rey30-idvj-bash/out.txt")));
         let notices = shells.take_notices();
         assert!(
             !notices[0].text.contains("full output is in"),
@@ -277,7 +277,7 @@ mod tests {
     fn a_failing_command_says_so_in_both_registers() {
         let shells = BackgroundShells::default();
         shells.start(handoff(1, 30));
-        shells.finish(done(true, Some("/tmp/jan-bash/out.txt")));
+        shells.finish(done(true, Some("/tmp/rey30-idvj-bash/out.txt")));
         let notices = shells.take_notices();
         assert!(notices[0].headline.contains("failed"));
         assert!(notices[0].text.contains("nonzero exit"));

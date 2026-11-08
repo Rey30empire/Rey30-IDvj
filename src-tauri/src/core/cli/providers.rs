@@ -1,15 +1,15 @@
 //! Cloud provider credential loader for the CLI.
 //!
-//! Jan Agent runs standalone, without Jan Desktop, so provider config is
-//! resolved from two `.jan` scopes rather than desktop's `settings.json`:
+//! Rey30 IDvj Agent runs standalone, without Rey30 IDvj Desktop, so provider config is
+//! resolved from two `.rey30-idvj` scopes rather than desktop's `settings.json`:
 //!
-//! 1. Global `~/.jan/config.toml` (user-wide, [`crate::core::agent::global_config`]) - the base.
+//! 1. Global `~/.rey30-idvj/config.toml` (user-wide, [`crate::core::agent::global_config`]) - the base.
 //! 2. Desktop `settings.json`, if present, is layered in as an **inherit-only**
 //!    additive source (never overwrites a Global entry, never written back to).
 //! 3. Project-local `agent.toml` `[provider]` override
 //!    ([`crate::core::agent::project::ProviderSection`]) - highest of the
 //!    three, since it's an explicit per-project choice.
-//! 4. `--provider`/`--api-key` CLI flags (+ `JAN_API_KEY`/`{PROVIDER}_API_KEY`
+//! 4. `--provider`/`--api-key` CLI flags (+ `REY30_API_KEY`/`{PROVIDER}_API_KEY`
 //!    env fallback via [`ProviderOverrides::with_env`]) win over all of the
 //!    above - the most explicit, most ephemeral signal.
 
@@ -17,17 +17,17 @@ use std::{collections::HashMap, path::Path, time::Duration};
 
 use crate::core::agent::global_config::load_global_config;
 use crate::core::agent::project::ProviderSection;
-use crate::core::app::commands::resolve_jan_data_folder;
+use crate::core::app::commands::resolve_rey30_data_folder;
 use crate::core::state::ProviderConfig;
 
 const MODEL_PROVIDER_KEY: &str = "model-provider";
 const API_KEY_SETTING_KEYS: [&str; 2] = ["api-key", "api_key"];
 
 /// Base URL for the explicitly named provider, when `--base-url` is not given.
-pub const BASE_URL_ENV: &str = "JAN_BASE_URL";
+pub const BASE_URL_ENV: &str = "REY30_BASE_URL";
 /// Extra request headers for the explicitly named provider: newline-separated
 /// `Name: Value` lines, the format of Claude Code's `ANTHROPIC_CUSTOM_HEADERS`.
-pub const CUSTOM_HEADERS_ENV: &str = "JAN_CUSTOM_HEADERS";
+pub const CUSTOM_HEADERS_ENV: &str = "REY30_CUSTOM_HEADERS";
 
 /// CLI/env overrides applied after loading the persisted store.
 ///
@@ -43,16 +43,16 @@ pub struct ProviderOverrides {
     pub provider: Option<String>,
     /// API key to inject for `provider` (or all providers when `provider` is None).
     pub api_key: Option<String>,
-    /// Base URL for `provider` (`--base-url`, else `JAN_BASE_URL`). Applied
+    /// Base URL for `provider` (`--base-url`, else `REY30_BASE_URL`). Applied
     /// only when `explicit_provider`.
     pub base_url: Option<String>,
-    /// Extra request headers for `provider` (`JAN_CUSTOM_HEADERS`), beating a
+    /// Extra request headers for `provider` (`REY30_CUSTOM_HEADERS`), beating a
     /// configured header of the same name. Applied only when `explicit_provider`.
     pub headers: Vec<(String, String)>,
     /// Whether `provider` came from `--provider`, rather than being defaulted
     /// from the Desktop selection.
     pub explicit_provider: bool,
-    /// Where `base_url` came from, for `jan cli agent status`.
+    /// Where `base_url` came from, for `rey30-idvj cli agent status`.
     pub base_url_source: Option<OverrideSource>,
 }
 
@@ -68,9 +68,9 @@ pub enum OverrideSource {
 impl ProviderOverrides {
     /// Fold in environment fallbacks for whatever was not set explicitly.
     ///
-    /// The key: `JAN_API_KEY` wins, then a provider-specific var
+    /// The key: `REY30_API_KEY` wins, then a provider-specific var
     /// (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...) when a provider is targeted.
-    /// For an explicitly named provider, `JAN_BASE_URL` and `JAN_CUSTOM_HEADERS`
+    /// For an explicitly named provider, `REY30_BASE_URL` and `REY30_CUSTOM_HEADERS`
     /// too; with no explicit provider those two are ignored, and a warning says
     /// so once per process (every provider-map rebuild comes through here, and
     /// the TUI must not have its screen drawn over on each one).
@@ -84,7 +84,7 @@ impl ProviderOverrides {
     fn with_env_from(mut self, env: impl Fn(&str) -> Option<String>) -> Self {
         let non_empty = |name: &str| env(name).filter(|v| !v.trim().is_empty());
         if self.api_key.is_none() {
-            if let Some(k) = env("JAN_API_KEY").filter(|k| !k.is_empty()) {
+            if let Some(k) = env("REY30_API_KEY").filter(|k| !k.is_empty()) {
                 self.api_key = Some(k);
             }
         }
@@ -144,10 +144,10 @@ impl ProviderOverrides {
     /// The provider this session scopes to itself: one named with an explicit
     /// `--provider` whose base URL or key came from these overrides. Its model
     /// roster and prices describe the session's endpoint rather than whatever
-    /// `~/.jan` was written for, so they are kept in memory and never persisted
+    /// `~/.rey30-idvj` was written for, so they are kept in memory and never persisted
     /// (see [`super::session_provider`]).
     ///
-    /// `JAN_API_KEY` with no `--provider`, and a Desktop-default provider's
+    /// `REY30_API_KEY` with no `--provider`, and a Desktop-default provider's
     /// `<PROVIDER>_API_KEY`, do not make a provider session-scoped: those users
     /// keep persisting refresh results exactly as before.
     pub fn session_scoped_provider(&self) -> Option<&str> {
@@ -212,7 +212,7 @@ pub fn parse_base_url(raw: &str) -> Result<String, String> {
     Ok(url.to_string())
 }
 
-/// Parse `JAN_CUSTOM_HEADERS`: one `Name: Value` per line. Blank lines are
+/// Parse `REY30_CUSTOM_HEADERS`: one `Name: Value` per line. Blank lines are
 /// skipped; a line with no `:`, an invalid name or value, or a
 /// [reserved](crate::core::agent::request_headers::RESERVED) name is dropped
 /// with a warning naming the header (never its value, which can be a
@@ -245,18 +245,18 @@ pub fn parse_custom_headers(raw: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Where a provider's base URL came from, as `jan cli agent status` reports it.
+/// Where a provider's base URL came from, as `rey30-idvj cli agent status` reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BaseUrlSource {
     /// `--base-url`.
     Flag,
-    /// `JAN_BASE_URL`.
+    /// `REY30_BASE_URL`.
     Env,
     /// The project's `agent.toml` `[provider]`.
     Project,
-    /// `~/.jan/config.toml`.
+    /// `~/.rey30-idvj/config.toml`.
     Config,
-    /// Inherited from Jan Desktop's `settings.json`.
+    /// Inherited from Rey30 IDvj Desktop's `settings.json`.
     Desktop,
 }
 
@@ -284,7 +284,7 @@ pub struct DesktopSelection {
 /// Read the desktop's selected provider + model from `settings.json`. Missing or
 /// malformed data yields an empty selection (no defaults applied).
 pub fn desktop_selection() -> DesktopSelection {
-    let path = resolve_jan_data_folder().join("settings.json");
+    let path = resolve_rey30_data_folder().join("settings.json");
     match std::fs::read_to_string(&path) {
         Ok(raw) => parse_selection(&raw),
         Err(_) => DesktopSelection::default(),
@@ -341,7 +341,7 @@ pub fn provider_for_model(model: &str, pc: &HashMap<String, ProviderConfig>) -> 
 
 /// Log a provider-config load failure at most once per process. Startup probes
 /// this in two independent places (the headless sign-in guard and the model
-/// fallback), and a malformed `~/.jan/config.toml` fails both, so without this
+/// fallback), and a malformed `~/.rey30-idvj/config.toml` fails both, so without this
 /// the same multi-line TOML error is printed twice before the fatal error
 /// prints it a third time.
 fn warn_load_failure_once(context: &str, err: &str) {
@@ -477,7 +477,7 @@ pub fn unreachable_local_provider(
 
 /// Runnable `(provider, model_id)` pairs for the TUI `/model` selector, taken
 /// from the same layered resolution the agent uses -- so the picker offers
-/// exactly what a run can reach, including `~/.jan/config.toml` providers the
+/// exactly what a run can reach, including `~/.rey30-idvj/config.toml` providers the
 /// desktop store knows nothing about.
 pub fn list_provider_models(project_root: Option<&std::path::Path>) -> Vec<(String, String)> {
     match load_provider_configs(project_root, &ProviderOverrides::session()) {
@@ -512,7 +512,7 @@ enum Roster {
     /// New ids are added and configured ones are kept. Merely opening `/model`
     /// runs a probe, and a permission-scoped or paginated `/models` answering
     /// with a subset must not delete a hand-added alias from
-    /// `~/.jan/config.toml` with no confirmation and no way to re-add it.
+    /// `~/.rey30-idvj/config.toml` with no confirmation and no way to re-add it.
     Additive,
 }
 
@@ -548,7 +548,7 @@ impl ModelRefresh {
                 let plural = if p.models == 1 { "" } else { "s" };
                 let kept = if p.kept_unlisted > 0 {
                     format!(
-                        ", {} kept but no longer listed - `jan cli models refresh` drops them",
+                        ", {} kept but no longer listed - `rey30-idvj cli models refresh` drops them",
                         p.kept_unlisted
                     )
                 } else {
@@ -607,7 +607,7 @@ pub async fn refresh_models_once(
 ///
 /// Unlike [`refresh_models_once`] there is no once-per-session guard: the user
 /// asked. Per-model metadata (`context_length`, pricing) is cached alongside in
-/// `~/.jan/model_catalog.json` -- see [`super::model_catalog`].
+/// `~/.rey30-idvj/model_catalog.json` -- see [`super::model_catalog`].
 pub async fn refresh_models(
     project_root: Option<&std::path::Path>,
     provider: Option<&str>,
@@ -619,7 +619,7 @@ pub async fn refresh_models(
     // A `--provider` that matched nothing is a failed refresh, not an empty
     // one: without this the caller prints "no providers to refresh" and exits
     // 0, so a typo (or a Desktop-inherited name, which has no entry in
-    // `~/.jan/config.toml` to rewrite) reads to a script as a complete refresh.
+    // `~/.rey30-idvj/config.toml` to rewrite) reads to a script as a complete refresh.
     if let Some(name) = provider {
         if refresh.listed.is_empty() && refresh.failed.is_empty() {
             refresh
@@ -687,7 +687,7 @@ fn unrefreshable_reason(project_root: Option<&std::path::Path>, provider: &str) 
     }
     match load_global_config() {
         Ok(global) if !global.contains_key(provider) => {
-            "inherited from Jan Desktop, so there is no ~/.jan/config.toml entry to refresh"
+            "inherited from Rey30 IDvj Desktop, so there is no ~/.rey30-idvj/config.toml entry to refresh"
                 .to_string()
         }
         _ => "could not be listed".to_string(),
@@ -709,7 +709,7 @@ fn mark_probed(
 }
 
 /// Query `GET {base_url}/models` for every reachable global provider `select`
-/// accepts, and persist what comes back: ids into `~/.jan/config.toml` and
+/// accepts, and persist what comes back: ids into `~/.rey30-idvj/config.toml` and
 /// per-model metadata into the model catalog.
 ///
 /// Only providers present in the global store are touched -- writing a
@@ -894,8 +894,8 @@ pub(crate) fn listing_headers(config: &ProviderConfig) -> Vec<(String, String)> 
 
 /// [`listing_headers`] for a provider known only by id -- a sign-in, which
 /// holds a provider definition rather than a resolved config: its configured
-/// headers, with the session's `JAN_CUSTOM_HEADERS` on top when the session
-/// names it. Read from `~/.jan/config.toml` directly, so no credential store
+/// headers, with the session's `REY30_CUSTOM_HEADERS` on top when the session
+/// names it. Read from `~/.rey30-idvj/config.toml` directly, so no credential store
 /// is touched on the way.
 pub(crate) fn listing_headers_for(provider: &str) -> Vec<(String, String)> {
     let mut config = load_global_config()
@@ -992,13 +992,13 @@ async fn fetch_models(
     Err(last_err)
 }
 
-/// Load provider configs by layering the four `.jan`-based scopes (see module
-/// docs for the priority order): Global `~/.jan/config.toml` -> Desktop
+/// Load provider configs by layering the four `.rey30-idvj`-based scopes (see module
+/// docs for the priority order): Global `~/.rey30-idvj/config.toml` -> Desktop
 /// `settings.json` (inherit-only, additive) -> project `agent.toml`
 /// `[provider]` override -> `--provider`/`--api-key` CLI/env overrides.
 ///
 /// `project_root` is `None` when no project context is available (e.g.
-/// `jan cli agent status` without `--project`); the local override is then
+/// `rey30-idvj cli agent status` without `--project`); the local override is then
 /// skipped. A missing/malformed Desktop store is not fatal: it's simply not
 /// layered in, since Global config alone is a valid standalone setup.
 pub fn load_provider_configs(
@@ -1012,7 +1012,7 @@ pub fn load_provider_configs(
 pub(crate) type LayeredConfigs = (HashMap<String, ProviderConfig>, HashMap<String, BaseUrlSource>);
 
 /// [`load_provider_configs`], plus which layer each provider's base URL came
-/// from (for `jan cli agent status`). One implementation, so the reported
+/// from (for `rey30-idvj cli agent status`). One implementation, so the reported
 /// source can never describe a different layering than the one that ran.
 ///
 /// The session-scoped provider's roster is the in-memory overlay's
@@ -1086,7 +1086,7 @@ fn seed_from_credential_store(configs: &mut HashMap<String, ProviderConfig>) {
 /// [`hydrate_provider_keys`] for the one provider that is actually used;
 /// [`has_stored_key`] answers presence without touching the secret.
 fn inherit_desktop_providers(configs: &mut HashMap<String, ProviderConfig>) -> Vec<String> {
-    let path = resolve_jan_data_folder().join("settings.json");
+    let path = resolve_rey30_data_folder().join("settings.json");
     let desktop_configs = match std::fs::read_to_string(&path) {
         Ok(raw) => parse_provider_store(&raw),
         Err(_) => return Vec::new(),
@@ -1102,7 +1102,7 @@ fn inherit_desktop_providers(configs: &mut HashMap<String, ProviderConfig>) -> V
 }
 
 /// Apply the project's `agent.toml` `[provider]` section, if present. Highest
-/// priority of the three `.jan`-based sources: always wins over Global and the
+/// priority of the three `.rey30-idvj`-based sources: always wins over Global and the
 /// Desktop inherit for the named provider.
 fn apply_local_override(
     configs: &mut HashMap<String, ProviderConfig>,
@@ -1137,7 +1137,7 @@ fn provider_config_from_section(section: ProviderSection) -> ProviderConfig {
 /// overrides run afterward and still win.
 /// Fill in a provider's key chain from the OS secret store, on demand.
 ///
-/// No-op when the config already carries one: `~/.jan/config.toml` providers
+/// No-op when the config already carries one: `~/.rey30-idvj/config.toml` providers
 /// (Tokamak included) hold their key inline, as do `--api-key`/env overrides,
 /// so the prioritized path never reaches the keyring at all. Call this only for
 /// a provider that is about to be used -- each call can cost a macOS keychain
@@ -1569,7 +1569,7 @@ mod tests {
             ..Default::default()
         };
         let keyless_local = ProviderConfig {
-            provider: "jan".into(),
+            provider: "rey30-idvj".into(),
             base_url: Some("http://localhost:1337/v1".into()),
             ..Default::default()
         };
@@ -1851,7 +1851,7 @@ mod tests {
 
     /// Merely opening `/model` runs the automatic probe, so a subset answer (a
     /// permission-scoped key, a paginated gateway) must not delete a
-    /// hand-configured id from `~/.jan/config.toml`.
+    /// hand-configured id from `~/.rey30-idvj/config.toml`.
     #[test]
     fn an_automatic_probe_keeps_an_id_the_endpoint_stopped_listing() {
         crate::core::agent::global_config::with_temp_home(|_| {
@@ -2369,20 +2369,20 @@ mod tests {
     }
 
     /// Redirects the secret store (data folder + forced file fallback) for the
-    /// duration of `f`. `JAN_DATA_FOLDER` is process-wide, so tests touching it
+    /// duration of `f`. `REY30_DATA_FOLDER` is process-wide, so tests touching it
     /// must not run concurrently.
     fn with_temp_secrets<T>(f: impl FnOnce() -> T) -> T {
         let _guard = crate::core::server::provider_secrets::SECRET_STORE_TEST_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
-        let prev = std::env::var("JAN_DATA_FOLDER").ok();
-        std::env::set_var("JAN_DATA_FOLDER", dir.path());
+        let prev = std::env::var("REY30_DATA_FOLDER").ok();
+        std::env::set_var("REY30_DATA_FOLDER", dir.path());
         crate::core::server::provider_secrets::force_file_secrets();
         let result = f();
         match &prev {
-            Some(v) => std::env::set_var("JAN_DATA_FOLDER", v),
-            None => std::env::remove_var("JAN_DATA_FOLDER"),
+            Some(v) => std::env::set_var("REY30_DATA_FOLDER", v),
+            None => std::env::remove_var("REY30_DATA_FOLDER"),
         }
         result
     }
@@ -2443,19 +2443,19 @@ mod tests {
         with_temp_secrets(|| {
             with_temp_home(|_| {
                 set_provider(
-                    "jan",
+                    "rey30-idvj",
                     ProviderUpdate {
                         api_key: None,
                         clear_api_key: true,
                         base_url: Some("http://localhost:1337/v1".into()),
-                        models: Some(vec!["jan-local".into()]),
+                        models: Some(vec!["rey30-idvj-local".into()]),
                         api_type: None,
                         ..Default::default()
                     },
                 )
                 .unwrap();
 
-                assert!(provider_is_signed_in(None, "jan"));
+                assert!(provider_is_signed_in(None, "rey30-idvj"));
             });
         });
     }
@@ -2552,8 +2552,8 @@ mod tests {
     #[test]
     fn a_desktop_default_provider_does_not_count_as_named() {
         let env = env_of(&[
-            ("JAN_BASE_URL", "https://api-stag.tokamak.sh/v1"),
-            ("JAN_CUSTOM_HEADERS", "X-Client-Name: jan-agent"),
+            ("REY30_BASE_URL", "https://api-stag.tokamak.sh/v1"),
+            ("REY30_CUSTOM_HEADERS", "X-Client-Name: rey30-idvj-agent"),
             ("TOKAMAK_API_KEY", "tk-env"),
         ]);
         let defaulted = ProviderOverrides {
@@ -2571,16 +2571,16 @@ mod tests {
         assert_eq!(explicit.base_url_source, Some(OverrideSource::Env));
         assert_eq!(
             explicit.headers,
-            vec![("X-Client-Name".to_string(), "jan-agent".to_string())]
+            vec![("X-Client-Name".to_string(), "rey30-idvj-agent".to_string())]
         );
         assert_eq!(explicit.session_scoped_provider(), Some("tokamak"));
     }
 
-    /// `JAN_API_KEY` keeps its old meaning (every provider, or the targeted
+    /// `REY30_API_KEY` keeps its old meaning (every provider, or the targeted
     /// one), and on its own scopes nothing to the session.
     #[test]
-    fn jan_api_key_alone_scopes_nothing() {
-        let env = env_of(&[("JAN_API_KEY", "shared")]);
+    fn rey30_api_key_alone_scopes_nothing() {
+        let env = env_of(&[("REY30_API_KEY", "shared")]);
         let unnamed = ProviderOverrides::default().with_env_from(&env);
         assert_eq!(unnamed.api_key.as_deref(), Some("shared"));
         assert_eq!(unnamed.session_scoped_provider(), None);
@@ -2596,7 +2596,7 @@ mod tests {
             base_url_source: Some(OverrideSource::Flag),
             ..named("gw")
         }
-        .with_env_from(env_of(&[("JAN_BASE_URL", "https://env.example/v1")]));
+        .with_env_from(env_of(&[("REY30_BASE_URL", "https://env.example/v1")]));
         assert_eq!(overrides.base_url.as_deref(), Some("https://flag.example/v1"));
         assert_eq!(overrides.base_url_source, Some(OverrideSource::Flag));
     }
@@ -2617,14 +2617,14 @@ mod tests {
         assert!(parse_base_url("not a url").is_err());
         assert!(parse_base_url("ftp://files.example").is_err());
         // From the environment an unusable value is ignored, not half-applied.
-        let ignored = named("gw").with_env_from(env_of(&[("JAN_BASE_URL", "http://gw.example/v1")]));
+        let ignored = named("gw").with_env_from(env_of(&[("REY30_BASE_URL", "http://gw.example/v1")]));
         assert_eq!(ignored.base_url, None);
     }
 
     #[test]
     fn custom_headers_parse_like_claudes() {
         let headers = parse_custom_headers(
-            "X-Client-Name: jan-agent\r\nX-Tokamak-Launch-Id:  abc \n\n\
+            "X-Client-Name: rey30-idvj-agent\r\nX-Tokamak-Launch-Id:  abc \n\n\
              Authorization: Bearer nope\nno separator here\nBad Name: v\n\
              x-client-name: again\n",
         );
@@ -2698,7 +2698,7 @@ mod tests {
     #[test]
     fn configured_headers_load_from_config_toml() {
         crate::core::agent::global_config::with_temp_home(|home| {
-            let dir = home.join(".jan");
+            let dir = home.join(".rey30-idvj");
             std::fs::create_dir_all(&dir).unwrap();
             std::fs::write(
                 dir.join("config.toml"),
@@ -2768,7 +2768,7 @@ mod tests {
             api_key: Some("tk-session".into()),
             base_url: Some(format!("http://{addr}/v1")),
             base_url_source: Some(OverrideSource::Env),
-            headers: vec![("X-Client-Name".into(), "jan-agent".into())],
+            headers: vec![("X-Client-Name".into(), "rey30-idvj-agent".into())],
             ..named("tokamak")
         }
     }
@@ -2812,7 +2812,7 @@ mod tests {
                 .expect("probe");
             let request = seen.recv_timeout(Duration::from_secs(10)).expect("listed");
             assert!(request.contains("\r\nauthorization: bearer tk-session\r\n"), "{request}");
-            assert!(request.contains("\r\nx-client-name: jan-agent\r\n"), "{request}");
+            assert!(request.contains("\r\nx-client-name: rey30-idvj-agent\r\n"), "{request}");
         });
     }
 
@@ -2949,7 +2949,7 @@ mod tests {
                     catalog.save().unwrap();
                 }
                 let tokamak_entry = || {
-                    let raw = std::fs::read_to_string(home.join(".jan").join("model_catalog.json"))
+                    let raw = std::fs::read_to_string(home.join(".rey30-idvj").join("model_catalog.json"))
                         .unwrap_or_default();
                     serde_json::from_str::<serde_json::Value>(&raw)
                         .ok()
@@ -2987,7 +2987,7 @@ mod tests {
             let (band, _seen) = capturing_stub(priced_listing(&["m"]), 1);
             super::super::session_provider::with_session(session_tokamak(band), |home| {
                 let store = r#"{"model-provider":"{\"state\":{\"providers\":[{\"provider\":\"desk\",\"base_url\":\"http://127.0.0.1:9/v1\",\"models\":[{\"id\":\"d\"}]}]}}"}"#;
-                let data = crate::core::app::commands::resolve_jan_data_folder();
+                let data = crate::core::app::commands::resolve_rey30_data_folder();
                 std::fs::create_dir_all(&data).unwrap();
                 std::fs::write(data.join("settings.json"), store).unwrap();
                 let project = tempfile::tempdir().unwrap();
@@ -3019,7 +3019,7 @@ mod tests {
         });
     }
 
-    /// Neither `JAN_API_KEY` alone nor a Desktop-default provider's key makes a
+    /// Neither `REY30_API_KEY` alone nor a Desktop-default provider's key makes a
     /// provider session-scoped, so those users keep persisting what a refresh
     /// finds, exactly as before.
     #[test]

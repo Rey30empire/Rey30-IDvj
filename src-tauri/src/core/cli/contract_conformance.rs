@@ -1,7 +1,7 @@
 //! Conformance suite for the host-tool / embedded-session contract
-//! (jan-internal#368).
+//! (rey30-idvj-internal#368).
 //!
-//! That issue defines the contract the Jan ADKs are written against: two
+//! That issue defines the contract the Rey30 IDvj ADKs are written against: two
 //! message tables, a requirement per row with the consumer code that proves it,
 //! and an acceptance test that already runs it (Robot Studio swaps a worker and
 //! keeps every test). Step 1 of its order of work is this suite, written before
@@ -272,7 +272,7 @@ const SESSION_TO_HOST: &[OutputRow] = &[
         optional: &[],
     },
     OutputRow {
-        // Synthesized by the host when stdout closes, so Jan never emits it.
+        // Synthesized by the host when stdout closes, so Rey30 IDvj never emits it.
         // The row is here to be checked as *not* an event, which is a real
         // invariant: a `worker_exit` on the wire would be a second, contradictory
         // source of truth for a fact the host already knows.

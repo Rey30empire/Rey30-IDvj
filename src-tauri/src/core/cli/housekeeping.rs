@@ -8,7 +8,7 @@
 //!
 //! Deliberately conservative, because a deleted thread is not recoverable:
 //! - nothing runs unless the user turned it on (`prune_threads = true` in
-//!   `~/.jan/config.toml`);
+//!   `~/.rey30-idvj/config.toml`);
 //! - a thread is removed only when a limit condemns it, and the newest
 //!   [`MIN_KEEP`] are never touched whatever the limits say;
 //! - the thread this session is running or resumed is always kept;
@@ -25,7 +25,7 @@ use std::path::Path;
 use serde_json::Value;
 
 /// Default age past which a thread is a candidate for removal, once pruning is
-/// switched on (`prune_threads` in `~/.jan/config.toml`; off by default).
+/// switched on (`prune_threads` in `~/.rey30-idvj/config.toml`; off by default).
 pub const DEFAULT_RETENTION_DAYS: u32 = 90;
 
 /// Default cap on how many threads a project keeps.
@@ -314,14 +314,14 @@ mod tests {
 
     #[test]
     fn a_missing_store_prunes_nothing() {
-        let base = std::env::temp_dir().join("jan-housekeeping-no-such-store");
+        let base = std::env::temp_dir().join("rey30-idvj-housekeeping-no-such-store");
         assert_eq!(run(&base, policy(1, 1), &none()), 0);
     }
 
     #[test]
     fn an_unreadable_thread_metadata_file_is_left_alone() {
         let base = std::env::temp_dir().join(format!(
-            "jan-housekeeping-corrupt-{}",
+            "rey30-idvj-housekeeping-corrupt-{}",
             std::process::id()
         ));
         let dir = crate::core::threads::utils::get_thread_dir(&base, "broken").unwrap();
@@ -339,7 +339,7 @@ mod tests {
     #[test]
     fn run_removes_only_what_the_plan_names() {
         let base = std::env::temp_dir().join(format!(
-            "jan-housekeeping-{}-{}",
+            "rey30-idvj-housekeeping-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

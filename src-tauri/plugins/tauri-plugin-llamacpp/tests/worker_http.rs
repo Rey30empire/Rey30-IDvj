@@ -1,8 +1,8 @@
-//! The loopback HTTP surface, driven the way Jan's own callers drive it:
+//! The loopback HTTP surface, driven the way Rey30 IDvj's own callers drive it:
 //! `proxy.rs` forwards to `http://127.0.0.1:<port>/v1<path>` with a bearer
 //! token, and the extension's `chat()` posts to `/v1/chat/completions`.
 //!
-//! Opt-in on JAN_TEST_GGUF, like tests/engine_smoke.rs.
+//! Opt-in on REY30_TEST_GGUF, like tests/engine_smoke.rs.
 #![cfg(feature = "engine")]
 
 use std::sync::Arc;
@@ -24,7 +24,7 @@ fn model_path() -> Option<String> {
     // model fails with no backend registered at all. Called from here because
     // it gates every test in the file and is idempotent.
     tauri_plugin_llamacpp::engine::load_backend_modules();
-    std::env::var("JAN_TEST_GGUF").ok().filter(|p| !p.is_empty())
+    std::env::var("REY30_TEST_GGUF").ok().filter(|p| !p.is_empty())
 }
 
 fn spec(model: &str, slot_dir: Option<&str>) -> LoadSpec {
@@ -61,7 +61,7 @@ async fn serve_with_state(
     budget_mib: u64,
 ) -> (String, std::path::PathBuf, Arc<EngineServer>) {
     let dir = std::env::temp_dir().join(format!(
-        "jan-slot-it-{}-{}",
+        "rey30-idvj-slot-it-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -130,7 +130,7 @@ async fn post(base: &str, path: &str, body: &str, key: Option<&str>) -> (u16, St
 async fn serve_unloadable() -> String {
     tauri_plugin_llamacpp::engine::load_backend_modules();
     let mut reg = Registry::new(1);
-    reg.register(MODEL_ID, spec("/nonexistent/jan-test-model.gguf", None));
+    reg.register(MODEL_ID, spec("/nonexistent/rey30-idvj-test-model.gguf", None));
     let (server, listener) = EngineServer::bind(Arc::new(Mutex::new(reg)), 0, KEY.into())
         .await
         .expect("loopback bind");
@@ -139,7 +139,7 @@ async fn serve_unloadable() -> String {
     base
 }
 
-/// The lifecycle feed Jan subscribes to for the length of a load. Needs no
+/// The lifecycle feed Rey30 IDvj subscribes to for the length of a load. Needs no
 /// model: a load that cannot succeed still has to announce both transitions,
 /// and the nonzero exit code is what tells the desktop it failed rather than
 /// having been evicted.
@@ -441,7 +441,7 @@ async fn a_failed_load_is_reported_as_failed_not_merely_unloaded() {
 }
 
 /// Reload needs no model file: it only rewrites the registry's bookkeeping, so
-/// unlike the rest of this file it runs without JAN_TEST_GGUF.
+/// unlike the rest of this file it runs without REY30_TEST_GGUF.
 async fn serve_preset(ini_path: &str) -> String {
     let ini = std::fs::read_to_string(ini_path).expect("preset should be readable");
     let mut reg = Registry::new(1);
@@ -467,7 +467,7 @@ const PRESET_TWO: &str = "[*]\nparallel = 1\n\n[alpha]\nmodel = /a.gguf\n\n[beta
 
 #[tokio::test(flavor = "multi_thread")]
 async fn reload_applies_a_regenerated_preset_and_reports_the_diff() {
-    let dir = std::env::temp_dir().join(format!("jan-reload-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("rey30-idvj-reload-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let preset = write_preset(&dir, PRESET_ONE);
     let base = serve_preset(&preset).await;
@@ -518,7 +518,7 @@ async fn reload_applies_a_regenerated_preset_and_reports_the_diff() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn reload_rejects_a_missing_preset_rather_than_emptying_the_registry() {
-    let dir = std::env::temp_dir().join(format!("jan-reload-miss-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("rey30-idvj-reload-miss-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let preset = write_preset(&dir, PRESET_ONE);
     let base = serve_preset(&preset).await;
@@ -549,7 +549,7 @@ async fn reload_rejects_a_missing_preset_rather_than_emptying_the_registry() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn reload_requires_the_api_key() {
-    let dir = std::env::temp_dir().join(format!("jan-reload-auth-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("rey30-idvj-reload-auth-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let preset = write_preset(&dir, PRESET_ONE);
     let base = serve_preset(&preset).await;
@@ -713,7 +713,7 @@ async fn erasing_a_threads_state_drops_only_that_thread() {
     assert!(saved_states(&dir).is_empty(), "erasing a model clears all of it");
 }
 
-/// Closing Jan is the common way a thread stops being current, so the resident
+/// Closing Rey30 IDvj is the common way a thread stops being current, so the resident
 /// slot has to be written at shutdown or the feature would only work across a
 /// thread switch.
 #[tokio::test(flavor = "multi_thread")]

@@ -41,7 +41,7 @@ struct Session {
 
 /// The allowlist a host-only session's turns run under, or `None` for a
 /// session with built-ins. A child inherits it as its ceiling, so this is also
-/// what keeps a delegate from reaching Jan's shell or files.
+/// what keeps a delegate from reaching Rey30 IDvj's shell or files.
 fn session_allowlist(session: &Session) -> Option<Vec<String>> {
     (!session.builtins).then(|| {
         let mut names = Vec::new();
@@ -531,7 +531,7 @@ pub async fn serve() -> Result<(), String> {
                             // rather than by having a message rejected.
                             response(&id, json!({
                                 "protocolVersion": PROTOCOL_VERSION,
-                                "serverInfo": {"name":"jan","version":env!("CARGO_PKG_VERSION")},
+                                "serverInfo": {"name":"rey30-idvj","version":env!("CARGO_PKG_VERSION")},
                                 "capabilities": {"session":true,"turn":true},
                                 "input_content_parts": super::run_report::InputContentParts::current(),
                             }))
@@ -556,8 +556,8 @@ pub async fn serve() -> Result<(), String> {
                             Ok(start) if !std::path::Path::new(&start.cwd).is_dir() => error(&id, -32602, "cwd is not a directory"),
                             // A blank prompt is almost certainly a host bug (an unset
                             // template), and sending it would run a model with no
-                            // instructions at all rather than with Jan's.
-                            Ok(start) if start.system_prompt.as_deref().is_some_and(|p| p.trim().is_empty()) => error(&id, -32602, "systemPrompt must not be blank; omit it to use Jan's"),
+                            // instructions at all rather than with Rey30 IDvj's.
+                            Ok(start) if start.system_prompt.as_deref().is_some_and(|p| p.trim().is_empty()) => error(&id, -32602, "systemPrompt must not be blank; omit it to use Rey30 IDvj's"),
                             // Declared before the session is built: a tool set the
                             // host got wrong is refused before anything is spent.
                             Ok(start) => match declare_tools(start.tools) {
@@ -1003,7 +1003,7 @@ mod tests {
     fn session_start_defaults_keep_today_s_behaviour() {
         let start: SessionStartParams = serde_json::from_value(json!({"cwd":"/"})).unwrap();
         assert!(start.tools.is_empty() && start.builtins);
-        assert_eq!(start.permissions, PermissionOwner::Jan);
+        assert_eq!(start.permissions, PermissionOwner::Rey30);
         let host: SessionStartParams = serde_json::from_value(json!({"cwd":"/","permissions":"host","builtins":false})).unwrap();
         assert_eq!(host.permissions, PermissionOwner::Host);
         assert!(!host.builtins);

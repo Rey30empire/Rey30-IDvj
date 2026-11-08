@@ -9,7 +9,7 @@ expression: render_snapshot(buf)
 |• Running make build (0s)                                                       |
 |  └ compiling core                                                              |
 |    compiling cli                                                               |
-|    linking jan                                                                 |
+|    linking rey30-idvj                                                          |
 
  0 0..80 bg=#282C3A
  1 0..2 fg=#56B6C2 bg=#282C3A mod=BOLD
@@ -24,4 +24,4 @@ expression: render_snapshot(buf)
  6 0..4 fg=DarkGray
  6 4..17 mod=DIM
  7 0..4 fg=DarkGray
- 7 4..15 mod=DIM
+ 7 4..22 mod=DIM

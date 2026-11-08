@@ -116,8 +116,8 @@ mod tests {
         fn new() -> Self {
             let guard = SECRET_STORE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let dir = tempfile::tempdir().unwrap();
-            let prev_data_folder = std::env::var("JAN_DATA_FOLDER").ok();
-            std::env::set_var("JAN_DATA_FOLDER", dir.path());
+            let prev_data_folder = std::env::var("REY30_DATA_FOLDER").ok();
+            std::env::set_var("REY30_DATA_FOLDER", dir.path());
             crate::core::server::provider_secrets::force_file_secrets();
             Self {
                 _guard: guard,
@@ -130,8 +130,8 @@ mod tests {
     impl Drop for TempSecrets {
         fn drop(&mut self) {
             match &self.prev_data_folder {
-                Some(v) => std::env::set_var("JAN_DATA_FOLDER", v),
-                None => std::env::remove_var("JAN_DATA_FOLDER"),
+                Some(v) => std::env::set_var("REY30_DATA_FOLDER", v),
+                None => std::env::remove_var("REY30_DATA_FOLDER"),
             }
         }
     }

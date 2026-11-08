@@ -8,7 +8,7 @@ use super::utils::{
     ensure_data_dirs, ensure_thread_dir_exists, get_data_dir, get_messages_path, get_thread_dir,
     get_thread_metadata_path, validate_thread_id,
 };
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 use futures_util::future;
 use serde_json::json;
 use std::fs;
@@ -35,7 +35,7 @@ impl std::ops::Deref for DataDirGuard {
 fn mock_app_with_temp_data_dir() -> (tauri::App<MockRuntime>, DataDirGuard) {
     let app = mock_app();
     // Get the actual data dir that will be used by storage code
-    let data_dir = get_jan_data_folder_path(app.handle().clone());
+    let data_dir = get_rey30_data_folder_path(app.handle().clone());
     println!("Mock app data dir: {}", data_dir.display());
     (app, DataDirGuard(data_dir))
 }
@@ -308,6 +308,38 @@ async fn test_modify_and_delete_thread() {
     }
 
     // Clean up
+}
+
+#[tokio::test]
+async fn test_literary_thread_restriction_survives_stale_metadata_updates() {
+    let (app, _data_dir) = mock_app_with_temp_data_dir();
+    let handle = app.handle().clone();
+    let created = create_thread(handle.clone(), create_test_thread("Biblioteca"))
+        .await
+        .unwrap();
+    let id = created["id"].as_str().unwrap().to_string();
+    let mut marked = created.clone();
+    marked["metadata"] = json!({ "literaryLibrary": true });
+    let mut stale = created;
+    stale["metadata"] = json!({ "literaryLibrary": false, "pinned": true });
+
+    let (marked_result, stale_result) = tokio::join!(
+        modify_thread(handle.clone(), marked),
+        modify_thread(handle.clone(), stale),
+    );
+    marked_result.unwrap();
+    stale_result.unwrap();
+    let threads = list_threads(handle.clone()).await.unwrap();
+    let thread = threads.iter().find(|thread| thread["id"] == id).unwrap();
+    assert_eq!(thread["metadata"]["literaryLibrary"], true);
+
+    modify_thread(handle.clone(), json!({ "id": id, "title": "Revisión" }))
+        .await
+        .unwrap();
+    let threads = list_threads(handle).await.unwrap();
+    let thread = threads.iter().find(|thread| thread["id"] == id).unwrap();
+    assert_eq!(thread["title"], "Revisión");
+    assert_eq!(thread["metadata"]["literaryLibrary"], true);
 }
 
 #[tokio::test]
@@ -728,7 +760,7 @@ fn test_validate_thread_id_accepts_real_ids() {
         "784952d3-dc72-474e-ab24-0d78e7035280", // backend UUID
         "01JABCDEFGHJKMNPQRSTVWXYZ0",           // web-app ULID
         "temporary-chat",
-        "jan_1712345678",
+        "rey30_1712345678",
         "CONSOLE",
         "COM10",
         "nul_thread",

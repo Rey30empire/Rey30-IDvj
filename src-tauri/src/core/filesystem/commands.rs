@@ -2,7 +2,7 @@
 // It's added to ensure the legacy implementation from frontend still functions before removal.
 use super::grants::{record_picks, DENIED_PREFIX};
 use super::helpers::{
-    resolve_app_path_within_jan_data_folder, resolve_app_read_path, resolve_path,
+    resolve_app_path_within_rey30_data_folder, resolve_app_read_path, resolve_path,
 };
 use super::models::{DialogOpenOptions, FileStat};
 use rfd::AsyncFileDialog;
@@ -16,11 +16,11 @@ pub fn rm<R: Runtime>(app_handle: tauri::AppHandle<R>, args: Vec<String>) -> Res
         return Err("rm error: Invalid argument".to_string());
     }
 
-    let (canonical_data, path) = resolve_app_path_within_jan_data_folder(app_handle, &args[0])
-        .map_err(|_| format!("rm error: path {} is not under jan data folder", args[0]))?;
+    let (canonical_data, path) = resolve_app_path_within_rey30_data_folder(app_handle, &args[0])
+        .map_err(|_| format!("rm error: path {} is not under rey30-idvj data folder", args[0]))?;
     if !path.starts_with(&canonical_data) {
         return Err(format!(
-            "rm error: path {} is not under jan data folder {}",
+            "rm error: path {} is not under rey30-idvj data folder {}",
             path.display(),
             canonical_data.display()
         ));
@@ -43,7 +43,7 @@ pub fn mkdir<R: Runtime>(app_handle: tauri::AppHandle<R>, args: Vec<String>) -> 
         return Err("mkdir error: Invalid argument".to_string());
     }
 
-    let (_, path) = resolve_app_path_within_jan_data_folder(app_handle, &args[0])?;
+    let (_, path) = resolve_app_path_within_rey30_data_folder(app_handle, &args[0])?;
     fs::create_dir_all(&path).map_err(|e| e.to_string())
 }
 
@@ -53,8 +53,8 @@ pub fn mv<R: Runtime>(app_handle: tauri::AppHandle<R>, args: Vec<String>) -> Res
         return Err("mv error: Invalid argument - source and destination required".to_string());
     }
 
-    let (_, source) = resolve_app_path_within_jan_data_folder(app_handle.clone(), &args[0])?;
-    let (_, destination) = resolve_app_path_within_jan_data_folder(app_handle, &args[1])?;
+    let (_, source) = resolve_app_path_within_rey30_data_folder(app_handle.clone(), &args[0])?;
+    let (_, destination) = resolve_app_path_within_rey30_data_folder(app_handle, &args[1])?;
 
     if !source.exists() {
         return Err("mv error: Source path does not exist".to_string());
@@ -134,7 +134,7 @@ pub fn write_file_sync<R: Runtime>(
         return Err("write_file_sync error: Invalid argument".to_string());
     }
 
-    let (_, path) = resolve_app_path_within_jan_data_folder(app_handle, &args[0])?;
+    let (_, path) = resolve_app_path_within_rey30_data_folder(app_handle, &args[0])?;
     let content = &args[1];
     fs::write(&path, content).map_err(|e| e.to_string())
 }
@@ -164,7 +164,7 @@ pub fn write_yaml(
     save_path: &str,
 ) -> Result<(), String> {
     // TODO: have an internal function to check scope
-    let (_jan_data_folder, save_path) = resolve_app_path_within_jan_data_folder(app, save_path)?;
+    let (_rey30_data_folder, save_path) = resolve_app_path_within_rey30_data_folder(app, save_path)?;
     let file = fs::File::create(&save_path).map_err(|e| e.to_string())?;
     let mut writer = std::io::BufWriter::new(file);
     serde_yaml::to_writer(&mut writer, &data).map_err(|e| e.to_string())?;
@@ -176,7 +176,7 @@ pub fn read_yaml<R: Runtime>(
     app: tauri::AppHandle<R>,
     path: &str,
 ) -> Result<serde_json::Value, String> {
-    let (_jan_data_folder, path) = resolve_app_path_within_jan_data_folder(app, path)?;
+    let (_rey30_data_folder, path) = resolve_app_path_within_rey30_data_folder(app, path)?;
     let file = fs::File::open(&path).map_err(|e| e.to_string())?;
     let reader = std::io::BufReader::new(file);
     let data: serde_json::Value = serde_yaml::from_reader(reader).map_err(|e| e.to_string())?;
@@ -194,8 +194,8 @@ pub async fn decompress<R: Runtime>(
     output_dir: String,
 ) -> Result<(), String> {
     let path_buf = std::path::PathBuf::from(&path);
-    let (_jan_data_folder, output_dir_buf) =
-        resolve_app_path_within_jan_data_folder(app, &output_dir)?;
+    let (_rey30_data_folder, output_dir_buf) =
+        resolve_app_path_within_rey30_data_folder(app, &output_dir)?;
 
     tauri::async_runtime::spawn_blocking(move || unpack_archive(&path_buf, &output_dir_buf))
         .await
@@ -206,6 +206,12 @@ pub(crate) fn unpack_archive(
     path_buf: &std::path::Path,
     output_dir_buf: &std::path::Path,
 ) -> Result<(), String> {
+    use tauri_plugin_agent_tools::workspace::{
+        is_pluma_library_path, overlaps_pluma_library, PLUMA_LIBRARY_DENIED,
+    };
+    if is_pluma_library_path(path_buf) || overlaps_pluma_library(output_dir_buf) {
+        return Err(PLUMA_LIBRARY_DENIED.into());
+    }
     // Ensure output directory exists
     fs::create_dir_all(output_dir_buf).map_err(|e| {
         format!(
@@ -218,7 +224,7 @@ pub(crate) fn unpack_archive(
     // Use short path on Windows to handle paths with spaces
     #[cfg(windows)]
     let file = {
-        if let Some(short_path) = jan_utils::path::get_short_path(path_buf) {
+        if let Some(short_path) = rey30_idvj_utils::path::get_short_path(path_buf) {
             fs::File::open(&short_path).map_err(|e| e.to_string())?
         } else {
             fs::File::open(path_buf).map_err(|e| e.to_string())?

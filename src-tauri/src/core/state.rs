@@ -8,7 +8,7 @@ use crate::core::downloads::models::DownloadManagerState;
 #[cfg(not(feature = "cli"))]
 use crate::core::mcp::models::{McpSettings, ToolWithServer};
 #[cfg(not(feature = "cli"))]
-use crate::core::mcp::progress::JanClientHandler;
+use crate::core::mcp::progress::Rey30ClientHandler;
 #[cfg(feature = "cli")]
 use rmcp::model::{CallToolRequestParams, CallToolResult, InitializeRequestParams, Tool};
 #[cfg(feature = "cli")]
@@ -69,7 +69,7 @@ pub struct ProviderCustomHeader {
 /// observed at all -- rmcp drops them on the `()` handler. Desktop-only: the
 /// handler emits through a Tauri `AppHandle`, which the CLI build doesn't have.
 #[cfg(not(feature = "cli"))]
-pub type RunningMcpService = RunningService<RoleClient, JanClientHandler>;
+pub type RunningMcpService = RunningService<RoleClient, Rey30ClientHandler>;
 #[cfg(not(feature = "cli"))]
 pub type SharedMcpServers = Arc<Mutex<HashMap<String, RunningMcpService>>>;
 

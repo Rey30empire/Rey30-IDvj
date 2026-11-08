@@ -1,4 +1,4 @@
-use jan_utils::is_trusted_origin;
+use rey30_idvj_utils::is_trusted_origin;
 
 // No same-origin Host to compare against: only the Trusted Hosts rules apply.
 fn is_valid_origin(origin: &str, trusted_hosts: &[Vec<String>]) -> bool {

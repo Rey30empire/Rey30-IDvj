@@ -55,13 +55,13 @@ type ProgressSink = Arc<dyn Fn(ToolProgress) + Send + Sync>;
 /// Exists so progress notifications are observed at all: rmcp routes them to
 /// the handler, and the previous `()` handler dropped them.
 #[derive(Clone)]
-pub struct JanClientHandler {
+pub struct Rey30ClientHandler {
     info: ClientInfo,
     server: String,
     emit: ProgressSink,
 }
 
-impl JanClientHandler {
+impl Rey30ClientHandler {
     pub fn new<R: Runtime>(info: ClientInfo, server: String, app: AppHandle<R>) -> Self {
         let name = server.clone();
         let emit: ProgressSink = Arc::new(move |payload| {
@@ -73,7 +73,7 @@ impl JanClientHandler {
     }
 }
 
-impl ClientHandler for JanClientHandler {
+impl ClientHandler for Rey30ClientHandler {
     fn get_info(&self) -> ClientInfo {
         self.info.clone()
     }

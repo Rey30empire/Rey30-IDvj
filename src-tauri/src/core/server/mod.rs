@@ -1,4 +1,4 @@
-// The proxy server and its Tauri command surface are desktop-only; the `jan`
+// The proxy server and its Tauri command surface are desktop-only; the `rey30-idvj`
 // CLI is a headless agent client with no local API server.
 #[cfg(not(feature = "cli"))]
 pub mod commands;

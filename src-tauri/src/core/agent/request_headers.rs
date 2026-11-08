@@ -1,5 +1,5 @@
 //! The headers an inference request carries beyond its transport's own: the
-//! serving provider's configured custom headers, and the ones Jan owns
+//! serving provider's configured custom headers, and the ones Rey30 IDvj owns
 //! (`User-Agent`, `X-Client-Request-Id`, `X-Session-Id`).
 //!
 //! Built once per request by the invoker and handed to both send paths -- the
@@ -19,7 +19,7 @@ use std::sync::{Mutex, OnceLock};
 use crate::core::state::ProviderCustomHeader;
 
 /// Header naming the session a request belongs to: the id the correlation
-/// header carries, without its `jan-` prefix, so a gateway can group a session's
+/// header carries, without its `rey30-idvj-` prefix, so a gateway can group a session's
 /// requests without knowing how the correlation id is derived.
 pub const SESSION_ID_HEADER: &str = "X-Session-Id";
 
@@ -59,20 +59,20 @@ pub fn user_agent() -> Option<&'static str> {
     USER_AGENT.get().map(String::as_str)
 }
 
-/// `Jan-Agent/<version> (<os>; <arch>)`, the CLI's product token. "Jan Agent",
-/// not "Jan": the desktop's own update checks send `Jan/<version>`, and both
+/// `Rey30-IDvj-Agent/<version> (<os>; <arch>)`, the CLI's product token. "Rey30 IDvj Agent",
+/// not "Rey30 IDvj": the desktop's own update checks send `Rey30 IDvj/<version>`, and both
 /// share one version number, so the product name is the only thing that tells
 /// a gateway which client it is talking to.
 pub fn agent_user_agent(version: &str) -> String {
     format!(
-        "Jan-Agent/{} ({}; {})",
+        "Rey30-IDvj-Agent/{} ({}; {})",
         version,
         std::env::consts::OS,
         std::env::consts::ARCH
     )
 }
 
-/// The headers Jan owns on a request: the `User-Agent` when the binary set one,
+/// The headers Rey30 IDvj owns on a request: the `User-Agent` when the binary set one,
 /// and the correlation and session ids when the request belongs to a session.
 ///
 /// `X-Session-Id` is derived from the correlation id rather than from the raw
@@ -88,7 +88,7 @@ pub fn owned(user_agent: Option<&str>, client_request_id: Option<&str>) -> Vec<(
             super::correlation::CLIENT_REQUEST_ID_HEADER.to_string(),
             id.to_string(),
         ));
-        if let Some(session) = id.strip_prefix("jan-").filter(|s| !s.is_empty()) {
+        if let Some(session) = id.strip_prefix("rey30-idvj-").filter(|s| !s.is_empty()) {
             out.push((SESSION_ID_HEADER.to_string(), session.to_string()));
         }
     }
@@ -96,13 +96,13 @@ pub fn owned(user_agent: Option<&str>, client_request_id: Option<&str>) -> Vec<(
 }
 
 /// The extra headers for one request: the provider's custom headers, then the
-/// Jan-owned ones, as one list with no name twice.
+/// Rey30 IDvj-owned ones, as one list with no name twice.
 ///
 /// A custom header is dropped (with a warning, once per name) when its name is
 /// [reserved](RESERVED) or not a valid header, or its value is not a valid
 /// header value -- `reqwest` would otherwise fail the whole request at send
-/// time. A custom header with the name of a Jan-owned one is dropped silently:
-/// Jan's value wins, and saying so on every request would be noise. Two custom
+/// time. A custom header with the name of a Rey30 IDvj-owned one is dropped silently:
+/// Rey30 IDvj's value wins, and saying so on every request would be noise. Two custom
 /// headers with one name keep the later, the way a later config layer wins.
 pub fn extras(
     custom: &[ProviderCustomHeader],
@@ -149,7 +149,7 @@ pub fn merge_onto(base: &mut Vec<(String, String)>, extras: &[(String, String)])
     }
 }
 
-/// Custom header names worth reporting (`jan cli agent status`): the ones that
+/// Custom header names worth reporting (`rey30-idvj cli agent status`): the ones that
 /// survive the reserved filter, in first-seen order, one per name.
 pub fn reportable_names(custom: &[ProviderCustomHeader]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
@@ -202,13 +202,13 @@ mod tests {
 
     #[test]
     fn the_session_header_is_the_correlation_id_without_its_prefix() {
-        let owned = owned(None, Some("jan-3f7a-91c2"));
+        let owned = owned(None, Some("rey30-idvj-3f7a-91c2"));
         assert_eq!(
             owned,
             vec![
                 (
                     "X-Client-Request-Id".to_string(),
-                    "jan-3f7a-91c2".to_string()
+                    "rey30-idvj-3f7a-91c2".to_string()
                 ),
                 ("X-Session-Id".to_string(), "3f7a-91c2".to_string()),
             ]
@@ -220,13 +220,13 @@ mod tests {
     /// product token a gateway labels the traffic by.
     #[test]
     fn the_user_agent_is_sent_only_when_the_binary_set_one() {
-        assert!(!names(&owned(None, Some("jan-s"))).contains(&"user-agent".to_string()));
+        assert!(!names(&owned(None, Some("rey30-idvj-s"))).contains(&"user-agent".to_string()));
         assert!(
             user_agent().is_none(),
-            "nothing in the library sets a User-Agent; only the jan binary does"
+            "nothing in the library sets a User-Agent; only the rey30-idvj binary does"
         );
         let ua = agent_user_agent("0.8.5-1");
-        assert!(ua.starts_with("Jan-Agent/0.8.5-1 ("), "{ua}");
+        assert!(ua.starts_with("Rey30-IDvj-Agent/0.8.5-1 ("), "{ua}");
         assert_eq!(owned(Some(&ua), None), vec![("User-Agent".to_string(), ua)]);
     }
 
@@ -243,20 +243,20 @@ mod tests {
                 ("Accept-Encoding", "gzip"),
                 ("Bad Name", "v"),
                 ("X-Newline", "a\r\nInjected: yes"),
-                ("X-Client-Name", "jan-agent"),
+                ("X-Client-Name", "rey30-idvj-agent"),
             ]),
             Vec::new(),
         );
         assert_eq!(
             out,
-            vec![("X-Client-Name".to_string(), "jan-agent".to_string())]
+            vec![("X-Client-Name".to_string(), "rey30-idvj-agent".to_string())]
         );
     }
 
-    /// Jan's own values win over a custom header of the same name, whatever its
+    /// Rey30 IDvj's own values win over a custom header of the same name, whatever its
     /// case, and a name never appears twice.
     #[test]
-    fn jan_owned_headers_win_over_custom_ones() {
+    fn rey30_owned_headers_win_over_custom_ones() {
         let out = extras(
             &custom(&[
                 ("user-agent", "spoofed/1.0"),
@@ -264,7 +264,7 @@ mod tests {
                 ("X-CLIENT-REQUEST-ID", "nor-this"),
                 ("X-Tokamak-Launch-Id", "abc"),
             ]),
-            owned(Some("Jan-Agent/1 (linux; x86_64)"), Some("jan-s1")),
+            owned(Some("Rey30-IDvj-Agent/1 (linux; x86_64)"), Some("rey30-idvj-s1")),
         );
         assert_eq!(
             out,
@@ -272,9 +272,9 @@ mod tests {
                 ("X-Tokamak-Launch-Id".to_string(), "abc".to_string()),
                 (
                     "User-Agent".to_string(),
-                    "Jan-Agent/1 (linux; x86_64)".to_string()
+                    "Rey30-IDvj-Agent/1 (linux; x86_64)".to_string()
                 ),
-                ("X-Client-Request-Id".to_string(), "jan-s1".to_string()),
+                ("X-Client-Request-Id".to_string(), "rey30-idvj-s1".to_string()),
                 ("X-Session-Id".to_string(), "s1".to_string()),
             ]
         );
@@ -298,7 +298,7 @@ mod tests {
             &mut base,
             &[
                 ("Anthropic-Beta".to_string(), "custom".to_string()),
-                ("X-Client-Name".to_string(), "jan-agent".to_string()),
+                ("X-Client-Name".to_string(), "rey30-idvj-agent".to_string()),
             ],
         );
         assert_eq!(
@@ -306,7 +306,7 @@ mod tests {
             vec![
                 ("x-api-key".to_string(), "real".to_string()),
                 ("anthropic-beta".to_string(), "oauth".to_string()),
-                ("X-Client-Name".to_string(), "jan-agent".to_string()),
+                ("X-Client-Name".to_string(), "rey30-idvj-agent".to_string()),
             ]
         );
     }
@@ -315,7 +315,7 @@ mod tests {
     fn reported_names_are_the_ones_that_can_be_sent() {
         assert_eq!(
             reportable_names(&custom(&[
-                ("X-Client-Name", "jan-agent"),
+                ("X-Client-Name", "rey30-idvj-agent"),
                 ("Authorization", "x"),
                 ("x-client-name", "dup"),
                 ("X-Tokamak-Launch-Id", "abc"),

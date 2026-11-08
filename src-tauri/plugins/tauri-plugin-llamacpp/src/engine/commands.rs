@@ -64,13 +64,13 @@ fn generate_worker_key() -> String {
 fn resolve_worker_exe<R: tauri::Runtime>(
     app_handle: &tauri::AppHandle<R>,
 ) -> Result<PathBuf, String> {
-    if let Some(p) = std::env::var_os("JAN_LLAMA_WORKER_BIN") {
+    if let Some(p) = std::env::var_os("REY30_LLAMA_WORKER_BIN") {
         let p = PathBuf::from(p);
         if p.is_file() {
             return Ok(p);
         }
         return Err(format!(
-            "JAN_LLAMA_WORKER_BIN points at {}, which is not a file",
+            "REY30_LLAMA_WORKER_BIN points at {}, which is not a file",
             p.display()
         ));
     }
@@ -146,7 +146,7 @@ fn fault_emitter<R: tauri::Runtime>(
 ) -> worker::FaultCallback {
     use tauri::Emitter;
     Arc::new(move |fault: worker::RuntimeFault, line: String| {
-        log::error!("jan-llama-worker fault ({fault:?}): {line}");
+        log::error!("rey30-idvj-llama-worker fault ({fault:?}): {line}");
         let payload = driver::fault_payload(
             &line,
             versions.driver.get(),
@@ -192,7 +192,7 @@ fn worker_error_string(err: worker::WorkerError) -> String {
         worker::WorkerError::WrongArchitecture(detail) => {
             let structured = LlamacppError::new(
                 ErrorCode::UnsupportedCpu,
-                "The llama.cpp engine in this Jan build does not support this computer's \
+                "The llama.cpp engine in this Rey30 IDvj build does not support this computer's \
                  processor."
                     .into(),
                 Some(detail),
@@ -371,7 +371,7 @@ pub async fn engine_devices<R: tauri::Runtime>(
     cmd.arg("--list-devices").envs(envs);
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-    jan_utils::system::setup_windows_process_flags(&mut cmd);
+    rey30_idvj_utils::system::setup_windows_process_flags(&mut cmd);
 
     let out = tokio::time::timeout(std::time::Duration::from_secs(30), cmd.output())
         .await
@@ -407,7 +407,7 @@ pub struct ReloadReport {
 ///
 /// This is the engine's answer to the router's `GET /models?reload=1`, and it
 /// can do one thing the router could not: resize `models_max`. The router fixed
-/// that at spawn, so Jan had to cold-restart whenever the embedding slot bonus
+/// that at spawn, so Rey30 IDvj had to cold-restart whenever the embedding slot bonus
 /// appeared or went away -- evicting the chat model the user was talking to.
 #[tauri::command]
 pub async fn reload_engine_models(
@@ -630,7 +630,7 @@ pub async fn get_engine_info(
     // would fail against a closed port with no explanation.
     if let Some(h) = guard.as_mut() {
         if let Some(status) = h.exited() {
-            log::warn!("jan-llama-worker exited unexpectedly: {status}");
+            log::warn!("rey30-idvj-llama-worker exited unexpectedly: {status}");
             *guard = None;
             return Ok(None);
         }
@@ -704,7 +704,7 @@ mod tests {
         assert_eq!(json["details"], "Bad CPU type in executable (os error 86)");
 
         let plain = worker_error_string(worker::WorkerError::Spawn("no such file".into()));
-        assert_eq!(plain, "could not start jan-llama-worker: no such file");
+        assert_eq!(plain, "could not start rey30-idvj-llama-worker: no such file");
     }
 
     // resolve_worker_exe now needs an AppHandle for the bundle lookup, so the
@@ -712,14 +712,14 @@ mod tests {
     // override is checked before anything Tauri-dependent.
     #[test]
     fn a_bad_override_is_reported_rather_than_silently_ignored() {
-        std::env::set_var("JAN_LLAMA_WORKER_BIN", "/definitely/not/a/file");
-        let err = std::env::var_os("JAN_LLAMA_WORKER_BIN")
+        std::env::set_var("REY30_LLAMA_WORKER_BIN", "/definitely/not/a/file");
+        let err = std::env::var_os("REY30_LLAMA_WORKER_BIN")
             .map(std::path::PathBuf::from)
             .filter(|p| !p.is_file())
-            .map(|p| format!("JAN_LLAMA_WORKER_BIN points at {}, which is not a file", p.display()))
+            .map(|p| format!("REY30_LLAMA_WORKER_BIN points at {}, which is not a file", p.display()))
             .expect("a missing override must be rejected, not ignored");
         assert!(err.contains("not a file"), "got {err}");
-        std::env::remove_var("JAN_LLAMA_WORKER_BIN");
+        std::env::remove_var("REY30_LLAMA_WORKER_BIN");
     }
 
     // The bundle ships the worker, so this error only ever means a damaged
@@ -729,11 +729,11 @@ mod tests {
     #[test]
     fn a_missing_worker_names_every_path_it_looked_at() {
         let tried = [
-            PathBuf::from("/opt/jan/resources/bin").join(worker::worker_file_name()),
-            PathBuf::from("/opt/jan").join(worker::worker_file_name()),
+            PathBuf::from("/opt/rey30-idvj/resources/bin").join(worker::worker_file_name()),
+            PathBuf::from("/opt/rey30-idvj").join(worker::worker_file_name()),
         ];
         let msg = worker_missing_message(&tried);
-        assert!(msg.contains("/opt/jan/resources/bin"), "got {msg}");
+        assert!(msg.contains("/opt/rey30-idvj/resources/bin"), "got {msg}");
         assert!(msg.contains("re-run the installer"), "got {msg}");
     }
 
@@ -742,7 +742,7 @@ mod tests {
     // fix the user can act on.
     #[test]
     fn a_leftover_old_copy_is_called_out_as_an_interrupted_install() {
-        let dir = std::env::temp_dir().join(format!("jan-worker-old-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rey30-idvj-worker-old-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let worker_path = dir.join(worker::worker_file_name());
 
@@ -761,7 +761,7 @@ mod tests {
     #[test]
     fn erasing_without_a_worker_drops_that_threads_files_only() {
         use super::super::slots::{state_key, Identity, StateStore};
-        let dir = std::env::temp_dir().join(format!("jan-erase-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rey30-idvj-erase-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = StateStore::new(&dir, 1);
         for thread in ["t1", "t2"] {
@@ -795,7 +795,7 @@ mod tests {
     #[test]
     fn the_worker_file_name_is_platform_correct() {
         let name = super::worker::worker_file_name();
-        assert!(name.starts_with("jan-llama-worker"));
+        assert!(name.starts_with("rey30-idvj-llama-worker"));
         assert_eq!(name.ends_with(".exe"), cfg!(windows));
     }
 }

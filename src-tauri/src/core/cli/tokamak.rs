@@ -4,7 +4,7 @@
 //! concerned (Bearer key + `{base_url}/chat/completions`), so historically
 //! "login" was just: send the user to the web UI to mint an API key, verify what
 //! they paste against `GET /v1/models`, and persist it as a provider entry in
-//! `~/.jan/config.toml`. No OAuth, no callback server, no browser required --
+//! `~/.rey30-idvj/config.toml`. No OAuth, no callback server, no browser required --
 //! the key could always be pasted from another machine.
 //!
 //! The default flow is now the browser-approval device flow
@@ -28,7 +28,7 @@ use crate::core::agent::global_config::{
     adopt_default_model, set_provider, DefaultModelChange, ProviderUpdate,
 };
 
-/// Provider id this login writes to in `~/.jan/config.toml`.
+/// Provider id this login writes to in `~/.rey30-idvj/config.toml`.
 pub const PROVIDER: &str = "tokamak";
 /// Default OpenAI-compatible API root. Read through [`base_url`] rather than
 /// directly, so a dev or self-hosted deployment can be targeted without a
@@ -45,7 +45,7 @@ pub const BASE_URL_ENV: &str = "TOKAMAK_BASE_URL";
 /// talk to, first match wins:
 ///
 /// 1. the session's base URL, when this session named `--provider tokamak` and
-///    gave it one (`--base-url` / `JAN_BASE_URL`), so a launched session reads
+///    gave it one (`--base-url` / `REY30_BASE_URL`), so a launched session reads
 ///    the band it runs on rather than production;
 /// 2. `$TOKAMAK_BASE_URL`, with `/v1` appended when it names only a host -- the
 ///    form the Tokamak CLI itself uses;
@@ -201,7 +201,7 @@ pub async fn login(api_key: &str) -> Result<Login, String> {
     persist(&api_key, roster)
 }
 
-/// Write the verified key + model list to `~/.jan/config.toml`, adopting the
+/// Write the verified key + model list to `~/.rey30-idvj/config.toml`, adopting the
 /// provider's first-listed model as `default_model` when the user has none
 /// (otherwise the agent would still start with "no model specified" right after
 /// signing in) or when their default is no longer offered anywhere.
@@ -340,7 +340,7 @@ pub async fn logout() -> Result<Logout, String> {
 /// The key account calls authenticate with: the session's, when this session
 /// named `--provider tokamak` with a key; otherwise the stored one. Never the
 /// key of any other provider (`--provider openrouter --api-key ...`, or a
-/// `JAN_API_KEY` that reached a Desktop-selected provider): that one is not
+/// `REY30_API_KEY` that reached a Desktop-selected provider): that one is not
 /// Tokamak's to see.
 pub(crate) fn account_api_key() -> Option<String> {
     super::session_provider::tokamak_key().or_else(stored_api_key)
@@ -375,7 +375,7 @@ async fn revoke_key(key_id: &str, api_key: &str) -> bool {
         .is_ok_and(|r| r.status().is_success())
 }
 
-/// What `jan auth status` reports, without touching the network.
+/// What `rey30-idvj auth status` reports, without touching the network.
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct AuthStatus {
     pub signed_in: bool,
@@ -424,7 +424,7 @@ pub const EXPIRY_WARNING_WINDOW: Duration = Duration::from_secs(7 * 24 * 60 * 60
 /// there is no key, no recorded expiry (a legacy paste login records none), or
 /// the expiry is comfortably far off -- and while Tokamak is the session-scoped
 /// provider, whose key is not the stored one: telling a launched session to run
-/// `jan login` would only overwrite the native sign-in to no effect.
+/// `rey30-idvj login` would only overwrite the native sign-in to no effect.
 pub fn expiry_warning() -> Option<String> {
     if super::session_provider::tokamak_is_session_scoped() {
         return None;
@@ -448,7 +448,7 @@ fn describe_expiry(expires_at: u64, now: u64) -> Option<String> {
     }
     let Some(remaining) = expires_at.checked_sub(now) else {
         return Some(
-            "your Tokamak key has expired - run `jan login` to sign in again.".to_string(),
+            "your Tokamak key has expired - run `rey30-idvj login` to sign in again.".to_string(),
         );
     };
     if remaining > EXPIRY_WARNING_WINDOW.as_secs() {
@@ -456,9 +456,9 @@ fn describe_expiry(expires_at: u64, now: u64) -> Option<String> {
     }
     let days = remaining / (24 * 60 * 60);
     Some(match days {
-        0 => "your Tokamak key expires within a day - run `jan login` to renew it.".to_string(),
-        1 => "your Tokamak key expires in 1 day - run `jan login` to renew it.".to_string(),
-        n => format!("your Tokamak key expires in {n} days - run `jan login` to renew it."),
+        0 => "your Tokamak key expires within a day - run `rey30-idvj login` to renew it.".to_string(),
+        1 => "your Tokamak key expires in 1 day - run `rey30-idvj login` to renew it.".to_string(),
+        n => format!("your Tokamak key expires in {n} days - run `rey30-idvj login` to renew it."),
     })
 }
 
@@ -929,7 +929,7 @@ mod tests {
 
         let soon = describe_expiry(now + 6 * DAY, now).expect("inside the window");
         assert!(soon.contains("6 days"), "{soon}");
-        assert!(soon.contains("jan login"), "{soon}");
+        assert!(soon.contains("rey30-idvj login"), "{soon}");
 
         assert!(describe_expiry(now + DAY + 60, now)
             .expect("1 day")
@@ -1108,7 +1108,7 @@ mod tests {
 
     /// While the session provides Tokamak, the stored entry describes some
     /// other key: none of its metadata may be reported, and its expiry must not
-    /// tell a launched session to run `jan login`.
+    /// tell a launched session to run `rey30-idvj login`.
     #[test]
     fn a_session_tokamak_reports_its_own_source_and_no_stored_expiry() {
         use super::super::session_provider::with_session;

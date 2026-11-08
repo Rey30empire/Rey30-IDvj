@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod integrations;
 pub mod app;
 #[cfg(feature = "cli")]
 pub mod cli;
@@ -8,6 +9,8 @@ pub mod cli;
 pub mod downloads;
 #[cfg(not(feature = "cli"))]
 pub mod filesystem;
+#[cfg(all(not(feature = "cli"), not(any(target_os = "android", target_os = "ios"))))]
+pub mod literary_library;
 pub mod mcp;
 // Desktop-only: the webview navigation guard.
 #[cfg(not(feature = "cli"))]
@@ -15,7 +18,7 @@ pub mod navigation;
 pub mod openai_schema;
 pub mod server;
 // Desktop-only app setup (tray, theme, window wiring); pulls in Tauri GUI types
-// (Wry/AppHandle) the headless `jan` CLI build does not link.
+// (Wry/AppHandle) the headless `rey30-idvj` CLI build does not link.
 #[cfg(not(feature = "cli"))]
 pub mod setup;
 pub mod state;

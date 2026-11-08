@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Stages jan-llama-worker and the ggml runtime into src-tauri/resources/bin.
+# Stages rey30-idvj-llama-worker and the ggml runtime into src-tauri/resources/bin.
 # Backend modules must sit beside the worker: ggml searches the exe directory
 # (ggml-backend-reg.cpp), and libggml/libggml-base resolve via $ORIGIN.
 set -euo pipefail
 
 # Positional first: cmd.exe has no `VAR=value command` prefix.
-PROFILE="${1:-${JAN_ENGINE_PROFILE:-release}}"
+PROFILE="${1:-${REY30_ENGINE_PROFILE:-release}}"
 PLUGIN_DIR="src-tauri/plugins/tauri-plugin-llamacpp"
 TARGET_DIR="${CARGO_TARGET_DIR:-$PLUGIN_DIR/target}/$PROFILE"
 DEST="src-tauri/resources/bin"
@@ -18,7 +18,7 @@ case "$(uname -s)" in
   *)                    EXE="";     LIBEXT="so";    MODEXT="so"  ;;
 esac
 
-WORKER="$TARGET_DIR/jan-llama-worker$EXE"
+WORKER="$TARGET_DIR/rey30-idvj-llama-worker$EXE"
 if [ ! -f "$WORKER" ]; then
   echo "stage-engine: $WORKER not found; run the cargo build first" >&2
   exit 1
@@ -31,20 +31,20 @@ find "$DEST" -maxdepth 1 \( -name 'libggml*' -o -name 'ggml*.dll' \
   -o -name 'libcudart.so*' -o -name 'libcublas*.so*' \
   -o -name 'cudart64_*.dll' -o -name 'cublas*.dll' \) -exec rm -f {} +
 
-install -m755 "$WORKER" "$DEST/jan-llama-worker$EXE"
-echo "stage-engine: staged jan-llama-worker$EXE"
+install -m755 "$WORKER" "$DEST/rey30-idvj-llama-worker$EXE"
+echo "stage-engine: staged rey30-idvj-llama-worker$EXE"
 
 newest() {
   find "$TARGET_DIR/build" -maxdepth 3 "$@" -print0 2>/dev/null \
     | xargs -0 -r ls -dt 2>/dev/null | head -1 || true
 }
 
-# A prebuilt engine (JAN_LLAMA_PREBUILT_DIR, see engine-prebuilt.sh) has no
+# A prebuilt engine (REY30_LLAMA_PREBUILT_DIR, see engine-prebuilt.sh) has no
 # cmake tree, but its lib/ and bin/ mirror ggml-prefix's, so it stands in for
 # one -- first, so a stale local ggml-prefix cannot win. On Windows build.rs may
 # relocate the cmake trees out of OUT_DIR (MAX_PATH) and leave the chosen root
 # in a marker file.
-PREFIX="${JAN_LLAMA_PREBUILT_DIR:-$(newest -type d -name ggml-prefix)}"
+PREFIX="${REY30_LLAMA_PREBUILT_DIR:-$(newest -type d -name ggml-prefix)}"
 if [ -z "$PREFIX" ]; then
   MARKER="$(newest -type f -name engine-build-root.txt)"
   if [ -n "$MARKER" ]; then
@@ -111,10 +111,10 @@ echo "stage-engine: staged $staged ggml libraries ($modules backend modules) int
 
 # #9185: build.rs gives x86_64 native Turing code, so GTX 16xx/RTX 20xx never
 # depend on the driver JIT-compiling PTX from a newer toolkit. An explicit
-# JAN_ENGINE_CUDA_ARCHS and arm64 keep their own lists and are not checked.
+# REY30_ENGINE_CUDA_ARCHS and arm64 keep their own lists and are not checked.
 host="$(rustc -vV 2>/dev/null | tr -d '\r' | sed -n 's/^host: //p' || true)"
 # Whitespace-only counts as unset, as build.rs trims it.
-cuda_archs="${JAN_ENGINE_CUDA_ARCHS:-}"
+cuda_archs="${REY30_ENGINE_CUDA_ARCHS:-}"
 cuda_archs="${cuda_archs//[[:space:]]/}"
 if [ -z "$cuda_archs" ] && [[ "$host" == x86_64-* ]]; then
   objdump_cuda="$(command -v cuobjdump 2>/dev/null || true)"

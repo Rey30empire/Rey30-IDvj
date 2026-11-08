@@ -8,11 +8,11 @@
 //! `repo_root` resolves to the checkout the session actually runs in.
 //!
 //! Opt-in, most specific source first: `--worktree`/`--no-worktree`, then a
-//! project's `[agent].worktree`, then `worktree` in `~/.jan/config.toml`. Off by
+//! project's `[agent].worktree`, then `worktree` in `~/.rey30-idvj/config.toml`. Off by
 //! default, because turning it on moves every edit out of the directory the user
 //! is looking at, which must be their decision rather than ours.
 //!
-//! The checkout lives under `~/.jan/worktrees/<repo-slug>/<id>`, outside the
+//! The checkout lives under `~/.rey30-idvj/worktrees/<repo-slug>/<id>`, outside the
 //! repository. Inside it (`<project>/worktrees/...`) the agent's own
 //! `find`/`grep`/`bash` would walk into a second copy of the tree whenever a
 //! session ran in the main checkout, and `git clean` would delete it.
@@ -51,23 +51,23 @@ pub fn resolve_enabled(flag: Option<bool>, configured: Option<bool>) -> bool {
         .unwrap_or(DEFAULT_WORKTREE)
 }
 
-/// `~/.jan/worktrees`, the user-wide home for agent checkouts.
+/// `~/.rey30-idvj/worktrees`, the user-wide home for agent checkouts.
 pub fn worktrees_root() -> Result<PathBuf, String> {
-    Ok(crate::core::agent::global_config::global_jan_dir()?.join("worktrees"))
+    Ok(crate::core::agent::global_config::global_rey30_dir()?.join("worktrees"))
 }
 
 /// Directory name for a repository: its own name plus a hash of its path, so two
 /// checkouts of the same project do not share a worktree directory. The same
-/// slug keys the project's store under `~/.jan/projects`.
+/// slug keys the project's store under `~/.rey30-idvj/projects`.
 pub fn repo_slug(repo: &Path) -> String {
     tauri_plugin_agent_tools::workspace::path_slug(repo)
 }
 
-/// Branch a session's worktree is checked out on. Namespaced under `jan/agent/`
+/// Branch a session's worktree is checked out on. Namespaced under `rey30-idvj/agent/`
 /// so it is obvious in `git branch` whose it is, and cannot collide with a
 /// branch the user maintains.
 pub fn branch_for(id: &str) -> String {
-    format!("jan/agent/{id}")
+    format!("rey30-idvj/agent/{id}")
 }
 
 /// Read the pointer a thread recorded. Absent from a thread that never ran in a
@@ -172,10 +172,10 @@ mod tests {
 
     #[test]
     fn a_slug_is_stable_and_separates_two_checkouts_of_one_name() {
-        let a = Path::new("/home/u/src/jan");
-        let b = Path::new("/home/u/work/jan");
+        let a = Path::new("/home/u/src/rey30-idvj");
+        let b = Path::new("/home/u/work/rey30-idvj");
         assert_eq!(repo_slug(a), repo_slug(a), "stable across calls");
-        assert!(repo_slug(a).starts_with("jan-"));
+        assert!(repo_slug(a).starts_with("rey30-idvj-"));
         assert_ne!(
             repo_slug(a),
             repo_slug(b),
@@ -188,7 +188,7 @@ mod tests {
     /// existing session's worktree.
     #[test]
     fn the_slug_hash_is_pinned() {
-        assert_eq!(repo_slug(Path::new("/home/u/src/jan")), "jan-582afba2");
+        assert_eq!(repo_slug(Path::new("/home/u/src/rey30-idvj")), "rey30-idvj-46f49fe4");
     }
 
     #[test]
@@ -201,8 +201,8 @@ mod tests {
     #[test]
     fn metadata_round_trips() {
         let worktree = Worktree {
-            path: PathBuf::from("/home/u/.jan/worktrees/jan-abc/3f7a91c2"),
-            branch: "jan/agent/3f7a91c2".to_string(),
+            path: PathBuf::from("/home/u/.rey30-idvj/worktrees/rey30-idvj-abc/3f7a91c2"),
+            branch: "rey30-idvj/agent/3f7a91c2".to_string(),
         };
         let meta = serde_json::json!({ WORKTREE_KEY: to_metadata(&worktree) });
         assert_eq!(from_metadata(Some(&meta)), Some(worktree));

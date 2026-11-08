@@ -1,8 +1,8 @@
-//! The supervisor driving the real `jan-llama-worker` binary: spawn, read the
+//! The supervisor driving the real `rey30-idvj-llama-worker` binary: spawn, read the
 //! handshake, serve over HTTP, stop. This is the crash-boundary path that
 //! replaces spawning a downloaded `llama-server` in router mode.
 //!
-//! Opt-in on JAN_TEST_GGUF.
+//! Opt-in on REY30_TEST_GGUF.
 #![cfg(feature = "engine")]
 
 use std::collections::HashMap;
@@ -14,15 +14,15 @@ use tauri_plugin_llamacpp::engine::worker::{self, WorkerError};
 const MODEL_ID: &str = "smoke-model";
 
 fn model_path() -> Option<String> {
-    std::env::var("JAN_TEST_GGUF").ok().filter(|p| !p.is_empty())
+    std::env::var("REY30_TEST_GGUF").ok().filter(|p| !p.is_empty())
 }
 
 /// Cargo builds the bin for us and hands over its path.
 fn worker_exe() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_jan-llama-worker"))
+    PathBuf::from(env!("CARGO_BIN_EXE_rey30-idvj-llama-worker"))
 }
 
-/// A preset in exactly the shape Jan's preset.ts already emits.
+/// A preset in exactly the shape Rey30 IDvj's preset.ts already emits.
 fn write_preset(dir: &tempfile::TempDir, model: &str) -> PathBuf {
     let path = dir.path().join("router.preset.ini");
     let mut f = std::fs::File::create(&path).unwrap();

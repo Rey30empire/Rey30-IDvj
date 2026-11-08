@@ -563,7 +563,7 @@ fn transcript_backgrounded_shell_command() {
         &mut app,
         "b1",
         "Command exceeded 120s and is still running in the background. Its result will be \
-         written to /tmp/jan-bash/out-1.txt once it finishes.",
+         written to /tmp/rey30-idvj-bash/out-1.txt once it finishes.",
         false,
         None,
     );
@@ -1077,7 +1077,7 @@ fn transcript_running_shell_command() {
     let mut app = snapshot_app();
     start_turn(&mut app, "build it");
     tool_call(&mut app, "b1", "bash", json!({ "command": "make build" }));
-    for chunk in ["compiling core\n", "compiling cli\n", "linking jan"] {
+    for chunk in ["compiling core\n", "compiling cli\n", "linking rey30-idvj"] {
         app.apply(StreamEvent::ToolOutputDelta {
             id: "b1".into(),
             delta: chunk.into(),
@@ -1127,7 +1127,7 @@ fn transcript_grouped_shell_commands_running() {
     tool_call(&mut app, "b1", "bash", json!({ "command": "git pull --ff-only" }));
     tool_call(&mut app, "b2", "bash", json!({ "command": "make build" }));
     tool_result(&mut app, "b1", "Already up to date.\n[exit 0]", false, None);
-    for chunk in ["compiling core\n", "compiling cli\n", "linking jan"] {
+    for chunk in ["compiling core\n", "compiling cli\n", "linking rey30-idvj"] {
         app.apply(StreamEvent::ToolOutputDelta {
             id: "b2".into(),
             delta: chunk.into(),

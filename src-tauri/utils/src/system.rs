@@ -32,9 +32,9 @@ fn system32_path(root: Option<OsString>, exe: &str) -> PathBuf {
 /// Program to spawn for `git`.
 ///
 /// On Windows `Command::new("git")` looks in the application's own directory
-/// before `PATH`, and Jan installs per-user, so a `git.exe` placed next to
-/// Jan's executable would run instead of the user's git. There this finds
-/// `git.exe` on `PATH` itself, skipping Jan's own directory and the current
+/// before `PATH`, and Rey30 IDvj installs per-user, so a `git.exe` placed next to
+/// Rey30 IDvj's executable would run instead of the user's git. There this finds
+/// `git.exe` on `PATH` itself, skipping Rey30 IDvj's own directory and the current
 /// directory, and returns its absolute path (looked up once, then cached).
 /// With no such git it fails with `NotFound`, as spawning a missing `git`
 /// does. Elsewhere it is plain `git`.
@@ -114,10 +114,10 @@ fn pick_git_exe(
         .find(|candidate| is_file(candidate))
 }
 
-/// Environment variable Jan sets on every `mlx-server` it starts. The startup
+/// Environment variable Rey30 IDvj sets on every `mlx-server` it starts. The startup
 /// sweep stops an orphaned `mlx-server` only when it carries this, because the
 /// server's name, path and flags can all belong to one someone runs themselves.
-pub const MLX_OWNER_ENV: &str = "JAN_MLX_OWNER";
+pub const MLX_OWNER_ENV: &str = "REY30_MLX_OWNER";
 
 /// Returns true when the current process is running inside a Flatpak sandbox
 pub fn is_flatpak() -> bool {
@@ -801,12 +801,12 @@ mod tests {
 
     #[test]
     fn git_exe_skips_the_app_and_current_directories() {
-        let app = r"C:\Users\u\AppData\Local\Jan";
+        let app = r"C:\Users\u\AppData\Local\Rey30 IDvj";
         let cwd = r"C:\Users\u\project";
         let git = r"C:\Program Files\Git\cmd";
         // Matched regardless of case, slash direction and trailing separator.
         let path = [
-            r"c:\users\U\appdata\local\jan\",
+            r"c:\users\U\appdata\local\rey30-idvj\",
             "C:/Users/u/project",
             git,
         ];

@@ -6,7 +6,7 @@
 //!
 //! `rmcp` owns metadata discovery and the authenticated transport. Session
 //! creation uses `oauth2` directly: rmcp 0.8 silently substitutes "mcp-client"
-//! when registration fails, producing an unusable consent URL. Jan requires
+//! when registration fails, producing an unusable consent URL. Rey30 IDvj requires
 //! successful registration before exposing a browser URL, and keeps the
 //! provider's rejection visible to the user.
 //!
@@ -40,7 +40,7 @@ const EXPIRY_SKEW: Duration = Duration::from_secs(60);
 
 /// Client name sent during dynamic registration; what the user sees on the
 /// provider's consent screen.
-const CLIENT_NAME: &str = "Jan";
+const CLIENT_NAME: &str = "Rey30 IDvj";
 
 /// Marker the desktop's `activate_mcp_server` prefixes onto an error the user
 /// fixes by signing in, so the settings UI can offer an `Authenticate` button
@@ -216,14 +216,22 @@ impl From<AuthStatus> for AuthStatusInfo {
 /// user who typed `authorization` still means the same thing.
 pub fn has_static_authorization(config: &Value) -> bool {
     config
-        .get("headers")
+        .pointer("/rey30CredentialRefs/headers")
         .and_then(Value::as_object)
-        .is_some_and(|h| {
-            h.iter().any(|(k, v)| {
-                k.eq_ignore_ascii_case("authorization")
-                    && v.as_str().is_some_and(|s| !s.trim().is_empty())
-            })
+        .is_some_and(|headers| {
+            headers
+                .keys()
+                .any(|key| key.eq_ignore_ascii_case("authorization"))
         })
+        || config
+            .get("headers")
+            .and_then(Value::as_object)
+            .is_some_and(|h| {
+                h.iter().any(|(k, v)| {
+                    k.eq_ignore_ascii_case("authorization")
+                        && v.as_str().is_some_and(|s| !s.trim().is_empty())
+                })
+            })
 }
 
 fn store_path(data_folder: &Path) -> PathBuf {
@@ -258,18 +266,30 @@ fn write_store(
 }
 
 pub fn load(data_folder: &Path, name: &str) -> Option<StoredCredentials> {
-    read_store(data_folder).remove(name)
+    use crate::core::integrations::credentials::{load_oauth, OAuthRecord};
+    match load_oauth(data_folder, name) {
+        Ok(OAuthRecord::Present(credentials)) => Some(*credentials),
+        Ok(OAuthRecord::Absent) => read_store(data_folder).remove(name),
+        Ok(OAuthRecord::Cleared) => None,
+        Err(_) => {
+            log::warn!(
+                "No se pudo leer la autorización MCP segura; se requiere autorización de nuevo."
+            );
+            None
+        }
+    }
 }
 
 pub fn save(data_folder: &Path, name: &str, creds: &StoredCredentials) -> Result<(), String> {
-    let mut store = read_store(data_folder);
-    store.insert(name.to_string(), creds.clone());
-    write_store(data_folder, &store)
+    crate::core::integrations::credentials::save_oauth(data_folder, name, creds)
 }
 
 /// Forget one server's tokens. `Ok(false)` when there were none, so the caller
 /// can tell "cleared" from "nothing to clear" without a second read.
 pub fn clear(data_folder: &Path, name: &str) -> Result<bool, String> {
+    if let Some(cleared) = crate::core::integrations::credentials::clear_oauth(data_folder, name)? {
+        return Ok(cleared);
+    }
     let mut store = read_store(data_folder);
     if store.remove(name).is_none() {
         return Ok(false);
@@ -325,6 +345,8 @@ pub struct PendingAuth {
     listener: tokio::net::TcpListener,
     server: String,
     resource: String,
+    expected_issuer: Option<String>,
+    require_issuer: bool,
     /// Where to send the user. Always surfaced, never only handed to a browser:
     /// a remote or headless session finishes by pasting it somewhere else.
     pub authorization_url: String,
@@ -356,15 +378,32 @@ pub async fn begin(server: &str, url: &str) -> Result<PendingAuth, String> {
     let OAuthState::Unauthorized(manager) = state else {
         return Err("OAuth discovery did not create an authorization manager".into());
     };
-    let resolution = manager.resolve_metadata().await
+    let resolution = manager
+        .resolve_metadata()
+        .await
         .map_err(|e| format!("'{server}' does not offer OAuth we can use: {e}"))?;
     let metadata = resolution.metadata;
+    let expected_issuer = metadata.issuer.clone();
+    let require_issuer = metadata
+        .additional_fields
+        .get("authorization_response_iss_parameter_supported")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if require_issuer && expected_issuer.is_none() {
+        return Err(
+            "The provider requires issuer validation but did not identify its issuer.".into(),
+        );
+    }
     let endpoint = metadata.registration_endpoint.as_deref()
         .ok_or_else(|| format!("'{server}' requires a pre-registered OAuth client; no registration endpoint was advertised"))?;
-    for advertised in [&metadata.authorization_endpoint, &metadata.token_endpoint, endpoint] {
+    for advertised in [
+        &metadata.authorization_endpoint,
+        &metadata.token_endpoint,
+        endpoint,
+    ] {
         if !is_allowed_oauth_url(advertised) {
             return Err(format!(
-                "'{server}' advertised the OAuth endpoint '{advertised}', which Jan will not use: \
+                "'{server}' advertised the OAuth endpoint '{advertised}', which Rey30 IDvj will not use: \
                  it must be an http or https address"
             ));
         }
@@ -372,8 +411,10 @@ pub async fn begin(server: &str, url: &str) -> Result<PendingAuth, String> {
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .redirect(reqwest::redirect::Policy::none())
-        .build().map_err(|e| e.to_string())?;
-    let response = http.post(endpoint)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = http
+        .post(endpoint)
         .header(reqwest::header::ACCEPT, "application/json")
         .json(&serde_json::json!({
             "client_name": CLIENT_NAME,
@@ -383,15 +424,14 @@ pub async fn begin(server: &str, url: &str) -> Result<PendingAuth, String> {
             "token_endpoint_auth_method": "none",
             "application_type": "native",
         }))
-        .send().await
+        .send()
+        .await
         .map_err(|e| format!("OAuth client registration for '{server}' failed: {e}"))?;
     let status = response.status();
     if !status.is_success() {
-        let body = response.text().await.unwrap_or_default();
-        let detail: String = body.lines().next().unwrap_or("").trim().chars().take(200).collect();
         return Err(format!(
-            "OAuth client registration for '{server}' was rejected (POST {endpoint}: HTTP {status}): {detail}. \
-             The provider must issue or approve a client ID for Jan before browser sign-in can work."
+            "OAuth client registration for '{server}' was rejected (HTTP {status}). \
+             The provider must issue or approve a client ID for Rey30 IDvj before browser sign-in can work."
         ));
     }
     #[derive(Deserialize)]
@@ -399,25 +439,40 @@ pub async fn begin(server: &str, url: &str) -> Result<PendingAuth, String> {
         client_id: String,
         client_secret: Option<String>,
     }
-    let registration: Registration = response.json().await
-        .map_err(|_| format!("OAuth registration for '{server}' returned no usable client credentials"))?;
+    let registration: Registration = response.json().await.map_err(|_| {
+        format!("OAuth registration for '{server}' returned no usable client credentials")
+    })?;
     let client_id = registration.client_id.trim().to_string();
     if client_id.is_empty() {
-        return Err(format!("OAuth registration for '{server}' returned an empty client ID"));
+        return Err(format!(
+            "OAuth registration for '{server}' returned an empty client ID"
+        ));
     }
-    let client_secret = registration.client_secret.filter(|s| !s.is_empty()).map(oauth2::ClientSecret::new);
+    let client_secret = registration
+        .client_secret
+        .filter(|s| !s.is_empty())
+        .map(oauth2::ClientSecret::new);
     let mut client = oauth2::basic::BasicClient::new(oauth2::ClientId::new(client_id.clone()))
-        .set_auth_uri(oauth2::AuthUrl::new(metadata.authorization_endpoint).map_err(|e| e.to_string())?)
+        .set_auth_uri(
+            oauth2::AuthUrl::new(metadata.authorization_endpoint).map_err(|e| e.to_string())?,
+        )
         .set_token_uri(oauth2::TokenUrl::new(metadata.token_endpoint).map_err(|e| e.to_string())?)
-        .set_redirect_uri(oauth2::RedirectUrl::new(redirect_uri.clone()).map_err(|e| e.to_string())?);
+        .set_redirect_uri(
+            oauth2::RedirectUrl::new(redirect_uri.clone()).map_err(|e| e.to_string())?,
+        );
     if let Some(secret) = &client_secret {
         client = client.set_client_secret(secret.clone());
     }
     let (challenge, verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
-    let (authorization_url, csrf) = client.authorize_url(oauth2::CsrfToken::new_random)
-        .set_pkce_challenge(challenge).url();
+    let (authorization_url, csrf) = client
+        .authorize_url(oauth2::CsrfToken::new_random)
+        .set_pkce_challenge(challenge)
+        .add_extra_param("resource", url)
+        .url();
     if !is_allowed_oauth_url(authorization_url.as_str()) {
-        return Err(format!("'{server}' produced a sign-in URL Jan will not open"));
+        return Err(format!(
+            "'{server}' produced a sign-in URL Rey30 IDvj will not open"
+        ));
     }
 
     Ok(PendingAuth {
@@ -430,6 +485,8 @@ pub async fn begin(server: &str, url: &str) -> Result<PendingAuth, String> {
         listener,
         server: server.to_string(),
         resource: url.to_string(),
+        expected_issuer,
+        require_issuer,
         authorization_url: authorization_url.to_string(),
         redirect_uri,
     })
@@ -445,15 +502,24 @@ impl PendingAuth {
             .await
             .map_err(|_| "timed out waiting for the browser to come back".to_string())??;
 
-        if callback.state != *self.csrf.secret() {
-            return Err("OAuth callback state did not match this sign-in attempt".into());
-        }
+        validate_callback(
+            &callback,
+            self.csrf.secret(),
+            self.expected_issuer.as_deref(),
+            self.require_issuer,
+        )?;
         use oauth2::TokenResponse;
-        let exchanged = self.client
+        let exchanged = self
+            .client
             .exchange_code(oauth2::AuthorizationCode::new(callback.code))
             .set_pkce_verifier(self.verifier)
-            .request_async(&self.http).await
-            .map_err(|e| format!("could not exchange the authorization code: {e}"))?;
+            .add_extra_param("resource", self.resource.clone())
+            .request_async(&self.http)
+            .await
+            .map_err(|_| {
+                "The provider rejected the authorization-code exchange; authorize the server again."
+                    .to_string()
+            })?;
         // rmcp's token response carries its own extra-fields type; the `oauth2`
         // client returns the empty one, so restate the fields it did fill in.
         let mut tokens = OAuthTokenResponse::new(
@@ -474,6 +540,33 @@ impl PendingAuth {
 struct Callback {
     code: String,
     state: String,
+    issuer: Option<String>,
+    error: Option<String>,
+}
+
+fn validate_callback(
+    callback: &Callback,
+    expected_state: &str,
+    issuer: Option<&str>,
+    require_issuer: bool,
+) -> Result<(), String> {
+    if callback.state != expected_state {
+        return Err("OAuth callback state did not match this sign-in attempt".into());
+    }
+    match (issuer, callback.issuer.as_deref()) {
+        (Some(expected), Some(actual)) if expected != actual => {
+            return Err("OAuth callback issuer did not match this sign-in attempt".into())
+        }
+        (_, None) if require_issuer => {
+            return Err("OAuth callback omitted the required issuer".into())
+        }
+        (None, Some(_)) => return Err("OAuth callback issuer could not be verified".into()),
+        _ => {}
+    }
+    if let Some(error) = &callback.error {
+        return Err(error.clone());
+    }
+    Ok(())
 }
 
 /// Serve exactly one request on the loopback listener and pull `code`/`state`
@@ -550,13 +643,13 @@ fn parse_callback_query(query: &str) -> Option<Result<Callback, String>> {
     let mut code = None;
     let mut state = None;
     let mut error = None;
-    let mut description = None;
+    let mut issuer = None;
     for (key, value) in form_urlencoded::parse(query.as_bytes()) {
         match key.as_ref() {
             "code" => code = Some(value.into_owned()),
             "state" => state = Some(value.into_owned()),
             "error" => error = Some(value.into_owned()),
-            "error_description" => description = Some(value.into_owned()),
+            "iss" => issuer = Some(value.into_owned()),
             _ => {}
         }
     }
@@ -564,14 +657,31 @@ fn parse_callback_query(query: &str) -> Option<Result<Callback, String>> {
     // against: a drive-by request to the open loopback port would otherwise abort
     // a sign-in that is still in flight. Same reasoning that refuses a `code`
     // with no `state` below -- unverifiable either way, so neither is acted on.
-    if let (Some(error), Some(_)) = (error, state.as_ref()) {
-        let detail = description.map(|d| format!(": {d}")).unwrap_or_default();
-        return Some(Err(format!(
-            "the provider refused the sign-in ({error}){detail}"
-        )));
+    if let (Some(error), Some(state)) = (error, state.as_ref()) {
+        let error = match error.as_str() {
+            "access_denied"
+            | "invalid_request"
+            | "unauthorized_client"
+            | "temporarily_unavailable"
+            | "server_error"
+            | "unsupported_response_type"
+            | "invalid_scope" => error.as_str(),
+            _ => "authorization_rejected",
+        };
+        return Some(Ok(Callback {
+            code: String::new(),
+            state: state.clone(),
+            issuer,
+            error: Some(format!("the provider refused the sign-in ({error})")),
+        }));
     }
     match (code, state) {
-        (Some(code), Some(state)) => Some(Ok(Callback { code, state })),
+        (Some(code), Some(state)) => Some(Ok(Callback {
+            code,
+            state,
+            issuer,
+            error: None,
+        })),
         // A `code` with no `state` cannot be CSRF-checked, so it is refused
         // rather than accepted with the check skipped.
         (Some(_), None) => Some(Err(
@@ -586,7 +696,10 @@ fn parse_callback_query(query: &str) -> Option<Result<Callback, String>> {
 /// need any.
 fn callback_page(outcome: &Option<Result<Callback, String>>) -> String {
     let (title, detail) = match outcome {
-        Some(Ok(_)) => ("Signed in", "You can close this tab and return to Jan."),
+        Some(Ok(_)) => (
+            "Authorization response received",
+            "Return to Rey30 IDvj to check whether authorization completed.",
+        ),
         Some(Err(e)) => ("Sign-in failed", e.as_str()),
         None => (
             "Not found",
@@ -595,14 +708,13 @@ fn callback_page(outcome: &Option<Result<Callback, String>>) -> String {
     };
     let detail = escape_html(detail);
     format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Jan - {title}</title></head>\
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Rey30 IDvj - {title}</title></head>\
          <body style=\"font-family:system-ui,sans-serif;margin:4rem auto;max-width:32rem\">\
          <h1>{title}</h1><p>{detail}</p></body></html>"
     )
 }
 
-/// The failure detail embeds `error`/`error_description` straight from the
-/// redirect query, so it is provider-controlled text going into markup.
+/// The callback page also accepts local errors; render every message as text.
 fn escape_html(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
@@ -667,17 +779,16 @@ pub async fn authorized_client(
                 "the access token for '{name}' expired and there is no refresh token - re-authenticate from /mcp"
             ));
         }
-        state.refresh_token().await.map_err(|e| {
-            format!(
-                "could not refresh the access token for '{name}': {e} - re-authenticate from /mcp"
-            )
+        state.refresh_token().await.map_err(|_| {
+            format!("could not refresh the access token for '{name}' - re-authenticate from /mcp")
         })?;
         let (client_id, tokens) = state
             .get_credentials()
             .await
-            .map_err(|e| format!("refresh for '{name}' returned no tokens: {e}"))?;
+            .map_err(|_| format!("refresh for '{name}' returned no usable tokens"))?;
         if let Some(tokens) = tokens {
-            let mut refreshed = StoredCredentials::from_exchange(client_id, tokens, url.to_string());
+            let mut refreshed =
+                StoredCredentials::from_exchange(client_id, tokens, url.to_string());
             refreshed.client_secret = stored.client_secret.clone();
             save(data_folder, name, &refreshed)?;
         }
@@ -742,51 +853,67 @@ mod tests {
                 let mut buf = [0; 4096];
                 loop {
                     let n = socket.read(&mut buf).await.unwrap();
-                    if n == 0 { break; }
+                    if n == 0 {
+                        break;
+                    }
                     bytes.extend_from_slice(&buf[..n]);
                     if let Some(end) = bytes.windows(4).position(|b| b == b"\r\n\r\n") {
                         let headers = String::from_utf8_lossy(&bytes[..end]);
-                        let length = headers.lines().find_map(|line| {
-                            let (key, value) = line.split_once(':')?;
-                            key.eq_ignore_ascii_case("content-length")
-                                .then(|| value.trim().parse::<usize>().unwrap())
-                        }).unwrap_or(0);
-                        if bytes.len() >= end + 4 + length { break; }
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                let (key, value) = line.split_once(':')?;
+                                key.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if bytes.len() >= end + 4 + length {
+                            break;
+                        }
                     }
                 }
                 let registration = bytes.starts_with(b"POST /register ");
-                let (code, body) = if registration {
-                    (status, registration_body.to_string())
-                } else if bytes.starts_with(b"POST /token ") {
-                    let request = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
-                    assert!(request.contains("authorization: basic "));
-                    let refreshed = request.contains("grant_type=refresh_token");
-                    if !refreshed {
-                        assert!(request.contains("code_verifier="));
-                    }
-                    (200, json!({
+                let (code, body) =
+                    if registration {
+                        (status, registration_body.to_string())
+                    } else if bytes.starts_with(b"POST /token ") {
+                        let request = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
+                        assert!(request.contains("authorization: basic "));
+                        assert!(
+                            request.contains("resource="),
+                            "Authorization and refresh token requests must name their MCP resource"
+                        );
+                        let refreshed = request.contains("grant_type=refresh_token");
+                        if !refreshed {
+                            assert!(request.contains("code_verifier="));
+                        }
+                        (200, json!({
                         "access_token": if refreshed { "refreshed" } else { "issued" },
                         "token_type": "Bearer", "expires_in": 3600, "refresh_token": "refresh",
                     }).to_string())
-                } else if bytes.starts_with(b"GET /mcp ") {
-                    // A 200 here is read as the RFC 9728 protected-resource
-                    // document, whose `resource` rmcp 3.2 requires to match.
-                    (200, json!({
-                        "resource": format!("{origin}/mcp"),
-                        "authorization_servers": [origin.clone()],
-                    }).to_string())
-                } else {
-                    let mut metadata = json!({
-                        "issuer": origin.clone(),
-                        "authorization_endpoint": format!("{origin}/authorize"),
-                        "token_endpoint": format!("{origin}/token"),
-                        "registration_endpoint": format!("{origin}/register"),
-                    });
-                    if let Some((field, value)) = metadata_override {
-                        metadata[field] = json!(value);
-                    }
-                    (200, metadata.to_string())
-                };
+                    } else if bytes.starts_with(b"GET /mcp ") {
+                        // A 200 here is read as the RFC 9728 protected-resource
+                        // document, whose `resource` rmcp 3.2 requires to match.
+                        (
+                            200,
+                            json!({
+                                "resource": format!("{origin}/mcp"),
+                                "authorization_servers": [origin.clone()],
+                            })
+                            .to_string(),
+                        )
+                    } else {
+                        let mut metadata = json!({
+                            "issuer": origin.clone(),
+                            "authorization_endpoint": format!("{origin}/authorize"),
+                            "token_endpoint": format!("{origin}/token"),
+                            "registration_endpoint": format!("{origin}/register"),
+                        });
+                        if let Some((field, value)) = metadata_override {
+                            metadata[field] = json!(value);
+                        }
+                        (200, metadata.to_string())
+                    };
                 let reply = format!(
                     "HTTP/1.1 {code} Response\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                     body.len(),
@@ -807,36 +934,60 @@ mod tests {
             Ok(_) => panic!("rejected registration must not produce a browser URL"),
         };
         assert!(error.contains("403"), "{error}");
-        assert!(error.contains("unapproved_client"), "{error}");
+        assert!(
+            !error.contains("unapproved_client"),
+            "provider response bodies must remain private"
+        );
     }
 
     #[tokio::test]
     async fn registered_client_completes_pkce_and_retains_secret_for_refresh() {
         let (base, task) = registration_server(
-            201, r#"{"client_id":"registered","client_secret":"registration-secret"}"#,
-        ).await;
+            201,
+            r#"{"client_id":"registered","client_secret":"registration-secret"}"#,
+        )
+        .await;
         let url = format!("{base}/mcp");
         let pending = begin("server", &url).await.unwrap();
         let auth_url = reqwest::Url::parse(&pending.authorization_url).unwrap();
         let params: BTreeMap<_, _> = auth_url.query_pairs().into_owned().collect();
         assert_eq!(params["client_id"], "registered");
         assert_eq!(params["code_challenge_method"], "S256");
-        let callback = format!("{}?code=issued-code&state={}", pending.redirect_uri, params["state"]);
+        assert_eq!(params["resource"], url);
+        let callback = format!(
+            "{}?code=issued-code&state={}",
+            pending.redirect_uri, params["state"]
+        );
         let dir = tempfile::tempdir().unwrap();
         let folder = dir.path().to_path_buf();
         let completion = tokio::spawn(async move { pending.complete(&folder).await });
-        reqwest::get(callback).await.unwrap().error_for_status().unwrap();
+        reqwest::get(callback)
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
         let mut stored = completion.await.unwrap().unwrap();
         assert_eq!(stored.tokens.access_token().secret(), "issued");
         assert!(!format!("{stored:?}").contains("registration-secret"));
         stored.expires_at = Some(0);
         save(dir.path(), "server", &stored).unwrap();
         let client = authorized_client(
-            dir.path(), "server", &url, &json!({}), reqwest13::Client::new(),
-        ).await.unwrap().unwrap();
+            dir.path(),
+            "server",
+            &url,
+            &json!({}),
+            reqwest13::Client::new(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         assert_eq!(client.get_access_token().await.unwrap(), "refreshed");
         assert_eq!(
-            load(dir.path(), "server").unwrap().client_secret.unwrap().secret(),
+            load(dir.path(), "server")
+                .unwrap()
+                .client_secret
+                .unwrap()
+                .secret(),
             "registration-secret",
         );
         task.abort();
@@ -871,6 +1022,7 @@ mod tests {
     fn err_of(outcome: Option<Result<Callback, String>>) -> String {
         match outcome {
             Some(Err(e)) => e,
+            Some(Ok(callback)) => callback.error.expect("expected a provider rejection"),
             _ => panic!("expected a rejected callback"),
         }
     }
@@ -913,13 +1065,59 @@ mod tests {
         assert_eq!(load(dir.path(), "b").unwrap().resource, "https://b");
     }
 
+    #[test]
+    fn new_oauth_tokens_use_refs_and_do_not_migrate_or_resurrect_legacy_records() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = BTreeMap::from([(
+            "owned".into(),
+            creds(Some(60), true, "https://old.invalid/mcp"),
+        )]);
+        write_store(dir.path(), &old).unwrap();
+        let legacy = std::fs::read(store_path(dir.path())).unwrap();
+        assert_eq!(
+            load(dir.path(), "owned").unwrap().resource,
+            "https://old.invalid/mcp"
+        );
+        save(
+            dir.path(),
+            "owned",
+            &creds(Some(60), true, "https://new.invalid/mcp"),
+        )
+        .unwrap();
+        assert_eq!(std::fs::read(store_path(dir.path())).unwrap(), legacy);
+        let refs = std::fs::read_to_string(dir.path().join("mcp_oauth_refs.json")).unwrap();
+        assert!(!refs.contains("at-1"));
+        assert!(!refs.contains("rt-1"));
+        assert_eq!(
+            load(dir.path(), "owned").unwrap().resource,
+            "https://new.invalid/mcp"
+        );
+        let copied = tempfile::tempdir().unwrap();
+        std::fs::write(copied.path().join("mcp_oauth_refs.json"), &refs).unwrap();
+        assert!(load(copied.path(), "owned").is_none());
+        assert!(clear(dir.path(), "owned").unwrap());
+        assert!(load(dir.path(), "owned").is_none());
+        assert_eq!(std::fs::read(store_path(dir.path())).unwrap(), legacy);
+        std::fs::write(dir.path().join("mcp_oauth_refs.json"), "malformed").unwrap();
+        assert!(save(
+            dir.path(),
+            "other",
+            &creds(Some(60), true, "https://other.invalid")
+        )
+        .is_err());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("mcp_oauth_refs.json")).unwrap(),
+            "malformed"
+        );
+    }
+
     #[cfg(unix)]
     #[test]
     fn the_token_store_is_owner_only() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         save(dir.path(), "srv", &creds(Some(60), false, "https://x")).unwrap();
-        let mode = std::fs::metadata(store_path(dir.path()))
+        let mode = std::fs::metadata(dir.path().join("mcp_oauth_refs.json"))
             .unwrap()
             .permissions()
             .mode();
@@ -1100,13 +1298,18 @@ mod tests {
 
     #[tokio::test]
     async fn begin_accepts_a_plain_http_lan_authorization_endpoint() {
-        let (base, task) =
-            metadata_server("authorization_endpoint", "http://192.168.1.50:8080/authorize").await;
+        let (base, task) = metadata_server(
+            "authorization_endpoint",
+            "http://192.168.1.50:8080/authorize",
+        )
+        .await;
         let pending = begin("lan", &format!("{base}/mcp")).await;
         task.abort();
         let pending = pending.expect("http on the LAN is accepted");
         assert!(
-            pending.authorization_url.starts_with("http://192.168.1.50:8080/authorize?"),
+            pending
+                .authorization_url
+                .starts_with("http://192.168.1.50:8080/authorize?"),
             "{}",
             pending.authorization_url
         );
@@ -1135,7 +1338,10 @@ mod tests {
             "error=access_denied&error_description=nope&state=xyz",
         ));
         assert!(denied.contains("access_denied"), "{denied}");
-        assert!(denied.contains("nope"), "{denied}");
+        assert!(
+            !denied.contains("nope"),
+            "provider response details must remain private"
+        );
 
         let no_state = err_of(parse_callback_query("code=abc"));
         assert!(no_state.contains("state"), "{no_state}");
@@ -1147,12 +1353,53 @@ mod tests {
 
     #[test]
     fn the_callback_page_escapes_provider_text() {
-        let outcome = parse_callback_query(
-            "error=bad&error_description=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E&state=s",
-        );
+        let outcome = Some(Err("<img src=x onerror=alert(1)>".into()));
         let page = callback_page(&outcome);
         assert!(!page.contains("<img"), "{page}");
         assert!(page.contains("&lt;img"), "{page}");
+    }
+
+    #[test]
+    fn callback_errors_validate_state_and_exact_issuer_before_using_provider_errors() {
+        let error = parse_callback_query(
+            "error=access_denied&state=wrong&iss=https%3A%2F%2Fissuer.invalid",
+        )
+        .unwrap()
+        .unwrap();
+        assert!(
+            validate_callback(&error, "expected", Some("https://issuer.invalid"), true)
+                .unwrap_err()
+                .contains("state")
+        );
+        let error = parse_callback_query(
+            "error=access_denied&state=expected&iss=https%3A%2F%2Fother.invalid",
+        )
+        .unwrap()
+        .unwrap();
+        assert!(
+            validate_callback(&error, "expected", Some("https://issuer.invalid"), true)
+                .unwrap_err()
+                .contains("issuer")
+        );
+        let absent = parse_callback_query("code=owned&state=expected")
+            .unwrap()
+            .unwrap();
+        assert!(
+            validate_callback(&absent, "expected", Some("https://issuer.invalid"), true).is_err()
+        );
+        assert!(
+            validate_callback(&absent, "expected", Some("https://issuer.invalid"), false).is_ok()
+        );
+        let valid =
+            parse_callback_query("code=owned&state=expected&iss=https%3A%2F%2Fissuer.invalid")
+                .unwrap()
+                .unwrap();
+        assert!(
+            validate_callback(&valid, "expected", Some("https://issuer.invalid"), true).is_ok()
+        );
+        assert!(
+            validate_callback(&valid, "expected", Some("https://ISSUER.invalid"), true).is_err()
+        );
     }
 
     /// The redirect is answered and the code extracted over a real socket, so
@@ -1188,7 +1435,11 @@ mod tests {
                 .await
                 .unwrap();
             assert_eq!(hit.status(), 200);
-            assert!(hit.text().await.unwrap().contains("Signed in"));
+            assert!(hit
+                .text()
+                .await
+                .unwrap()
+                .contains("Authorization response received"));
 
             let got = waiter.await.unwrap().unwrap();
             assert_eq!(got.code, "c1");

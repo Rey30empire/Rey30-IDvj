@@ -33,7 +33,7 @@ use serde_json::Value;
 use std::path::PathBuf;
 
 /// Root of a committed release data-folder fixture. Mirrors the layout of
-/// `~/Library/Application Support/Jan/data` (macOS) / `%APPDATA%\Jan\data`
+/// `~/Library/Application Support/Rey30 IDvj/data` (macOS) / `%APPDATA%\Rey30 IDvj\data`
 /// (Windows): `threads/<id>/{thread.json,messages.jsonl}`, `store.json`,
 /// `mcp_config.json`.
 fn fixture_root(release: &str) -> PathBuf {

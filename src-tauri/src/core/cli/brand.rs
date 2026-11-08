@@ -1,15 +1,15 @@
-//! The `jan` wordmark, shared by `jan --help` and the TUI splash so the two
+//! The `rey30-idvj` wordmark, shared by `rey30-idvj --help` and the TUI splash so the two
 //! can't drift.
 
-/// "JAN" in ANSI Shadow block letters. Each glyph cell is one terminal column,
+/// Rey30 IDvj in block letters. Each glyph cell is one terminal column,
 /// so `LOGO_WIDTH` is the rendered width.
 pub const LOGO: [&str; 6] = [
-    r"     ██╗ █████╗ ███╗  ██╗",
-    r"     ██║██╔══██╗████╗ ██║",
-    r"     ██║███████║██╔██╗██║",
-    r"██   ██║██╔══██║██║╚████║",
-    r"╚█████╔╝██║  ██║██║ ╚███║",
-    r" ╚════╝ ╚═╝  ╚═╝╚═╝  ╚══╝",
+    r"███  ████ █  █ ███   ██  ",
+    r"█  █ █    █  █    █ █  █ ",
+    r"███  ███   ██   ██  █  █ ",
+    r"█ █  █     █      █ █  █ ",
+    r"█  █ ████  █   ███   ██  ",
+    r"         I D v j         ",
 ];
 
 pub const LOGO_WIDTH: u16 = 25;

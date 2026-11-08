@@ -93,11 +93,11 @@ pub struct ToolContext<'a> {
     /// host builds sees the same catalog its system prompt advertises. `None`
     /// keeps the store-only behaviour (the desktop).
     pub skill_source: Option<SkillSource>,
-    /// The user-wide skill store root (`~/.jan`; skills land in its `skills/`),
+    /// The user-wide skill store root (`~/.rey30-idvj`; skills land in its `skills/`),
     /// the target of `skill_write` with `scope: "user"`. `None` on surfaces
     /// with no user scope, where that scope is refused.
     pub skill_user_root: Option<&'a Path>,
-    /// `~/.jan`, reached by the `memory_*` tools as the `user:` scope and as
+    /// `~/.rey30-idvj`, reached by the `memory_*` tools as the `user:` scope and as
     /// the parent of other projects' stores. `None` (the desktop) confines
     /// memory to `store_root`.
     pub memory_home: Option<&'a Path>,
@@ -111,11 +111,11 @@ pub struct ToolContext<'a> {
     /// gate's decision-time canonicalization and the handler's raw-path write.
     /// The CLI leaves it off so a user-approved escaping write still works.
     pub confine_writes: bool,
-    /// The Jan data-folder root, masked from the sandboxed shell on surfaces
+    /// The Rey30 IDvj data-folder root, masked from the sandboxed shell on surfaces
     /// where it sits outside the workspace (the desktop). `None` on the CLI,
     /// where the project itself is the workspace.
     pub mask_root: Option<&'a Path>,
-    /// The Jan home, hidden from `ls`/`find`/`grep` walks and the sandboxed
+    /// The Rey30 IDvj home, hidden from `ls`/`find`/`grep` walks and the sandboxed
     /// shell. Set with [`Self::with_hidden_root`] from
     /// [`crate::workspace::hidden_root`]; the gate refuses direct paths to it.
     pub hidden_root: Option<&'a Path>,
@@ -576,7 +576,7 @@ impl<'a> ToolContext<'a> {
         self
     }
 
-    /// Hide the Jan home from walks and the shell. See [`Self::hidden_root`].
+    /// Hide the Rey30 IDvj home from walks and the shell. See [`Self::hidden_root`].
     pub fn with_hidden_root(mut self, hidden_root: Option<&'a Path>) -> Self {
         self.hidden_root = hidden_root;
         self

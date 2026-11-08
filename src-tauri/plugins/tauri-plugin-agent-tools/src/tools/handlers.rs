@@ -144,6 +144,9 @@ pub async fn execute_builtin(
     args: &serde_json::Value,
     ctx: &ToolContext<'_>,
 ) -> (String, Option<Vec<ImageContentPart>>) {
+    if crate::tools::gate::touches_pluma_library(tool, args, ctx.project_root, ctx.scratch_root) {
+        return (format!("ERROR: {}", crate::workspace::PLUMA_LIBRARY_DENIED), None);
+    }
     let payload = crate::tools::hooks::HookPayload {
         tool_name: Some(tool.name.to_string()),
         tool_input: Some(args.clone()),
@@ -271,6 +274,9 @@ pub async fn preview_diff(
     args: &serde_json::Value,
     ctx: &ToolContext<'_>,
 ) -> Option<String> {
+    if crate::tools::gate::touches_pluma_library(tool, args, ctx.project_root, ctx.scratch_root) {
+        return None;
+    }
     let project_root = ctx.project_root;
     let scratch = ctx.scratch_root;
     match tool.name {
@@ -487,7 +493,7 @@ fn skill_read(args: &serde_json::Value, ctx: &ToolContext<'_>) -> String {
 
 /// `skill_write` tool: create/update a skill (new ones as `<name>/SKILL.md`).
 /// `scope` picks the store: `project` (the default, `store_root`) or `user`
-/// (`skill_user_root`, i.e. `~/.jan/skills`, visible from every project).
+/// (`skill_user_root`, i.e. `~/.rey30-idvj/skills`, visible from every project).
 /// The `[skills].enabled` whitelist is honored for writes too: a disabled skill
 /// is treated as read-only so the model cannot silently overwrite (or resurrect)
 /// a skill the user has turned off or locked out of the catalog.
@@ -1469,11 +1475,11 @@ fn tail_cap(s: &str, max_lines: usize, max_bytes: usize) -> String {
 
 /// Directory holding bash-output spill files: inside the session scratch when
 /// there is one, so the file the truncation note points at is reachable by the
-/// same `/tmp/jan-bash/...` name from both the filesystem tools and the shell,
+/// same `/tmp/rey30-idvj-bash/...` name from both the filesystem tools and the shell,
 /// and is reclaimed when the session's scratch is removed.
 ///
 /// The directory is validated as a real, non-symlink directory before use: the
-/// sandboxed shell can write the scratch, so it could have redirected `jan-bash`
+/// sandboxed shell can write the scratch, so it could have redirected `rey30-idvj-bash`
 /// at a host directory. Refuse to spill through a redirect (returning `None`)
 /// rather than write the model's bytes through an attacker-chosen path.
 ///
@@ -1485,12 +1491,12 @@ fn spill_dir(scratch: Option<&Path>) -> Option<PathBuf> {
     let base = scratch
         .map(Path::to_path_buf)
         .unwrap_or_else(std::env::temp_dir);
-    crate::tools::spill::validated_subdir(&base, "jan-bash")
+    crate::tools::spill::validated_subdir(&base, "rey30-idvj-bash")
 }
 
 fn new_temp_path(scratch: Option<&Path>) -> Option<PathBuf> {
     let n = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
-    Some(spill_dir(scratch)?.join(format!("jan-bash-{}-{}.txt", std::process::id(), n)))
+    Some(spill_dir(scratch)?.join(format!("rey30-idvj-bash-{}-{}.txt", std::process::id(), n)))
 }
 
 /// Open a spill file atomically; see [`crate::tools::spill::open_excl`].
@@ -1511,7 +1517,7 @@ fn write_temp_output(content: &str, scratch: Option<&Path>) -> Option<PathBuf> {
 }
 
 /// Remove a spill file only through a real, non-symlink parent directory. The
-/// shell controls the scratch, so a redirected `jan-bash` dir must not redirect
+/// shell controls the scratch, so a redirected `rey30-idvj-bash` dir must not redirect
 /// our cleanup either; if it has been swapped, leave the file behind (it is
 /// reclaimed with the session's scratch). `remove_file` itself unlinks a
 /// symlink rather than following it, so only the parent needs re-checking.
@@ -1612,8 +1618,8 @@ pub async fn render_html_png(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let shot = std::env::temp_dir().join(format!("jan-shot-{}-{nanos}.png", std::process::id()));
-    let profile = std::env::temp_dir().join(format!("jan-chrome-{}-{nanos}", std::process::id()));
+    let shot = std::env::temp_dir().join(format!("rey30-idvj-shot-{}-{nanos}.png", std::process::id()));
+    let profile = std::env::temp_dir().join(format!("rey30-idvj-chrome-{}-{nanos}", std::process::id()));
 
     // file:// lets the page resolve relative assets against its own directory,
     // matching what the artifact preview does.
@@ -2029,7 +2035,7 @@ mod tests {
     fn unique_root() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let dir =
-            std::env::temp_dir().join(format!("jan_handlers_test_{}_{}", std::process::id(), n));
+            std::env::temp_dir().join(format!("rey30_handlers_test_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).expect("create test root");
         dir
     }
@@ -2700,12 +2706,12 @@ mod tests {
     #[tokio::test]
     async fn write_reports_resolved_path_when_it_escapes_the_project() {
         let root = unique_root();
-        let outside = root.parent().unwrap().join("jan_escape_probe.txt");
+        let outside = root.parent().unwrap().join("rey30_escape_probe.txt");
         // A probe left by an aborted run would turn this into a "No change" write.
         let _ = std::fs::remove_file(&outside);
         let out = execute_builtin(
             lookup("write").unwrap(),
-            &json!({"path": "../jan_escape_probe.txt", "content": "x"}),
+            &json!({"path": "../rey30_escape_probe.txt", "content": "x"}),
             &root,
         )
         .await;
@@ -2935,15 +2941,15 @@ mod tests {
     }
 
     /// A redirected spill directory must refuse to write through it. The shell
-    /// can replace `scratch/jan-bash` with a symlink to a host directory (or
-    /// point `jan-bash` at one), so both spill entry points must come up empty
+    /// can replace `scratch/rey30-idvj-bash` with a symlink to a host directory (or
+    /// point `rey30-idvj-bash` at one), so both spill entry points must come up empty
     /// rather than place the model's bytes at an attacker-chosen location.
     #[cfg(unix)]
     #[test]
     fn spill_writing_refuses_a_redirected_spill_dir() {
         let scratch = unique_root();
         let outside = unique_root();
-        std::os::unix::fs::symlink(&outside, scratch.join("jan-bash")).unwrap();
+        std::os::unix::fs::symlink(&outside, scratch.join("rey30-idvj-bash")).unwrap();
 
         assert!(
             new_temp_path(Some(&scratch)).is_none(),
@@ -2970,10 +2976,10 @@ mod tests {
     fn spill_file_writes_never_follow_a_planted_symlink() {
         let scratch = unique_root();
         let outside = unique_root();
-        std::fs::create_dir_all(scratch.join("jan-bash")).unwrap();
+        std::fs::create_dir_all(scratch.join("rey30-idvj-bash")).unwrap();
         let victim = outside.join("victim.txt");
         std::fs::write(&victim, b"precious").unwrap();
-        let planted = scratch.join("jan-bash/spill.txt");
+        let planted = scratch.join("rey30-idvj-bash/spill.txt");
         std::os::unix::fs::symlink(&victim, &planted).unwrap();
 
         assert!(open_spill_file(&planted).is_err(), "opened a spill symlink");
@@ -3242,19 +3248,19 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// With `$HOME` as the project, a walk of `.` would otherwise read the Jan
+    /// With `$HOME` as the project, a walk of `.` would otherwise read the Rey30 IDvj
     /// home: the gate only sees the `.` argument, so the walks skip it too.
     #[tokio::test]
-    async fn walks_skip_the_jan_home_inside_the_project() {
+    async fn walks_skip_the_rey30_home_inside_the_project() {
         let home = unique_root();
-        let jan = home.join(".jan");
-        std::fs::create_dir_all(jan.join("projects/p-1")).unwrap();
-        std::fs::write(jan.join("config.toml"), b"api_key = SECRET_MARKER").unwrap();
-        std::fs::write(jan.join("projects/p-1/agent.toml"), b"SECRET_MARKER").unwrap();
+        let rey30 = home.join(".rey30-idvj");
+        std::fs::create_dir_all(rey30.join("projects/p-1")).unwrap();
+        std::fs::write(rey30.join("config.toml"), b"api_key = SECRET_MARKER").unwrap();
+        std::fs::write(rey30.join("projects/p-1/agent.toml"), b"SECRET_MARKER").unwrap();
         std::fs::write(home.join("notes.txt"), b"SECRET_MARKER").unwrap();
         std::fs::write(home.join(".janitor"), b"SECRET_MARKER").unwrap();
         let store = crate::workspace::project_store(&home);
-        let ctx = ToolContext::new(&home, &store, &[]).with_hidden_root(Some(&jan));
+        let ctx = ToolContext::new(&home, &store, &[]).with_hidden_root(Some(&rey30));
         let run = |tool: &'static str, args: serde_json::Value| {
             let ctx = ctx.clone();
             async move { super::execute_builtin(lookup(tool).unwrap(), &args, &ctx).await.0 }
@@ -3262,7 +3268,7 @@ mod tests {
         for path in [".", "./"] {
             let ls = run("ls", json!({"path": path})).await;
             assert!(ls.contains("notes.txt") && ls.contains(".janitor"), "{ls}");
-            assert!(!ls.lines().any(|l| l == ".jan/"), "{ls}");
+            assert!(!ls.lines().any(|l| l == ".rey30-idvj/"), "{ls}");
             let find = run("find", json!({"pattern": "**/*", "path": path})).await;
             assert!(find.contains("notes.txt"), "{find}");
             assert!(!find.contains("config.toml") && !find.contains("agent.toml"), "{find}");
@@ -4141,7 +4147,7 @@ mod tests {
     async fn skill_write_scope_picks_the_project_or_user_store() {
         let root = unique_root();
         let store = crate::workspace::project_store(&root);
-        let home = root.join("home-jan");
+        let home = root.join("home-rey30-idvj");
         let ctx = ToolContext::new(&root, &store, &[]).with_skill_user_root(Some(&home));
         let write = |args: serde_json::Value| {
             let ctx = ctx.clone();
@@ -4158,7 +4164,7 @@ mod tests {
         write(json!({"name": "b", "content": "x", "scope": "project"})).await;
         assert!(store.join("skills/b/SKILL.md").is_file());
 
-        // scope: "user" writes to `<jan home>/skills`.
+        // scope: "user" writes to `<rey30-idvj home>/skills`.
         let out = write(json!({"name": "c", "content": "x", "scope": "user"})).await;
         assert_eq!(out, "Wrote user skill 'c'");
         assert!(home.join("skills/c/SKILL.md").is_file());
@@ -4219,19 +4225,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn built_in_jan_skill_is_available_without_project_skills() {
+    async fn built_in_rey30_skill_is_available_without_project_skills() {
         let root = unique_root();
 
         let list = execute_builtin(lookup("skill_list").unwrap(), &json!({}), &root).await;
         assert!(
             list.lines()
-                .any(|line| line == "jan" || line.starts_with("jan — ")),
+                .any(|line| line == "rey30-idvj" || line.starts_with("rey30-idvj — ")),
             "unexpected list: {list}"
         );
 
         let body = execute_builtin(
             lookup("skill_read").unwrap(),
-            &json!({"name": "jan"}),
+            &json!({"name": "rey30-idvj"}),
             &root,
         )
         .await;

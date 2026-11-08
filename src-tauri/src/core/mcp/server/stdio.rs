@@ -1,4 +1,4 @@
-//! The stdio transport for [`JanToolServer`]: the child-process shape every
+//! The stdio transport for [`Rey30ToolServer`]: the child-process shape every
 //! other agent already knows how to spawn.
 //!
 //! stdout carries the JSON-RPC framing and nothing else. Anything this process
@@ -9,11 +9,11 @@
 use rmcp::transport::io::stdio;
 use rmcp::ServiceExt;
 
-use super::{JanToolServer, ServeOptions};
+use super::{Rey30ToolServer, ServeOptions};
 
 /// Serve the built-in toolset over stdin/stdout until the peer disconnects.
 pub async fn serve(opts: ServeOptions) -> Result<(), String> {
-    let service = JanToolServer::new(opts)
+    let service = Rey30ToolServer::new(opts)
         .serve(stdio())
         .await
         .map_err(|e| format!("failed to start the MCP stdio server: {e}"))?;

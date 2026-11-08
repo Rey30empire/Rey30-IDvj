@@ -95,7 +95,7 @@ const EXIT_GRACE: Duration = Duration::from_millis(500);
 const EXIT_POLL: Duration = Duration::from_millis(50);
 
 /// Checks the process, which is the one thing that tells the two causes of an
-/// unreachable worker apart: a crash, or something between Jan and 127.0.0.1.
+/// unreachable worker apart: a crash, or something between Rey30 IDvj and 127.0.0.1.
 ///
 /// A worker found dead is reaped here, as `get_engine_info` does, so the next
 /// load starts a fresh one instead of failing against the same closed port.
@@ -116,7 +116,7 @@ async fn worker_fate(state: &LlamacppState, port: u16) -> WorkerFate {
                 drop(guard);
                 let report = dead.exit_report().await.expect("it has exited");
                 log::error!(
-                    "jan-llama-worker exited unexpectedly ({}); last output: {:?}",
+                    "rey30-idvj-llama-worker exited unexpectedly ({}); last output: {:?}",
                     report.status,
                     report.last_lines
                 );
@@ -158,7 +158,7 @@ fn unreachable_worker_error(port: u16, fate: WorkerFate, cause: &str) -> Llamacp
         WorkerFate::Running => LlamacppError::new(
             ErrorCode::EngineUnreachable,
             format!(
-                "The llama.cpp engine is running, but Jan cannot connect to it on \
+                "The llama.cpp engine is running, but Rey30 IDvj cannot connect to it on \
                  127.0.0.1:{port}. A VPN, proxy or security software may be blocking \
                  local connections."
             ),

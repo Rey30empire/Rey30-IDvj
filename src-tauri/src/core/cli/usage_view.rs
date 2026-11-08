@@ -1,5 +1,5 @@
 //! One renderer for provider-reported usage, shared by the TUI readout and
-//! the `jan usage` subcommand.
+//! the `rey30-idvj usage` subcommand.
 //!
 //! Both surfaces answer the same question from the same bytes, so they render
 //! through the same code: a fix to how a charge is displayed cannot land in
@@ -20,7 +20,7 @@ const TOP_REPORTED_ROWS: usize = 5;
 ///
 /// Not a bool, because "show everything" has two different meanings here and
 /// only one of them may print a keybinding. The TUI's docked readout folds and
-/// unfolds with `m`; `jan usage` writes to a pipe, where nothing is folded (a
+/// unfolds with `m`; `rey30-idvj usage` writes to a pipe, where nothing is folded (a
 /// view that silently dropped rows would be wrong for the scripts reading it)
 /// and there is no `m` to press.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -212,7 +212,7 @@ pub fn account_total_lines(
 ///
 /// `fold` says how much of each ranked list to show and whether a keybinding
 /// for the other half may be printed -- see [`Fold`], which is what keeps the
-/// docked readout's `m` hint out of a piped `jan usage`.
+/// docked readout's `m` hint out of a piped `rey30-idvj usage`.
 pub fn reported_usage_lines(
     query: &crate::core::cli::tokamak::usage::Query,
     payload: &crate::core::cli::tokamak::usage::Payload,
@@ -448,7 +448,7 @@ mod tests {
         assert!(all.contains("$1240.10224445"), "{all}");
     }
 
-    /// `jan usage` writes to a pipe, where every row is printed (a view that
+    /// `rey30-idvj usage` writes to a pipe, where every row is printed (a view that
     /// silently dropped rows would be wrong for the scripts reading it) and
     /// there is no `m` to press. Offering the keystroke anyway names an
     /// affordance that does not exist on this surface.

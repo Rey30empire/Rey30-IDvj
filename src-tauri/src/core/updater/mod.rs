@@ -1,7 +1,5 @@
-// Desktop-only Tauri commands (AppHandle<Wry>) and session store
-// (tauri-plugin-store); the headless `jan` CLI build reuses the sibling
-// `custom_updater`/`hmac_client` modules for its own usage ping instead
-// (`cli::telemetry`), which needs neither.
+// The desktop commands report when updates are disabled. HMAC signing also
+// serves the separate model-download mirror.
 #[cfg(not(feature = "cli"))]
 pub mod commands;
 pub mod custom_updater;

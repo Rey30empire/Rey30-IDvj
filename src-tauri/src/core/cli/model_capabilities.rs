@@ -43,7 +43,7 @@ impl ContextWindowSource {
 }
 
 /// Strip the configured provider qualifiers (`anthropic/...`) in front of a
-/// bare id, as long as each leading segment is one of Jan's catalog providers.
+/// bare id, as long as each leading segment is one of Rey30 IDvj's catalog providers.
 /// A user-provided model id is normally the bare id, but `--model
 /// anthropic/claude-sonnet-4-6` and the desktop selection can carry the
 /// provider prefix, and a gateway route nests one more
@@ -51,7 +51,7 @@ impl ContextWindowSource {
 fn strip_provider_qualifier(mut model_id: &str) -> &str {
     while let Some((first, rest)) = model_id.split_once('/') {
         match first {
-            "anthropic" | "openai" | "google" | "tokamak" | "jan" => model_id = rest,
+            "anthropic" | "openai" | "google" | "tokamak" | "rey30-idvj" => model_id = rest,
             _ => break,
         }
     }
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn non_catalog_provider_qualifier_is_not_stripped() {
-        // A provider Jan doesn't ship keeps its qualifier: the id must still
+        // A provider Rey30 IDvj doesn't ship keeps its qualifier: the id must still
         // fall through to the conservative default rather than mis-matching.
         assert_eq!(
             resolve_context_window("azure/claude-sonnet-4-6", None, None).source,

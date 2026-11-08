@@ -15,7 +15,7 @@ use tauri_plugin_agent_tools::skills;
 const TREE_URL: &str = "https://api.github.com/repos/anthropics/skills/git/trees/main?recursive=1";
 const RAW_BASE: &str = "https://raw.githubusercontent.com/anthropics/skills/main/";
 const SKILLS_PREFIX: &str = "skills/";
-const USER_AGENT: &str = "jan-agent-skill-import";
+const USER_AGENT: &str = "rey30-idvj-agent-skill-import";
 
 /// A skill available on the hub: folder name + its frontmatter description.
 #[derive(serde::Serialize)]

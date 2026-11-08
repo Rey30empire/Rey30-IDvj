@@ -14,16 +14,16 @@ pub mod housekeeping;
 pub mod journal;
 pub mod login;
 pub mod mcp;
-/// `jan mcp serve`: the other direction, Jan's toolset served over MCP.
+/// `rey30-idvj mcp serve`: the other direction, Rey30 IDvj's toolset served over MCP.
 pub mod mcp_serve;
 pub(crate) mod model_capabilities;
 pub mod model_catalog;
 mod path_refs;
-/// `jan cli agent schema`: the protocol's JSON Schema, generated from the types.
+/// `rey30-idvj cli agent schema`: the protocol's JSON Schema, generated from the types.
 pub mod protocol_schema;
-/// `jan cli agent rpc`: persistent, session-scoped JSON-RPC transport.
+/// `rey30-idvj cli agent rpc`: persistent, session-scoped JSON-RPC transport.
 pub mod rpc;
-/// `jan cli agent rpc-schema`: the RPC request and event schemas.
+/// `rey30-idvj cli agent rpc-schema`: the RPC request and event schemas.
 pub mod rpc_schema;
 pub mod run_report;
 pub mod providers;
@@ -43,7 +43,7 @@ pub mod worktree;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::core::app::commands::resolve_jan_data_folder;
+use crate::core::app::commands::resolve_rey30_data_folder;
 use crate::core::threads::{
     constants::THREADS_FILE,
     helpers::{read_messages_from_file, update_thread_metadata, write_messages_to_file},
@@ -55,8 +55,8 @@ use crate::core::threads::{
 
 // ── Thread operations ──────────────────────────────────────────────────────
 
-/// List thread metadata under `<base>/threads/`. `base` is the Jan data folder
-/// (desktop store) or a project's store `~/.jan/projects/<slug>` (TUI store).
+/// List thread metadata under `<base>/threads/`. `base` is the Rey30 IDvj data folder
+/// (desktop store) or a project's store `~/.rey30-idvj/projects/<slug>` (TUI store).
 pub fn list_threads_in(base: &std::path::Path) -> Result<Vec<serde_json::Value>, String> {
     use std::fs;
 
@@ -80,9 +80,9 @@ pub fn list_threads_in(base: &std::path::Path) -> Result<Vec<serde_json::Value>,
     Ok(threads)
 }
 
-/// List all threads from the Jan data folder (desktop store).
+/// List all threads from the Rey30 IDvj data folder (desktop store).
 pub async fn cli_list_threads() -> Result<Vec<serde_json::Value>, String> {
-    let data_folder = resolve_jan_data_folder();
+    let data_folder = resolve_rey30_data_folder();
     ensure_data_dirs(&data_folder)?;
     list_threads_in(&data_folder)
 }
@@ -262,7 +262,7 @@ pub fn cli_list_messages_in(
 
 /// List messages for a thread.
 pub fn cli_list_messages(thread_id: &str) -> Result<Vec<serde_json::Value>, String> {
-    let data_folder = resolve_jan_data_folder();
+    let data_folder = resolve_rey30_data_folder();
     read_messages_from_file(&data_folder, thread_id)
 }
 
@@ -270,7 +270,7 @@ pub fn cli_list_messages(thread_id: &str) -> Result<Vec<serde_json::Value>, Stri
 pub fn cli_delete_thread(thread_id: &str) -> Result<(), String> {
     use std::fs;
 
-    let data_folder = resolve_jan_data_folder();
+    let data_folder = resolve_rey30_data_folder();
     let thread_dir = get_thread_dir(&data_folder, thread_id)?;
     if thread_dir.exists() {
         fs::remove_dir_all(thread_dir).map_err(|e| e.to_string())?;
@@ -294,7 +294,7 @@ pub fn cli_get_thread_in(
 
 /// Get thread metadata by ID from the desktop store.
 pub fn cli_get_thread(thread_id: &str) -> Result<serde_json::Value, String> {
-    cli_get_thread_in(&resolve_jan_data_folder(), thread_id)
+    cli_get_thread_in(&resolve_rey30_data_folder(), thread_id)
 }
 
 /// Persist a TUI conversation as a desktop-compatible thread so it appears in
@@ -493,7 +493,7 @@ pub const FORKED_FROM_KEY: &str = "forked_from";
 
 /// Key in a thread's `metadata` holding an RPC host's `systemPrompt`. Saved so
 /// a thread reopened elsewhere (the TUI's `/resume`) keeps running on the
-/// prompt it was written under instead of falling back to Jan's.
+/// prompt it was written under instead of falling back to Rey30 IDvj's.
 pub const SYSTEM_PROMPT_KEY: &str = "system_prompt";
 
 /// True for a `user` message the user actually authored. Hidden reminders ride
@@ -952,7 +952,7 @@ fn resolve_cost_ceiling(
 /// path if canonicalization fails (e.g. the directory doesn't exist yet).
 ///
 /// Every CLI entry point resolves its project here, so this is also where a
-/// legacy `<project>/.jan` is moved into the project's store: before anything
+/// legacy `<project>/.rey30-idvj` is moved into the project's store: before anything
 /// reads it, and only when the workspace still has one. The notice is kept for
 /// the surface to show (see [`take_migration_notice`]).
 fn resolve_project_root(project: &str) -> PathBuf {
@@ -974,22 +974,22 @@ pub(crate) fn take_migration_notice() -> Option<String> {
 }
 
 /// What this build supports that a caller (a launcher) must be able to check
-/// before relying on it, as `jan cli agent status` reports it. Only features
+/// before relying on it, as `rey30-idvj cli agent status` reports it. Only features
 /// this build implements; telemetry's own follow in
 /// [`crate::core::agent::otel::CAPABILITIES`].
 ///
-/// - `provider-overrides`: `--base-url` / `JAN_BASE_URL` for an explicit
+/// - `provider-overrides`: `--base-url` / `REY30_BASE_URL` for an explicit
 ///   `--provider`, and its `<PROVIDER>_API_KEY`.
 /// - `session-overrides`: those overrides survive the whole session (reloads,
 ///   the `/model` probe) -- the TUI, `run` and `step`; RPC takes none.
-/// - `custom-headers`: `JAN_CUSTOM_HEADERS` and `[providers.<id>].headers`.
-/// - `user-agent`: inference sends `User-Agent: Jan-Agent/<version> (<os>; <arch>)`.
+/// - `custom-headers`: `REY30_CUSTOM_HEADERS` and `[providers.<id>].headers`.
+/// - `user-agent`: inference sends `User-Agent: Rey30-IDvj-Agent/<version> (<os>; <arch>)`.
 /// - `session-header`: inference sends `X-Session-Id`.
 /// - `session-scoped-providers`: a session-scoped provider's models and prices
 ///   stay in memory, and its sign-in cannot be changed from inside the session.
-/// - `mcp-env-scrub`: stdio MCP servers do not inherit `JAN_API_KEY`,
-///   `JAN_CUSTOM_HEADERS`, the explicit provider's `<PROVIDER>_API_KEY`, or
-///   (while Jan exports telemetry) the OTLP header variables; the shell tool's
+/// - `mcp-env-scrub`: stdio MCP servers do not inherit `REY30_API_KEY`,
+///   `REY30_CUSTOM_HEADERS`, the explicit provider's `<PROVIDER>_API_KEY`, or
+///   (while Rey30 IDvj exports telemetry) the OTLP header variables; the shell tool's
 ///   pass-through never copies a `*HEADERS*` or `*AUTHORIZATION*` variable.
 pub const CAPABILITIES: &[&str] = &[
     "provider-overrides",
@@ -1008,7 +1008,7 @@ fn capabilities() -> Vec<&'static str> {
     all
 }
 
-/// Resolved-config + provider snapshot for `jan cli agent status`.
+/// Resolved-config + provider snapshot for `rey30-idvj cli agent status`.
 pub fn cli_agent_status(
     project: &str,
     overrides: &ProviderOverrides,
@@ -1106,7 +1106,7 @@ pub fn cli_agent_status(
     Ok(serde_json::json!({
         "capabilities": capabilities(),
         "project": project_root.to_string_lossy(),
-        "data_folder": resolve_jan_data_folder().to_string_lossy(),
+        "data_folder": resolve_rey30_data_folder().to_string_lossy(),
         "model": cfg.agent.model,
         // The effective ceiling with the config files resolved. A
         // `--max-session-tokens` flag is per-invocation and so, like
@@ -1152,7 +1152,7 @@ pub fn cli_agent_status(
     }))
 }
 
-/// Set (create or merge) a provider entry in the global `~/.jan/config.toml`,
+/// Set (create or merge) a provider entry in the global `~/.rey30-idvj/config.toml`,
 /// the standalone-agent credential store. Returns the config path so the caller
 /// can report where the value landed. Headless: no Desktop app required.
 pub fn cli_agent_config_set(
@@ -1175,19 +1175,19 @@ pub fn cli_agent_config_set(
     )
 }
 
-/// Remove a provider entry from `~/.jan/config.toml`. `Ok(false)` means it was
+/// Remove a provider entry from `~/.rey30-idvj/config.toml`. `Ok(false)` means it was
 /// already absent.
 pub fn cli_agent_config_unset(provider: &str) -> Result<bool, String> {
     crate::core::agent::global_config::remove_provider(provider)
 }
 
 /// The global config file path, scaffolding a commented template if it doesn't
-/// exist yet so `jan config path` always points at a real file.
+/// exist yet so `rey30-idvj config path` always points at a real file.
 pub fn cli_agent_config_path() -> Result<PathBuf, String> {
     crate::core::agent::global_config::ensure_global_config()
 }
 
-/// Providers configured in `~/.jan/config.toml`, as JSON with API keys redacted.
+/// Providers configured in `~/.rey30-idvj/config.toml`, as JSON with API keys redacted.
 /// Reflects only the global store (what the user set), not Desktop inherit.
 pub fn cli_agent_config_list() -> Result<serde_json::Value, String> {
     let configs = crate::core::agent::global_config::load_global_config()?;
@@ -1211,7 +1211,7 @@ pub fn cli_agent_config_list() -> Result<serde_json::Value, String> {
 }
 
 /// Choose the backend for the native `web_search`/`web_fetch` tools: the
-/// `[web_search]` table in `~/.jan/config.toml` plus the provider's API key in
+/// `[web_search]` table in `~/.rey30-idvj/config.toml` plus the provider's API key in
 /// the secret store, under the same record the desktop's Web Search settings
 /// write, so a key entered on either surface serves both.
 ///
@@ -1424,7 +1424,7 @@ fn build_cli_orchestration_args(
         provider_configs: Arc::new(Mutex::new(provider_configs)),
         mcp_servers,
         mcp_settings: Arc::new(Mutex::new(mcp_settings)),
-        jan_data_folder: resolve_jan_data_folder().to_string_lossy().into_owned(),
+        rey30_data_folder: resolve_rey30_data_folder().to_string_lossy().into_owned(),
         permissions,
         project_root: Some(project_root.clone()),
         permission_requests,
@@ -1576,11 +1576,11 @@ pub(crate) struct AgentSession {
     /// Whether the TUI expands `<think>` reasoning blocks (default false).
     pub show_reasoning: bool,
     /// Whether the TUI streams reasoning into the live tail while it folds
-    /// (`stream_reasoning` in `~/.jan/config.toml`, default true). Independent
+    /// (`stream_reasoning` in `~/.rey30-idvj/config.toml`, default true). Independent
     /// of `show_reasoning`, which unfolds it for good.
     pub stream_reasoning: bool,
     /// Whether inline `<think>` tags in the serving provider's content are
-    /// reasoning (see `think_tags` in `~/.jan/config.toml`).
+    /// reasoning (see `think_tags` in `~/.rey30-idvj/config.toml`).
     pub parse_think_tags: bool,
     /// Whether to resend a prior assistant turn's reasoning to the model
     /// (default true). False drops `reasoning_content` from outgoing assistant
@@ -1782,7 +1782,7 @@ fn fork_base(source: Option<&serde_json::Value>) -> Option<String> {
         .into_iter()
         .map(PathBuf::from)
         .collect();
-    let sha = git::snapshot(&workspace.path, None, "jan agent fork base", &key, &changed).ok();
+    let sha = git::snapshot(&workspace.path, None, "rey30-idvj agent fork base", &key, &changed).ok();
     git::cleanup_snapshot_index(&key);
     sha
 }
@@ -1844,7 +1844,7 @@ fn prepare_agent_session(
     let project_root = resolve_project_root(project);
     ensure_project(&project_root)?;
     if let Err(e) = crate::core::agent::global_config::ensure_global_config() {
-        log::warn!("Agent: could not scaffold ~/.jan/config.toml: {e}");
+        log::warn!("Agent: could not scaffold ~/.rey30-idvj/config.toml: {e}");
     }
     let cfg = load_agent_config(&project_root)?;
     let permissions = permissions_from(&cfg);
@@ -1870,7 +1870,7 @@ fn prepare_agent_session(
     );
 
     // Resolution order: --model flag, then agent.toml [agent].model, then the
-    // standalone global config (~/.jan/config.toml default_model / first provider
+    // standalone global config (~/.rey30-idvj/config.toml default_model / first provider
     // model), then the desktop app's currently-selected model (settings.json
     // inherit). Global config outranks desktop so a standalone agent is
     // self-sufficient without a desktop install.
@@ -1880,7 +1880,7 @@ fn prepare_agent_session(
     // app last had selected starts the session on a provider the user never
     // chose here -- and hides the sign-in notice that would otherwise fire,
     // because a non-empty model reads as "configured". Leaving it unset surfaces
-    // the notice instead. An explicit --model, agent.toml, or ~/.jan default is
+    // the notice instead. An explicit --model, agent.toml, or ~/.rey30-idvj default is
     // unaffected: all three outrank this.
     let explicit = model_override.is_some() || overrides.api_key.is_some();
     let model_pinned = model_override.is_some();
@@ -1894,7 +1894,7 @@ fn prepare_agent_session(
             )
         });
     // A project or global default can name a model with nobody around to serve
-    // it (e.g. this repo's own agent.toml pins one, but a fresh `~/.jan` has no
+    // it (e.g. this repo's own agent.toml pins one, but a fresh `~/.rey30-idvj` has no
     // credentials for anything). Trust it only when the user was explicit
     // (--model/--api-key) or some provider can actually be reached; otherwise
     // treat it as unset so the TUI's sign-in notice fires instead of failing on
@@ -1909,12 +1909,12 @@ fn prepare_agent_session(
     };
     if model.is_empty() && flags.require_model {
         return Err(
-            "no model specified: run `jan login` to sign in to Tokamak, or pass --model, set [agent].model in agent.toml, set default_model in ~/.jan/config.toml, or select a model in the desktop app"
+            "no model specified: run `rey30-idvj login` to sign in to Tokamak, or pass --model, set [agent].model in agent.toml, set default_model in ~/.rey30-idvj/config.toml, or select a model in the desktop app"
                 .to_string(),
         );
     }
     // The `smol` role (used by /goal evaluation): an explicit smol_model in
-    // ~/.jan/config.toml, else reuse the main model so evaluation always works.
+    // ~/.rey30-idvj/config.toml, else reuse the main model so evaluation always works.
     let smol_model = crate::core::agent::global_config::smol_model()
         .ok()
         .flatten()
@@ -1931,11 +1931,11 @@ fn prepare_agent_session(
         crate::core::cli::providers::unreachable_local_provider(&provider_configs, &model)
     {
         return Err(format!(
-            "model '{model}' is only offered by '{local}', a local engine the Jan CLI cannot \
-             start itself. To use it, run the model in the Jan desktop app with its API server \
+            "model '{model}' is only offered by '{local}', a local engine the Rey30 IDvj CLI cannot \
+             start itself. To use it, run the model in the Rey30 IDvj desktop app with its API server \
              enabled and point a provider at it:\n  \
-             jan config set --provider jan --base-url http://localhost:1337/v1 --model {model}\n\
-             Or pick a model from `jan cli models list`."
+             rey30-idvj config set --provider rey30-idvj --base-url http://localhost:1337/v1 --model {model}\n\
+             Or pick a model from `rey30-idvj cli models list`."
         ));
     }
 
@@ -2364,7 +2364,7 @@ async fn run_agent_loop(
     // run rather than per project: the same session config serves a run with
     // them and one without.
     args.host_tools = host_tools;
-    // `--host-gate`: the host's own callback is the approval step, so Jan
+    // `--host-gate`: the host's own callback is the approval step, so Rey30 IDvj
     // raises no `permission_request` for a host tool of any class.
     args.host_owns_gate = host_gate;
 
@@ -2384,7 +2384,7 @@ async fn run_agent_loop(
                 // exists here, so the fix is named rather than attempted.
                 if !outcome.needs_auth.is_empty() {
                     log::warn!(
-                        "MCP: {} need authentication - run `jan` and use /mcp to sign in",
+                        "MCP: {} need authentication - run `rey30-idvj` and use /mcp to sign in",
                         outcome.needs_auth.join(", ")
                     );
                 }
@@ -2544,7 +2544,7 @@ async fn run_agent_loop(
             Ok(id) => {
                 if !format.is_machine() {
                     eprintln!(
-                        "\x1b[2m[session {} - resume with `jan --resume={}`]\x1b[0m",
+                        "\x1b[2m[session {} - resume with `rey30-idvj --resume={}`]\x1b[0m",
                         short_id(&id),
                         short_id(&id)
                     );
@@ -3147,7 +3147,7 @@ fn completion_text(completion: &serde_json::Value) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
-/// Launch the interactive chat console (bare `jan`). An optional `task`
+/// Launch the interactive chat console (bare `rey30-idvj`). An optional `task`
 /// seeds the first turn; otherwise the user types the first message. Shares the
 /// engine with `run_agent_loop` via `AgentSession` — only presentation differs.
 #[allow(clippy::too_many_arguments)]
@@ -3195,7 +3195,7 @@ pub async fn cli_agent_ui(
     }
     // Fresh install with a terminal attached: launch with no model rather than
     // forcing sign-in here. The TUI shows a one-line notice and `/login` (or
-    // `jan login`) picks a model up once the user is ready.
+    // `rey30-idvj login`) picks a model up once the user is ready.
     let session = prepare_agent_session(
         project,
         model,
@@ -3219,7 +3219,7 @@ pub async fn cli_agent_ui(
 }
 
 /// Drop stale threads from the project's store (see [`housekeeping`]) when the
-/// user `enabled` it (`prune_threads` in `~/.jan/config.toml`, off by default).
+/// user `enabled` it (`prune_threads` in `~/.rey30-idvj/config.toml`, off by default).
 /// Reads the limits from `agent.toml` and never touches the thread this session
 /// resumes.
 fn prune_threads(
@@ -3246,7 +3246,7 @@ fn prune_threads(
 }
 
 /// Where the TUI persists a project's threads: the project's store,
-/// `~/.jan/projects/<slug>` (see `project::store_root`).
+/// `~/.rey30-idvj/projects/<slug>` (see `project::store_root`).
 pub fn agent_dir_for(project_root: &std::path::Path) -> PathBuf {
     crate::core::agent::project::store_root(project_root)
 }
@@ -3403,7 +3403,7 @@ async fn print_event(ev: StreamEvent, registry: &PermissionRegistry, duplex: boo
             eprintln!("\n\x1b[31m[error] {code}: {message}\x1b[0m")
         }
         StreamEvent::AskRequest { .. } => {
-            eprintln!("\n\x1b[31m[error] interactive ask requires `jan agent ui`\x1b[0m")
+            eprintln!("\n\x1b[31m[error] interactive ask requires `rey30-idvj agent ui`\x1b[0m")
         }
         // Headless never renders an ask prompt, so there is nothing to dismiss.
         StreamEvent::AskResolved { .. } => {}
@@ -4125,7 +4125,7 @@ mod tests {
     /// prompt/transcript/output shape.
     #[test]
     fn saving_a_thread_writes_its_transcript_json() {
-        let base = std::env::temp_dir().join(format!("jan-save-transcript-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-save-transcript-{}", std::process::id()));
         let history = vec![
             serde_json::json!({ "role": "user", "content": "fix the bug" }),
             serde_json::json!({ "role": "assistant", "content": "fixed" }),
@@ -4144,7 +4144,7 @@ mod tests {
     /// mirrors the history as saved.
     #[test]
     fn resaving_a_thread_rewrites_its_transcript() {
-        let base = std::env::temp_dir().join(format!("jan-resave-transcript-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-resave-transcript-{}", std::process::id()));
         let mut history = vec![
             serde_json::json!({ "role": "user", "content": "one" }),
             serde_json::json!({ "role": "assistant", "content": "a" }),
@@ -4172,7 +4172,7 @@ mod tests {
     /// saves. A directory squatting on the file name makes the write fail.
     #[test]
     fn a_transcript_write_failure_does_not_fail_the_save() {
-        let base = std::env::temp_dir().join(format!("jan-save-blocked-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-save-blocked-{}", std::process::id()));
         let history = vec![serde_json::json!({ "role": "user", "content": "hi" })];
         let id = cli_save_thread(&base, None, "m", &history, None).unwrap();
         let blocked = get_thread_dir(&base, &id).unwrap().join(THREAD_TRANSCRIPT_FILE);
@@ -4188,7 +4188,7 @@ mod tests {
     /// its own: it must describe the fork's history, not the source's.
     #[test]
     fn a_thread_transcript_is_not_shared_between_threads() {
-        let base = std::env::temp_dir().join(format!("jan-two-transcripts-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-two-transcripts-{}", std::process::id()));
         let a = cli_save_thread(
             &base,
             None,
@@ -4222,11 +4222,11 @@ mod tests {
     #[test]
     fn prune_threads_never_deletes_the_thread_being_resumed() {
         let base = std::env::temp_dir().join(format!(
-            "jan-prune-resume-{}",
+            "rey30-idvj-prune-resume-{}",
             std::process::id()
         ));
         let project = std::env::temp_dir().join(format!(
-            "jan-prune-resume-project-{}",
+            "rey30-idvj-prune-resume-project-{}",
             std::process::id()
         ));
         std::fs::create_dir_all(&project).unwrap();
@@ -4255,9 +4255,9 @@ mod tests {
     /// agent.toml removes what the defaults would keep.
     #[test]
     fn prune_threads_honors_the_limits_in_agent_toml() {
-        let base = std::env::temp_dir().join(format!("jan-prune-cfg-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-prune-cfg-{}", std::process::id()));
         let project =
-            std::env::temp_dir().join(format!("jan-prune-cfg-project-{}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30-idvj-prune-cfg-project-{}", std::process::id()));
         std::fs::create_dir_all(&project).unwrap();
         let store = crate::core::agent::project::store_root(&project);
         let _ = std::fs::remove_dir_all(&store);
@@ -4287,9 +4287,9 @@ mod tests {
     /// both limits keeps every thread.
     #[test]
     fn prune_threads_deletes_nothing_when_it_is_off() {
-        let base = std::env::temp_dir().join(format!("jan-prune-off-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-prune-off-{}", std::process::id()));
         let project =
-            std::env::temp_dir().join(format!("jan-prune-off-project-{}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30-idvj-prune-off-project-{}", std::process::id()));
         std::fs::create_dir_all(&project).unwrap();
         let total = housekeeping::MIN_KEEP + 3;
         for i in 0..total {
@@ -4305,9 +4305,9 @@ mod tests {
     /// threads still are: a fresh session on an old project keeps its recent work.
     #[test]
     fn prune_threads_without_a_resume_keeps_the_newest() {
-        let base = std::env::temp_dir().join(format!("jan-prune-fresh-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("rey30-idvj-prune-fresh-{}", std::process::id()));
         let project =
-            std::env::temp_dir().join(format!("jan-prune-fresh-project-{}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30-idvj-prune-fresh-project-{}", std::process::id()));
         std::fs::create_dir_all(&project).unwrap();
         for i in 0..housekeeping::MIN_KEEP {
             seed_thread(&base, &format!("t{i}"), 1.0 + i as f64);
@@ -4598,7 +4598,7 @@ mod tests {
     #[test]
     fn save_thread_persists_and_preserves_snapshot_metadata() {
         let base = std::env::temp_dir().join(format!(
-            "jan_savethread_{}_{}",
+            "rey30_savethread_{}_{}",
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
@@ -4638,7 +4638,7 @@ mod tests {
 
     /// A project's `agent.toml` naming a model must not paper over "nothing can
     /// actually serve it": with no provider configured (this repo's own
-    /// agent.toml pins `tokamak-1-preview`, but a fresh `~/.jan` has no
+    /// agent.toml pins `tokamak-1-preview`, but a fresh `~/.rey30-idvj` has no
     /// credentials for it), the TUI path must still come back with an empty
     /// model so its sign-in notice fires instead of a first-message failure.
     #[test]
@@ -4682,14 +4682,14 @@ mod tests {
             )
             .expect("seed provider");
 
-            let data = home.join("jan-data");
+            let data = home.join("rey30-idvj-data");
             std::fs::create_dir_all(&data).unwrap();
             std::fs::write(
                 data.join("settings.json"),
                 r#"{"model-provider":"{\"state\":{\"selectedProvider\":\"llamacpp\",\"selectedModel\":{\"id\":\"gemma-4-E2B-it-IQ4_XS\"}}}"}"#,
             )
             .unwrap();
-            std::env::set_var("JAN_DATA_FOLDER", &data);
+            std::env::set_var("REY30_DATA_FOLDER", &data);
 
             // Sanity: the desktop selection really is readable, so a passing
             // assertion below means the gate fired, not that the fixture is dead.
@@ -4708,7 +4708,7 @@ mod tests {
                 None,
             )
             .expect("session prep");
-            std::env::remove_var("JAN_DATA_FOLDER");
+            std::env::remove_var("REY30_DATA_FOLDER");
 
             assert_eq!(
                 session.model, "",
@@ -5057,8 +5057,8 @@ mod tests {
             Some(serde_json::json!({
                 "base_snapshot": "aaa",
                 worktree::WORKTREE_KEY: {
-                    "path": "/home/u/.jan/worktrees/jan-abc/deadbeef",
-                    "branch": "jan/agent/deadbeef",
+                    "path": "/home/u/.rey30-idvj/worktrees/rey30-idvj-abc/deadbeef",
+                    "branch": "rey30-idvj/agent/deadbeef",
                 },
             })),
         )
@@ -5140,8 +5140,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let base = dir.path();
         let workspace = worktree::Worktree {
-            path: std::path::PathBuf::from("/home/u/.jan/worktrees/p-abc/deadbeef"),
-            branch: "jan/agent/deadbeef".to_string(),
+            path: std::path::PathBuf::from("/home/u/.rey30-idvj/worktrees/p-abc/deadbeef"),
+            branch: "rey30-idvj/agent/deadbeef".to_string(),
         };
         let history = vec![serde_json::json!({ "role": "user", "content": "do it" })];
 
@@ -5209,14 +5209,14 @@ mod tests {
         // A session worked in its own checkout: one tracked edit, one new file.
         let wt = dir.path().join("wt");
         let head = crate::core::agent::git::head_sha(&repo).expect("HEAD");
-        crate::core::agent::git::worktree_add(&repo, &wt, "jan/agent/testfb", &head).unwrap();
+        crate::core::agent::git::worktree_add(&repo, &wt, "rey30-idvj/agent/testfb", &head).unwrap();
         std::fs::write(wt.join("notes.txt"), "one\ntwo\n").unwrap();
         std::fs::write(wt.join("added.txt"), "new\n").unwrap();
 
         let source = serde_json::json!({
             "id": "src-thread",
             "metadata": { worktree::WORKTREE_KEY: {
-                "path": wt.to_string_lossy(), "branch": "jan/agent/testfb",
+                "path": wt.to_string_lossy(), "branch": "rey30-idvj/agent/testfb",
             }},
         });
         let base = fork_base(Some(&source)).expect("the source checkout is captured");
@@ -5321,7 +5321,7 @@ mod tests {
     fn a_cost_ceiling_is_refused_rather_than_run_uncapped() {
         // A model id no listing can plausibly carry, so the lookup misses no
         // matter what the developer running these tests has cached in
-        // `~/.jan/model_catalog.json` -- which is the state every user of a
+        // `~/.rey30-idvj/model_catalog.json` -- which is the state every user of a
         // plain OpenAI-compatible endpoint is in anyway.
         let unpriced = "no-such-model/never-published-a-price";
 
@@ -5415,7 +5415,7 @@ mod tests {
             base_url: Some("http://127.0.0.1:9/v1".into()),
             base_url_source: Some(crate::core::cli::providers::OverrideSource::Env),
             headers: vec![
-                ("X-Client-Name".into(), "jan-agent".into()),
+                ("X-Client-Name".into(), "rey30-idvj-agent".into()),
                 ("X-Tokamak-Launch-Id".into(), "abc".into()),
             ],
             explicit_provider: true,

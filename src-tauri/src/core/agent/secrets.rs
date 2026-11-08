@@ -19,7 +19,7 @@
 //! next. It adds nothing to the system prompt. `prefix_stability` pins this.
 //!
 //! The 12-hex-character id is an HMAC of the value under a random key kept in
-//! `~/.jan/secret-placeholder.key` (mode 0600, never sent anywhere), so a reader
+//! `~/.rey30-idvj/secret-placeholder.key` (mode 0600, never sent anywhere), so a reader
 //! of a transcript cannot dictionary-hash a placeholder back to its secret.
 
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ use serde_json::Value;
 use sha2::Sha256;
 
 /// Env var that overrides the config key: `1`/`true`/`on` or `0`/`false`/`off`.
-pub(crate) const ENV: &str = "JAN_HIDE_SECRETS";
+pub(crate) const ENV: &str = "REY30_HIDE_SECRETS";
 
 /// Values shorter than this are left alone, so ordinary short words survive.
 const MIN_SECRET_LEN: usize = 8;
@@ -113,7 +113,7 @@ pub(crate) struct SecretFilter {
 }
 
 /// `Some` when Hide Secrets is on for this process, `None` when it is off.
-/// `JAN_HIDE_SECRETS` wins over `hide_secrets` in `~/.jan/config.toml`.
+/// `REY30_HIDE_SECRETS` wins over `hide_secrets` in `~/.rey30-idvj/config.toml`.
 pub(crate) fn for_run() -> Option<Arc<SecretFilter>> {
     let env = std::env::var(ENV).ok();
     let setting = crate::core::agent::global_config::hide_secrets_setting();
@@ -145,7 +145,7 @@ fn process_key() -> [u8; 32] {
 /// still works: the key is ephemeral, so placeholders are stable within the
 /// process (see [`process_key`]) but not across restarts.
 fn load_key() -> [u8; 32] {
-    let path = crate::core::agent::global_config::global_jan_dir()
+    let path = crate::core::agent::global_config::global_rey30_dir()
         .ok()
         .map(|dir| dir.join("secret-placeholder.key"));
     load_key_at(path.as_deref())
@@ -643,7 +643,7 @@ mod tests {
             "model": "m",
             "tools": [{"type":"function","function":{"name":"bash","description":"tok-1234567890abc"}}],
             "messages": [
-                {"role":"system","content":"you are Jan"},
+                {"role":"system","content":"you are Rey30 IDvj"},
                 {"role":"user","content":[{"type":"text","text":"use tok-1234567890abc"},
                                           {"type":"image_url","image_url":{"url":"data:image/png;base64,AAAA"}}]},
                 {"role":"assistant","content":null,"tool_calls":[
@@ -686,8 +686,8 @@ mod tests {
 
     #[test]
     fn the_key_is_created_once_private_and_reused() {
-        let dir = std::env::temp_dir().join(format!("jan_secret_key_{}", std::process::id()));
-        let path = dir.join(".jan").join("secret-placeholder.key");
+        let dir = std::env::temp_dir().join(format!("rey30_secret_key_{}", std::process::id()));
+        let path = dir.join(".rey30-idvj").join("secret-placeholder.key");
         let _ = std::fs::remove_dir_all(&dir);
         let first = load_key_at(Some(&path));
         assert!(path.exists(), "{}", path.display());

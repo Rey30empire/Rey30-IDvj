@@ -1,6 +1,6 @@
 //! The `/models/sse` feed: model lifecycle transitions, pushed as they happen.
 //!
-//! Jan's desktop side subscribes to this for the whole of a load
+//! Rey30 IDvj's desktop side subscribes to this for the whole of a load
 //! (`commands::spawn_load_progress_listener`) and needs it for one thing
 //! polling `GET /models` cannot give it: a *definitive* failure. A snapshot can
 //! carry a stale `failed` flag from an earlier attempt or an eviction, whereas

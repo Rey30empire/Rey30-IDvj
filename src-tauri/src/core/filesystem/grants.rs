@@ -1,9 +1,9 @@
 //! Read grants for the read-only file commands (`exists_sync`, `file_stat`,
 //! `read_file_sync`, `readdir_sync`).
 //!
-//! These commands take paths from the web view. Inside the Jan data folder
+//! These commands take paths from the web view. Inside the Rey30 IDvj data folder
 //! they always work. Outside it a path is readable only when the user handed
-//! it to Jan:
+//! it to Rey30 IDvj:
 //! - **picked in a native dialog** (`open_dialog` records every pick here, in
 //!   Rust, where the web view cannot forge it): a picked file grants that file,
 //!   a picked folder grants everything under it;
@@ -21,7 +21,7 @@
 //! are taken from them.
 
 use super::helpers::canonical_scope_path;
-use crate::core::app::commands::{get_configuration_file_path, get_jan_data_folder_path};
+use crate::core::app::commands::{get_configuration_file_path, get_rey30_data_folder_path};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::ErrorKind;
@@ -228,7 +228,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
         return;
     };
     let store = get_configuration_file_path(app.clone()).with_file_name(STORE_FILE_NAME);
-    let data_folder = get_jan_data_folder_path(app.clone());
+    let data_folder = get_rey30_data_folder_path(app.clone());
     grants.attach_store(store, &data_folder, || in_place_model_paths(&data_folder));
 }
 
@@ -296,7 +296,7 @@ pub fn in_place_model_paths(data_folder: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// Whether `path`, the value of `key` in a `model.yml`, is something Jan
+/// Whether `path`, the value of `key` in a `model.yml`, is something Rey30 IDvj
 /// stores for a model imported in place: the weights or projector of a
 /// llama.cpp model (a `.gguf` file) or an MLX model folder (it holds a
 /// `config.json`). A `.gguf` need not exist yet, as an external drive may not

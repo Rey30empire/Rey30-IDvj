@@ -79,7 +79,7 @@ pub async fn register_provider_config(
     };
 
     // Persist the key chain to the OS keyring so it survives webview storage
-    // clears and is readable by out-of-process consumers (jan CLI). Keyring
+    // clears and is readable by out-of-process consumers (rey30-idvj CLI). Keyring
     // access is blocking, so run it off-thread and before taking the config
     // lock. Keyring failure (e.g. headless Linux without an unlocked Secret
     // Service) must not block registration; the in-memory config still works.

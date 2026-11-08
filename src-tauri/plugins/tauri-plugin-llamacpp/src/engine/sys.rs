@@ -26,7 +26,7 @@ mod imp {
     // own 14-function surface, so there is no upstream struct layout to track
     // and no libclang on the build path.
     extern "C" {
-        fn jan_llama_engine_start(
+        fn rey30_llama_engine_start(
             argv: *const *const c_char,
             argc: c_int,
             on_state: Option<StateTrampoline>,
@@ -34,7 +34,7 @@ mod imp {
             err: *mut u8,
             err_len: usize,
         ) -> EngineHandle;
-        fn jan_llama_engine_start_from_preset(
+        fn rey30_llama_engine_start_from_preset(
             ini_path: *const c_char,
             preset_name: *const c_char,
             on_state: Option<StateTrampoline>,
@@ -42,32 +42,32 @@ mod imp {
             err: *mut u8,
             err_len: usize,
         ) -> EngineHandle;
-        fn jan_llama_engine_stop(engine: EngineHandle) -> c_int;
-        fn jan_llama_engine_request(
+        fn rey30_llama_engine_stop(engine: EngineHandle) -> c_int;
+        fn rey30_llama_engine_request(
             engine: EngineHandle,
             route: *const c_char,
             query: *const c_char,
             body: *const c_char,
             body_len: usize,
         ) -> ResponseHandle;
-        fn jan_llama_response_status(res: ResponseHandle) -> c_int;
-        fn jan_llama_response_content_type(res: ResponseHandle) -> *const c_char;
-        fn jan_llama_response_body(res: ResponseHandle, len: *mut usize) -> *const c_char;
-        fn jan_llama_response_is_stream(res: ResponseHandle) -> c_int;
-        fn jan_llama_response_next(
+        fn rey30_llama_response_status(res: ResponseHandle) -> c_int;
+        fn rey30_llama_response_content_type(res: ResponseHandle) -> *const c_char;
+        fn rey30_llama_response_body(res: ResponseHandle, len: *mut usize) -> *const c_char;
+        fn rey30_llama_response_is_stream(res: ResponseHandle) -> c_int;
+        fn rey30_llama_response_next(
             res: ResponseHandle,
             chunk: *mut *const c_char,
             len: *mut usize,
         ) -> c_int;
-        fn jan_llama_response_cancel(res: ResponseHandle);
-        fn jan_llama_response_free(res: ResponseHandle);
-        fn jan_llama_load_backends(dir: *const c_char);
-        fn jan_llama_devices_json() -> *mut c_char;
-        fn jan_llama_device_identities_json() -> *mut c_char;
-        fn jan_llama_string_free(s: *mut c_char);
-        fn jan_llama_version() -> *const c_char;
-        fn jan_llama_build_number() -> c_int;
-        fn jan_llama_commit() -> *const c_char;
+        fn rey30_llama_response_cancel(res: ResponseHandle);
+        fn rey30_llama_response_free(res: ResponseHandle);
+        fn rey30_llama_load_backends(dir: *const c_char);
+        fn rey30_llama_devices_json() -> *mut c_char;
+        fn rey30_llama_device_identities_json() -> *mut c_char;
+        fn rey30_llama_string_free(s: *mut c_char);
+        fn rey30_llama_version() -> *const c_char;
+        fn rey30_llama_build_number() -> c_int;
+        fn rey30_llama_commit() -> *const c_char;
     }
 
     /// SAFETY: the handle is only ever produced by the shim and only consumed
@@ -78,7 +78,7 @@ mod imp {
         handle: EngineHandle,
         /// Kept alive for exactly as long as the engine: the C++ side holds a
         /// `std::function` wrapping this pointer and can call it from its loop
-        /// thread, so it is freed only after `jan_llama_engine_stop` reports
+        /// thread, so it is freed only after `rey30_llama_engine_stop` reports
         /// that it joined that thread. On the detach path it is leaked instead.
         state_cb: Option<*mut StateCallback>,
     }
@@ -140,7 +140,7 @@ mod imp {
             // SAFETY: argv points at `owned`, alive for the call; the shim
             // copies every string and retains none of these pointers.
             let handle = unsafe {
-                jan_llama_engine_start(
+                rey30_llama_engine_start(
                     argv.as_ptr(),
                     argv.len() as c_int,
                     state_cb.map(|_| state_trampoline as StateTrampoline),
@@ -152,7 +152,7 @@ mod imp {
             Self::from_handle(handle, state_cb, &err)
         }
 
-        /// Starts from a `router.preset.ini` section, the file Jan already
+        /// Starts from a `router.preset.ini` section, the file Rey30 IDvj already
         /// generates. `[*]` is applied first, then the named section.
         pub fn start_from_preset(
             ini_path: &str,
@@ -165,7 +165,7 @@ mod imp {
             let state_cb = leak_state_cb(on_state);
             // SAFETY: both pointers are valid for the duration of the call.
             let handle = unsafe {
-                jan_llama_engine_start_from_preset(
+                rey30_llama_engine_start_from_preset(
                     ini.as_ptr(),
                     name.as_ptr(),
                     state_cb.map(|_| state_trampoline as StateTrampoline),
@@ -217,7 +217,7 @@ mod imp {
             // SAFETY: the shim never returns null -- transport failures come
             // back as a 5xx response object -- and copies the body.
             let handle = unsafe {
-                jan_llama_engine_request(
+                rey30_llama_engine_request(
                     self.handle,
                     r.as_ptr(),
                     q.as_ptr(),
@@ -236,10 +236,10 @@ mod imp {
                     let c = CString::new(d).unwrap_or_default();
                     // SAFETY: the shim copies nothing and only reads the
                     // string for the duration of the call.
-                    unsafe { jan_llama_load_backends(c.as_ptr()) }
+                    unsafe { rey30_llama_load_backends(c.as_ptr()) }
                 }
                 // SAFETY: null is the documented "use ggml's own search" value.
-                None => unsafe { jan_llama_load_backends(std::ptr::null()) },
+                None => unsafe { rey30_llama_load_backends(std::ptr::null()) },
             }
         }
 
@@ -248,12 +248,12 @@ mod imp {
         pub fn devices_json() -> Result<String, EngineError> {
             // SAFETY: the shim malloc()s the string and we hand the same
             // pointer back to its free; a null return is only OOM.
-            let raw = unsafe { jan_llama_devices_json() };
+            let raw = unsafe { rey30_llama_devices_json() };
             if raw.is_null() {
                 return Err(EngineError::Unavailable);
             }
             let json = unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned();
-            unsafe { jan_llama_string_free(raw) };
+            unsafe { rey30_llama_string_free(raw) };
             Ok(json)
         }
 
@@ -264,30 +264,30 @@ mod imp {
         /// process then holds for as long as it runs. Names need no such call.
         pub fn device_identities_json() -> Result<String, EngineError> {
             // SAFETY: as `devices_json`.
-            let raw = unsafe { jan_llama_device_identities_json() };
+            let raw = unsafe { rey30_llama_device_identities_json() };
             if raw.is_null() {
                 return Err(EngineError::Unavailable);
             }
             let json = unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned();
-            unsafe { jan_llama_string_free(raw) };
+            unsafe { rey30_llama_string_free(raw) };
             Ok(json)
         }
 
         pub fn linked_version() -> Result<String, EngineError> {
             // SAFETY: returns a pointer to a static string in the shim.
-            Ok(unsafe { CStr::from_ptr(jan_llama_version()) }
+            Ok(unsafe { CStr::from_ptr(rey30_llama_version()) }
                 .to_string_lossy()
                 .into_owned())
         }
 
         pub fn linked_build_number() -> Result<i32, EngineError> {
             // SAFETY: a plain int getter with no arguments.
-            Ok(unsafe { jan_llama_build_number() })
+            Ok(unsafe { rey30_llama_build_number() })
         }
 
         pub fn linked_commit() -> Result<String, EngineError> {
             // SAFETY: returns a pointer to a static string in the shim.
-            Ok(unsafe { CStr::from_ptr(jan_llama_commit()) }
+            Ok(unsafe { CStr::from_ptr(rey30_llama_commit()) }
                 .to_string_lossy()
                 .into_owned())
         }
@@ -296,7 +296,7 @@ mod imp {
     impl Drop for Engine {
         fn drop(&mut self) {
             // SAFETY: called once, from Drop, on a handle we own.
-            let detached = unsafe { jan_llama_engine_stop(self.handle) } != 0;
+            let detached = unsafe { rey30_llama_engine_stop(self.handle) } != 0;
             if let Some(p) = self.state_cb.take() {
                 if detached {
                     // The loop thread outlived the stop timeout and was
@@ -338,12 +338,12 @@ mod imp {
     impl Response {
         pub fn status(&self) -> u16 {
             // SAFETY: handle is valid for our lifetime.
-            (unsafe { jan_llama_response_status(self.0) }).clamp(0, u16::MAX as i32) as u16
+            (unsafe { rey30_llama_response_status(self.0) }).clamp(0, u16::MAX as i32) as u16
         }
 
         pub fn content_type(&self) -> String {
             // SAFETY: points into the response's own std::string.
-            unsafe { CStr::from_ptr(jan_llama_response_content_type(self.0)) }
+            unsafe { CStr::from_ptr(rey30_llama_response_content_type(self.0)) }
                 .to_string_lossy()
                 .into_owned()
         }
@@ -353,7 +353,7 @@ mod imp {
             // SAFETY: the shim returns a pointer plus length into a buffer that
             // lives as long as this response.
             unsafe {
-                let p = jan_llama_response_body(self.0, &mut len);
+                let p = rey30_llama_response_body(self.0, &mut len);
                 String::from_utf8_lossy(std::slice::from_raw_parts(p.cast::<u8>(), len))
                     .into_owned()
             }
@@ -361,7 +361,7 @@ mod imp {
 
         pub fn is_stream(&self) -> bool {
             // SAFETY: handle is valid for our lifetime.
-            (unsafe { jan_llama_response_is_stream(self.0) }) != 0
+            (unsafe { rey30_llama_response_is_stream(self.0) }) != 0
         }
 
         /// `Ok(Some(chunk))` for a chunk (possibly empty, meaning "nothing
@@ -372,7 +372,7 @@ mod imp {
             let mut len = 0usize;
             // SAFETY: out-params are stack locals; the returned buffer is owned
             // by the response and valid until the next call on it.
-            let rc = unsafe { jan_llama_response_next(self.0, &mut p, &mut len) };
+            let rc = unsafe { rey30_llama_response_next(self.0, &mut p, &mut len) };
             match rc {
                 1 => {
                     // SAFETY: rc == 1 means p/len describe a live buffer.
@@ -393,14 +393,14 @@ mod imp {
         /// is how a dropped HTTP connection cancels generation.
         pub fn cancel(&self) {
             // SAFETY: the shim's cancel flag is an atomic bool.
-            unsafe { jan_llama_response_cancel(self.0) }
+            unsafe { rey30_llama_response_cancel(self.0) }
         }
     }
 
     impl Drop for Response {
         fn drop(&mut self) {
             // SAFETY: called once, from Drop, on a handle we own.
-            unsafe { jan_llama_response_free(self.0) }
+            unsafe { rey30_llama_response_free(self.0) }
         }
     }
 }

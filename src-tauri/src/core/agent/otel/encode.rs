@@ -410,15 +410,15 @@ mod tests {
 
     fn origin() -> Origin {
         Origin {
-            resource: vec![("service.name".into(), AnyValue::Str("jan-agent".into()))],
-            scope_name: "jan-agent".into(),
+            resource: vec![("service.name".into(), AnyValue::Str("rey30-idvj-agent".into()))],
+            scope_name: "rey30-idvj-agent".into(),
             scope_version: "1.2.3".into(),
         }
     }
 
     fn counter(temporality: Temporality) -> Metric {
         Metric {
-            name: "jan_agent.token.usage".into(),
+            name: "rey30_agent.token.usage".into(),
             description: "tokens".into(),
             unit: "tokens".into(),
             temporality,
@@ -490,7 +490,7 @@ mod tests {
         let resource_metrics = only(&bytes, 1);
         let scope_metrics = only(&resource_metrics, 2);
         let metric = only(&scope_metrics, 2);
-        assert_eq!(only(&metric, 1), b"jan_agent.token.usage");
+        assert_eq!(only(&metric, 1), b"rey30_agent.token.usage");
         let sum = only(&metric, 7);
         assert_eq!(only(&sum, 2)[0], 2, "cumulative");
         assert_eq!(only(&sum, 3)[0], 1, "monotonic");
@@ -510,13 +510,13 @@ mod tests {
             time_unix_nano: 7,
             severity_number: 9,
             severity_text: "INFO",
-            event_name: "jan_agent.user_prompt".into(),
+            event_name: "rey30_agent.user_prompt".into(),
             attrs: vec![("prompt_length".into(), AnyValue::Int(5))],
         };
         let bytes = logs_proto(&origin(), &[record]);
         let scope_logs = only(&only(&bytes, 1), 2);
         let log = only(&scope_logs, 2);
-        assert_eq!(only(&log, 12), b"jan_agent.user_prompt");
+        assert_eq!(only(&log, 12), b"rey30_agent.user_prompt");
         assert_eq!(u64::from_le_bytes(only(&log, 1).try_into().unwrap()), 7);
     }
 
@@ -528,7 +528,7 @@ mod tests {
         ))
         .unwrap();
         let metric = &v["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0];
-        assert_eq!(metric["name"], "jan_agent.token.usage");
+        assert_eq!(metric["name"], "rey30_agent.token.usage");
         assert_eq!(metric["sum"]["aggregationTemporality"], 2);
         assert_eq!(metric["sum"]["isMonotonic"], true);
         let point = &metric["sum"]["dataPoints"][0];
@@ -547,13 +547,13 @@ mod tests {
                 time_unix_nano: 7,
                 severity_number: 17,
                 severity_text: "ERROR",
-                event_name: "jan_agent.api_error".into(),
+                event_name: "rey30_agent.api_error".into(),
                 attrs: vec![("success".into(), AnyValue::Bool(false))],
             }],
         ))
         .unwrap();
         let record = &logs["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0];
-        assert_eq!(record["eventName"], "jan_agent.api_error");
+        assert_eq!(record["eventName"], "rey30_agent.api_error");
         assert_eq!(record["severityNumber"], 17);
         assert_eq!(record["attributes"][0]["value"]["boolValue"], false);
     }
@@ -563,7 +563,7 @@ mod tests {
             trace_id: [0xab; 16],
             span_id: [0xcd; 8],
             parent_span_id: parent,
-            name: "jan_agent.llm_request".into(),
+            name: "rey30_agent.llm_request".into(),
             kind: SPAN_KIND_CLIENT,
             start_unix_nano: 10,
             end_unix_nano: 20,
@@ -580,7 +580,7 @@ mod tests {
         assert_eq!(only(&s, 1), vec![0xab; 16]);
         assert_eq!(only(&s, 2), vec![0xcd; 8]);
         assert_eq!(only(&s, 4), vec![0xef; 8]);
-        assert_eq!(only(&s, 5), b"jan_agent.llm_request");
+        assert_eq!(only(&s, 5), b"rey30_agent.llm_request");
         assert_eq!(only(&s, 6)[0], SPAN_KIND_CLIENT as u8);
         assert_eq!(u64::from_le_bytes(only(&s, 7).try_into().unwrap()), 10);
         assert_eq!(u64::from_le_bytes(only(&s, 8).try_into().unwrap()), 20);

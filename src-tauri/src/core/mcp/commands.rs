@@ -1,3 +1,4 @@
+use crate::core::mcp::constants::{is_browser_mcp_server_name, BROWSER_MCP_COMPAT_NAME};
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
@@ -11,7 +12,7 @@ use super::{
     truncate::truncate_tool_result,
 };
 use crate::core::{
-    app::commands::get_jan_data_folder_path,
+    app::commands::get_rey30_data_folder_path,
     mcp::models::{McpSettings, ServerSummary},
     mcp::oauth,
     state::AppState,
@@ -35,7 +36,7 @@ async fn tool_call_timeout(state: &AppState) -> Duration {
 /// A server counts as "enabled" if it's in `mcp_active_servers`, regardless of
 /// whether it's currently connected — a transiently disconnected server still
 /// contributes its last successfully listed tools (`mcp_last_known_tools`), so
-/// the tool schema Jan sends stays present and stable across reconnects instead
+/// the tool schema Rey30 IDvj sends stays present and stable across reconnects instead
 /// of shrinking/growing and invalidating the downstream KV-cache prefix.
 /// `mcp_last_known_tools` is only cleared by explicit user deactivation
 /// (`deactivate_mcp_server`), never by a transient list-tools failure here.
@@ -182,7 +183,7 @@ pub async fn deactivate_mcp_server<R: Runtime>(
     log::info!("Deactivating MCP server: {name}");
 
     // Get port from config before removing (for lock file cleanup later)
-    let bridge_port = if name == "Jan Browser MCP" {
+    let bridge_port = if is_browser_mcp_server_name(&name) {
         let active_servers = state.mcp_active_servers.lock().await;
         active_servers.get(&name).and_then(|config| {
             config
@@ -230,7 +231,7 @@ pub async fn deactivate_mcp_server<R: Runtime>(
         pids.remove(&name)
     };
     // Reap the process group and confirm the port is released, then drop the lock.
-    if name == "Jan Browser MCP" {
+    if is_browser_mcp_server_name(&name) {
         if let Some(port) = bridge_port {
             use crate::core::mcp::lockfile::delete_lock_file;
 
@@ -576,7 +577,7 @@ fn parse_mcp_settings(value: Option<&Value>) -> McpSettings {
 /// than defaulting: every caller here is acting on a server the user picked, and
 /// a silent empty config would report "not authenticated" for a typo.
 fn read_server_config<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<Value, String> {
-    let mut path = get_jan_data_folder_path(app.clone());
+    let mut path = get_rey30_data_folder_path(app.clone());
     path.push("mcp_config.json");
     let body = fs::read_to_string(&path).map_err(|e| e.to_string())?;
     serde_json::from_str::<Value>(&body)
@@ -595,7 +596,7 @@ pub async fn get_mcp_auth_status<R: Runtime>(
     name: String,
 ) -> Result<oauth::AuthStatusInfo, String> {
     let config = read_server_config(&app, &name)?;
-    let folder = get_jan_data_folder_path(app);
+    let folder = get_rey30_data_folder_path(app);
     Ok(oauth::status(&folder, &name, &config).into())
 }
 
@@ -633,13 +634,13 @@ pub async fn authorize_mcp_server<R: Runtime>(
     // to the system opener, which would otherwise launch whatever handles the
     // scheme.
     if !oauth::is_allowed_oauth_url(&pending.authorization_url) {
-        return Err(format!("'{name}' produced a sign-in URL Jan will not open"));
+        return Err(format!("'{name}' produced a sign-in URL Rey30 IDvj will not open"));
     }
     if let Err(e) = app.opener().open_url(&pending.authorization_url, None::<&str>) {
         log::warn!("Could not open the browser for '{name}': {e}");
     }
 
-    let folder = get_jan_data_folder_path(app);
+    let folder = get_rey30_data_folder_path(app);
     pending.complete(&folder).await.map(|_| ())
 }
 
@@ -650,13 +651,13 @@ pub async fn clear_mcp_auth<R: Runtime>(
     app: AppHandle<R>,
     name: String,
 ) -> Result<bool, String> {
-    let folder = get_jan_data_folder_path(app);
+    let folder = get_rey30_data_folder_path(app);
     oauth::clear(&folder, &name)
 }
 
 #[tauri::command]
 pub async fn get_mcp_configs<R: Runtime>(app: AppHandle<R>) -> Result<String, String> {
-    let mut path = get_jan_data_folder_path(app.clone());
+    let mut path = get_rey30_data_folder_path(app.clone());
     path.push("mcp_config.json");
 
     // Create default empty config if file doesn't exist
@@ -668,18 +669,7 @@ pub async fn get_mcp_configs<R: Runtime>(app: AppHandle<R>) -> Result<String, St
 
     let config_string = fs::read_to_string(&path).map_err(|e| e.to_string())?;
 
-    let mut config_value: Value = if config_string.trim().is_empty() {
-        json!({})
-    } else {
-        serde_json::from_str(&config_string).unwrap_or_else(|error| {
-            log::error!("Failed to parse existing MCP config, regenerating defaults: {error}");
-            json!({})
-        })
-    };
-
-    if !config_value.is_object() {
-        config_value = json!({});
-    }
+    let mut config_value = super::models::parse_stored_mcp_config(&config_string)?;
 
     let mut mutated = false;
     let config_object = config_value.as_object_mut().unwrap();
@@ -705,7 +695,7 @@ pub async fn get_mcp_configs<R: Runtime>(app: AppHandle<R>) -> Result<String, St
         .and_then(|v| v.as_object_mut())
         .ok_or("mcpServers is not an object")?;
 
-    if !mcp_servers.contains_key("Jan Browser MCP") {
+    if !mcp_servers.keys().any(|name| is_browser_mcp_server_name(name)) {
         log::info!("Migrating config: Adding 'Jan Browser MCP' server");
         mcp_servers.insert(
             "Jan Browser MCP".to_string(),
@@ -773,13 +763,13 @@ fn get_result_text(result: &rmcp::model::CallToolResult) -> Option<&str> {
         .map(|t| t.text.as_str())
 }
 
-/// Check if Jan Browser extension is connected via MCP
+/// Check if Rey30 IDvj Browser extension is connected via MCP
 #[tauri::command]
-pub async fn check_jan_browser_extension_connected(
+pub async fn check_rey30_browser_extension_connected(
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
     let servers = state.mcp_servers.lock().await;
-    let service = match servers.get("Jan Browser MCP") {
+    let service = match servers.get("Jan Browser MCP").or_else(|| servers.get(BROWSER_MCP_COMPAT_NAME)) {
         Some(s) => s,
         None => return Ok(false),
     };
@@ -877,7 +867,7 @@ pub async fn save_mcp_configs<R: Runtime>(
     app: AppHandle<R>,
     configs: String,
 ) -> Result<(), String> {
-    let mut path = get_jan_data_folder_path(app.clone());
+    let mut path = get_rey30_data_folder_path(app.clone());
     path.push("mcp_config.json");
     log::info!("save mcp configs, path: {path:?}");
 

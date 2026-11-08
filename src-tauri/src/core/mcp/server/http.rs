@@ -1,4 +1,4 @@
-//! The Streamable HTTP transport for [`JanToolServer`], bound to loopback
+//! The Streamable HTTP transport for [`Rey30ToolServer`], bound to loopback
 //! behind a bearer token.
 //!
 //! This is the same transport `core::mcp::helpers` connects *out* to, so a peer
@@ -23,7 +23,7 @@ use hyper_util::rt::TokioIo;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::{StreamableHttpServerConfig, StreamableHttpService};
 
-use super::{JanToolServer, ServeOptions};
+use super::{Rey30ToolServer, ServeOptions};
 
 /// A bound Streamable HTTP server: where it listens, and the token a caller
 /// must present.
@@ -118,7 +118,7 @@ pub async fn bind(
 
     // One handler per session; the options are shared, so the factory is a
     // clone rather than a rebuild.
-    let server = JanToolServer::new(opts);
+    let server = Rey30ToolServer::new(opts);
     let service = Arc::new(StreamableHttpService::new(
         move || Ok(server.clone()),
         Arc::new(LocalSessionManager::default()),

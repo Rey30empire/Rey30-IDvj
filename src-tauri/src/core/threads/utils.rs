@@ -23,7 +23,7 @@ fn is_windows_device_name(name: &str) -> bool {
 }
 
 /// A thread id names a single directory under `threads/`, so it may only hold
-/// ASCII letters, digits, `-` and `_`. That covers every id Jan produces (UUIDs
+/// ASCII letters, digits, `-` and `_`. That covers every id Rey30 IDvj produces (UUIDs
 /// from the backend and the CLI, ULIDs from the web app, and fixed names such as
 /// `temporary-chat`) and rules out separators, `.`/`..`, drive prefixes and
 /// empty names, so the id can never resolve outside its own directory.

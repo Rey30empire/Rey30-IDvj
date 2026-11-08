@@ -11,8 +11,8 @@
 //! and its `context` answers land nearest the call:
 //!
 //! 1. installed plugins' `hooks/hooks.json` (shipped by a third party)
-//! 2. `~/.jan/config.toml` `[[hooks]]` (this user, every project)
-//! 3. `~/.jan/projects/<slug>/agent.toml` `[[hooks]]` (this project)
+//! 2. `~/.rey30-idvj/config.toml` `[[hooks]]` (this user, every project)
+//! 3. `~/.rey30-idvj/projects/<slug>/agent.toml` `[[hooks]]` (this project)
 //!
 //! A deny is not a precedence question: `run_hooks` stops at the *first* hook
 //! that denies, so any layer can veto a call and no later layer can overturn
@@ -54,9 +54,9 @@ pub(crate) fn resolve_hooks(project_root: &Path) -> HookSet {
             set.extend_from(entries, &source);
         }
     }
-    // Not gated on `cli`: `~/.jan/config.toml` is the user's own layer and has
+    // Not gated on `cli`: `~/.rey30-idvj/config.toml` is the user's own layer and has
     // to mean the same thing in the desktop app and the API server, or a hook
-    // `jan cli agent status` lists would silently not run elsewhere.
+    // `rey30-idvj cli agent status` lists would silently not run elsewhere.
     if let Ok(path) = crate::core::agent::global_config::global_config_path() {
         set.extend_from(crate::core::agent::global_config::hook_entries(), &path);
     }
@@ -72,7 +72,7 @@ pub(crate) fn resolve_hooks(project_root: &Path) -> HookSet {
 /// [`resolve_hooks`] for a surface that may have no project: the desktop's IPC
 /// command, whose chat threads have no project root at all and whose Cowork
 /// sessions have only an attached folder. A projectless run still gets the
-/// user's global `~/.jan/config.toml` hooks, which is the layer that is about
+/// user's global `~/.rey30-idvj/config.toml` hooks, which is the layer that is about
 /// the user rather than the checkout.
 pub fn resolve_hooks_for(project_root: Option<&Path>) -> HookSet {
     match project_root {
@@ -152,7 +152,7 @@ mod tests {
         static COUNTER: AtomicU32 = AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let dir =
-            std::env::temp_dir().join(format!("jan-hookscfg-{tag}-{}-{n}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30-idvj-hookscfg-{tag}-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -320,7 +320,7 @@ command = "mine"
     /// checkout.
     #[test]
     fn a_projectless_surface_still_resolves_the_global_layer() {
-        // Only the shape is asserted: the global file is the real `~/.jan`,
+        // Only the shape is asserted: the global file is the real `~/.rey30-idvj`,
         // which this test must not write to.
         let set = resolve_hooks_for(None);
         for hook in set.all() {

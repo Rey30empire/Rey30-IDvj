@@ -3,7 +3,7 @@
 //! Every animated element -- the throbber, the brightness sweep on a status
 //! word, a running tool row -- asks this module for its frame and gets an
 //! explicit static fallback when motion is off. The mode is resolved once at
-//! launch from `[tui] animations` in `~/.jan/config.toml` and the OS
+//! launch from `[tui] animations` in `~/.rey30-idvj/config.toml` and the OS
 //! reduce-motion preference, and is process-wide for the same reason as the
 //! theme: the render helpers are free functions with no session in hand.
 //!

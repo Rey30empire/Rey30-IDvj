@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime, State};
 use tauri_plugin_llamacpp::state::LlamacppState;
 
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 use crate::core::server::proxy;
 use crate::core::state::AppState;
 
@@ -66,7 +66,7 @@ pub async fn start_server<R: Runtime>(
         state.model_param_defaults.clone(),
         state.mcp_servers.clone(),
         state.mcp_settings.clone(),
-        get_jan_data_folder_path(app_handle.clone())
+        get_rey30_data_folder_path(app_handle.clone())
             .to_string_lossy()
             .into_owned(),
         enable_server_tool_execution.unwrap_or(false),

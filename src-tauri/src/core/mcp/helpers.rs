@@ -1,3 +1,4 @@
+use crate::core::mcp::constants::is_browser_mcp_server_name;
 use rmcp::{
     model::{ClientCapabilities, ClientInfo, Implementation},
     transport::{
@@ -18,13 +19,58 @@ use tokio::{
 };
 
 use crate::core::{
-    app::commands::get_jan_data_folder_path,
+    app::commands::get_rey30_data_folder_path,
     mcp::models::{extract_active_status, extract_command_args, McpSettings},
     mcp::oauth,
-    mcp::progress::JanClientHandler,
+    mcp::progress::Rey30ClientHandler,
     state::{AppState, RunningMcpService, SharedMcpServers},
 };
-use jan_utils::{can_override_npx, can_override_uvx};
+use rey30_idvj_utils::{can_override_npx, can_override_uvx};
+
+fn sensitive_inherited_mcp_env(name: &str) -> bool {
+    let upper = name.to_ascii_uppercase();
+    if matches!(
+        upper.as_str(),
+        "REY30_CUSTOM_HEADERS" | "JAN_CUSTOM_HEADERS"
+    ) || (upper.starts_with("OTEL_EXPORTER_OTLP_") && upper.ends_with("HEADERS"))
+    {
+        return true;
+    }
+    upper.split(['_', '-', '.']).any(|part| {
+        matches!(
+            part,
+            "KEY"
+                | "SECRET"
+                | "TOKEN"
+                | "PASSWORD"
+                | "PASSWD"
+                | "PASS"
+                | "AUTH"
+                | "CREDENTIAL"
+                | "CREDENTIALS"
+                | "PRIVATE"
+                | "OAUTH"
+        )
+    })
+}
+
+/// Scrub inherited credentials before applying the server's deliberate env entries.
+fn configure_stdio_environment(
+    cmd: &mut Command,
+    inherited_names: impl IntoIterator<Item = std::ffi::OsString>,
+    explicit: &serde_json::Map<String, Value>,
+) {
+    for name in inherited_names {
+        if sensitive_inherited_mcp_env(&name.to_string_lossy()) {
+            cmd.env_remove(name);
+        }
+    }
+    for (name, value) in explicit {
+        if let Some(value) = value.as_str() {
+            cmd.env(name, value);
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ShutdownContext {
@@ -64,7 +110,7 @@ pub async fn run_mcp_commands<R: Runtime>(
     app: &AppHandle<R>,
     servers_state: SharedMcpServers,
 ) -> Result<(), String> {
-    let app_path = get_jan_data_folder_path(app.clone());
+    let app_path = get_rey30_data_folder_path(app.clone());
     let app_path_str = app_path.to_str().unwrap().to_string();
     log::trace!(
         "Load MCP configs from {}",
@@ -402,7 +448,22 @@ async fn schedule_mcp_start_task<R: Runtime>(
     name: String,
     config: Value,
 ) -> Result<(), String> {
-    let app_path = get_jan_data_folder_path(app.clone());
+    let app_path = get_rey30_data_folder_path(app.clone());
+    let resolved = crate::core::integrations::credentials::resolve(&app_path, &name, &config)?;
+    let secrets = crate::core::integrations::credentials::sensitive_values(&resolved);
+    schedule_mcp_start_task_inner(app, servers, name, resolved, secrets.clone())
+        .await
+        .map_err(|error| crate::core::integrations::credentials::redact(&error, &secrets))
+}
+
+async fn schedule_mcp_start_task_inner<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    servers: SharedMcpServers,
+    name: String,
+    config: Value,
+    secrets: Vec<String>,
+) -> Result<(), String> {
+    let app_path = get_rey30_data_folder_path(app.clone());
     let exe_path = env::current_exe().expect("Failed to get current exe path");
     let exe_parent_path = exe_path
         .parent()
@@ -429,10 +490,9 @@ async fn schedule_mcp_start_task<R: Runtime>(
         // base client so every request carries the bearer token. `None` means
         // there is no OAuth here -- nothing stored, or the user configured their
         // own `Authorization` header, which the base client already sends.
-        let authorized =
-            oauth::authorized_client(&app_path, &name, &url, &config, base.clone())
-                .await
-                .map_err(|detail| oauth::NEEDS_AUTH_PREFIX.to_string() + &detail)?;
+        let authorized = oauth::authorized_client(&app_path, &name, &url, &config, base.clone())
+            .await
+            .map_err(|detail| oauth::NEEDS_AUTH_PREFIX.to_string() + &detail)?;
         let had_credentials = authorized.is_some();
 
         // rmcp 3.x dropped the SSE client transport (MCP deprecated HTTP+SSE for
@@ -444,7 +504,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
                  connecting over Streamable HTTP instead"
             );
         }
-        let handler = JanClientHandler::new(jan_client_info(), name.clone(), app.clone());
+        let handler = Rey30ClientHandler::new(rey30_client_info(), name.clone(), app.clone());
 
         let client = match authorized {
             Some(c) => serve_http(c, &url, handler).await,
@@ -474,11 +534,11 @@ async fn schedule_mcp_start_task<R: Runtime>(
             }
         }
     } else {
-        if name == "Jan Browser MCP" {
+        if is_browser_mcp_server_name(&name) {
             if let Some(port_str) = config_params.envs.get("BRIDGE_PORT") {
                 if let Some(port_str) = port_str.as_str() {
                     if let Ok(port) = port_str.parse::<u16>() {
-                        if !jan_utils::network::is_port_available(port) {
+                        if !rey30_idvj_utils::network::is_port_available(port) {
                             log::warn!("Port {} occupied, attempting cleanup", port);
                             match kill_orphaned_mcp_process_with_app(&app, port).await {
                                 Ok(true) => {
@@ -486,7 +546,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
                                 }
                                 Ok(false) => {
                                     return Err(format!(
-                                        "Port {} is already in use. Please close the application using this port or restart Jan.",
+                                        "Port {} is already in use. Please close the application using this port or restart Rey30 IDvj.",
                                         port
                                     ));
                                 }
@@ -559,11 +619,11 @@ async fn schedule_mcp_start_task<R: Runtime>(
                 .for_each(|arg| {
                     cmd.arg(arg);
                 });
-            config_params.envs.iter().for_each(|(k, v)| {
-                if let Some(v_str) = v.as_str() {
-                    cmd.env(k, v_str);
-                }
-            });
+            configure_stdio_environment(
+                &mut cmd,
+                env::vars_os().map(|(name, _)| name),
+                &config_params.envs,
+            );
             cmd
         };
 
@@ -584,7 +644,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
                 pids.insert(name.clone(), pid);
             }
 
-            let handler = JanClientHandler::new(jan_client_info(), name.clone(), app.clone());
+            let handler = Rey30ClientHandler::new(rey30_client_info(), name.clone(), app.clone());
             match handler.serve(process).await {
                 Ok(server) => break (server, stderr),
                 Err(e) => {
@@ -597,6 +657,18 @@ async fn schedule_mcp_start_task<R: Runtime>(
                         let _ = stderr_stream.read_to_string(&mut buffer).await;
                     }
 
+                    let buffer = if secrets.is_empty() {
+                        buffer
+                    } else {
+                        "El diagnóstico del servidor se ocultó para proteger sus credenciales."
+                            .into()
+                    };
+                    let e = if secrets.is_empty() {
+                        e.to_string()
+                    } else {
+                        "Error de conexión MCP; revisa credenciales y requisitos del servidor."
+                            .into()
+                    };
                     if use_override && override_available {
                         log::warn!(
                             "MCP server {name} failed to start via bundled bun/uv override ({e}); retrying with system {}. stderr: {buffer}",
@@ -621,6 +693,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
         // receiving SIGPIPE and to capture diagnostic output.
         if let Some(mut stderr_stream) = stderr {
             let stderr_name = name.clone();
+            let hide_diagnostics = !secrets.is_empty();
             tokio::spawn(async move {
                 let mut buf = [0u8; 1024];
                 while let Ok(n) = stderr_stream.read(&mut buf).await {
@@ -629,7 +702,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
                     }
                     if let Ok(text) = std::str::from_utf8(&buf[..n]) {
                         for line in text.lines() {
-                            if !line.trim().is_empty() {
+                            if !hide_diagnostics && !line.trim().is_empty() {
                                 log_mcp_stderr_line(&stderr_name, line);
                             }
                         }
@@ -637,11 +710,10 @@ async fn schedule_mcp_start_task<R: Runtime>(
                 }
             });
         }
-        log::trace!("Connected to server: {:#?}", server.peer_info());
-        servers
-            .lock()
-            .await
-            .insert(name.clone(), server);
+        if secrets.is_empty() {
+            log::trace!("Connected to server: {:#?}", server.peer_info());
+        }
+        servers.lock().await.insert(name.clone(), server);
         log::info!("Server {name} started successfully.");
 
         // Wait a short time to verify the server is stable before marking as connected
@@ -716,7 +788,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
         // If all attempts failed, we still proceed to emit the event.
         // The health monitor will handle ongoing reconnection.
 
-        if name == "Jan Browser MCP" {
+        if is_browser_mcp_server_name(&name) {
             if let Some(port_str) = config_params.envs.get("BRIDGE_PORT") {
                 if let Some(port_str) = port_str.as_str() {
                     if let Ok(port) = port_str.parse::<u16>() {
@@ -743,7 +815,7 @@ async fn schedule_mcp_start_task<R: Runtime>(
     Ok(())
 }
 
-/// Route an MCP server's stderr line through Jan's logger at the level the
+/// Route an MCP server's stderr line through Rey30 IDvj's logger at the level the
 /// server itself reported, defaulting to info when no level tag is present.
 fn log_mcp_stderr_line(server_name: &str, line: &str) {
     let trimmed = line.trim_start();
@@ -780,14 +852,14 @@ fn header_map(headers: &serde_json::Map<String, Value>) -> reqwest13::header::He
     map
 }
 
-/// What every MCP server sees in `initialize.clientInfo`: Jan and its app
+/// What every MCP server sees in `initialize.clientInfo`: Rey30 IDvj and its app
 /// version. Servers use it for logs, audit and per-client policy, so leaving
-/// the `rmcp` crate default would make Jan indistinguishable from any other
+/// the `rmcp` crate default would make Rey30 IDvj indistinguishable from any other
 /// client built on it.
-pub(crate) fn jan_client_info() -> ClientInfo {
+pub(crate) fn rey30_client_info() -> ClientInfo {
     ClientInfo::new(
         ClientCapabilities::default(),
-        Implementation::new("Jan", env!("CARGO_PKG_VERSION")),
+        Implementation::new("Rey30 IDvj", env!("CARGO_PKG_VERSION")),
     )
 }
 
@@ -796,7 +868,7 @@ pub(crate) fn jan_client_info() -> ClientInfo {
 async fn serve_http<C>(
     client: C,
     url: &str,
-    handler: JanClientHandler,
+    handler: Rey30ClientHandler,
 ) -> Result<RunningMcpService, String>
 where
     C: StreamableHttpClient + Send + Sync + 'static,
@@ -867,8 +939,9 @@ pub async fn kill_orphaned_mcp_process_with_app<R: Runtime>(
             // Fall through — port may still be held by a grandchild that outlived this PID.
         } else {
             // Process from lock file is alive - verify it's still the MCP process
-            if let Some(process_info) = jan_utils::network::get_process_info_by_pid(lock.pid) {
-                if jan_utils::network::is_orphaned_mcp_process(&process_info) {
+            if let Some(process_info) = rey30_idvj_utils::network::get_process_info_by_pid(lock.pid)
+            {
+                if rey30_idvj_utils::network::is_orphaned_mcp_process(&process_info) {
                     log::info!(
                         "Lock file PID {} verified as MCP process, attempting kill",
                         lock.pid
@@ -880,7 +953,7 @@ pub async fn kill_orphaned_mcp_process_with_app<R: Runtime>(
 
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
 
-                    if jan_utils::network::is_port_available(port) {
+                    if rey30_idvj_utils::network::is_port_available(port) {
                         log::info!("Cleaned up orphaned process via lock file");
                         return Ok(true);
                     }
@@ -905,7 +978,7 @@ pub async fn kill_orphaned_mcp_process_with_app<R: Runtime>(
     }
 
     // Fallback: Use lsof/netstat to find process on port
-    let process_info = match jan_utils::network::find_process_using_port(port) {
+    let process_info = match rey30_idvj_utils::network::find_process_using_port(port) {
         Some(info) => info,
         None => return Ok(false),
     };
@@ -918,9 +991,9 @@ pub async fn kill_orphaned_mcp_process_with_app<R: Runtime>(
         process_info.cmd
     );
 
-    if !jan_utils::network::is_orphaned_mcp_process(&process_info) {
+    if !rey30_idvj_utils::network::is_orphaned_mcp_process(&process_info) {
         log::warn!(
-            "Port {} occupied by non-Jan process '{}' (PID {})",
+            "Port {} occupied by non-Rey30 IDvj process '{}' (PID {})",
             port,
             process_info.name,
             process_info.pid
@@ -934,7 +1007,7 @@ pub async fn kill_orphaned_mcp_process_with_app<R: Runtime>(
     log::info!("Killing orphaned MCP process: PID {}", process_info.pid);
     kill_process_by_pid(process_info.pid).await?;
 
-    if jan_utils::network::wait_for_port_free(
+    if rey30_idvj_utils::network::wait_for_port_free(
         port,
         Duration::from_millis(2000),
         Duration::from_millis(50),
@@ -988,7 +1061,7 @@ async fn kill_process_by_pid(pid: u32) -> Result<(), String> {
     #[cfg(windows)]
     use std::os::windows::process::CommandExt;
 
-    let mut cmd = Command::new(jan_utils::windows_system_tool("taskkill.exe"));
+    let mut cmd = Command::new(rey30_idvj_utils::windows_system_tool("taskkill.exe"));
     cmd.args(&["/F", "/T", "/PID", &pid.to_string()]);
 
     #[cfg(windows)]
@@ -1019,13 +1092,17 @@ pub async fn terminate_browser_mcp(pid: Option<u32>, port: u16) {
         }
     }
 
-    if jan_utils::network::wait_for_port_free(port, MCP_PORT_FREE_TIMEOUT, MCP_PORT_POLL_INTERVAL)
-        .await
+    if rey30_idvj_utils::network::wait_for_port_free(
+        port,
+        MCP_PORT_FREE_TIMEOUT,
+        MCP_PORT_POLL_INTERVAL,
+    )
+    .await
     {
         return;
     }
 
-    if let Some(info) = jan_utils::network::find_process_using_port(port) {
+    if let Some(info) = rey30_idvj_utils::network::find_process_using_port(port) {
         log::info!(
             "Port {} still held after teardown; killing straggler PID {}",
             port,
@@ -1039,7 +1116,7 @@ pub async fn terminate_browser_mcp(pid: Option<u32>, port: u16) {
                 e
             );
         }
-        let _ = jan_utils::network::wait_for_port_free(
+        let _ = rey30_idvj_utils::network::wait_for_port_free(
             port,
             MCP_PORT_FREE_TIMEOUT,
             MCP_PORT_POLL_INTERVAL,
@@ -1120,7 +1197,7 @@ pub async fn stop_mcp_servers_with_context<R: Runtime>(
         let mut result = Vec::new();
         for key in keys {
             if let Some(service) = servers_map.remove(&key) {
-                let port = if key == "Jan Browser MCP" {
+                let port = if is_browser_mcp_server_name(&key) {
                     let active_servers = state.mcp_active_servers.lock().await;
                     active_servers.get(&key).and_then(|config| {
                         config
@@ -1162,7 +1239,7 @@ pub async fn stop_mcp_servers_with_context<R: Runtime>(
                     .map(|r| r.is_ok())
                     .unwrap_or(false);
 
-                if name == "Jan Browser MCP" {
+                if is_browser_mcp_server_name(&name) {
                     if let Some(port) = port {
                         use crate::core::mcp::lockfile::delete_lock_file;
                         terminate_browser_mcp(child_pid, port).await;
@@ -1250,7 +1327,7 @@ pub fn add_server_config_with_path<R: Runtime>(
     config_filename: Option<&str>,
 ) -> Result<(), String> {
     let config_filename = config_filename.unwrap_or("mcp_config.json");
-    let config_path = get_jan_data_folder_path(app_handle).join(config_filename);
+    let config_path = get_rey30_data_folder_path(app_handle).join(config_filename);
 
     let mut config: Value = serde_json::from_str(
         &std::fs::read_to_string(&config_path)
@@ -1275,4 +1352,122 @@ pub fn add_server_config_with_path<R: Runtime>(
     .map_err(|e| format!("Failed to write config file: {e}"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod stdio_environment_tests {
+    use super::*;
+
+    #[test]
+    fn credentials_are_detected_without_scrubbing_operational_variables() {
+        for name in [
+            "REY30_API_KEY",
+            "JAN_API_KEY",
+            "REY30_CUSTOM_HEADERS",
+            "JAN_CUSTOM_HEADERS",
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "OPENAI_API_KEY",
+            "AWS_SESSION_TOKEN",
+            "DB_PASSWORD",
+            "client-secret",
+            "OAuth.Access.Token",
+            "SSH_AUTH_SOCK",
+            "OTEL_EXPORTER_OTLP_HEADERS",
+            "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
+        ] {
+            assert!(sensitive_inherited_mcp_env(name), "{name}");
+        }
+        for name in [
+            "PATH",
+            "PATHEXT",
+            "SystemRoot",
+            "HOME",
+            "USERPROFILE",
+            "APPDATA",
+            "TEMP",
+            "LANG",
+            "LC_ALL",
+            "NODE_OPTIONS",
+            "UV_CACHE_DIR",
+            "BUN_INSTALL",
+            "KEYBOARD_LAYOUT",
+        ] {
+            assert!(!sensitive_inherited_mcp_env(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn explicit_server_credentials_override_scrub_and_headers_remain_untouched() {
+        let params = extract_command_args(&serde_json::json!({
+            "command": "not-executed", "args": [],
+            "env": { "GH_TOKEN": "server-fixture", "OTEL_EXPORTER_OTLP_HEADERS": "server-collector" },
+            "headers": { "Authorization": "Bearer fixture" }
+        })).unwrap();
+        let mut cmd = Command::new(&params.command);
+        configure_stdio_environment(
+            &mut cmd,
+            [
+                "GH_TOKEN",
+                "REY30_API_KEY",
+                "OTEL_EXPORTER_OTLP_HEADERS",
+                "PATH",
+            ]
+            .map(Into::into),
+            &params.envs,
+        );
+        let delta: HashMap<String, Option<String>> = cmd
+            .as_std()
+            .get_envs()
+            .map(|(name, value)| {
+                (
+                    name.to_string_lossy().into_owned(),
+                    value.map(|v| v.to_string_lossy().into_owned()),
+                )
+            })
+            .collect();
+        assert_eq!(delta.get("REY30_API_KEY"), Some(&None));
+        assert_eq!(
+            delta.get("GH_TOKEN"),
+            Some(&Some("server-fixture".to_string()))
+        );
+        assert_eq!(
+            delta.get("OTEL_EXPORTER_OTLP_HEADERS"),
+            Some(&Some("server-collector".to_string()))
+        );
+        assert!(!delta.contains_key("PATH"));
+        assert_eq!(params.headers["Authorization"], "Bearer fixture");
+    }
+
+    #[tokio::test]
+    async fn spawned_child_loses_fixture_credential_but_keeps_explicit_env() {
+        #[cfg(windows)]
+        let mut cmd = {
+            let mut cmd = Command::new(rey30_idvj_utils::windows_system_tool("cmd.exe"));
+            cmd.args(["/D", "/C", "if defined REY30_TEST_TOKEN (exit /b 7) else if not \"%REY30_MCP_OPERATIONAL%\"==\"kept\" (exit /b 8) else if not \"%GH_TOKEN%\"==\"server-fixture\" (exit /b 9) else (exit /b 0)"]);
+            cmd.creation_flags(0x08000000);
+            cmd
+        };
+        #[cfg(not(windows))]
+        let mut cmd = {
+            let mut cmd = Command::new("/bin/sh");
+            cmd.args(["-c", "[ -z \"${REY30_TEST_TOKEN+x}\" ] && [ \"$REY30_MCP_OPERATIONAL\" = kept ] && [ \"$GH_TOKEN\" = server-fixture ]"]);
+            cmd
+        };
+        cmd.env_clear();
+        cmd.env("REY30_TEST_TOKEN", "inherited-fixture");
+        cmd.env("REY30_MCP_OPERATIONAL", "kept");
+        configure_stdio_environment(
+            &mut cmd,
+            ["REY30_TEST_TOKEN", "GH_TOKEN"].map(Into::into),
+            serde_json::json!({ "GH_TOKEN": "server-fixture" })
+                .as_object()
+                .unwrap(),
+        );
+        assert!(cmd
+            .status()
+            .await
+            .expect("spawn isolated fixture child")
+            .success());
+    }
 }

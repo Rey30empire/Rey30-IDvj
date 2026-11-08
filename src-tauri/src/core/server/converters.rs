@@ -1,6 +1,6 @@
 //! Translating-gateway support for the proxy.
 //!
-//! Jan's proxy accepts OpenAI chat/completions and, for OpenAI-compatible
+//! Rey30 IDvj's proxy accepts OpenAI chat/completions and, for OpenAI-compatible
 //! upstreams, forwards verbatim. To also front providers with a different
 //! native wire API (OpenAI `/v1/responses`, Google `generateContent`,
 //! Anthropic `/v1/messages`), each such provider gets a converter that rewrites
@@ -293,8 +293,8 @@ impl UpstreamConverter for OpenAIResponsesConverter {
         }
         let mut headers = vec![
             ("OpenAI-Beta", "responses=experimental".to_string()),
-            ("originator", "jan".to_string()),
-            ("User-Agent", concat!("jan/", env!("CARGO_PKG_VERSION")).to_string()),
+            ("originator", "rey30-idvj".to_string()),
+            ("User-Agent", concat!("rey30-idvj/", env!("CARGO_PKG_VERSION")).to_string()),
         ];
         if let Some(account_id) = chatgpt_account_id(key) {
             headers.push(("chatgpt-account-id", account_id));
@@ -1226,7 +1226,7 @@ impl UpstreamConverter for AnthropicMessagesConverter {
             // system block on every request; without it an OAuth token is
             // throttled to the lightweight models (429 on sonnet) regardless
             // of the account's real plan. Mirrors the CLI's
-            // `cc_version`/`cc_entrypoint` pair so Jan's subscription is billed
+            // `cc_version`/`cc_entrypoint` pair so Rey30 IDvj's subscription is billed
             // against the same quota the user's `claude` CLI uses.
             system.push("x-anthropic-billing-header: cc_version=2.1.92; cc_entrypoint=sdk-cli;".to_string());
         }

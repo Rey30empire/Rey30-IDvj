@@ -1,10 +1,10 @@
 [package]
 name = "tauri-plugin-llamacpp"
 version = "0.7.0"
-authors = ["Jan <service@jan.ai>"]
-description = "Tauri plugin for managing Jan LlamaCpp server processes and model loading"
+authors = ["Reinier Tamayo"]
+description = "Tauri plugin for managing Rey30 IDvj LlamaCpp server processes and model loading"
 license = "Apache-2.0"
-repository = "https://github.com/janhq/jan"
+
 edition = "2021"
 rust-version = "1.77.2"
 exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
@@ -14,7 +14,7 @@ links = "tauri-plugin-llamacpp"
 base64 = "0.22.1"
 byteorder = "1.5.0"
 hmac = "0.12.1"
-jan-utils = { path = "../../utils" }
+rey30-idvj-utils = { path = "../../utils" }
 log = "0.4"
 # Bearer tokens for the worker. The OS assigns the port, so the key cannot be
 # derived from it; it is drawn from the OS CSPRNG instead.
@@ -49,7 +49,7 @@ reqwest = { version = "0.12", features = ["json", "blocking", "stream", "rustls-
 nix = { version = "=0.30.1", features = ["signal", "process"] }
 
 # The kill-on-close job object the worker is spawned into. Windows has no
-# process group, so this is what keeps a force-quit Jan from orphaning it.
+# process group, so this is what keeps a force-quit Rey30 IDvj from orphaning it.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.60.2", features = [
   "Win32_Foundation",
@@ -63,8 +63,8 @@ windows-sys = { version = "0.60.2", features = [
 # The supervised worker. `required-features` keeps it out of the default build,
 # where there is no compiled llama.cpp to link against.
 [[bin]]
-name = "jan-llama-worker"
-path = "src/bin/jan-llama-worker.rs"
+name = "rey30-idvj-llama-worker"
+path = "src/bin/rey30-idvj-llama-worker.rs"
 required-features = ["engine"]
 
 [features]

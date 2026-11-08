@@ -351,7 +351,7 @@ impl PromptPolicy {
         })
     }
 
-    /// Every composer's resolved placement, for `jan cli agent status` and the
+    /// Every composer's resolved placement, for `rey30-idvj cli agent status` and the
     /// `[prompt]` docs. Fails on the same contradiction composition would.
     #[cfg_attr(not(feature = "cli"), allow(dead_code))]
     pub(crate) fn placements(&self) -> Result<Vec<(Composer, Placement)>, String> {

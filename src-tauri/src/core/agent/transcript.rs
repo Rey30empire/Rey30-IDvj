@@ -1,6 +1,6 @@
 //! The canonical transcript: what happened, and the request it projects to.
 //!
-//! Jan used to keep one message list and give it three jobs at once - it was
+//! Rey30 IDvj used to keep one message list and give it three jobs at once - it was
 //! the wire request, the stored transcript, and the thing compaction rewrote.
 //! Compaction therefore *replaced* history: the span it summarized was gone
 //! from every one of them, so a user asking "what exactly did that command

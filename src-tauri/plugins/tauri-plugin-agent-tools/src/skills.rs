@@ -246,27 +246,27 @@ fn describe(parsed: &ParsedSkill) -> String {
         .unwrap_or_else(|| first_line(&parsed.body))
 }
 
-/// The built-in Jan skill's identity and embedded body: always resolvable
-/// (catalog entry + `skill_read`/`/skill:jan` body) even with zero project
+/// The built-in Rey30 IDvj skill's identity and embedded body: always resolvable
+/// (catalog entry + `skill_read`/`/skill:rey30-idvj` body) even with zero project
 /// skills installed, but never force-loaded -- it costs a description line
 /// in the catalog like any other skill, and the model/human still has to
 /// invoke it to load the body. `core::agent::skills` mirrors this injection
 /// for the system-prompt catalog and `/skill:` dispatch, which resolve
 /// project + plugin skills but never see this plugin-embedded one.
-pub const DEFAULT_JAN_SKILL_NAME: &str = "jan";
-pub const DEFAULT_JAN_SKILL: &str = include_str!("default_jan_skill.md");
+pub const DEFAULT_REY30_SKILL_NAME: &str = "rey30-idvj";
+pub const DEFAULT_REY30_SKILL: &str = include_str!("default_rey30_skill.md");
 
-/// Whether a name refers to the built-in Jan skill (aliased `jan`), which is
+/// Whether a name refers to the built-in Rey30 IDvj skill (aliased `rey30-idvj`), which is
 /// always available even with no project skills installed.
-fn is_default_jan_skill(name: &str) -> bool {
-    safe_stem(name).ok().as_deref() == Some(DEFAULT_JAN_SKILL_NAME)
+fn is_default_rey30_skill(name: &str) -> bool {
+    safe_stem(name).ok().as_deref() == Some(DEFAULT_REY30_SKILL_NAME)
 }
-fn default_jan_skill_meta() -> SkillMeta {
-    let parsed = parse(DEFAULT_JAN_SKILL);
+fn default_rey30_skill_meta() -> SkillMeta {
+    let parsed = parse(DEFAULT_REY30_SKILL);
     SkillMeta {
-        name: DEFAULT_JAN_SKILL_NAME.to_string(),
+        name: DEFAULT_REY30_SKILL_NAME.to_string(),
         description: describe(&parsed),
-        // The built-in Jan skill is available on both invocation sides: dev's
+        // The built-in Rey30 IDvj skill is available on both invocation sides: dev's
         // baseline ships it as the model-facing onboarding skill (listed in
         // `skill_list`, body loaded via `skill_read`), and the user may also
         // invoke it directly.
@@ -326,13 +326,13 @@ fn side_catalog(
             Some(meta_for(e.name, &parsed))
         })
         .collect::<Vec<_>>();
-    if is_enabled(enabled, DEFAULT_JAN_SKILL_NAME)
-        && side(&parse(DEFAULT_JAN_SKILL))
+    if is_enabled(enabled, DEFAULT_REY30_SKILL_NAME)
+        && side(&parse(DEFAULT_REY30_SKILL))
         && !skills
             .iter()
-            .any(|skill| skill.name == DEFAULT_JAN_SKILL_NAME)
+            .any(|skill| skill.name == DEFAULT_REY30_SKILL_NAME)
     {
-        skills.push(default_jan_skill_meta());
+        skills.push(default_rey30_skill_meta());
     }
     skills
 }
@@ -361,8 +361,8 @@ pub fn read_raw(store: &Path, name: &str) -> Result<String, String> {
 /// `read_raw` across `roots` in precedence order: the first root holding the
 /// skill wins, so a project skill shadows a same-named permanent one (#8879).
 pub fn read_raw_layered(roots: &[&Path], name: &str) -> Result<String, String> {
-    if is_default_jan_skill(name) {
-        return Ok(parse(DEFAULT_JAN_SKILL).body);
+    if is_default_rey30_skill(name) {
+        return Ok(parse(DEFAULT_REY30_SKILL).body);
     }
     for root in roots {
         if let Ok(entry) = resolve(root, name) {
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn discover_finds_folder_and_flat_skills_sorted() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_test_{}",
+            "rey30_skills_test_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn write_new_creates_folder_form_read_delete_roundtrip() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_rt_{}",
+            "rey30_skills_rt_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn invocation_includes_body_directory_and_arguments() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_invoke_{}",
+            "rey30_skills_invoke_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     fn invocation_rejects_non_user_invocable_skill() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_invoke_private_{}",
+            "rey30_skills_invoke_private_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn catalog_respects_invocation_flags() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_sides_{}",
+            "rey30_skills_sides_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -616,7 +616,7 @@ mod tests {
             .into_iter()
             .map(|m| m.name)
             .collect();
-        assert_eq!(model, vec!["both", "model_only", "jan"], "model side: {model:?}");
+        assert_eq!(model, vec!["both", "model_only", "rey30-idvj"], "model side: {model:?}");
 
         // Both flags still visible to the management list.
         let all = list_meta(&root);
@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn catalog_enabled_whitelist_filters() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_wl_{}",
+            "rey30_skills_wl_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -661,7 +661,7 @@ mod tests {
     #[test]
     fn write_existing_flat_stays_flat() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_flat_{}",
+            "rey30_skills_flat_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -686,7 +686,7 @@ mod tests {
         // `discover` read the folder form. `write` must land on the same file so
         // an edit isn't swallowed into a flat file the reader ignores.
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_both_{}",
+            "rey30_skills_both_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -713,7 +713,7 @@ mod tests {
 
     fn scratch(tag: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
-            "jan_skills_{tag}_{}",
+            "rey30_skills_{tag}_{}",
             std::time::SystemTime::UNIX_EPOCH.elapsed().unwrap().as_nanos()
         ))
     }
@@ -739,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn catalog_layered_merges_both_stores_with_one_jan() {
+    fn catalog_layered_merges_both_stores_with_one_rey30() {
         let project = scratch("catp");
         let permanent = scratch("catg");
         write(&project, "p_skill", "p body").unwrap();
@@ -749,7 +749,7 @@ mod tests {
             .into_iter()
             .map(|m| m.name)
             .collect();
-        assert_eq!(names, vec!["g_skill", "p_skill", "jan"], "got {names:?}");
+        assert_eq!(names, vec!["g_skill", "p_skill", "rey30-idvj"], "got {names:?}");
 
         let _ = std::fs::remove_dir_all(&project);
         let _ = std::fs::remove_dir_all(&permanent);

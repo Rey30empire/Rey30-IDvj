@@ -1,5 +1,5 @@
 /**
- * Custom Updater for Jan with HMAC request signing
+ * Custom Updater for Rey30 IDvj with HMAC request signing
  *
  * This module provides a custom update checker that:
  * 1. Reads endpoints from tauri.conf.json (plugins.updater.endpoints)
@@ -16,11 +16,14 @@ use std::time::Duration;
 use thiserror::Error;
 
 /// Secret key for HMAC signature
-/// - In CI: Set JAN_SIGNING_KEY environment variable at build time
+/// - In CI: Set REY30_SIGNING_KEY environment variable at build time
 /// - In local dev: Falls back to a test key
-pub(crate) const SECRET_KEY: &str = match option_env!("JAN_SIGNING_KEY") {
+pub(crate) const SECRET_KEY: &str = match option_env!("REY30_SIGNING_KEY") {
     Some(key) => key,
-    None => "local-dev-test-key-not-for-production",
+    None => match option_env!("JAN_SIGNING_KEY") {
+        Some(key) => key,
+        None => "local-dev-test-key-not-for-production",
+    },
 };
 
 /// Timeout for HTTP requests
@@ -82,11 +85,11 @@ impl CustomUpdater {
         })
     }
 
-    /// Build User-Agent header: Jan/{version} ({os}; {arch})
+    /// Build User-Agent header: Rey30 IDvj/{version} ({os}; {arch})
     fn build_user_agent(app_version: &str) -> String {
         let os = std::env::consts::OS;
         let arch = std::env::consts::ARCH;
-        format!("Jan/{} ({}; {})", app_version, os, arch)
+        format!("Rey30 IDvj/{} ({}; {})", app_version, os, arch)
     }
 
     /// Check for updates using endpoints list

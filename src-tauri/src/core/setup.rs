@@ -10,7 +10,7 @@ use tauri::{
 };
 use tauri_plugin_store::Store;
 
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 use crate::core::mcp::constants::DEFAULT_MCP_CONFIG;
 use crate::core::mcp::helpers::add_server_config;
 
@@ -118,7 +118,7 @@ pub fn schema_after_exa_cutover(removed: &Result<(), String>) -> i64 {
 }
 
 fn migrate_exa_to_http(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_path = get_jan_data_folder_path(app_handle).join("mcp_config.json");
+    let config_path = get_rey30_data_folder_path(app_handle).join("mcp_config.json");
 
     let config_str =
         fs::read_to_string(&config_path).map_err(|e| format!("Failed to read MCP config: {e}"))?;
@@ -230,7 +230,7 @@ pub fn is_hosted_default_exa_server(exa: &serde_json::Value) -> bool {
 /// cutover was close to a no-op. `remove_default_exa` (version 5) is the step
 /// that reaches them.
 fn remove_exa_server(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_path = get_jan_data_folder_path(app_handle).join("mcp_config.json");
+    let config_path = get_rey30_data_folder_path(app_handle).join("mcp_config.json");
     remove_exa_entry(&config_path, is_default_exa_server).map(|_| ())
 }
 
@@ -240,9 +240,9 @@ fn remove_exa_server(app_handle: tauri::AppHandle) -> Result<(), String> {
 /// Exa is the same hosted endpoint, so web search keeps working against the same
 /// server without a second set of Exa tools next to the built-in ones. An entry
 /// with a key, or any other url, is left alone (`is_hosted_default_exa_server`),
-/// and a user who wants the MCP entry back re-adds it with `jan cli mcp add`.
+/// and a user who wants the MCP entry back re-adds it with `rey30-idvj cli mcp add`.
 fn remove_default_exa(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_path = get_jan_data_folder_path(app_handle).join("mcp_config.json");
+    let config_path = get_rey30_data_folder_path(app_handle).join("mcp_config.json");
     remove_default_exa_from_config(&config_path).map(|_| ())
 }
 
@@ -318,7 +318,7 @@ pub fn setup_mcp<R: Runtime>(app: &App<R>) {
         wait_for_app_ready(&app_handle, Duration::from_secs(30)).await;
 
         // Create default mcp_config.json if it doesn't exist
-        let config_path = get_jan_data_folder_path(app_handle.clone()).join("mcp_config.json");
+        let config_path = get_rey30_data_folder_path(app_handle.clone()).join("mcp_config.json");
         if !config_path.exists() {
             log::info!("mcp_config.json not found, creating default config");
             if let Err(e) = fs::write(&config_path, DEFAULT_MCP_CONFIG) {
@@ -378,7 +378,7 @@ pub fn remove_tray<R: Runtime>(app: &AppHandle<R>) {
 
 #[cfg(feature = "desktop")]
 pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<TrayIcon<R>> {
-    let show_i = MenuItem::with_id(app, "open", "Open Jan", true, None::<&str>)?;
+    let show_i = MenuItem::with_id(app, "open", "Open Rey30 IDvj", true, None::<&str>)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let separator_i = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&show_i, &separator_i, &quit_i])?;

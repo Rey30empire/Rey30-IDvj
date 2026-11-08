@@ -2,7 +2,7 @@
 //!
 //! Every consumer of this channel -- the ACP adapter (#347), the SDKs, any
 //! client -- otherwise re-declares what it reads and writes. A re-declaration is
-//! correct until the types move, and nothing says when they did. `jan cli agent
+//! correct until the types move, and nothing says when they did. `rey30-idvj cli agent
 //! schema` publishes what the types say instead, and the committed copy is
 //! diffed in CI, so a schema-affecting change cannot land without the file
 //! moving with it.
@@ -71,8 +71,8 @@ enum OutputRecord<'a> {
 #[allow(dead_code)]
 #[derive(schemars::JsonSchema)]
 #[schemars(
-    title = "Jan agent protocol v1",
-    description = "Every record a `jan cli agent run` writes to stdout, and every line a client may write to stdin. The `x-protocol-version` keyword names the contract version this document describes."
+    title = "Rey30 IDvj agent protocol v1",
+    description = "Every record a `rey30-idvj cli agent run` writes to stdout, and every line a client may write to stdin. The `x-protocol-version` keyword names the contract version this document describes."
 )]
 struct Protocol<'a> {
     /// Records a run writes to stdout. The first is `init`, and the last is
@@ -232,7 +232,7 @@ mod tests {
         use crate::core::cli::stream_input::InputErrorRecord;
 
         // The envelope is only ever built by `RunReport::finish`, which is what
-        // `jan cli agent run` prints: its tag comes from there, not from a name.
+        // `rey30-idvj cli agent run` prints: its tag comes from there, not from a name.
         let report = RunReport::default().finish(None, None, "stub-model", 1, None);
         [
             serde_json::to_value(Init::new(

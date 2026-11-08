@@ -1,16 +1,16 @@
 [package]
 name = "tauri-plugin-agent-tools"
 version = "0.8.3"
-authors = ["Jan <service@jan.ai>"]
-description = "Built-in agent toolset (filesystem, shell, skills, memory, web) shared by the Jan desktop app and the headless jan CLI"
+authors = ["Reinier Tamayo"]
+description = "Built-in agent toolset (filesystem, shell, skills, memory, web) shared by the Rey30 IDvj desktop app and the headless rey30-idvj CLI"
 license = "Apache-2.0"
-repository = "https://github.com/janhq/jan"
+
 edition = "2021"
 rust-version = "1.77.2"
 exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
 links = "tauri-plugin-agent-tools"
 
-# The toolset core is Tauri-free so the headless `jan` CLI can drive it directly;
+# The toolset core is Tauri-free so the headless `rey30-idvj` CLI can drive it directly;
 # only the desktop IPC shims need `tauri`. Build with `--no-default-features` to
 # keep the whole GUI stack out of the graph.
 [features]

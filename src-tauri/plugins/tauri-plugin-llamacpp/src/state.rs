@@ -18,7 +18,7 @@ pub struct LlamacppState {
     /// The supervised engine worker, when one is running.
     pub engine: Mutex<Option<crate::engine::worker::WorkerHandle>>,
     /// Persistent `/models/sse` subscriber, alive for the worker's lifetime.
-    /// It is what turns an eviction Jan did not initiate into a frontend
+    /// It is what turns an eviction Rey30 IDvj did not initiate into a frontend
     /// event, so it is aborted whenever the worker stops.
     pub unload_watcher: Mutex<Option<tokio::task::JoinHandle<()>>>,
     /// Requests hold the read side from before they resolve the worker's

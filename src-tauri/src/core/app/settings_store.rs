@@ -1,25 +1,26 @@
 //! Backend-owned settings store for webview Zustand stores.
 //!
-//! Persists non-secret settings to `<jan_data_folder>/settings.json` as a flat
+//! Persists non-secret settings to `<rey30_data_folder>/settings.json` as a flat
 //! JSON object (`{ "<namespace>": "<serialized-store-blob>" }`). The webview
 //! reaches this via the async `StateStorage` adapter; an out-of-process consumer
-//! (jan CLI) can read the same file without an `AppHandle`. Secrets never land
+//! (rey30-idvj CLI) can read the same file without an `AppHandle`. Secrets never land
 //! here -- they go to the OS keyring via the provider-config path.
 //!
 //! The map is held in memory and mutated in place; disk writes are coalesced by
 //! a background thread on a short debounce so a burst of `settings_set` calls
 //! (each carrying the whole Zustand store blob) collapses into a single
 //! whole-file rewrite instead of one O(total-size) rewrite per call. A
-//! synchronous [`flush_settings`] drains the debounce on app exit so jan CLI
+//! synchronous [`flush_settings`] drains the debounce on app exit so rey30-idvj CLI
 //! never reads a stale file.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use super::commands::resolve_jan_data_folder;
+use super::commands::resolve_rey30_data_folder;
 use crate::core::app::constants::CONFIGURATION_FILE_NAME;
 
 /// How long to wait after the last mutation before flushing to disk. Bursts of
@@ -108,13 +109,12 @@ type Store = (Mutex<SettingsMap>, Condvar);
 
 static STORE: OnceLock<Store> = OnceLock::new();
 
-/// Serializes disk writes against [`discard_settings`]. Writers drop the map
-/// lock during I/O so `settings_set` never waits on the disk; this lock is
-/// what lets a discard wait out a write already in flight.
+/// Disk writers and discard acquire WRITE before the map, including explicit
+/// commits. A delayed writer must select current values after acquiring WRITE.
 static WRITE: Mutex<()> = Mutex::new(());
 
 fn settings_file_path() -> PathBuf {
-    resolve_jan_data_folder().join(CONFIGURATION_FILE_NAME)
+    resolve_rey30_data_folder().join(CONFIGURATION_FILE_NAME)
 }
 
 fn read_map(path: &PathBuf) -> BTreeMap<String, String> {
@@ -131,9 +131,23 @@ fn write_map_atomic(path: &PathBuf, map: &BTreeMap<String, String>) -> Result<()
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let serialized = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
-    let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, serialized).map_err(|e| e.to_string())?;
-    fs::rename(&tmp, path).map_err(|e| e.to_string())
+    let tmp = path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .map_err(|e| e.to_string())?;
+    let result = (|| {
+        file.write_all(serialized.as_bytes())
+            .map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+        drop(file);
+        fs::rename(&tmp, path).map_err(|e| e.to_string())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+    result
 }
 
 fn store() -> &'static Store {
@@ -161,30 +175,29 @@ fn lock_map(map: &Mutex<SettingsMap>) -> std::sync::MutexGuard<'_, SettingsMap> 
     map.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Write a flush snapshot to disk unless the store was discarded after the
-/// snapshot was taken. Returns whether it wrote. A failed write re-arms the
-/// flush so it is retried, except after a discard, where a retry would write
-/// an empty `{}` file in place of the deleted one.
-fn persist(
-    state: &Mutex<SettingsMap>,
-    path: &PathBuf,
-    snapshot: &BTreeMap<String, String>,
-) -> Result<bool, String> {
+/// Persist current values while serializing both the snapshot and disk write.
+/// Failures retain pending keys and back off before the background retry.
+fn persist(state: &Mutex<SettingsMap>, path: &PathBuf) -> Result<bool, String> {
     let _write = WRITE.lock().unwrap_or_else(|e| e.into_inner());
-    if lock_map(state).discarded {
+    let mut guard = lock_map(state);
+    if guard.discarded {
         return Ok(false);
     }
-    write_map_atomic(path, snapshot).map(|()| true).inspect_err(|_| {
-        let mut guard = lock_map(state);
-        if !guard.discarded {
-            guard.dirty = true;
+    match write_map_atomic(path, &guard.map) {
+        Ok(()) => {
+            let (_, keys) = guard.take_flush_batch();
+            log_flushed_keys(&keys);
+            Ok(true)
         }
-    })
+        Err(error) => {
+            guard.mark_dirty();
+            Err(error)
+        }
+    }
 }
 
 /// Background thread: waits for dirty state, honors the debounce deadline
-/// (re-waiting if a newer write pushed it forward), then flushes a snapshot
-/// with the lock released during disk I/O.
+/// (re-waiting if a newer write pushed it forward), then persists current values.
 fn flush_loop() {
     let store = store();
     let cvar = &store.1;
@@ -204,30 +217,26 @@ fn flush_loop() {
                 _ => break,
             }
         }
-        let (snapshot, keys) = guard.take_flush_batch();
         drop(guard);
-        match persist(&store.0, &settings_file_path(), &snapshot) {
-            Ok(true) => log_flushed_keys(&keys),
-            Ok(false) => {}
+        match persist(&store.0, &settings_file_path()) {
+            Ok(_) => {}
             Err(e) => log::warn!("settings flush failed: {}", e),
         }
     }
 }
 
 /// Synchronously write pending changes to disk. Call on app exit so the
-/// debounce window can't drop the last writes or strand jan CLI with a stale
+/// debounce window can't drop the last writes or strand rey30-idvj CLI with a stale
 /// file. No-op when nothing is dirty.
 pub fn flush_settings() {
     let store = store();
-    let mut guard = lock(store);
+    let guard = lock(store);
     if !guard.dirty {
         return;
     }
-    let (snapshot, keys) = guard.take_flush_batch();
     drop(guard);
-    match persist(&store.0, &settings_file_path(), &snapshot) {
-        Ok(true) => log_flushed_keys(&keys),
-        Ok(false) => {}
+    match persist(&store.0, &settings_file_path()) {
+        Ok(_) => {}
         Err(e) => log::warn!("settings exit flush failed: {}", e),
     }
 }
@@ -269,6 +278,15 @@ pub fn settings_remove(key: String) -> Result<(), String> {
         store.1.notify_one();
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn settings_commit() -> Result<(), String> {
+    if persist(&store().0, &settings_file_path())? {
+        Ok(())
+    } else {
+        Err("El almacenamiento de ajustes ya no admite escrituras.".into())
+    }
 }
 
 #[cfg(test)]
@@ -352,14 +370,15 @@ mod tests {
         let mut map = BTreeMap::new();
         map.insert("theme".to_string(), "\"dark\"".to_string());
         let state = Mutex::new(new_map());
+        state.lock().unwrap().map = map;
 
-        assert_eq!(persist(&state, &path, &map), Ok(true));
+        assert_eq!(persist(&state, &path), Ok(true));
         assert!(path.is_file());
 
         // A flush that snapshotted before the reset must not recreate the file.
         fs::remove_file(&path).unwrap();
         state.lock().unwrap().discard();
-        assert_eq!(persist(&state, &path, &map), Ok(false));
+        assert_eq!(persist(&state, &path), Ok(false));
         assert!(!path.exists());
     }
 
@@ -392,5 +411,46 @@ mod tests {
         let empty = dir.path().join("empty.json");
         fs::write(&empty, "   ").unwrap();
         assert!(read_map(&empty).is_empty());
+    }
+
+    #[test]
+    fn delayed_writer_persists_the_latest_point_without_reverting_it() {
+        use std::sync::{Arc, Barrier};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let state = Arc::new(Mutex::new(new_map()));
+        state.lock().unwrap().set("point".into(), "old".into());
+        let gate = WRITE.lock().unwrap_or_else(|e| e.into_inner());
+        let ready = Arc::new(Barrier::new(2));
+        let worker_state = state.clone();
+        let worker_ready = ready.clone();
+        let worker_path = path.clone();
+        let writer = std::thread::spawn(move || {
+            worker_ready.wait();
+            persist(&worker_state, &worker_path)
+        });
+        ready.wait();
+        state.lock().unwrap().set("point".into(), "new".into());
+        drop(gate);
+        assert_eq!(writer.join().unwrap(), Ok(true));
+        assert_eq!(read_map(&path).get("point"), Some(&"new".into()));
+        assert!(!state.lock().unwrap().dirty);
+    }
+
+    #[test]
+    fn failed_commit_preserves_pending_values_and_can_be_retried() {
+        let dir = tempfile::tempdir().unwrap();
+        let blocked = dir.path().join("blocked");
+        fs::write(&blocked, b"owned obstacle").unwrap();
+        let path = blocked.join("settings.json");
+        let state = Mutex::new(new_map());
+        state.lock().unwrap().set("point".into(), "saved".into());
+        assert!(persist(&state, &path).is_err());
+        assert_eq!(fs::read(&blocked).unwrap(), b"owned obstacle");
+        assert!(state.lock().unwrap().dirty);
+        assert!(state.lock().unwrap().flush_at.is_some());
+        fs::remove_file(&blocked).unwrap();
+        assert_eq!(persist(&state, &path), Ok(true));
+        assert_eq!(read_map(&path).get("point"), Some(&"saved".into()));
     }
 }

@@ -1,10 +1,10 @@
 //! The loopback OpenAI-compatible surface in front of the in-process engine.
 //!
-//! It exists because Jan's local API server is an HTTP reverse proxy
+//! It exists because Rey30 IDvj's local API server is an HTTP reverse proxy
 //! (`src-tauri/src/core/server/proxy.rs` forwards to
 //! `http://127.0.0.1:<port>/v1<path>`) and the extension's `chat()` fetches the
 //! same URL. Keeping a port means neither has to change, and external
-//! OpenAI-SDK clients pointed at Jan keep working.
+//! OpenAI-SDK clients pointed at Rey30 IDvj keep working.
 //!
 //! The engine's chunk generator is blocking C++, so streaming runs on a
 //! blocking task feeding an async channel rather than being polled from the
@@ -57,7 +57,7 @@ struct SlotHint {
     slot: i32,
 }
 
-/// The request field naming the thread. Already part of Jan's own
+/// The request field naming the thread. Already part of Rey30 IDvj's own
 /// `chatCompletionRequest` (`core/src/browser/extensions/engines/AIEngine.ts`),
 /// which the llamacpp extension forwards verbatim -- so this reads a field that
 /// is already on the wire rather than adding a second spelling for it. It is
@@ -87,7 +87,7 @@ impl SlotHint {
     }
 }
 
-/// Removes Jan's own field so llama.cpp only ever sees its own schema.
+/// Removes Rey30 IDvj's own field so llama.cpp only ever sees its own schema.
 fn strip_thread_field(body: &str) -> String {
     let Ok(mut v) = serde_json::from_str::<serde_json::Value>(body) else {
         return body.to_string();
@@ -281,7 +281,7 @@ impl EngineServer {
     }
 
     /// Writes every resident slot to disk. The shutdown counterpart of
-    /// `hand_over_slot`: without it, closing Jan while a thread is loaded
+    /// `hand_over_slot`: without it, closing Rey30 IDvj while a thread is loaded
     /// discards exactly the cache the feature exists to keep, since nothing
     /// else evicts that slot.
     pub async fn save_resident_slots(&self) {
@@ -614,7 +614,7 @@ impl EngineServer {
             }));
         }
         // Before the drop, not after: `unload` takes the engine and the slot's
-        // KV cache with it. This is the path Jan switches models on -- with
+        // KV cache with it. This is the path Rey30 IDvj switches models on -- with
         // `models_max` at 1 the extension unloads the outgoing model before
         // loading the next -- so without this the thread being left behind
         // loses exactly the cache this feature exists to keep.
@@ -845,7 +845,7 @@ async fn run(
         // one (server-context.cpp: `if (!res_this->data.empty()) { output =
         // std::move(res_this->data); ... }`), so taking the body *and* draining
         // would put that event on the wire twice. Upstream's own HTTP layer
-        // treats the two as strictly either/or; so does this. Jan sets
+        // treats the two as strictly either/or; so does this. Rey30 IDvj sets
         // `return_progress` on every stream, which makes the prefilled event a
         // real 0% partial instead of an empty one, so the duplicate fired on
         // every streaming completion rather than being latent.

@@ -113,7 +113,7 @@ pub fn begin(provider: AccountProvider) -> Result<AccountLogin, String> {
         if provider == AccountProvider::Codex {
             query.append_pair("id_token_add_organizations", "true");
             query.append_pair("codex_cli_simplified_flow", "true");
-            query.append_pair("originator", "jan");
+            query.append_pair("originator", "rey30-idvj");
         } else {
             query.append_pair("code", "true");
         }
@@ -131,7 +131,7 @@ pub fn begin(provider: AccountProvider) -> Result<AccountLogin, String> {
     })
 }
 
-/// Append one line to the account-oauth debug log (under the Jan data
+/// Append one line to the account-oauth debug log (under the Rey30 IDvj data
 /// folder's `logs/` directory). Best-effort: a failing login must never be
 /// blocked by a failing log write. The on-screen message stays sanitized;
 /// this file carries the real stage/status/body detail for diagnostics.
@@ -139,9 +139,9 @@ pub fn debug_log(message: &str) {
     use std::io::Write;
 
     #[cfg(not(test))]
-    let data_folder = crate::core::app::commands::resolve_jan_data_folder();
+    let data_folder = crate::core::app::commands::resolve_rey30_data_folder();
     // Async OAuth tests can log without a TempSecrets fixture. Never consult
-    // real app configuration (or process-global JAN_DATA_FOLDER) in unit tests.
+    // real app configuration (or process-global REY30_DATA_FOLDER) in unit tests.
     #[cfg(test)]
     let data_folder = TEST_LOG_ROOT.with(|root| root.path().to_path_buf());
     let path = data_folder.join("logs").join("account-oauth.log");
@@ -643,12 +643,12 @@ fn parse_claude_code_secret(raw: &str) -> Option<String> {
 }
 
 /// Parse the full `claudeAiOauth` block Claude Code stores in its keychain
-/// JSON into a Jan [`OAuthToken`] (access + refresh + expiry). Pure and
+/// JSON into a Rey30 IDvj [`OAuthToken`] (access + refresh + expiry). Pure and
 /// unit-testable. Returns `None` when the block is absent or unparsable.
 fn claude_code_oauth(raw: &str) -> Option<OAuthToken> {
     // Claude Code stores a JSON object with a `claudeAiOauth` block carrying
     // accessToken/refreshToken/expiresAt. `expiresAt` is in epoch milliseconds;
-    // Jan's OAuthToken expires_at is in seconds.
+    // Rey30 IDvj's OAuthToken expires_at is in seconds.
     let parsed: serde_json::Value = serde_json::from_str(raw).ok()?;
     let oauth = parsed.get("claudeAiOauth")?;
     let access = oauth.get("accessToken")?.as_str()?;
@@ -714,7 +714,7 @@ fn claude_code_subscription_type() -> Option<String> {
 }
 
 pub(crate) const CLAUDE_ALIAS_NOTICE: &str =
-    "Claude Code keychain login is active: Jan may use and refresh that credential for Claude requests. Disable with `claude_code_alias = false` in ~/.jan/config.toml or `/settings`. Jan is a third-party client; review Anthropic's Terms of Service.";
+    "Claude Code keychain login is active: Rey30 IDvj may use and refresh that credential for Claude requests. Disable with `claude_code_alias = false` in ~/.rey30-idvj/config.toml or `/settings`. Rey30 IDvj is a third-party client; review Anthropic's Terms of Service.";
 
 static CLAUDE_ALIAS_ENGAGED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
@@ -752,7 +752,7 @@ pub(crate) fn mark_claude_alias_engaged_for_test() {
 
 /// Resolve a working access token from Claude Code's keychain entry, refreshing
 /// it and writing the rotated token back into the same keychain entry (the
-/// single source of truth omp also reads) when it has expired. This keeps Jan
+/// single source of truth omp also reads) when it has expired. This keeps Rey30 IDvj
 /// usable unattended with the enterprise workspace's OAuth login without a
 /// browser re-consent, and omp re-reads its own keychain each launch so it
 /// stays current.
@@ -771,9 +771,9 @@ async fn claude_code_access_token() -> Option<String> {
         match refresh(AccountProvider::Claude, &oauth).await {
             Ok(fresh) => {
                 // Write the rotated token back into omp's keychain entry so the
-                // shared credential stays fresh even if Jan is the only client
+                // shared credential stays fresh even if Rey30 IDvj is the only client
                 // running. On writeback failure we still return the refreshed
-                // token so Jan keeps working for this session.
+                // token so Rey30 IDvj keeps working for this session.
                 if write_claude_code_keychain(&entry, &raw, &fresh).is_err() {
                     debug_log("claude alias: refreshed but could not write back to the Claude Code keychain");
                 }
@@ -830,8 +830,8 @@ fn write_claude_code_keychain(
         .map_err(|error| format!("could not update the Claude Code keychain: {error}"))
 }
 
-/// Resolve a working access token for `provider`, preferring Jan's own stored
-/// credential. For the Claude provider, when Jan has no account credential of
+/// Resolve a working access token for `provider`, preferring Rey30 IDvj's own stored
+/// credential. For the Claude provider, when Rey30 IDvj has no account credential of
 /// its own, this falls back to Claude Code's keychain token (see
 /// [`claude_code_access_token`]) so the enterprise subscription quota is the
 /// same one omp uses.
@@ -841,7 +841,7 @@ pub async fn access_token(provider: &str) -> Result<Option<String>, String> {
     };
     let stored = CredentialStore::load(provider)?;
     let Some(stored) = stored else {
-        // No Jan-owned credential at all: alias Claude Code's token (Claude
+        // No Rey30 IDvj-owned credential at all: alias Claude Code's token (Claude
         // only). A stored API key is a deliberate user choice and must not be
         // overridden by the Claude Code keychain token.
         if provider_kind == AccountProvider::Claude {
@@ -897,7 +897,7 @@ pub fn store(provider: AccountProvider, token: &OAuthToken) -> Result<(), String
 // a login; on any error it returns the given `fallback` message.
 pub async fn claude_plan_summary(fallback: &str) -> String {
     // Resolve through access_token so the probe sees the same token the
-    // request path uses: Jan's own credential when present, otherwise the
+    // request path uses: Rey30 IDvj's own credential when present, otherwise the
     // Claude Code alias (see claude_code_access_token).
     let Some(token) = access_token(AccountProvider::Claude.credential_provider())
         .await
@@ -929,7 +929,7 @@ pub async fn claude_plan_summary(fallback: &str) -> String {
             // marker on the /v1/messages system block for an OAuth token;
             // without it sonnet 429s regardless of the account's real plan
             // (see AnthropicMessagesConverter). Probe with it so the report
-            // matches the plan Jan's request path actually resolves.
+            // matches the plan Rey30 IDvj's request path actually resolves.
             "system": [{"type": "text", "text": "x-anthropic-billing-header: cc_version=2.1.92; cc_entrypoint=sdk-cli;"}],
         });
         let probe = client
@@ -1156,8 +1156,8 @@ mod tests {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             let dir = tempfile::tempdir().unwrap();
-            let prev_data_folder = std::env::var("JAN_DATA_FOLDER").ok();
-            std::env::set_var("JAN_DATA_FOLDER", dir.path());
+            let prev_data_folder = std::env::var("REY30_DATA_FOLDER").ok();
+            std::env::set_var("REY30_DATA_FOLDER", dir.path());
             crate::core::server::provider_secrets::force_file_secrets();
             Self {
                 _guard: guard,
@@ -1170,8 +1170,8 @@ mod tests {
     impl Drop for TempSecrets {
         fn drop(&mut self) {
             match &self.prev_data_folder {
-                Some(value) => std::env::set_var("JAN_DATA_FOLDER", value),
-                None => std::env::remove_var("JAN_DATA_FOLDER"),
+                Some(value) => std::env::set_var("REY30_DATA_FOLDER", value),
+                None => std::env::remove_var("REY30_DATA_FOLDER"),
             }
         }
     }
@@ -1206,7 +1206,7 @@ mod tests {
     }
 
     /// Build a signed-shape Codex OAuth access token (a JWT) carrying the
-    /// `https://api.openai.com/auth` -> `chatgpt_account_id` claim that jan
+    /// `https://api.openai.com/auth` -> `chatgpt_account_id` claim that rey30-idvj
     /// uses to verify a Codex account. The signature is a dummy; `codex_chatgpt_account_id`
     /// decodes only the payload segment.
     fn codex_jwt(account_id: &str) -> String {
@@ -1517,7 +1517,7 @@ mod tests {
                 .find(|(key, _)| key == "originator")
                 .unwrap()
                 .1,
-            "jan"
+            "rey30-idvj"
         );
         assert_eq!(url.query_pairs().find(|(key, _)| key == "client_id").unwrap().1, "app_EMoamEEZ73f0CkXaXp7hrann");
         assert_eq!(login.token_endpoint, "https://auth.openai.com/oauth/token");
@@ -1930,8 +1930,8 @@ mod tests {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let directory = tempfile::tempdir().unwrap();
-        let previous = std::env::var("JAN_DATA_FOLDER").ok();
-        std::env::set_var("JAN_DATA_FOLDER", directory.path());
+        let previous = std::env::var("REY30_DATA_FOLDER").ok();
+        std::env::set_var("REY30_DATA_FOLDER", directory.path());
         crate::core::server::provider_secrets::force_file_secrets();
 
         let token = OAuthToken {
@@ -1948,8 +1948,8 @@ mod tests {
         );
 
         match previous {
-            Some(value) => std::env::set_var("JAN_DATA_FOLDER", value),
-            None => std::env::remove_var("JAN_DATA_FOLDER"),
+            Some(value) => std::env::set_var("REY30_DATA_FOLDER", value),
+            None => std::env::remove_var("REY30_DATA_FOLDER"),
         }
     }
 

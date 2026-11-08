@@ -138,7 +138,7 @@ mod tests {
 
     fn scratch_root(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!("jan_mem_{tag}_{n}"))
+        std::env::temp_dir().join(format!("rey30_mem_{tag}_{n}"))
     }
 
     #[test]

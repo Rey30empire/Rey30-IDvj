@@ -38,12 +38,12 @@ const YOU_COM_HOSTED_URL: &str = "https://api.you.com/mcp?profile=free";
 // integrations follow. Carries no user or query data beyond the request itself,
 // and is sent only on requests to You.com.
 const YOU_COM_USER_AGENT: &str = concat!(
-    "jan-websearch/",
+    "rey30-idvj-websearch/",
     env!("CARGO_PKG_VERSION"),
-    " (https://github.com/janhq/jan)"
+    " (https://github.com/Rey30empire/jan)"
 );
 const YOU_COM_CLIENT_INFO: &str = concat!(
-    "plugin; client=jan-websearch/",
+    "plugin; client=rey30-idvj-websearch/",
     env!("CARGO_PKG_VERSION"),
     "; ua=rust/unknown"
 );
@@ -809,7 +809,7 @@ impl SearchProvider for YouComProvider {
     }
 }
 
-/// `/v1/search` groups results into sections. `web` is the section jan's
+/// `/v1/search` groups results into sections. `web` is the section rey30-idvj's
 /// `web_search` contract maps to, so a response carrying no `web` section
 /// (news-only, or empty) yields no results rather than falling back to `news`.
 fn normalize_youcom_search(body: &Value) -> Vec<SearchResult> {
@@ -1552,14 +1552,14 @@ mod tests {
             .strip_prefix("client=")
             .expect("second segment names the client");
         let (name, version) = client.split_once('/').expect("client carries a version");
-        assert_eq!(name, "jan-websearch");
+        assert_eq!(name, "rey30-idvj-websearch");
         assert!(!version.is_empty(), "client version must not be empty");
         assert!(segments[2].starts_with("ua="));
         // Values are interpolated verbatim; a stray delimiter would corrupt
         // the segment split on the receiving side.
         assert!(segments.iter().all(|s| !s.contains(';')));
-        assert!(YOU_COM_USER_AGENT.starts_with("jan-websearch/"));
-        assert!(YOU_COM_USER_AGENT.contains("github.com/janhq/jan"));
+        assert!(YOU_COM_USER_AGENT.starts_with("rey30-idvj-websearch/"));
+        assert!(YOU_COM_USER_AGENT.contains("github.com/Rey30empire/jan"));
     }
 
     #[test]

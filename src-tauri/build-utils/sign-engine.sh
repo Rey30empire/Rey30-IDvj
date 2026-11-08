@@ -7,7 +7,7 @@
 # not fatal but the installer then carries unsigned executable code, which is
 # what AV heuristics and DLL-signature policies flag.
 #
-# JAN_ENGINE_REQUIRE_SIGNING=1 turns a missing identity or tool into an error.
+# REY30_ENGINE_REQUIRE_SIGNING=1 turns a missing identity or tool into an error.
 # Release CI sets it; a developer build leaves it unset and is only warned, since
 # an unsigned local worker runs fine.
 set -uo pipefail
@@ -15,9 +15,9 @@ set -uo pipefail
 DEST="src-tauri/resources/bin"
 
 give_up() {
-  if [ "${JAN_ENGINE_REQUIRE_SIGNING:-0}" = "1" ]; then
+  if [ "${REY30_ENGINE_REQUIRE_SIGNING:-0}" = "1" ]; then
     echo "error: $1" >&2
-    echo "       JAN_ENGINE_REQUIRE_SIGNING=1, so the engine must be signed." >&2
+    echo "       REY30_ENGINE_REQUIRE_SIGNING=1, so the engine must be signed." >&2
     exit 1
   fi
   echo "warning: $1" >&2
@@ -35,7 +35,7 @@ Darwin)
   # The backend modules are `.so` even on macOS (CMake MODULE libraries), and
   # ggml dlopens them without checking a signature, so leaving them out here
   # fails notarization rather than anything at run time.
-  for target in "$DEST/jan-llama-worker" "$DEST"/libggml*.dylib "$DEST"/libggml*.so; do
+  for target in "$DEST/rey30-idvj-llama-worker" "$DEST"/libggml*.dylib "$DEST"/libggml*.so; do
     [ -f "$target" ] || continue
     # cmake stages the soname chain as symlinks. codesign follows them, so
     # signing every name would sign the same file three times.
@@ -54,7 +54,7 @@ MINGW* | MSYS* | CYGWIN*)
   signed=0
   # sign.ps1 is the same script tauri's signCommand runs, so the installer and
   # the binaries inside it are signed by one implementation.
-  for target in "$DEST/jan-llama-worker.exe" "$DEST"/ggml*.dll; do
+  for target in "$DEST/rey30-idvj-llama-worker.exe" "$DEST"/ggml*.dll; do
     [ -f "$target" ] || continue
     powershell -ExecutionPolicy Bypass -File src-tauri/sign.ps1 "$target" || exit 1
     signed=$((signed + 1))

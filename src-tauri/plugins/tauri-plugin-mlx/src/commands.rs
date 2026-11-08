@@ -105,10 +105,10 @@ pub async fn load_mlx_model_impl(
     let mut command = Command::new(&bin_path);
     command.args(&args);
     command.envs(envs);
-    // Lets a later Jan tell this server from one someone runs themselves, so it
+    // Lets a later Rey30 IDvj tell this server from one someone runs themselves, so it
     // can stop it if this app dies without its exit cleanup. Set after `envs`:
     // nothing the caller passes may remove it.
-    command.env(jan_utils::MLX_OWNER_ENV, "1");
+    command.env(rey30_idvj_utils::MLX_OWNER_ENV, "1");
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
 
@@ -406,9 +406,9 @@ mod tests {
     /// `MLX_OWNER_ENV`, so every server this plugin starts must have it, even
     /// when the caller's own environment names the variable.
     #[tokio::test]
-    async fn the_server_it_starts_carries_jans_marker() {
+    async fn the_server_it_starts_carries_rey30_marker() {
         let dir = std::env::temp_dir().join(format!(
-            "jan-mlx-marker-{}-{}",
+            "rey30-idvj-mlx-marker-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -432,7 +432,7 @@ mod tests {
 
         let sessions = Arc::new(Mutex::new(HashMap::new()));
         let mut envs = HashMap::new();
-        envs.insert(jan_utils::MLX_OWNER_ENV.to_string(), "0".to_string());
+        envs.insert(rey30_idvj_utils::MLX_OWNER_ENV.to_string(), "0".to_string());
         let session = load_mlx_model_impl(
             sessions.clone(),
             &server,
@@ -448,10 +448,10 @@ mod tests {
         .expect("fake server should load");
 
         let dumped = std::fs::read_to_string(&env_dump).unwrap();
-        let marker = format!("{}=1", jan_utils::MLX_OWNER_ENV);
+        let marker = format!("{}=1", rey30_idvj_utils::MLX_OWNER_ENV);
         assert!(dumped.lines().any(|l| l == marker), "{dumped}");
         assert!(
-            !dumped.lines().any(|l| l == format!("{}=0", jan_utils::MLX_OWNER_ENV)),
+            !dumped.lines().any(|l| l == format!("{}=0", rey30_idvj_utils::MLX_OWNER_ENV)),
             "{dumped}"
         );
 

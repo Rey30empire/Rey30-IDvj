@@ -1,0 +1,4 @@
+# Keep CLI artifacts separate from the desktop: their executable names differ
+# only by case, which Windows filesystems do not distinguish.
+[build]
+target-dir = "target"

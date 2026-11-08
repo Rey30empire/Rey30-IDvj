@@ -1,4 +1,4 @@
-//! Where Jan's app-data root lives, and the one place that decision is made.
+//! Where Rey30 IDvj's app-data root lives, and the one place that decision is made.
 //!
 //! `dirs::data_dir()`, `app.path().data_dir()` and `app.path().app_data_dir()`
 //! all bottom out in the same per-OS lookup -- Tauri's resolvers are thin
@@ -10,16 +10,16 @@
 //!
 //! Every other desktop platform has a lever -- `HOME` on macOS, `HOME` plus
 //! `XDG_DATA_HOME` on Linux -- so a test harness can confine a run to a
-//! throwaway profile there, and on Windows it cannot. `JAN_DATA_ROOT` is that
+//! throwaway profile there, and on Windows it cannot. `REY30_DATA_ROOT` is that
 //! lever.
 //!
-//! It is Jan's own variable rather than `%APPDATA%`, which would also have
+//! It is Rey30 IDvj's own variable rather than `%APPDATA%`, which would also have
 //! worked -- Electron, Chromium and Python's `platformdirs` all read it, and
 //! `dirs` declining to is a `dirs` design choice rather than a Windows
 //! convention. The cost is the part that matters: `%APPDATA%` is set by Windows
 //! for every interactive session and inherited by whatever a process was
 //! launched from, so honouring it moves the data root of every existing install
-//! onto a value Jan does not control. The blast radius is not read-only either
+//! onto a value Rey30 IDvj does not control. The blast radius is not read-only either
 //! -- the legacy-config migration in `core/app/commands.rs` does `fs::copy`
 //! followed by `fs::remove_file`. A dedicated name is unset in every real
 //! install, so these helpers resolve byte-identically to `dirs` on all three
@@ -35,9 +35,9 @@
 //! that ruled out `CI=e2e`, which short-circuits `get_app_configurations()` to a
 //! hardcoded `"./data"` and so skips that resolution entirely.
 //!
-//! Distinct from `JAN_DATA_FOLDER`, which is older, read by
-//! `resolve_jan_data_folder()`, and names the *data folder itself*
-//! (`<root>/Jan/data` by default). `JAN_DATA_ROOT` names the OS-level root that
+//! Distinct from `REY30_DATA_FOLDER`, which is older, read by
+//! `resolve_rey30_data_folder()`, and names the *data folder itself*
+//! (`<root>/Rey30 IDvj/data` by default). `REY30_DATA_ROOT` names the OS-level root that
 //! folder is resolved under.
 
 use std::ffi::OsString;
@@ -46,9 +46,9 @@ use std::path::PathBuf;
 #[cfg(not(feature = "cli"))]
 use tauri::{AppHandle, Manager, Runtime};
 
-/// Jan's override for the OS app-data root. See the module docs for why this is
+/// Rey30 IDvj's override for the OS app-data root. See the module docs for why this is
 /// not `%APPDATA%`.
-const DATA_ROOT_ENV: &str = "JAN_DATA_ROOT";
+const DATA_ROOT_ENV: &str = "REY30_DATA_ROOT";
 
 /// The rules for reading [`DATA_ROOT_ENV`], split out from the lookup so the
 /// validation is testable without touching the process environment.
@@ -67,9 +67,10 @@ fn absolute_override(raw: Option<OsString>) -> Option<PathBuf> {
 /// The override, or `None` when it is unset or malformed.
 fn env_data_dir() -> Option<PathBuf> {
     absolute_override(std::env::var_os(DATA_ROOT_ENV))
+        .or_else(|| absolute_override(std::env::var_os("JAN_DATA_ROOT")))
 }
 
-/// The OS app-data root: `$JAN_DATA_ROOT` when set, else `dirs::data_dir()`.
+/// The OS app-data root: `$REY30_DATA_ROOT` when set, else `dirs::data_dir()`.
 ///
 /// Use in place of `dirs::data_dir()`.
 pub fn data_dir() -> Option<PathBuf> {
@@ -90,13 +91,13 @@ pub fn data_dir_for<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<PathBuf> {
 }
 
 /// The bundle-identifier subdirectory of [`data_dir_for`], e.g.
-/// `<root>/jan.ai.app`.
+/// `<root>/com.rey30.idvj.app`.
 ///
 /// Use in place of `app.path().app_data_dir()`. Mirrors Tauri's own definition
 /// (`data_dir()` joined with `config.identifier`) rather than the
 /// `TAURI_BUNDLE_IDENTIFIER` constant, because
 /// `.github/scripts/rename-tauri-app.sh` rewrites the identifier per release
-/// channel (`jan-nightly.ai.app`, ...) and a nightly build has to keep
+/// channel (`rey30-idvj-nightly.ai.app`, ...) and a nightly build has to keep
 /// resolving to its own directory.
 #[cfg(not(feature = "cli"))]
 pub fn app_data_dir_for<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<PathBuf> {

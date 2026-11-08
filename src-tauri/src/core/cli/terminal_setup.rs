@@ -328,7 +328,7 @@ fn append_missing_settings(current: &str, settings: &[(&str, &str)]) -> Option<S
     if !out.is_empty() && !out.ends_with('\n') {
         out.push('\n');
     }
-    out.push_str("\n# jan: deliver modified keys (Shift+Enter, Option+Delete)\n");
+    out.push_str("\n# rey30-idvj: deliver modified keys (Shift+Enter, Option+Delete)\n");
     for line in missing {
         out.push_str(line);
         out.push('\n');
@@ -351,7 +351,7 @@ fn write_atomic(path: &Path, contents: &str) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
     }
-    let tmp = path.with_extension("jan-tmp");
+    let tmp = path.with_extension("rey30-idvj-tmp");
     std::fs::write(&tmp, contents).map_err(|e| format!("{}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, path).map_err(|e| format!("{}: {e}", path.display()))
 }

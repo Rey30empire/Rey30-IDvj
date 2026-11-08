@@ -1,5 +1,5 @@
 //! `agent.toml` project config parsing and store scaffolding
-//! (`~/.jan/projects/<slug>/`).
+//! (`~/.rey30-idvj/projects/<slug>/`).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use crate::core::agent::prompt::{Placement, PromptPolicy};
 use tauri_plugin_agent_tools::permissions::{PermissionDefault, ToolPermissions};
 
 /// `[tools]`/`[skills]` are always modeled. `[agent]` and `[budget]` are only
-/// compiled for the CLI (their sole consumer, via `jan cli agent run/step/status`).
+/// compiled for the CLI (their sole consumer, via `rey30-idvj cli agent run/step/status`).
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(crate) struct AgentToml {
     #[cfg(feature = "cli")]
@@ -78,28 +78,28 @@ pub(crate) struct PromptSection {
     pub prefix_allow: Option<Vec<String>>,
 }
 
-/// `[context]` — which instructions files Jan reads besides `JAN.md`.
+/// `[context]` — which instructions files Rey30 IDvj reads besides `JAN.md`.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(crate) struct ContextSection {
     /// Files read, in order, from a directory that has no non-empty `JAN.md`
     /// (#9079). Only `AGENTS.md` and `CLAUDE.md` are recognised. `None` defers to
-    /// `~/.jan/config.toml`, then to [`DEFAULT_CONTEXT_FALLBACK_FILES`]; `[]`
+    /// `~/.rey30-idvj/config.toml`, then to [`DEFAULT_CONTEXT_FALLBACK_FILES`]; `[]`
     /// reads `JAN.md` only, which is the behaviour before the fallback existed.
     #[serde(default)]
     pub fallback_files: Option<Vec<String>>,
 }
 
-/// The fallback used when neither `agent.toml` nor `~/.jan/config.toml` sets
+/// The fallback used when neither `agent.toml` nor `~/.rey30-idvj/config.toml` sets
 /// `[context].fallback_files`: the vendor-neutral `AGENTS.md`. `CLAUDE.md` is
 /// opt-in, since it is usually written for one specific agent.
 pub(crate) const DEFAULT_CONTEXT_FALLBACK_FILES: &[&str] = &["AGENTS.md"];
 
-/// The fallback names Jan will ever read. Anything else in `fallback_files` is
+/// The fallback names Rey30 IDvj will ever read. Anything else in `fallback_files` is
 /// dropped, so the list cannot be used to ingest arbitrary files.
 pub(crate) const KNOWN_CONTEXT_FALLBACK_FILES: &[&str] = &["AGENTS.md", "CLAUDE.md"];
 
 /// The resolved `[context].fallback_files` for `project_root`: the project's
-/// `agent.toml` if it sets the key, else `~/.jan/config.toml`, else the
+/// `agent.toml` if it sets the key, else `~/.rey30-idvj/config.toml`, else the
 /// default. Unknown names and duplicates are dropped; order is kept, and it is
 /// the precedence within a directory.
 pub(crate) fn context_fallback_files(project_root: &Path) -> Vec<String> {
@@ -147,7 +147,7 @@ pub(crate) struct PluginsSection {
 
 /// `[provider]` — project-local override of a single provider's config,
 /// highest priority in the resolution chain (wins over the global
-/// `~/.jan/config.toml` and the desktop-inherited config). Optional: most
+/// `~/.rey30-idvj/config.toml` and the desktop-inherited config). Optional: most
 /// projects rely on the global scope instead. CLI-only, like `AgentSection`.
 #[cfg(feature = "cli")]
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -237,7 +237,7 @@ pub(crate) struct AgentSection {
     pub max_parallel_subagents: Option<u32>,
     /// Saved threads untouched for this many days are pruned at session start
     /// (default 90; 0 disables), when `prune_threads = true` in
-    /// `~/.jan/config.toml` turns pruning on. The newest few, the resumed thread, forks'
+    /// `~/.rey30-idvj/config.toml` turns pruning on. The newest few, the resumed thread, forks'
     /// parents and worktree-owning threads are always kept.
     #[serde(default)]
     pub thread_retention_days: Option<u32>,
@@ -310,7 +310,7 @@ pub(crate) struct ToolsSection {
     #[serde(default)]
     pub allow_escalation: Option<bool>,
     /// Host env-var names (exact or `*`-glob) the sandboxed `bash` may inherit
-    /// beyond the fixed base allowlist, merged over `~/.jan/config.toml`. Empty
+    /// beyond the fixed base allowlist, merged over `~/.rey30-idvj/config.toml`. Empty
     /// by default; a secret-looking name is never copied by a glob.
     #[serde(default)]
     pub env_passthrough: Vec<String>,
@@ -321,7 +321,7 @@ pub(crate) struct ToolsSection {
 }
 
 const AGENT_TOML_TEMPLATE: &str = r#"[agent]
-# model = "Jan-V4"
+# model = "Rey30 IDvj-V4"
 # context_window = 128000  # tokens; defaults to 128K if unset
 # compaction_ratio = 0.8  # share of context_window a prompt may fill before the run
 #                         # compacts ahead of the request; defaults to 0.8
@@ -330,13 +330,13 @@ const AGENT_TOML_TEMPLATE: &str = r#"[agent]
 # max_parallel_subagents = 10  # max concurrently-running subagents per run; extra dispatches queue FIFO
 # thread_retention_days = 90  # prune saved threads older than this at startup; 0 disables
 # max_threads = 500  # keep at most this many saved threads; 0 disables
-#                    # (both apply only with prune_threads = true in ~/.jan/config.toml)
+#                    # (both apply only with prune_threads = true in ~/.rey30-idvj/config.toml)
 # show_reasoning = false  # expand  reasoning in the transcript (Ctrl-O still toggles)
 # send_reasoning = true  # resend prior reasoning to the model; false drops it from the request
 #                        # (a provider that rejects the field is detected and stripped automatically)
 
-# Project-local provider override. Wins over ~/.jan/config.toml and any
-# provider inherited from Jan Desktop's settings.json. Most projects don't
+# Project-local provider override. Wins over ~/.rey30-idvj/config.toml and any
+# provider inherited from Rey30 IDvj Desktop's settings.json. Most projects don't
 # need this and should rely on the global scope instead.
 # [provider]
 # name = "openai"
@@ -376,7 +376,7 @@ allow_write = []
 # allow_home_read = true
 # Whether `shell` runs under OS confinement at all. Unset follows the surface:
 # the CLI runs unconfined unless you pass --sandbox or set sandbox = true in
-# ~/.jan/config.toml; the desktop always confines. Set it here to require
+# ~/.rey30-idvj/config.toml; the desktop always confines. Set it here to require
 # confinement for anyone working in this project.
 # sandbox = true
 # Let a sandboxed shell command that asks to escalate run outside the sandbox
@@ -386,7 +386,7 @@ allow_write = []
 # allow_escalation = true
 # Host environment variables the shell may inherit beyond the minimal base
 # (PATH, HOME, TMPDIR, ...). Names are exact or use a "*" wildcard; merged with
-# ~/.jan/config.toml. A secret-looking name (*KEY*, *TOKEN*, ...) is never
+# ~/.rey30-idvj/config.toml. A secret-looking name (*KEY*, *TOKEN*, ...) is never
 # copied by a wildcard -- inject one deliberately with env_set below.
 # env_passthrough = ["SSH_AUTH_SOCK", "GIT_*", "http_proxy", "https_proxy"]
 # Explicit values for the shell env; win over env_passthrough and the global
@@ -398,7 +398,7 @@ allow_write = []
 enabled = []
 
 # Per-project model for a saved subagent, overriding its definition's own.
-# A model id, "smol" (smol_model in ~/.jan/config.toml) or "inherit" (this
+# A model id, "smol" (smol_model in ~/.rey30-idvj/config.toml) or "inherit" (this
 # session's model). /settings > subagents edits these.
 # [subagents.explorer]
 # model = "smol"
@@ -406,7 +406,7 @@ enabled = []
 # Where each contributor to the system prompt may sit, deny-wins like [tools].
 # Above the cache line ("prefix") a contributor must be constant for the whole
 # session: a provider only reuses a prefix whose bytes are identical to the
-# previous request, so per-turn content belongs in the tail. `jan cli agent
+# previous request, so per-turn content belongs in the tail. `rey30-idvj cli agent
 # status` prints the resolved placement of every contributor.
 [prompt]
 # Unset keeps each composer's own placement. Setting it narrows the prefix to
@@ -421,47 +421,47 @@ enabled = []
 # default = "tail"
 
 # Instructions files read from a directory that has no JAN.md, in order. JAN.md
-# always wins. Unset uses ~/.jan/config.toml, else ["AGENTS.md"]. Add
+# always wins. Unset uses ~/.rey30-idvj/config.toml, else ["AGENTS.md"]. Add
 # "CLAUDE.md" to opt in to it; [] reads JAN.md only.
 # [context]
 # fallback_files = ["AGENTS.md"]
 "#;
 
-/// `~/.jan`, where every project's store lives. Test builds use a per-process
-/// temp directory so no test reads or writes the developer's real `~/.jan`;
+/// `~/.rey30-idvj`, where every project's store lives. Test builds use a per-process
+/// temp directory so no test reads or writes the developer's real `~/.rey30-idvj`;
 /// the plugin's own `cfg(test)` override is not active when this crate
 /// compiles it as a dependency.
-pub(crate) fn jan_home() -> Option<PathBuf> {
+pub(crate) fn rey30_home() -> Option<PathBuf> {
     #[cfg(test)]
     {
-        Some(std::env::temp_dir().join(format!("jan-app-test-home-{}", std::process::id())))
+        Some(std::env::temp_dir().join(format!("rey30-idvj-app-test-home-{}", std::process::id())))
     }
     #[cfg(not(test))]
     {
-        tauri_plugin_agent_tools::workspace::jan_home()
+        tauri_plugin_agent_tools::workspace::rey30_home()
     }
 }
 
-/// The Jan home the general tools and the sandboxed shell may not reach while
-/// `sandbox` is on (see `workspace::hidden_root`). Resolved through [`jan_home`]
+/// The Rey30 IDvj home the general tools and the sandboxed shell may not reach while
+/// `sandbox` is on (see `workspace::hidden_root`). Resolved through [`rey30_home`]
 /// so tests hide their temp home, not the developer's.
 pub(crate) fn hidden_root(sandbox: bool) -> Option<PathBuf> {
     if sandbox {
-        jan_home()
+        rey30_home()
     } else {
         None
     }
 }
 
-/// A project's store root, `~/.jan/projects/<slug>`: `agent.toml`, `memory/`,
+/// A project's store root, `~/.rey30-idvj/projects/<slug>`: `agent.toml`, `memory/`,
 /// `skills/`, `subagents/`, `plugins/` and the TUI's threads. The one place the
 /// app resolves it; the project directory itself holds only `JAN.md`.
 pub(crate) fn store_root(project_root: &Path) -> PathBuf {
-    tauri_plugin_agent_tools::workspace::project_store_at(jan_home().as_deref(), project_root)
+    tauri_plugin_agent_tools::workspace::project_store_at(rey30_home().as_deref(), project_root)
 }
 
-/// Move a legacy `<project>/.jan/agent` into [`store_root`] when the workspace
-/// still has a `.jan` directory. Called once per launch, before anything reads
+/// Move a legacy `<project>/.rey30-idvj/agent` into [`store_root`] when the workspace
+/// still has a `.rey30-idvj` directory. Called once per launch, before anything reads
 /// the store; returns a line for the surface to show, if any.
 ///
 /// Once per project per process: later calls are free and return `None`, so
@@ -476,7 +476,7 @@ pub(crate) fn migrate_legacy_store(project_root: &Path) -> Option<String> {
             return None;
         }
     }
-    let home = jan_home()?;
+    let home = rey30_home()?;
     let store = store_root(project_root);
     let outcome =
         crate::core::agent::store_migration::migrate_on_launch(project_root, &store, Some(&home));
@@ -492,14 +492,14 @@ pub(crate) fn migrate_legacy_store(project_root: &Path) -> Option<String> {
 }
 
 /// The memory a run in `project_root` reaches, as owned paths: the project's
-/// store, and `~/.jan` for the user scope and other projects. Tests get no
+/// store, and `~/.rey30-idvj` for the user scope and other projects. Tests get no
 /// cross-project listing, so one test's notes never reach another's prompt.
 pub(crate) fn memory_roots(project_root: &Path) -> (PathBuf, Option<PathBuf>, bool) {
     #[cfg(test)]
     let cross = false;
     #[cfg(not(test))]
     let cross = crate::core::agent::global_config::memory_cross_project_enabled();
-    (store_root(project_root), jan_home(), cross)
+    (store_root(project_root), rey30_home(), cross)
 }
 
 /// Path to `<store_root>/agent.toml`.
@@ -635,6 +635,10 @@ pub(crate) fn permissions_from(cfg: &AgentToml) -> ToolPermissions {
 /// scaffolded: an empty placeholder costs prompt space and teaches nothing, so
 /// it is written by `/init` or by hand.
 pub(crate) fn ensure_project(project_root: &Path) -> Result<PathBuf, String> {
+    use tauri_plugin_agent_tools::workspace::{overlaps_pluma_library, PLUMA_LIBRARY_DENIED};
+    if overlaps_pluma_library(project_root) {
+        return Err(PLUMA_LIBRARY_DENIED.into());
+    }
     // Refresh the plugin env registry first: this is the one choke point
     // every run path calls, so a stored API key reaches the sandboxed shells
     // of the run about to start.
@@ -672,7 +676,7 @@ pub(crate) fn ensure_project(project_root: &Path) -> Result<PathBuf, String> {
 
 /// Delete keys an older scaffold wrote that nothing reads any more, in place and
 /// format-preserving. Only `[skills].inject` today (janhq/jan-internal#394): the
-/// agent.toml is Jan's own scaffold in Jan's store, so tidying it here beats a
+/// agent.toml is Rey30 IDvj's own scaffold in Rey30 IDvj's store, so tidying it here beats a
 /// warning on every launch asking the user to do the same edit by hand.
 ///
 /// Best-effort: a file that cannot be read, parsed or written is left alone,
@@ -849,7 +853,7 @@ mod tests {
     fn unique_root(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let pid = std::process::id();
-        let root = std::env::temp_dir().join(format!("jan_agent_test_{tag}_{pid}_{n}"));
+        let root = std::env::temp_dir().join(format!("rey30_agent_test_{tag}_{pid}_{n}"));
         std::fs::create_dir_all(&root).expect("create test project root");
         root
     }
@@ -867,7 +871,7 @@ mod tests {
 
         assert_eq!(store, store_root(&root));
         assert!(!store.starts_with(&root), "the store must live outside the project");
-        assert!(!root.join(".jan").exists(), "nothing is written into the project");
+        assert!(!root.join(".rey30-idvj").exists(), "nothing is written into the project");
         assert!(
             tauri_plugin_agent_tools::skills::skills_dir(&store).is_dir(),
             "skills dir the toolset reads is not the one ensure_project created"
@@ -971,7 +975,7 @@ mod tests {
         // A mistyped --project (e.g. wrong case) must fail fast, not scaffold a
         // phantom project dir from nothing.
         let root = std::env::temp_dir().join(format!(
-            "jan_agent_missing_{}",
+            "rey30_agent_missing_{}",
             COUNTER.fetch_add(1, Ordering::SeqCst)
         ));
         assert!(!root.exists());

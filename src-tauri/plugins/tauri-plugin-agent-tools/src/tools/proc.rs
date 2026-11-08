@@ -106,7 +106,7 @@ const POWERSHELL_ARGS: &[&str] = &[
 const CMD_ARGS: &[&str] = &["/D", "/S", "/C"];
 
 /// Classify a shell by its file name, case-insensitively and with either path
-/// separator, so a `JAN_AGENT_SHELL` pointing at PowerShell or cmd is driven as
+/// separator, so a `REY30_AGENT_SHELL` pointing at PowerShell or cmd is driven as
 /// one rather than handed `-c`.
 pub fn kind_of(program: &Path) -> ShellKind {
     let text = program.to_string_lossy();
@@ -173,7 +173,7 @@ const POWERSHELL_CORE_ASSEMBLIES: &str = "'Microsoft.PowerShell.Commands.Managem
 ///   so `Get-Location; Write-Output x` printed nothing.
 /// - An error is reported against the statement that raised it. At top level
 ///   that statement is the whole `-Command` text, so 5.1 echoed this wrapper
-///   back with every `Write-Error`; inside the function it is just `jan_cmd`.
+///   back with every `Write-Error`; inside the function it is just `rey30_cmd`.
 ///
 /// Output is switched to UTF-8: 5.1 otherwise encodes with the OEM code page
 /// and mangles every non-ASCII character. The progress stream is silenced
@@ -194,33 +194,33 @@ const POWERSHELL_CORE_ASSEMBLIES: &str = "'Microsoft.PowerShell.Commands.Managem
 ///   the path; relative paths, `Get-ChildItem` and, on 5.1, every external
 ///   program then fail. The session first moves to the process's working
 ///   directory by its real path. Only if that is refused does it fall back to
-///   a `JanWs:` drive rooted there, which needs no parent access, so the drive
+///   a `Rey30Ws:` drive rooted there, which needs no parent access, so the drive
 ///   is never used where a real path works. Under the drive, `$PWD` and
-///   `Resolve-Path` read `JanWs:\...`, which a native program cannot open;
+///   `Resolve-Path` read `Rey30Ws:\...`, which a native program cannot open;
 ///   [`ShellKind::syntax_note`] tells the model to pass `Convert-Path` output
 ///   instead, which is the real path.
 ///
-/// A `return` in the command leaves `jan_cmd` before its status line runs, so
+/// A `return` in the command leaves `rey30_cmd` before its status line runs, so
 /// the code is then taken after the call: the native code if one was set,
 /// else success.
 pub fn powershell_script(command: &str) -> String {
     format!(
         "$ProgressPreference = 'SilentlyContinue'\n\
          if ($PSVersionTable.PSVersion.Major -lt 6) {{ Import-Module {POWERSHELL_CORE_MODULES} -ErrorAction SilentlyContinue }}\n\
-         elseif (-not (Get-Command Write-Output -ErrorAction SilentlyContinue)) {{ foreach ($dll in {POWERSHELL_CORE_ASSEMBLIES}) {{ try {{ Import-Module -Assembly ([System.Reflection.Assembly]::LoadFrom([System.IO.Path]::Combine($PSHOME, $dll))) -ErrorAction Stop }} catch {{ [Console]::Error.WriteLine('jan: could not load ' + $dll + ': ' + $_.Exception.Message) }} }} }}\n\
+         elseif (-not (Get-Command Write-Output -ErrorAction SilentlyContinue)) {{ foreach ($dll in {POWERSHELL_CORE_ASSEMBLIES}) {{ try {{ Import-Module -Assembly ([System.Reflection.Assembly]::LoadFrom([System.IO.Path]::Combine($PSHOME, $dll))) -ErrorAction Stop }} catch {{ [Console]::Error.WriteLine('rey30-idvj: could not load ' + $dll + ': ' + $_.Exception.Message) }} }} }}\n\
          try {{ [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false) }} catch {{}}\n\
          $OutputEncoding = [System.Text.UTF8Encoding]::new($false)\n\
-         $JanWs = [Environment]::CurrentDirectory\n\
-         try {{ Set-Location -LiteralPath $JanWs -ErrorAction Stop }} catch {{ try {{ $null = New-PSDrive -Name JanWs -PSProvider FileSystem -Root $JanWs -Scope Global -ErrorAction Stop; Set-Location JanWs:\\ }} catch {{}} }}\n\
+         $Rey30Ws = [Environment]::CurrentDirectory\n\
+         try {{ Set-Location -LiteralPath $Rey30Ws -ErrorAction Stop }} catch {{ try {{ $null = New-PSDrive -Name Rey30Ws -PSProvider FileSystem -Root $Rey30Ws -Scope Global -ErrorAction Stop; Set-Location Rey30Ws:\\ }} catch {{}} }}\n\
          $global:LASTEXITCODE = $null\n\
-         $JanExit = $null\n\
-         function jan_cmd {{\n\
+         $Rey30Exit = $null\n\
+         function rey30_cmd {{\n\
          {command}\n\
-         $script:JanExit = if ($?) {{ 0 }} elseif ($LASTEXITCODE) {{ $LASTEXITCODE }} else {{ 1 }}\n\
+         $script:Rey30Exit = if ($?) {{ 0 }} elseif ($LASTEXITCODE) {{ $LASTEXITCODE }} else {{ 1 }}\n\
          }}\n\
-         jan_cmd\n\
-         if ($null -eq $JanExit) {{ $JanExit = if ($LASTEXITCODE) {{ $LASTEXITCODE }} else {{ 0 }} }}\n\
-         $host.SetShouldExit($JanExit)\n"
+         rey30_cmd\n\
+         if ($null -eq $Rey30Exit) {{ $Rey30Exit = if ($LASTEXITCODE) {{ $LASTEXITCODE }} else {{ 0 }} }}\n\
+         $host.SetShouldExit($Rey30Exit)\n"
     )
 }
 
@@ -244,7 +244,7 @@ pub struct ShellEnv<'a> {
     pub set: &'a [(String, String)],
 }
 
-/// Resolved shell for this process, computed once. `JAN_AGENT_SHELL` wins;
+/// Resolved shell for this process, computed once. `REY30_AGENT_SHELL` wins;
 /// otherwise `bash` on unix and PowerShell on Windows, with `cmd` only as the
 /// last resort.
 pub fn shell() -> &'static ShellConfig {
@@ -282,7 +282,7 @@ fn is_app_execution_alias(path: &Path) -> bool {
 }
 
 fn resolve_shell() -> ShellConfig {
-    if let Some(path) = std::env::var_os("JAN_AGENT_SHELL") {
+    if let Some(path) = std::env::var_os("REY30_AGENT_SHELL") {
         let p = PathBuf::from(&path);
         if p.exists() {
             return config_for(p);
@@ -371,9 +371,9 @@ fn which_all(name: &str) -> Vec<PathBuf> {
 /// [`unregister`] it once the command finishes. The child inherits only the
 /// minimal environment in `SANDBOX_ENV_ALLOW`, never the full host environment.
 ///
-/// The full host environment leaks secrets to any `bash` call -- `JAN_API_KEY`,
+/// The full host environment leaks secrets to any `bash` call -- `REY30_API_KEY`,
 /// `OPENAI_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `SSH_AUTH_SOCK`, the relocated
-/// `JAN_DATA_FOLDER` -- so the shell is launched with only what a command needs
+/// `REY30_DATA_FOLDER` -- so the shell is launched with only what a command needs
 /// to run at all. Applied here, the one choke point all backends (bubblewrap,
 /// seatbelt, and the Windows AppContainer helper) funnel through.
 const SANDBOX_ENV_ALLOW: &[&str] = &[
@@ -415,7 +415,7 @@ const TEMP_ENV_KEYS: &[&str] = &["TMPDIR", "TMP", "TEMP"];
 /// per-file cap enforced with `SIGXFSZ`, so exceeding it kills the writer rather
 /// than returning an error most tools report clearly. Linux `NPROC` is omitted
 /// because the kernel counts it across the entire real UID, so unrelated host
-/// processes can exhaust a limit mounted on one Jan shell. Per-run process-tree
+/// processes can exhaust a limit mounted on one Rey30 IDvj shell. Per-run process-tree
 /// isolation requires a cgroup `pids.max`; until then the child inherits the
 /// launcher's process limit.
 #[cfg(unix)]
@@ -479,7 +479,7 @@ fn confine_limits(cmd: &mut Command) {
 /// pattern (`GIT_*`, `*`) cannot leak a credential into the shell. To inject one
 /// on purpose, name it in [`ShellEnv::set`], which is not scrubbed.
 ///
-/// `HEADERS` covers `OTEL_EXPORTER_OTLP_*HEADERS` and `JAN_CUSTOM_HEADERS`,
+/// `HEADERS` covers `OTEL_EXPORTER_OTLP_*HEADERS` and `REY30_CUSTOM_HEADERS`,
 /// which carry an API key when a launcher sets them, so `OTEL_*` cannot copy
 /// one. `AUTHORIZATION`, not a bare `AUTH`, which would also match
 /// `GIT_AUTHOR_NAME`.
@@ -1088,11 +1088,11 @@ mod shell_kind_tests {
             "pwsh 7 loads its cmdlet assemblies only when its modules did not autoload"
         );
         assert!(setup.contains("OutputEncoding"));
-        assert!(setup.contains("Set-Location -LiteralPath $JanWs"), "real path first");
-        assert!(setup.contains("Set-Location JanWs:\\"), "the drive only as the fallback");
-        assert!(setup.contains("function jan_cmd {"), "runs inside the function");
+        assert!(setup.contains("Set-Location -LiteralPath $Rey30Ws"), "real path first");
+        assert!(setup.contains("Set-Location Rey30Ws:\\"), "the drive only as the fallback");
+        assert!(setup.contains("function rey30_cmd {"), "runs inside the function");
         assert!(rest.contains("elseif ($LASTEXITCODE) { $LASTEXITCODE }"), "real code after it");
-        assert!(rest.contains("$host.SetShouldExit($JanExit)"), "exit without dropping output");
+        assert!(rest.contains("$host.SetShouldExit($Rey30Exit)"), "exit without dropping output");
     }
 
     /// The syntax note names the language for every non-POSIX shell and is
@@ -1105,12 +1105,12 @@ mod shell_kind_tests {
     }
 
     /// Run the PowerShell script through a real `pwsh` when one is installed
-    /// (`JAN_TEST_PWSH`, else `pwsh` on PATH); skipped otherwise. Covers the
+    /// (`REY30_TEST_PWSH`, else `pwsh` on PATH); skipped otherwise. Covers the
     /// pieces that only an actual PowerShell can prove: quoting survives, a
     /// native command's exit code comes back, and a failing cmdlet is not 0.
     #[tokio::test]
     async fn powershell_runs_commands_and_reports_exit_codes() {
-        let Some(pwsh) = std::env::var_os("JAN_TEST_PWSH")
+        let Some(pwsh) = std::env::var_os("REY30_TEST_PWSH")
             .map(PathBuf::from)
             .or_else(|| which("pwsh"))
         else {
@@ -1140,20 +1140,20 @@ mod shell_kind_tests {
         assert_eq!(code, Some(0));
         assert_eq!(stdout, "say \"hi\" & 'bye' \u{fc}n\u{ef}");
 
-        let (code, _, _) = run("Get-Item ./definitely-not-here-jan").await;
+        let (code, _, _) = run("Get-Item ./definitely-not-here-rey30-idvj").await;
         assert_eq!(code, Some(1), "a failing cmdlet must not report success");
 
         // A cmdlet failing after a native command that succeeded: the native
         // code (0) must not mask the failure.
         let (code, _, _) = run(
             "& (Get-Process -Id $PID).Path -NoProfile -Command 'exit 0'; \
-             Get-Item ./definitely-not-here-jan",
+             Get-Item ./definitely-not-here-rey30-idvj",
         )
         .await;
         assert_eq!(code, Some(1), "a later cmdlet failure must not report 0");
 
         // The last statement succeeding is success, as in a POSIX shell.
-        let (code, _, _) = run("Get-Item ./definitely-not-here-jan; Write-Output ok").await;
+        let (code, _, _) = run("Get-Item ./definitely-not-here-rey30-idvj; Write-Output ok").await;
         assert_eq!(code, Some(0));
 
         // The running PowerShell itself as the native command, so the test does
@@ -1176,13 +1176,13 @@ mod shell_kind_tests {
         assert!(!stderr.contains("ProgressPreference"), "wrapper leaked: {stderr}");
 
         // A `return` leaves the function early and still reports success.
-        let (code, _, _) = run("if ($true) { return }; Get-Item ./definitely-not-here-jan").await;
+        let (code, _, _) = run("if ($true) { return }; Get-Item ./definitely-not-here-rey30-idvj").await;
         assert_eq!(code, Some(0), "an early return is not a failure");
 
         // The location is a real path, not the fallback drive.
         let (_, stdout, _) = run("$PWD.Provider.Name; $PWD.Path").await;
         assert!(stdout.starts_with("FileSystem"), "{stdout}");
-        assert!(!stdout.contains("JanWs:"), "{stdout}");
+        assert!(!stdout.contains("Rey30Ws:"), "{stdout}");
 
         // Relative paths resolve in the working directory it was started in.
         let (code, stdout, _) = run("(Convert-Path .).TrimEnd('/', '\\')").await;
@@ -1234,7 +1234,7 @@ mod tests {
     /// spellings are set: POSIX tools read `TMPDIR`, Windows ones `TEMP`/`TMP`.
     #[tokio::test]
     async fn temp_env_points_at_the_scratch_when_one_is_given() {
-        let scratch = tmp().join("jan_proc_scratch_env");
+        let scratch = tmp().join("rey30_proc_scratch_env");
         std::fs::create_dir_all(&scratch).unwrap();
         let child = spawn(
             shell(),
@@ -1454,9 +1454,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn confine_limits_preserves_the_launcher_process_limit() {
-        // NPROC counts every process owned by the real UID. Jan must inherit the
+        // NPROC counts every process owned by the real UID. Rey30 IDvj must inherit the
         // launcher's value so unrelated workstation activity cannot starve one
-        // agent-tool shell at an arbitrary Jan-specific threshold.
+        // agent-tool shell at an arbitrary Rey30 IDvj-specific threshold.
         let mut launcher = nix::libc::rlimit {
             rlim_cur: 0,
             rlim_max: 0,
@@ -1523,7 +1523,7 @@ mod env_policy_tests {
             "aws_credential",
             "OTEL_EXPORTER_OTLP_HEADERS",
             "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
-            "JAN_CUSTOM_HEADERS",
+            "REY30_CUSTOM_HEADERS",
             "HTTP_AUTHORIZATION",
         ] {
             assert!(is_secret_name(name), "{name} should read as secret");
@@ -1569,18 +1569,18 @@ mod env_policy_tests {
     fn an_otel_glob_never_copies_the_exporters_headers() {
         // A launcher puts its API key in the OTLP headers; `OTEL_*` is a
         // natural pass-through to write, and must not carry it into a shell.
-        let pats = vec!["OTEL_*".to_string(), "JAN_*".to_string()];
+        let pats = vec!["OTEL_*".to_string(), "REY30_*".to_string()];
         let env = ShellEnv { passthrough: &pats, set: &[] };
         let out = resolve_env_overrides(
             host(&[
-                ("OTEL_SERVICE_NAME", "jan-agent"),
+                ("OTEL_SERVICE_NAME", "rey30-idvj-agent"),
                 ("OTEL_EXPORTER_OTLP_HEADERS", "x-api-key=sk"),
                 ("OTEL_EXPORTER_OTLP_METRICS_HEADERS", "x-api-key=sk"),
-                ("JAN_CUSTOM_HEADERS", "Authorization: Bearer sk"),
+                ("REY30_CUSTOM_HEADERS", "Authorization: Bearer sk"),
             ]),
             env,
         );
-        assert_eq!(out, vec![("OTEL_SERVICE_NAME".to_string(), "jan-agent".to_string())]);
+        assert_eq!(out, vec![("OTEL_SERVICE_NAME".to_string(), "rey30-idvj-agent".to_string())]);
     }
 
     #[test]

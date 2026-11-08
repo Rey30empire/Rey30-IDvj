@@ -35,7 +35,7 @@ impl TokenRates {
     /// `cached` and `cache_write` are **shares of `prompt`**, not additions to
     /// it: every pipeline that reaches here normalizes Anthropic's usage the
     /// OpenAI way, so `prompt_tokens = input + cache_read + cache_write` (genai
-    /// `anthropic/adapter_shared.rs`, and `core::server::converters` for Jan's
+    /// `anthropic/adapter_shared.rs`, and `core::server::converters` for Rey30 IDvj's
     /// own responses). Each share is billed at its own rate and the remainder
     /// at the prompt rate.
     pub fn cost_usd(&self, prompt: u64, completion: u64, cached: u64, cache_write: u64) -> f64 {

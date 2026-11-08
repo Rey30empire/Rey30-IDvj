@@ -13,11 +13,11 @@
 /// or a field is not a bump -- the contract requires a consumer to ignore what
 /// it does not know, which is what lets a provider-neutral field land without
 /// breaking anyone. The full rule is documented next to the channel it governs,
-/// in `docs/src/pages/docs/agent/cli.mdx` under `jan cli agent run`.
+/// in `docs/src/pages/docs/agent/cli.mdx` under `rey30-idvj cli agent run`.
 pub const PROTOCOL_VERSION: u32 = 1;
 
 /// `Deserialize` as well as `Serialize`: a consumer validates what it received
-/// against these shapes, and `JsonSchema` is what `jan cli agent schema`
+/// against these shapes, and `JsonSchema` is what `rey30-idvj cli agent schema`
 /// publishes them as -- a consumer generates its own types from
 /// `protocol/schema.json` rather than copying this declaration. The wire has to
 /// survive a round trip, not just a write, so `#[serde(tag = "type")]` keeps the
@@ -333,7 +333,7 @@ pub enum StreamEvent {
     ///
     /// Every outbound request gets one, including the side calls a turn makes
     /// (compaction, a session title) and every child run's own requests; the
-    /// hashes describe the body Jan built for the adapter, so two runs can be
+    /// hashes describe the body Rey30 IDvj built for the adapter, so two runs can be
     /// compared field by field. Nothing here is model input or output: it never
     /// joins the transcript, and a consumer may render it, store it or ignore
     /// it.
@@ -355,13 +355,13 @@ pub enum StreamEvent {
         /// `openai-responses`), absent for chat/completions.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         api_type: Option<String>,
-        /// SHA-256 of the request body as Jan built it, as canonical JSON:
+        /// SHA-256 of the request body as Rey30 IDvj built it, as canonical JSON:
         /// every object's keys sorted, recursively, so re-encoding the same
         /// members in another order gives the same digest. It is the value that
         /// makes two runs comparable even when a field this record does not
         /// itemize has changed.
         ///
-        /// The body hashed is the one Jan built, before the provider adapter
+        /// The body hashed is the one Rey30 IDvj built, before the provider adapter
         /// appends its transport fields (`stream`, `stream_options`), so it is
         /// not byte-for-byte what the provider received: a harness recomputes it
         /// by sorting keys and dropping those two fields.
@@ -406,10 +406,10 @@ pub struct PendingSubagent {
 }
 
 /// If `path` targets a file in a project's skill or memory store
-/// (`~/.jan/projects/<slug>/{skills,memory}/...`), return the kind
+/// (`~/.rey30-idvj/projects/<slug>/{skills,memory}/...`), return the kind
 /// (`"skill"`/`"memory"`) and the item name (file stem). None otherwise.
 fn classify_agent_path(path: &str) -> Option<(&'static str, String)> {
-    const PROJECTS: &str = ".jan/projects/";
+    const PROJECTS: &str = ".rey30-idvj/projects/";
     let norm = path.replace('\\', "/");
     let after = &norm[norm.find(PROJECTS)? + PROJECTS.len()..];
     let (_slug, inside) = after.split_once('/')?;
@@ -930,11 +930,11 @@ pub(crate) mod tests {
     #[test]
     fn describe_labels_fallback_path_ops() {
         assert_eq!(
-            describe_tool_call("read", &json!({"path": "/home/u/.jan/projects/app-1/skills/deploy.md"})),
+            describe_tool_call("read", &json!({"path": "/home/u/.rey30-idvj/projects/app-1/skills/deploy.md"})),
             "Reading skill: deploy"
         );
         assert_eq!(
-            describe_tool_call("write", &json!({"path": "/home/u/.jan/projects/app-1/memory/decisions.md"})),
+            describe_tool_call("write", &json!({"path": "/home/u/.rey30-idvj/projects/app-1/memory/decisions.md"})),
             "Updating memory: decisions"
         );
     }

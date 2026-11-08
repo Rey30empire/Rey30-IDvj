@@ -7,7 +7,7 @@ use tauri::{AppHandle, Runtime};
 pub struct McpLockFile {
     pub pid: u32,
     #[serde(default)]
-    pub jan_pid: u32,
+    pub rey30_pid: u32,
     pub port: u16,
     pub server_name: String,
     pub created_at: String,
@@ -36,7 +36,7 @@ pub fn create_lock_file<R: Runtime>(
 
     let lock = McpLockFile {
         pid,
-        jan_pid: std::process::id(),
+        rey30_pid: std::process::id(),
         port,
         server_name: server_name.to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),
@@ -93,7 +93,7 @@ pub fn is_process_alive(pid: u32) -> bool {
         #[cfg(windows)]
         use std::os::windows::process::CommandExt;
 
-        let mut cmd = Command::new(jan_utils::windows_system_tool("tasklist.exe"));
+        let mut cmd = Command::new(rey30_idvj_utils::windows_system_tool("tasklist.exe"));
         cmd.args(&["/FI", &format!("PID eq {}", pid), "/NH"]);
 
         #[cfg(windows)]
@@ -190,7 +190,7 @@ pub fn cleanup_own_locks<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     {
         if let Ok(content) = fs::read_to_string(&path) {
             if let Ok(lock) = serde_json::from_str::<McpLockFile>(&content) {
-                if lock.jan_pid == current_pid {
+                if lock.rey30_pid == current_pid {
                     fs::remove_file(&path).ok();
                     log::debug!("Removed own lock file: {:?}", path);
                 }

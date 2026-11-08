@@ -18,7 +18,7 @@ pub async fn check_for_app_updates(
     let endpoints = get_updater_endpoints(&app);
 
     if endpoints.is_empty() {
-        return Err("No updater endpoints configured in tauri.conf.json".to_string());
+        return Ok(None);
     }
 
     let updater = CustomUpdater::new().map_err(|e| e.to_string())?;
@@ -30,7 +30,7 @@ pub async fn check_for_app_updates(
 
     // Only return update info if the version is actually newer
     if let Some(ref info) = update_info {
-        // The feed leaves out platforms Jan no longer supports (Intel Macs).
+        // The feed leaves out platforms Rey30 IDvj no longer supports (Intel Macs).
         // Offering the version anyway would show the update dialog and then
         // fail the download, since tauri-plugin-updater picks the asset by
         // the same platform key and returns TargetNotFound.

@@ -37,7 +37,7 @@ pub struct ApiKeyMetadata {
 
 #[derive(Debug, Clone)]
 pub struct ProviderDefinition {
-    /// Provider id used in `~/.jan/config.toml` and in `<id>/<model>` ids.
+    /// Provider id used in `~/.rey30-idvj/config.toml` and in `<id>/<model>` ids.
     pub id: &'static str,
     /// Display name shown in pickers.
     pub name: &'static str,

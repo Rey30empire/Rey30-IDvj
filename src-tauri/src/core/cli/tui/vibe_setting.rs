@@ -23,7 +23,7 @@ use super::{
 };
 
 /// `/settings` keys `/vibe-setting` may not propose. `claude_code_alias` decides
-/// whether Jan reuses another tool's keychain login, and `hide_secrets` whether
+/// whether Rey30 IDvj reuses another tool's keychain login, and `hide_secrets` whether
 /// credentials reach the provider: credential decisions, which the issue rules
 /// out of anything the model (or text it read) can change.
 const EXCLUDED_KEYS: &[&str] = &["claude_code_alias", "hide_secrets"];
@@ -104,7 +104,7 @@ fn scope_name(scope: SettingScope) -> &'static str {
 fn file_label(scope: SettingScope) -> &'static str {
     match scope {
         SettingScope::Project => "agent.toml (this project)",
-        SettingScope::Global => "~/.jan/config.toml (all projects)",
+        SettingScope::Global => "~/.rey30-idvj/config.toml (all projects)",
     }
 }
 
@@ -128,7 +128,7 @@ fn kind_text(def: &AgentSettingDef) -> (String, String) {
     }
 }
 
-const SYSTEM_PROMPT: &str = "You map a user's plain-language request onto Jan agent settings. \
+const SYSTEM_PROMPT: &str = "You map a user's plain-language request onto Rey30 IDvj agent settings. \
 You may only use the settings listed below. Reply with one JSON object and nothing else:\n\
 {\"changes\": [{\"key\": \"<key>\", \"scope\": \"project\" or \"global\", \"new_value\": <value, or null to reset it to its default>, \"reason\": \"<a few words>\"}], \"question\": null, \"note\": null}\n\n\
 Rules:\n\
@@ -496,7 +496,7 @@ fn apply_when(reloadable: &[String], restart: &[String]) -> String {
     }
     if !restart.is_empty() {
         let verb = if restart.len() == 1 { "applies" } else { "apply" };
-        parts.push(format!("{} {verb} when jan restarts", restart.join(", ")));
+        parts.push(format!("{} {verb} when rey30-idvj restarts", restart.join(", ")));
     }
     parts.join("; ")
 }
@@ -608,11 +608,11 @@ mod tests {
         );
         assert_eq!(
             apply_when(&[], &v(&["show_reasoning", "tools.default"])),
-            "show_reasoning, tools.default apply when jan restarts"
+            "show_reasoning, tools.default apply when rey30-idvj restarts"
         );
         assert_eq!(
             apply_when(&v(&["max_tokens"]), &v(&["show_reasoning"])),
-            "run /reload config to apply max_tokens; show_reasoning applies when jan restarts"
+            "run /reload config to apply max_tokens; show_reasoning applies when rey30-idvj restarts"
         );
     }
 

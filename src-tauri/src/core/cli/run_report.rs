@@ -1,4 +1,4 @@
-//! Machine-readable result envelope for a non-interactive `jan cli agent run`.
+//! Machine-readable result envelope for a non-interactive `rey30-idvj cli agent run`.
 //!
 //! The human output of a run is a stream: prose on stdout, progress on stderr.
 //! `--output-format json` replaces it with a single object printed once the run
@@ -434,7 +434,7 @@ struct ReportUsage {
     #[serde(skip_serializing_if = "Option::is_none")]
     estimated_cost_usd: Option<f64>,
     /// Provider execution ids for the requests this run made, when the upstream
-    /// returned them. `jan usage generation <id>` turns one into the recorded
+    /// returned them. `rey30-idvj usage generation <id>` turns one into the recorded
     /// charge -- the authoritative counterpart to `estimated_cost_usd`. Omitted
     /// rather than empty when none were reported, so its absence is never read
     /// as "no requests were made".

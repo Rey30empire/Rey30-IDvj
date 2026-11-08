@@ -1,6 +1,6 @@
 //! The agent's upstream chat client, built on `genai`.
 //!
-//! Every provider the agent talks to routes through here: cloud providers, a Jan
+//! Every provider the agent talks to routes through here: cloud providers, a Rey30 IDvj
 //! desktop API server, a local llama.cpp router, an MLX session. The wire format
 //! stays OpenAI `/chat/completions` -- `genai` is used for its provider handling
 //! (field-name variance, SSE correctness, tool-call merging), not to change the
@@ -79,7 +79,7 @@ pub(crate) fn endpoint_base_from_chat_url(upstream_url: &str) -> String {
 
 /// Map a provider's configured `api_type` to a `genai` adapter. Everything
 /// unrecognized stays on the OpenAI-compatible path, which is what the agent has
-/// always spoken and what every provider in `~/.jan/config.toml` serves today.
+/// always spoken and what every provider in `~/.rey30-idvj/config.toml` serves today.
 pub(crate) fn adapter_kind_for(api_type: Option<&str>) -> AdapterKind {
     match api_type {
         Some("anthropic") => AdapterKind::Anthropic,
@@ -122,7 +122,7 @@ fn client_for(
     if let Some(key) = api_key.filter(|k| !k.is_empty()) {
         headers.push(("Authorization".to_string(), format!("Bearer {key}")));
     }
-    // The provider's custom headers and Jan's own (User-Agent, correlation and
+    // The provider's custom headers and Rey30 IDvj's own (User-Agent, correlation and
     // session ids) have to go in here rather than through
     // `ChatOptions::with_extra_headers`: genai overwrites the whole header map
     // with this override's when `RequestOverride` is set, which it always is on

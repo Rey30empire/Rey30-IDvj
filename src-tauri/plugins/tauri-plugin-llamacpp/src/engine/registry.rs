@@ -56,7 +56,7 @@ impl From<EngineError> for RegistryError {
 pub enum LoadSpec {
     /// llama-server's own flag set.
     Args(Vec<String>),
-    /// A section of a `router.preset.ini`, the file Jan already generates.
+    /// A section of a `router.preset.ini`, the file Rey30 IDvj already generates.
     ///
     /// `body` is the section's settings (plus the shared `[*]` block) and is
     /// compared on reload. It is not passed to the C++ loader, which re-reads
@@ -410,7 +410,7 @@ impl Registry {
     ///
     /// Unconditional where `unload` refuses a busy model: this runs only once
     /// the listener has stopped, and the point is to reach each `Engine`'s Drop
-    /// -- and so `jan_llama_engine_stop` -- before the process exits. Returns
+    /// -- and so `rey30_llama_engine_stop` -- before the process exits. Returns
     /// the ids it released, for the log.
     pub fn shutdown(&mut self) -> Vec<String> {
         let mut ids: Vec<String> = self.loaded.keys().cloned().collect();
@@ -424,7 +424,7 @@ impl Registry {
     /// Evicts LRU-idle models until one more fits under `models_max`.
     ///
     /// Deliberately does *not* persist the victim's KV cache: `save_model_slots`
-    /// is called only from `unload_model`, which is the path Jan actually takes
+    /// is called only from `unload_model`, which is the path Rey30 IDvj actually takes
     /// when switching models (`models_max` is 1, so the extension unloads before
     /// it loads). The victim's slot occupancy is still released here via
     /// `dropped`, so the residual is a lost cache and a re-prefill, not a
@@ -643,7 +643,7 @@ mod tests {
         assert!(outcome.added.is_empty());
     }
 
-    /// The router fixed models_max at spawn, so Jan had to cold-restart the
+    /// The router fixed models_max at spawn, so Rey30 IDvj had to cold-restart the
     /// whole process just to add the embedding slot.
     #[test]
     fn reload_resizes_models_max() {

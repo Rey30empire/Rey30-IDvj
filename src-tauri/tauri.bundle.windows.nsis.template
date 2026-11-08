@@ -28,23 +28,23 @@ ${StrLoc}
 
 !define WEBVIEW2APPGUID "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
 
-!define MANUFACTURER "Menlo Research Pte. Ltd."
-!define PRODUCTNAME "jan_productname"
-!define VERSION "jan_version"
-!define VERSIONWITHBUILD "jan_build"
+!define MANUFACTURER "Reinier Tamayo"
+!define PRODUCTNAME "rey30_productname"
+!define VERSION "rey30_version"
+!define VERSIONWITHBUILD "rey30_build"
 !define HOMEPAGE ""
 !define INSTALLMODE "currentUser"
 !define LICENSE ""
-!define INSTALLERICON "jan_workspace\src-tauri\icons-windows\icon.ico"
+!define INSTALLERICON "rey30_workspace\src-tauri\icons-windows\icon.ico"
 !define SIDEBARIMAGE ""
 !define HEADERIMAGE ""
-!define MAINBINARYNAME "jan_mainbinaryname"
-!define MAINBINARYSRCPATH "jan_workspace\src-tauri\target\release\jan_mainbinaryname.exe"
-!define BUNDLEID "jan_bundleid"
+!define MAINBINARYNAME "rey30_mainbinaryname"
+!define MAINBINARYSRCPATH "rey30_workspace\src-tauri\target\release\rey30_mainbinaryname.exe"
+!define BUNDLEID "rey30_bundleid"
 !define COPYRIGHT ""
 !define OUTFILE "nsis-output.exe"
 !define ARCH "x64"
-!define ADDITIONALPLUGINSPATH "jan_workspace\src-tauri\target\release\nsis\x64\Plugins\x86-unicode\additional"
+!define ADDITIONALPLUGINSPATH "rey30_workspace\src-tauri\target\release\nsis\x64\Plugins\x86-unicode\additional"
 !define ALLOWDOWNGRADES "true"
 !define DISPLAYLANGUAGESELECTOR "false"
 !define INSTALLWEBVIEW2MODE "downloadBootstrapper"
@@ -71,12 +71,12 @@ Var LockedFile
 ; Waits for a bundled sidecar to exit, killing it once it has had its grace.
 ;
 ; `CheckIfAppIsRunning` covers the main binary only, and its `Sleep 500` is far
-; short of what jan-llama-worker needs: killing Jan closes the stdin the worker
+; short of what rey30-idvj-llama-worker needs: killing Rey30-IDvj closes the stdin the worker
 ; treats as "stop", but unwinding then drains in-flight requests for up to
 ; DRAIN_TIMEOUT (10s), saves each resident slot and frees every model, all with
 ; ggml*.dll still mapped. Nothing reaps it either -- there is no job object
 ; around it, and `kill_on_drop` is a destructor TerminateProcess skips -- so a
-; force-quit Jan leaves it running on its own.
+; force-quit Rey30-IDvj leaves it running on its own.
 ;
 ; Hence poll for the exit rather than sleep a guessed interval, and leave it
 ; STOP_GRACE polls to unwind before killing: a kill costs the user the slot save
@@ -130,7 +130,7 @@ Var LockedFile
 ; Deleting an idle file would free the name just as well, but an install that
 ; then aborts has destroyed a file it cannot restore, which is how an upgrade
 ; that ended in the abort below was reported as a missing
-; `jan-llama-worker.exe`.
+; `rey30-idvj-llama-worker.exe`.
 ;
 ; A failure is recorded in $LockedFile rather than swallowed, so the install can
 ; stop before it has written anything instead of dying part-extracted.
@@ -244,7 +244,7 @@ Var LockedFile
 ; binary is briefly on disk twice. Called once the writes are done and the
 ; section can no longer abort, which is what makes that safe.
 !macro CleanFreedBinaries
-  !insertmacro DeleteFreedBinary "$INSTDIR\resources\bin\jan-llama-worker.exe"
+  !insertmacro DeleteFreedBinary "$INSTDIR\resources\bin\rey30-idvj-llama-worker.exe"
   !insertmacro DeleteFreedPattern "$INSTDIR\resources\bin" "ggml*.dll"
   !insertmacro DeleteFreedPattern "$INSTDIR\resources\bin" "cudart64_*.dll"
   !insertmacro DeleteFreedPattern "$INSTDIR\resources\bin" "cublas*.dll"
@@ -257,8 +257,8 @@ Var LockedFile
 ; mid-extraction one. bun and uv are not stopped by name: the user's own bun may
 ; be running and is not ours to kill, so those rely on the rename alone.
 !macro FreeBundledFiles
-  !insertmacro StopBundledProcess "jan-llama-worker.exe"
-  !insertmacro UnlockBundledBinary "$INSTDIR\resources\bin\jan-llama-worker.exe"
+  !insertmacro StopBundledProcess "rey30-idvj-llama-worker.exe"
+  !insertmacro UnlockBundledBinary "$INSTDIR\resources\bin\rey30-idvj-llama-worker.exe"
   !insertmacro UnlockBundledPattern "$INSTDIR\resources\bin" "ggml*.dll"
   !insertmacro UnlockBundledPattern "$INSTDIR\resources\bin" "cudart64_*.dll"
   !insertmacro UnlockBundledPattern "$INSTDIR\resources\bin" "cublas*.dll"
@@ -268,9 +268,9 @@ Var LockedFile
     ; Nothing has been written yet, so undo the frees: the install refuses and
     ; the previous one stays usable. Without this the app is left without the
     ; worker under its real name, and reports
-    ; "jan-llama-worker.exe was not found in the app resources or next to the
+    ; "rey30-idvj-llama-worker.exe was not found in the app resources or next to the
     ; executable" on the next launch.
-    !insertmacro RestoreBundledBinary "$INSTDIR\resources\bin\jan-llama-worker.exe"
+    !insertmacro RestoreBundledBinary "$INSTDIR\resources\bin\rey30-idvj-llama-worker.exe"
     !insertmacro RestoreBundledPattern "$INSTDIR\resources\bin" "ggml*.dll"
     !insertmacro RestoreBundledPattern "$INSTDIR\resources\bin" "cudart64_*.dll"
     !insertmacro RestoreBundledPattern "$INSTDIR\resources\bin" "cublas*.dll"
@@ -667,7 +667,7 @@ FunctionEnd
 ;Languages
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_RESERVEFILE_LANGDLL
-  !include "jan_workspace\src-tauri\target\release\nsis\x64\English.nsh"
+  !include "rey30_workspace\src-tauri\target\release\nsis\x64\English.nsh"
 
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode
@@ -714,7 +714,7 @@ Function .onInit
     Call RestorePreviousInstallLocation
   ${EndIf}
 
-  ; Remove old Jan if it exists
+  ; Remove old Rey30-IDvj if it exists
   ${If} ${FileExists} "$INSTDIR\LICENSE.electron.txt"
       DeleteRegKey HKLM "Software\${PRODUCTNAME}"
       RMDir /r "$INSTDIR"
@@ -728,7 +728,7 @@ Function .onInit
   ; Captured here rather than in Section Install, where stock Tauri reads it: a
   ; passive upgrade runs the previous uninstaller from PageLeaveReinstall, and
   ; that deletes UNINSTKEY. Read any later, the name is gone, so a renamed main
-  ; binary (jan.exe -> Jan-Desktop.exe in 0.8.5) leaves every shortcut pointing
+  ; binary (jan.exe -> Rey30-IDvj.exe in 0.8.5) leaves every shortcut pointing
   ; at the deleted exe.
   ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
 FunctionEnd
@@ -921,9 +921,11 @@ Section Install
     CreateDirectory "$INSTDIR\resources\pre-install"
     CreateDirectory "$INSTDIR\resources\bin"
     SetOutPath $INSTDIR
-    File /a "/oname=LICENSE" "jan_workspace\src-tauri\resources\LICENSE"
+    File /a "/oname=LICENSE" "rey30_workspace\src-tauri\resources\LICENSE"
+    File /a "/oname=NOTICE" "rey30_workspace\src-tauri\resources\NOTICE"
+    File /a "/oname=LICENSE-APACHE-2.0.txt" "rey30_workspace\src-tauri\resources\LICENSE-APACHE-2.0.txt"
     SetOutPath "$INSTDIR\resources\pre-install"
-    File /nonfatal /a /r "jan_workspace\src-tauri\resources\pre-install\"
+    File /nonfatal /a /r "rey30_workspace\src-tauri\resources\pre-install\"
     SetOutPath "$INSTDIR\resources\bin"
     ; The engine. This block is a hand-maintained snapshot of
     ; tauri.windows.conf.json's `bundle.resources`, which the NSIS bundler does
@@ -933,16 +935,16 @@ Section Install
     ; inference permanently unavailable, since there is no runtime backend
     ; download to fall back on, so a build that staged nothing must fail loudly
     ; here the way stage-engine.sh already does.
-    File /a "/oname=jan-llama-worker.exe" "jan_workspace\src-tauri\resources\bin\jan-llama-worker.exe"
-    File /a "jan_workspace\src-tauri\resources\bin\ggml*.dll"
+    File /a "/oname=rey30-idvj-llama-worker.exe" "rey30_workspace\src-tauri\resources\bin\rey30-idvj-llama-worker.exe"
+    File /a "rey30_workspace\src-tauri\resources\bin\ggml*.dll"
     ; CUDA runtime, present only in a cuda variant (stage-engine.sh).
-    File /nonfatal /a "jan_workspace\src-tauri\resources\bin\cudart64_*.dll"
-    File /nonfatal /a "jan_workspace\src-tauri\resources\bin\cublas*.dll"
+    File /nonfatal /a "rey30_workspace\src-tauri\resources\bin\cudart64_*.dll"
+    File /nonfatal /a "rey30_workspace\src-tauri\resources\bin\cublas*.dll"
     SetOutPath $INSTDIR
 
   ; Copy external binaries
-    File /a "/oname=bun.exe" "jan_workspace\src-tauri\resources\bin\bun-x86_64-pc-windows-msvc.exe"
-    File /a "/oname=uv.exe" "jan_workspace\src-tauri\resources\bin\uv-x86_64-pc-windows-msvc.exe"
+    File /a "/oname=bun.exe" "rey30_workspace\src-tauri\resources\bin\bun-x86_64-pc-windows-msvc.exe"
+    File /a "/oname=uv.exe" "rey30_workspace\src-tauri\resources\bin\uv-x86_64-pc-windows-msvc.exe"
 
   ; Every bundled binary has been written, and nothing below can abort, so the
   ; `.old` copies the frees left are no longer needed as a way back.
@@ -1057,7 +1059,7 @@ Section Uninstall
   !endif
 
   !insertmacro CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
-  !insertmacro StopBundledProcess "jan-llama-worker.exe"
+  !insertmacro StopBundledProcess "rey30-idvj-llama-worker.exe"
 
   ; Delete the app directory and its content from disk
   ; Copy main executable
@@ -1065,6 +1067,8 @@ Section Uninstall
 
   ; Delete LICENSE file
     Delete "$INSTDIR\LICENSE"
+    Delete "$INSTDIR\NOTICE"
+    Delete "$INSTDIR\LICENSE-APACHE-2.0.txt"
 
   ; Delete resources
     Delete "$INSTDIR\resources\pre-install\janhq-assistant-extension-1.0.2.tgz"

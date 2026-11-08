@@ -314,7 +314,7 @@ mod tests {
     #[test]
     fn classifies_the_linux_loader_missing_library_message() {
         let err = classify(
-            "/home/u/.local/share/Jan/data/llamacpp/backends/b9145/linux-cuda-12-common_cpus-x64/build/bin/llama-server: \
+            "/home/u/.local/share/Rey30 IDvj/data/llamacpp/backends/b9145/linux-cuda-12-common_cpus-x64/build/bin/llama-server: \
              error while loading shared libraries: libcudart.so.12: cannot open shared object file: No such file or directory",
         );
         assert!(matches!(err.code, ErrorCode::MissingSharedLibrary), "{err:?}");
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn classifies_a_failed_ggml_backend_dlopen() {
         let err = classify(
-            "ggml_backend_load_best: failed to load backend from /opt/jan/libggml-cuda.so: \
+            "ggml_backend_load_best: failed to load backend from /opt/rey30-idvj/libggml-cuda.so: \
              libcublas.so.12: cannot open shared object file: No such file or directory",
         );
         assert!(matches!(err.code, ErrorCode::MissingSharedLibrary), "{err:?}");
@@ -335,7 +335,7 @@ mod tests {
     fn classifies_the_macos_dyld_message() {
         let err = classify(
             "dyld[4213]: Library not loaded: @rpath/libggml-metal.dylib\n  \
-             Referenced from: /Applications/Jan.app/Contents/Resources/bin/llama-server\n  \
+             Referenced from: /Applications/Rey30 IDvj.app/Contents/Resources/bin/llama-server\n  \
              Reason: tried: '/usr/lib/libggml-metal.dylib' (no such file)",
         );
         assert!(matches!(err.code, ErrorCode::MissingSharedLibrary), "{err:?}");
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn ignores_library_paths_that_are_not_the_missing_one() {
         let err = classify(
-            "ggml_backend_load_best: failed to load backend from /opt/jan/libggml-cuda.so: \
+            "ggml_backend_load_best: failed to load backend from /opt/rey30-idvj/libggml-cuda.so: \
              libcublas.so.12: cannot open shared object file: No such file or directory",
         );
         let libs = err.missing_libraries.unwrap();

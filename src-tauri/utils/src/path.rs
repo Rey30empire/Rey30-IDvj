@@ -145,8 +145,8 @@ mod tests {
         assert_eq!(strip_verbatim_prefix(r"\\?\d:\"), r"d:\");
         assert_eq!(strip_verbatim_prefix(r"\\?\C:"), r"C:");
         assert_eq!(
-            strip_verbatim_prefix(r"\\?\UNC\server\share\Jan"),
-            r"\\server\share\Jan"
+            strip_verbatim_prefix(r"\\?\UNC\server\share\Rey30 IDvj"),
+            r"\\server\share\Rey30 IDvj"
         );
         assert_eq!(
             strip_verbatim_prefix(r"\\?\unc\server\share"),
@@ -154,11 +154,11 @@ mod tests {
         );
         // Already plain, or a verbatim form with no plain equivalent: unchanged.
         for same in [
-            r"C:\Users\u\Jan",
-            r"\\server\share\Jan",
-            r"\\?\Volume{0b1c2d3e-0000-0000-0000-100000000000}\Jan",
+            r"C:\Users\u\Rey30 IDvj",
+            r"\\server\share\Rey30 IDvj",
+            r"\\?\Volume{0b1c2d3e-0000-0000-0000-100000000000}\Rey30 IDvj",
             r"\\?\GLOBALROOT\Device\x",
-            r"/Users/u/Jan",
+            r"/Users/u/Rey30 IDvj",
             r"UNC\server\share",
             "",
         ] {

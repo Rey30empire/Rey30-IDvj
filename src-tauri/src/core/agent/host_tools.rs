@@ -196,7 +196,7 @@ pub enum HostCapability {
 ///
 /// Unknown keys are rejected rather than ignored, via `unknown` below rather
 /// than serde's `deny_unknown_fields`: this type is deserialized from the
-/// `jan-cli` crate, which resolves its own lockfile, and the attribute expands
+/// `rey30-idvj-cli` crate, which resolves its own lockfile, and the attribute expands
 /// to code bound to a `serde_core` that crate's graph has two copies of.
 /// Collecting the surplus keys instead needs nothing outside `serde_json`.
 ///

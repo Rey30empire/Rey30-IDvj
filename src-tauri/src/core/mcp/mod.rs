@@ -13,7 +13,7 @@ pub mod models;
 pub mod oauth;
 #[cfg(not(feature = "cli"))]
 pub mod progress;
-// The server direction: Jan's own toolset offered to other agents. Tauri-free,
+// The server direction: Rey30 IDvj's own toolset offered to other agents. Tauri-free,
 // so it is built in both feature configs.
 pub mod server;
 pub mod truncate;

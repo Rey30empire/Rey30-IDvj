@@ -85,7 +85,7 @@ fn opener_argv(opener: Opener, url: &url::Url) -> (std::path::PathBuf, Vec<Strin
     match opener {
         Opener::Open => ("/usr/bin/open".into(), vec![url]),
         Opener::Rundll32 => (
-            jan_utils::windows_system_tool("rundll32.exe"),
+            rey30_idvj_utils::windows_system_tool("rundll32.exe"),
             vec!["url.dll,FileProtocolHandler".to_string(), url],
         ),
         Opener::XdgOpen => ("xdg-open".into(), vec![url]),

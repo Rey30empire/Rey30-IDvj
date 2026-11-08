@@ -3,6 +3,62 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Read failures must not be converted into an empty map and persisted over user configuration.
+pub fn parse_stored_mcp_config(raw: &str) -> Result<Value, String> {
+    let value: Value = serde_json::from_str(raw)
+        .map_err(|e| format!("MCP config is invalid JSON ({e}); the file was preserved. Repair it or restore a backup."))?;
+    let object = value
+        .as_object()
+        .ok_or("MCP config must be an object; the file was preserved.")?;
+    if let Some(servers) = object.get("mcpServers") {
+        let servers = servers
+            .as_object()
+            .ok_or("mcpServers must be an object; the file was preserved.")?;
+        if servers.values().any(|v| !v.is_object()) {
+            return Err("Each MCP server must be an object; the file was preserved.".into());
+        }
+    }
+    if object.get("mcpSettings").is_some_and(|v| !v.is_object()) {
+        return Err("mcpSettings must be an object; the file was preserved.".into());
+    }
+    Ok(value)
+}
+
+#[cfg(test)]
+mod stored_config_tests {
+    use super::parse_stored_mcp_config;
+
+    #[test]
+    fn malformed_or_wrong_shape_is_never_replaced_by_defaults() {
+        for raw in [
+            "",
+            "not json",
+            "null",
+            "[]",
+            "42",
+            r#"{"mcpServers":[]}"#,
+            r#"{"mcpServers":{"x":null}}"#,
+            r#"{"mcpSettings":false}"#,
+        ] {
+            assert!(parse_stored_mcp_config(raw).is_err(), "{raw}");
+        }
+    }
+
+    #[test]
+    fn legacy_partial_objects_and_unknown_fields_survive() {
+        for raw in [
+            "{}",
+            r#"{"mcpServers":{"x":{"command":"node","future":true}},"unknown":17}"#,
+        ] {
+            let parsed = parse_stored_mcp_config(raw).unwrap();
+            assert_eq!(
+                parsed,
+                serde_json::from_str::<serde_json::Value>(raw).unwrap()
+            );
+        }
+    }
+}
+
 /// Configuration parameters extracted from MCP server config
 #[derive(Debug, Clone)]
 pub struct McpServerConfig {

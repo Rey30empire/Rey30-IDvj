@@ -1,5 +1,5 @@
 {
-  "name": "@janhq/tauri-plugin-websearch-api",
+  "name": "@rey30-idvj/tauri-plugin-websearch-api",
   "version": "0.8.3",
   "private": true,
   "description": "Tauri plugin API for native web_search / web_fetch tools",

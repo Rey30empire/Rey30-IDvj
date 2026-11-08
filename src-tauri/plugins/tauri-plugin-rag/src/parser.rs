@@ -1,7 +1,7 @@
 use crate::{RagError, MAX_PARSE_FILE_SIZE, MAX_ZIP_ENTRY_SIZE, MAX_ZIP_TOTAL_SIZE};
 use std::borrow::Cow;
 use std::fs;
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Seek};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use calamine::{open_workbook_auto, Data, Reader as _, Sheets};
 use chardetng::EncodingDetector;
@@ -16,8 +16,12 @@ pub fn parse_pdf(file_path: &str) -> Result<String, RagError> {
         return Err(RagError::ParseError("File too large (max 200MB)".to_string()));
     }
     let bytes = fs::read(file_path)?;
+    parse_pdf_bytes(&bytes)
+}
+
+fn parse_pdf_bytes(bytes: &[u8]) -> Result<String, RagError> {
     // pdf-extract can panic on some malformed PDFs; guard to avoid crashing the app
-    let text = match catch_unwind(AssertUnwindSafe(|| pdf_extract::extract_text_from_mem(&bytes))) {
+    let text = match catch_unwind(AssertUnwindSafe(|| pdf_extract::extract_text_from_mem(bytes))) {
         Ok(Ok(t)) => t,
         Ok(Err(e)) => return Err(RagError::ParseError(format!("PDF parse error: {}", e))),
         Err(payload) => {
@@ -54,6 +58,23 @@ pub fn parse_pdf(file_path: &str) -> Result<String, RagError> {
 
 pub fn parse_text(file_path: &str) -> Result<String, RagError> {
     read_text_auto(file_path)
+}
+
+/// Extract text from bytes already read through a caller's file-access guard.
+/// Only explicitly supported formats are considered. This never opens a path.
+pub fn parse_document_bytes(bytes: &[u8], file_type: &str) -> Result<String, RagError> {
+    if bytes.len() as u64 > MAX_PARSE_FILE_SIZE {
+        return Err(RagError::ParseError("File too large (max 200MB)".into()));
+    }
+    match file_type {
+        "txt" | "md" => Ok(decode_text(bytes)),
+        "html" | "htm" => Ok(html2text::from_read(Cursor::new(decode_text(bytes)), 80)),
+        "pdf" => parse_pdf_bytes(bytes),
+        "docx" => parse_docx_from(Cursor::new(bytes)),
+        "pptx" => parse_pptx_from(Cursor::new(bytes)),
+        "csv" => parse_csv_from(Cursor::new(bytes)),
+        other => Err(RagError::UnsupportedFileType(other.into())),
+    }
 }
 
 pub fn parse_document(file_path: &str, file_type: &str) -> Result<String, RagError> {
@@ -199,7 +220,11 @@ fn parse_docx(file_path: &str) -> Result<String, RagError> {
         return Err(RagError::ParseError("File too large (max 200MB)".to_string()));
     }
     let file = std::fs::File::open(file_path)?;
-    let mut zip = ZipArchive::new(file).map_err(|e| RagError::ParseError(e.to_string()))?;
+    parse_docx_from(file)
+}
+
+fn parse_docx_from(reader: impl Read + Seek) -> Result<String, RagError> {
+    let mut zip = ZipArchive::new(reader).map_err(|e| RagError::ParseError(e.to_string()))?;
 
     // Standard DOCX stores document text at word/document.xml
     let doc_xml = match zip.by_name("word/document.xml") {
@@ -269,11 +294,14 @@ fn parse_csv(file_path: &str) -> Result<String, RagError> {
     if metadata.len() > MAX_PARSE_FILE_SIZE {
         return Err(RagError::ParseError("File too large (max 200MB)".to_string()));
     }
+    parse_csv_from(fs::File::open(file_path)?)
+}
+
+fn parse_csv_from(reader: impl Read) -> Result<String, RagError> {
     let mut rdr = csv_crate::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true)
-        .from_path(file_path)
-        .map_err(|e| RagError::ParseError(e.to_string()))?;
+        .from_reader(reader);
     // Re-serialise through the csv writer so a cell holding the delimiter, a
     // quote or a newline stays one cell instead of shifting the columns after it.
     let mut wtr = csv_crate::WriterBuilder::new()
@@ -428,7 +456,11 @@ fn parse_pptx(file_path: &str) -> Result<String, RagError> {
         return Err(RagError::ParseError("File too large (max 200MB)".to_string()));
     }
     let file = std::fs::File::open(file_path)?;
-    let mut zip = ZipArchive::new(file).map_err(|e| RagError::ParseError(e.to_string()))?;
+    parse_pptx_from(file)
+}
+
+fn parse_pptx_from(reader: impl Read + Seek) -> Result<String, RagError> {
+    let mut zip = ZipArchive::new(reader).map_err(|e| RagError::ParseError(e.to_string()))?;
 
     // Collect slide files: ppt/slides/slide*.xml
     let mut slides = Vec::new();
@@ -518,16 +550,20 @@ fn read_text_auto(file_path: &str) -> Result<String, RagError> {
         return Err(RagError::ParseError("File too large (max 200MB)".to_string()));
     }
     let bytes = fs::read(file_path)?;
+    Ok(decode_text(&bytes))
+}
+
+fn decode_text(bytes: &[u8]) -> String {
     // Detect encoding
     let mut detector = EncodingDetector::new();
-    detector.feed(&bytes, true);
+    detector.feed(bytes, true);
     let enc = detector.guess(None, true);
-    let (decoded, _, had_errors) = enc.decode(&bytes);
+    let (decoded, _, had_errors) = enc.decode(bytes);
     if had_errors {
         // fallback to UTF-8 lossy
-        Ok(String::from_utf8_lossy(&bytes).to_string())
+        String::from_utf8_lossy(bytes).into_owned()
     } else {
-        Ok(decoded.to_string())
+        decoded.into_owned()
     }
 }
 
@@ -543,7 +579,7 @@ mod tests {
 
     /// Writes a zip with the given entries to a unique temp path.
     fn zip_file(name: &str, entries: &[(&str, &str)]) -> std::path::PathBuf {
-        let path = std::env::temp_dir().join(format!("jan-rag-{}-{name}", std::process::id()));
+        let path = std::env::temp_dir().join(format!("rey30-idvj-rag-{}-{name}", std::process::id()));
         let mut zw = zip::ZipWriter::new(fs::File::create(&path).unwrap());
         let opts = zip::write::SimpleFileOptions::default();
         for (entry, body) in entries {
@@ -695,7 +731,7 @@ mod tests {
 
     #[test]
     fn a_file_that_is_not_a_zip_is_a_parse_error_not_a_panic() {
-        let path = std::env::temp_dir().join(format!("jan-rag-{}-fake.docx", std::process::id()));
+        let path = std::env::temp_dir().join(format!("rey30-idvj-rag-{}-fake.docx", std::process::id()));
         fs::write(&path, "not a zip").unwrap();
         let out = parse_docx(path.to_str().unwrap());
         let _ = fs::remove_file(&path);
@@ -706,7 +742,7 @@ mod tests {
     /// spaces: the shape of a decompression bomb (deflate shrinks it about a
     /// thousand to one).
     fn bomb_zip_entries(name: &str, entries: &[(&str, u64)]) -> std::path::PathBuf {
-        let path = std::env::temp_dir().join(format!("jan-rag-{}-{name}", std::process::id()));
+        let path = std::env::temp_dir().join(format!("rey30-idvj-rag-{}-{name}", std::process::id()));
         let mut zw = zip::ZipWriter::new(fs::File::create(&path).unwrap());
         let chunk = vec![b' '; 1024 * 1024];
         for (entry, len) in entries {
@@ -815,7 +851,7 @@ mod tests {
     #[test]
     fn csv_cells_with_delimiters_quotes_or_newlines_are_quoted() {
         let path = std::env::temp_dir().join(format!(
-            "jan-rag-parse-csv-{}.csv",
+            "rey30-idvj-rag-parse-csv-{}.csv",
             std::process::id()
         ));
         fs::write(&path, "name,note\n\"Doe, Jane\",\"say \"\"hi\"\"\nthere\"\nplain,x\n")

@@ -99,7 +99,7 @@ fn with_renamed_shell_notices(
 ///
 /// `project` is an explicit override and is currently always `None`: the desktop
 /// has no project picker yet. Once one lands, a project's own store
-/// (`~/.jan/projects/<slug>`) layers on top of this one; see the memory-scope TODO.
+/// (`~/.rey30-idvj/projects/<slug>`) layers on top of this one; see the memory-scope TODO.
 fn resolve_store(data_folder: &Path, project: Option<&str>) -> PathBuf {
     match project.map(str::trim).filter(|p| !p.is_empty()) {
         Some(p) => workspace::project_store(Path::new(p)),
@@ -346,7 +346,9 @@ pub async fn memory_delete(
 /// the schemas are never re-typed in TypeScript.
 #[tauri::command]
 pub fn tool_schemas() -> Vec<serde_json::Value> {
-    schema::builtin_tool_schemas()
+    let mut schemas = schema::builtin_tool_schemas();
+    schemas.extend(schema::search_tool_schemas());
+    schemas
 }
 
 /// Whether this machine can confine a shell, and with what.
@@ -591,6 +593,8 @@ pub async fn start_monitor(
     scope: Option<WorkspaceScope>,
     on_update: tauri::ipc::Channel<crate::tools::monitor::MonitorUpdate>,
 ) -> Result<String, AgentToolsError> {
+    let writable = project_writable.unwrap_or(false);
+    ensure_workspace_process_allowed(read_only_project.as_deref(), writable)?;
     let data_folder = workspace::host_data_folder(&data_folder);
     use crate::tools::monitor;
     if !jail::backend().enforces() {
@@ -605,7 +609,6 @@ pub async fn start_monitor(
         .ensure(Path::new(&data_folder), &thread_id)
         .await?;
     let scratch = workspace::ensure_scratch_dir(&thread_id).await?;
-    let writable = project_writable.unwrap_or(false);
     let attached = attach_folder(
         read_only_project.as_deref(),
         &sandbox,
@@ -735,13 +738,104 @@ fn attach_folder(
     Ok(vec![root])
 }
 
+fn workspace_is_file_only(folder: Option<&str>, writable: bool) -> bool {
+    // Windows AppContainer adds an inheritable ACE to the workspace. A real
+    // project folder must keep its existing ACL when used for file editing.
+    cfg!(windows) && writable && folder.is_some()
+}
+
+fn ensure_workspace_process_allowed(
+    folder: Option<&str>,
+    writable: bool,
+) -> Result<(), AgentToolsError> {
+    if workspace_is_file_only(folder, writable) {
+        return Err("Los comandos y monitores están desactivados para carpetas de proyecto compartidas en Windows. Usa las herramientas de archivos."
+            .to_string()
+            .into());
+    }
+    Ok(())
+}
+
+fn ensure_workspace_hooks_allowed(
+    file_only: bool,
+    hooks: &crate::tools::hooks::HookSet,
+    tool_name: &str,
+) -> Result<(), AgentToolsError> {
+    use crate::tools::hooks::HookEvent::{PostToolUse, PreToolUse};
+    // Hooks use the same confined shell. Refuse a tool with a matching hook
+    // instead of executing a process or silently skipping a user's policy.
+    if file_only
+        && [PreToolUse, PostToolUse]
+            .into_iter()
+            .any(|event| !hooks.matching(event, Some(tool_name)).is_empty())
+    {
+        return Err("Esta herramienta tiene un hook que ejecuta comandos. Revisa su configuración para usarla en una carpeta compartida de Windows."
+            .to_string()
+            .into());
+    }
+    Ok(())
+}
+
+/// Preflight a folder picked for Cowork before saving it to a session.
+/// Tool execution still validates the folder and every requested path.
+#[tauri::command]
+pub fn validate_cowork_folder(
+    data_folder: String,
+    folder: String,
+) -> Result<String, AgentToolsError> {
+    let data_folder = workspace::host_data_folder(&data_folder);
+    validate_cowork_root(
+        &data_folder,
+        Path::new(&folder),
+        workspace::user_home().as_deref(),
+    )
+}
+
+fn validate_cowork_root(
+    data_folder: &Path,
+    folder: &Path,
+    home: Option<&Path>,
+) -> Result<String, AgentToolsError> {
+    if !folder.is_absolute() {
+        return Err("Selecciona una carpeta de proyecto con una ruta absoluta."
+            .to_string()
+            .into());
+    }
+    let store = workspace::permanent_store(data_folder);
+    let root = workspace::validate_read_root(folder, &store, Some(data_folder)).map_err(|_| {
+        AgentToolsError::from(
+            "Selecciona una carpeta existente, accesible y separada de los datos de Rey30 IDvj."
+                .to_string(),
+        )
+    })?;
+    workspace::validate_write_root(&root, home, data_folder).map_err(|_| {
+        AgentToolsError::from(
+            "La carpeta está protegida. Elige una carpeta de proyecto fuera de los directorios personales de configuración y de los datos de Rey30 IDvj."
+                .to_string(),
+        )
+    })?;
+    // Drop the Windows verbatim prefix only when the ordinary spelling still
+    // resolves to exactly the validated path (e.g. no trimmed trailing dot).
+    let friendly = crate::tools::proc::without_verbatim_prefix(&root);
+    let path = if friendly != root && friendly.canonicalize().is_ok_and(|path| path == root) {
+        friendly
+    } else {
+        root
+    };
+    path.into_os_string().into_string().map_err(|_| {
+        "La ruta de la carpeta no se puede representar en esta aplicación."
+            .to_string()
+            .into()
+    })
+}
+
 /// Pick the workspace root a tool call resolves relative paths against, plus the
 /// side roots it may read and write.
 ///
 /// A writable attached folder (Cowork's shared folder) is the workspace root
 /// itself, not merely a reachable side root: relative paths resolve against the
 /// root, so with the ephemeral sandbox as the root a bare `deck.html` lands in
-/// the Jan data folder instead of the directory the user selected (#8882).
+/// the Rey30 IDvj data folder instead of the directory the user selected (#8882).
 ///
 /// Promoting the folder changes only where an unqualified path resolves, never
 /// what is reachable: the sandbox stays a read+write side root, so the agent's
@@ -885,6 +979,10 @@ async fn execute_tool_inner(
     call_id: Option<String>,
     sink: Option<crate::tools::OutputSink>,
 ) -> Result<ToolResult, AgentToolsError> {
+    let writable = project_writable.unwrap_or(false);
+    if name == crate::tools::SHELL_TOOL {
+        ensure_workspace_process_allowed(read_only_project.as_deref(), writable)?;
+    }
     let data_folder = workspace::host_data_folder(&data_folder);
     // Created here rather than trusted to exist: `escapes_project` canonicalizes
     // the sandbox root and treats a missing one as an escape, so every tool call
@@ -909,7 +1007,6 @@ async fn execute_tool_inner(
         .map(PathBuf::from);
     let skill_project: Option<PathBuf> =
         project_dir.as_deref().map(workspace::project_store);
-    let writable = project_writable.unwrap_or(false);
     let attached = attach_folder(
         read_only_project.as_deref(),
         &sandbox,
@@ -920,7 +1017,7 @@ async fn execute_tool_inner(
     let tool = lookup(&name)
         .ok_or_else(|| AgentToolsError::from(format!("unknown built-in tool '{name}'")))?;
     // The desktop always sandboxes, and an attached project folder can be the
-    // user's home, which puts the CLI's `~/.jan` inside it.
+    // user's home, which puts the CLI's `~/.rey30-idvj` inside it.
     let hidden = workspace::hidden_root(true);
 
     match gate::resolve_decision(
@@ -941,7 +1038,10 @@ async fn execute_tool_inner(
             return Err(format!("tool '{name}' is denied by policy").into());
         }
         Decision::HardDeny(gate::DenyReason::Hidden) => {
-            return Err(format!("tool '{name}' is denied: the Jan home (~/.jan) is hidden").into());
+            return Err(format!("tool '{name}' is denied: the Rey30 IDvj home (~/.rey30-idvj) is hidden").into());
+        }
+        Decision::HardDeny(gate::DenyReason::PrivateLibrary) => {
+            return Err(workspace::PLUMA_LIBRARY_DENIED.to_owned().into());
         }
         // An exec prompt asks the user to vouch for a command that could reach
         // anything. Under an enforcing sandbox it cannot: writes stay in the
@@ -1026,6 +1126,11 @@ async fn execute_tool_inner(
     // this surface knows about; chat has none and gets the user's global hooks
     // alone.
     let hooks = crate::tools::hooks::resolve_for(project_dir.as_deref());
+    ensure_workspace_hooks_allowed(
+        workspace_is_file_only(read_only_project.as_deref(), writable),
+        &hooks,
+        tool.name,
+    )?;
     let mut ctx = ToolContext::new(&root, &store, &enabled)
         .with_hooks(&hooks, false, None)
         .with_network(allow_network.unwrap_or(false))
@@ -1185,10 +1290,10 @@ mod tests {
     /// Chunks recorded by [`test_sink`]: monotonic `(seq, call_id, text)`.
     type SeenChunks = Arc<Mutex<Vec<(u64, Option<String>, String)>>>;
 
-    /// A temp dir standing in for the Jan data folder.
+    /// A temp dir standing in for the Rey30 IDvj data folder.
     fn unique_data_folder() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!("jan_cmd_test_{}_{}", std::process::id(), n))
+        std::env::temp_dir().join(format!("rey30_cmd_test_{}_{}", std::process::id(), n))
     }
 
     /// A folder that is *not* under the host temp dir. On Linux an absolute
@@ -1251,6 +1356,155 @@ mod tests {
     const T_ATTACH_OVERLAP: &str = "thread-attach-overlap";
     const T_ATTACH_WRITABLE: &str = "thread-attach-writable";
     const T2: &str = "thread-two";
+
+    #[test]
+    fn desktop_schema_includes_search_for_sessions_without_shell() {
+        let schemas = tool_schemas();
+        for name in ["ls", "find", "grep", "read", "write", "edit", "shell"] {
+            let matches = schemas
+                .iter()
+                .filter(|value| value["function"]["name"].as_str() == Some(name))
+                .count();
+            assert_eq!(matches, 1, "missing or duplicate schema for {name}");
+        }
+    }
+
+    #[test]
+    fn cowork_folder_preflight_accepts_empty_directory_without_creating_a_workspace() {
+        let fixture = repo_outside_tmp("cowork_folder_preflight");
+        let home = fixture.join("qa-home");
+        let project = home.join("Proyecto de QA");
+        std::fs::create_dir_all(&project).unwrap();
+        let data = fixture.join("not-created-data");
+
+        let result = validate_cowork_root(&data, &project, Some(&home)).unwrap();
+        assert_eq!(
+            Path::new(&result).canonicalize().unwrap(),
+            project.canonicalize().unwrap()
+        );
+        #[cfg(windows)]
+        assert!(
+            !result.starts_with(r"\\?\"),
+            "ordinary Windows paths should be display-friendly"
+        );
+        assert!(!data.exists());
+        assert!(std::fs::read_dir(&project).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn cowork_folder_preflight_refuses_protected_and_invalid_folders() {
+        let fixture = repo_outside_tmp("cowork_folder_protected");
+        let home = fixture.join("qa-home");
+        let protected = home.join(".ssh");
+        let data = fixture.join("qa-data");
+        let inside_data = data.join("private");
+        std::fs::create_dir_all(&protected).unwrap();
+        std::fs::create_dir_all(&inside_data).unwrap();
+        let home = home.canonicalize().unwrap();
+
+        for folder in [
+            &fixture,
+            &home,
+            &protected,
+            &data,
+            &inside_data,
+            &fixture.join("missing"),
+            &PathBuf::from("relative"),
+        ] {
+            assert!(
+                validate_cowork_root(&data, folder, Some(&home)).is_err(),
+                "{}",
+                folder.display()
+            );
+        }
+        assert!(!workspace::permanent_store(&data).exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cowork_folder_preflight_refuses_windows_system_and_application_locations() {
+        let fixture = repo_outside_tmp("cowork_windows_roots");
+        let data = fixture.join("qa-data");
+        for variable in ["SystemRoot", "ProgramFiles", "ProgramData"] {
+            let path = PathBuf::from(std::env::var_os(variable).expect("Windows system directory"));
+            assert!(path.is_dir());
+            assert!(
+                validate_cowork_root(&data, &path, Some(&fixture)).is_err(),
+                "{variable}"
+            );
+        }
+        assert!(!data.exists());
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cowork_folder_refuses_processes_before_workspace_setup() {
+        let data = unique_data_folder();
+        let data_arg = data.to_string_lossy().into_owned();
+        let repo = repo_outside_tmp("cowork_file_only");
+        let folder = repo.to_string_lossy().into_owned();
+        let shell = execute_tool(
+            data_arg.clone(),
+            "cowork-file-only".into(),
+            None,
+            crate::tools::SHELL_TOOL.into(),
+            json!({"command": 17}),
+            None,
+            None,
+            Some(folder.clone()),
+            Some(true),
+            Some(WorkspaceScope::Session),
+            None,
+        )
+        .await
+        .expect_err("shared project shell must be refused");
+        let monitor = start_monitor(
+            data_arg,
+            "cowork-file-only".into(),
+            json!({}),
+            None,
+            Some(folder.clone()),
+            Some(true),
+            Some(WorkspaceScope::Session),
+            tauri::ipc::Channel::new(|_| Ok(())),
+        )
+        .await
+        .expect_err("shared project monitor must be refused");
+        for error in [shell, monitor] {
+            assert!(error.message.contains("carpetas de proyecto compartidas"));
+        }
+        assert!(!data.exists(), "the guard runs before workspace creation");
+        assert!(std::fs::read_dir(repo).unwrap().next().is_none());
+        assert!(ensure_workspace_process_allowed(None, true).is_ok());
+        assert!(ensure_workspace_process_allowed(Some(&folder), false).is_ok());
+    }
+
+    #[test]
+    fn cowork_folder_refuses_process_hooks_only_when_they_match_a_tool() {
+        use crate::tools::hooks::{HookEntry, HookSet};
+        let mut hooks = HookSet::new();
+        hooks.extend_from(
+            vec![
+                HookEntry {
+                    event: "PreToolUse".into(),
+                    matcher: Some("write".into()),
+                    command: "echo fixture".into(),
+                    timeout_secs: None,
+                },
+                HookEntry {
+                    event: "PostToolUse".into(),
+                    matcher: Some("edit".into()),
+                    command: "echo fixture".into(),
+                    timeout_secs: None,
+                },
+            ],
+            Path::new("fixture.toml"),
+        );
+        assert!(ensure_workspace_hooks_allowed(true, &hooks, "write").is_err());
+        assert!(ensure_workspace_hooks_allowed(true, &hooks, "edit").is_err());
+        assert!(ensure_workspace_hooks_allowed(true, &hooks, "read").is_ok());
+        assert!(ensure_workspace_hooks_allowed(false, &hooks, "write").is_ok());
+    }
 
     #[test]
     fn default_store_is_permanent_and_outside_any_sandbox() {
@@ -1424,7 +1678,7 @@ mod tests {
         let scratch = crate::workspace::ensure_scratch_dir(T_SCRATCH)
             .await
             .unwrap();
-        let name = format!("jan_cmd_scratch_{}.txt", std::process::id());
+        let name = format!("rey30_cmd_scratch_{}.txt", std::process::id());
         let (requested, expected) = if cfg!(target_os = "linux") {
             let p = format!("/tmp/{name}");
             (p.clone(), p)
@@ -2181,26 +2435,33 @@ mod tests {
 
     /// #8882: a writable attached folder is the workspace root, so a *relative*
     /// path resolves into the directory the user selected -- not the ephemeral
-    /// sandbox under the Jan data folder.
+    /// sandbox under the Rey30 IDvj data folder.
     #[tokio::test]
     async fn a_writable_attachment_is_the_root_for_relative_paths() {
         let data = unique_data_folder();
         let df = data.to_string_lossy().to_string();
         let repo = repo_outside_tmp("rw_root_relative");
-        let attached = Some(repo.to_string_lossy().to_string());
+        let attached = validate_cowork_root(&data, &repo, workspace::user_home().as_deref())
+            .expect("the selected project is eligible");
+        let run = |name: &str, args| {
+            execute_tool(
+                df.clone(),
+                "thread-rw-root-relative".into(),
+                None,
+                name.into(),
+                args,
+                None,
+                None,
+                Some(attached.clone()),
+                Some(true),
+                Some(WorkspaceScope::Session),
+                None,
+            )
+        };
 
-        let write = execute_tool(
-            df.clone(),
-            "thread-rw-root-relative".into(),
-            None,
-            "write".into(),
+        let write = run(
+            "write",
             json!({"path": "deck.html", "content": "<h1>hi</h1>"}),
-            None,
-            None,
-            attached,
-            Some(true),
-            Some(WorkspaceScope::Session),
-            None,
         )
         .await
         .expect("a relative write with a writable attachment is allowed");
@@ -2210,6 +2471,17 @@ mod tests {
             Some("<h1>hi</h1>".to_string()),
             "the bare path resolved into the attached folder, not the sandbox"
         );
+
+        let read = run("read", json!({"path": "deck.html"})).await.unwrap();
+        assert!(!read.is_error && read.content.contains("<h1>hi</h1>"));
+        let edit = run(
+            "edit",
+            json!({"path": "deck.html", "edits": [{"old_string": "<h1>hi</h1>", "new_string": "<h1>hola</h1>"}]}),
+        )
+        .await
+        .unwrap();
+        assert!(!edit.is_error, "{}", edit.content);
+        assert_eq!(std::fs::read_to_string(repo.join("deck.html")).unwrap(), "<h1>hola</h1>");
 
         let _ = std::fs::remove_dir_all(&data);
         let _ = std::fs::remove_dir_all(&repo);

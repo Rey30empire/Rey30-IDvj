@@ -2,7 +2,7 @@
 //! reusable system prompt + default tool allowlist that the main agent can
 //! dispatch a nested, isolated run against (see `dispatch_subagent`). Definitions
 //! live as `<scope>/subagents/<name>.toml`, merged from the user scope
-//! (`~/.jan/agent/subagents/`) and the project scope (`~/.jan/projects/<slug>/
+//! (`~/.rey30-idvj/agent/subagents/`) and the project scope (`~/.rey30-idvj/projects/<slug>/
 //! subagents/`); the project scope shadows the user scope by name.
 
 use std::path::{Path, PathBuf};
@@ -18,7 +18,7 @@ use tauri_plugin_agent_tools::tools::spill::{
 use tauri_plugin_agent_tools::workspace;
 
 /// Directory name holding `<name>.toml` definitions, under both a project's
-/// store (`~/.jan/projects/<slug>/`), `~/.jan/agent/` and the desktop's
+/// store (`~/.rey30-idvj/projects/<slug>/`), `~/.rey30-idvj/agent/` and the desktop's
 /// permanent store.
 const SUBAGENTS: &str = "subagents";
 
@@ -31,7 +31,7 @@ pub enum SubagentScope {
     /// Claude Code convention). Read-only: managed via plugin install/remove,
     /// never via `create_subagent`.
     Plugin,
-    /// A subagent shipped inside Jan itself (`builtin_subagents/*.toml`).
+    /// A subagent shipped inside Rey30 IDvj itself (`builtin_subagents/*.toml`).
     /// Read-only and the lowest precedence: any saved definition of the same
     /// name replaces it, and `[subagents.<name>]` in agent.toml retargets its
     /// model.
@@ -64,7 +64,7 @@ impl SubagentScope {
     }
 }
 
-/// The subagents shipped with Jan, in the order they load. Sorted by name and
+/// The subagents shipped with Rey30 IDvj, in the order they load. Sorted by name and
 /// embedded at compile time, so the dispatch description that lists them is
 /// byte-identical across runs (it sits in the cached prompt prefix).
 const BUILTIN_SUBAGENTS: &[&str] = &[
@@ -151,9 +151,9 @@ impl std::fmt::Display for SubagentError {
     }
 }
 
-/// `~/.jan/agent/subagents/`. `None` when the home directory can't be resolved.
+/// `~/.rey30-idvj/agent/subagents/`. `None` when the home directory can't be resolved.
 pub fn user_subagents_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".jan").join("agent").join(SUBAGENTS))
+    super::global_config::global_rey30_dir().ok().map(|h| h.join("agent").join(SUBAGENTS))
 }
 
 /// `<store_root>/subagents/`, in the project's store (see `project::store_root`).
@@ -162,7 +162,7 @@ pub fn project_subagents_dir(project_root: &Path) -> PathBuf {
 }
 
 /// The desktop's single subagent directory:
-/// `<jan_data_folder>/agent-workspace/subagents/`.
+/// `<rey30_data_folder>/agent-workspace/subagents/`.
 ///
 /// Cowork has no project root in a default session and mounts an attached folder
 /// read-only, so two of the three CLI scopes (project, and plugin -- which is
@@ -170,8 +170,8 @@ pub fn project_subagents_dir(project_root: &Path) -> PathBuf {
 /// directory instead, a sibling of `memory/` and `skills/` in the permanent
 /// store. That placement also puts it outside every tool's project root, so the
 /// agent cannot rewrite its own definitions with `write`.
-pub fn desktop_subagents_dir(jan_data_folder: &Path) -> PathBuf {
-    workspace::store_dir(&workspace::permanent_store(jan_data_folder), SUBAGENTS)
+pub fn desktop_subagents_dir(rey30_data_folder: &Path) -> PathBuf {
+    workspace::store_dir(&workspace::permanent_store(rey30_data_folder), SUBAGENTS)
 }
 
 /// Longest subagent name. Kept well under the blackboard stem's own 80-char
@@ -399,7 +399,7 @@ fn apply_model_overrides(project_root: &Path, defs: &mut [SubagentDefinition]) {
 /// first so user/project TOML definitions shadow them by name. Frontmatter
 /// `name` and `description` are used; `model` names a Claude tier and is
 /// mapped onto a role (see [`map_claude_model`]); `color` is Claude-runtime
-/// metadata and ignored; `tools` maps Claude tool names onto Jan tool names,
+/// metadata and ignored; `tools` maps Claude tool names onto Rey30 IDvj tool names,
 /// dropping names with no equivalent.
 fn load_plugin_agents(project_root: &Path, out: &mut Vec<SubagentDefinition>) {
     crate::core::agent::skills::for_each_plugin_dir(project_root, |_, path| {
@@ -446,21 +446,61 @@ fn scan_agent_dir(dir: &Path, out: &mut Vec<SubagentDefinition>) {
     });
 }
 
-/// Frontmatter fields recognized in a Claude Code agent file; everything else
-/// is ignored.
+/// Agent fields plus source policy markers. Untranslated restrictions disable
+/// tools rather than inheriting the parent's permissions.
 #[derive(Debug, Default, Deserialize)]
 struct PluginAgentFrontmatter {
     name: Option<String>,
     description: Option<String>,
-    #[serde(default)]
-    tools: Vec<String>,
+    #[serde(default, deserialize_with = "deserialize_plugin_agent_tools")]
+    tools: Option<Vec<String>>,
     model: Option<String>,
+    #[serde(flatten)]
+    extra: std::collections::HashMap<String, serde_yaml::Value>,
 }
 
-/// A Claude Code agent's `model:` tier as a Jan model role. `haiku` is the
+fn has_untranslated_agent_restrictions(frontmatter: &PluginAgentFrontmatter) -> bool {
+    frontmatter.extra.keys().any(|key| {
+        let normalized: String = key.chars().filter(|c| c.is_ascii_alphanumeric())
+            .map(|c| c.to_ascii_lowercase()).collect();
+        normalized.contains("permission")
+            || normalized.contains("sandbox")
+            || normalized.contains("approval")
+            || normalized.contains("restriction")
+            || normalized.contains("policy")
+            || normalized.contains("allow")
+            || normalized.contains("deny")
+            || normalized.contains("denied")
+            || matches!(normalized.as_str(), "readonly" | "isolation" | "writableroots" | "capabilities")
+    })
+}
+
+fn deserialize_plugin_agent_tools<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ToolNames {
+        List(Vec<String>),
+        CommaSeparated(String),
+    }
+    Ok(Some(match Option::<ToolNames>::deserialize(deserializer)? {
+        None => Vec::new(),
+        Some(ToolNames::List(names)) => names,
+        Some(ToolNames::CommaSeparated(names)) => names
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(String::from)
+            .collect(),
+    }))
+}
+
+/// A Claude Code agent's `model:` tier as a Rey30 IDvj model role. `haiku` is the
 /// cheap tier, which is what `smol` means here; any other tier, or none, runs
 /// on the session's model. A Claude tier is never passed through as a model
-/// id: no Jan provider is guaranteed to serve a model by that name.
+/// id: no Rey30 IDvj provider is guaranteed to serve a model by that name.
 fn map_claude_model(model: Option<&str>) -> Option<String> {
     model
         .map(str::trim)
@@ -471,10 +511,15 @@ fn map_claude_model(model: Option<&str>) -> Option<String> {
 /// Parse a Claude Code agent markdown file into a plugin-scope definition.
 /// `None` when the file has no `---` frontmatter or no `name`, since such files
 /// are not dispatchable. The name is not validated here; the loader does that.
-fn parse_plugin_agent(raw: &str) -> Option<SubagentDefinition> {
+pub(crate) fn parse_plugin_agent(raw: &str) -> Option<SubagentDefinition> {
     let (yaml, body) = crate::core::agent::skills::split_frontmatter(raw);
     let yaml = yaml?;
     let fm: PluginAgentFrontmatter = serde_yaml::from_str(&yaml).unwrap_or_default();
+    let allowed_tools = if has_untranslated_agent_restrictions(&fm) {
+        Some(Vec::new())
+    } else {
+        map_claude_tools(fm.tools.as_deref())
+    };
     let name = fm
         .name
         .map(|n| n.trim().to_string())
@@ -483,29 +528,24 @@ fn parse_plugin_agent(raw: &str) -> Option<SubagentDefinition> {
         name,
         description: fm.description.unwrap_or_default(),
         system_prompt: body,
-        allowed_tools: map_claude_tools(&fm.tools),
+        allowed_tools,
         model: map_claude_model(fm.model.as_deref()),
         scope: SubagentScope::Plugin,
     })
 }
 
-/// Claude Code tool names with a Jan equivalent, 1:1 where one exists. Unknown
-/// names are dropped — the author's runtime differs. Returns `None` when
-/// nothing maps, so the child inherits the parent's full tool policy (an empty
-/// list would mean "no tools" to the dispatcher).
-fn map_claude_tools(tools: &[String]) -> Option<Vec<String>> {
-    let mapped: Vec<String> = tools
+/// Preserve an explicit tool restriction even when no source tool maps.
+/// Glob and Grep have read-only native equivalents; neither needs a shell.
+fn map_claude_tools(tools: Option<&[String]>) -> Option<Vec<String>> {
+    let tools = tools?;
+    let mut mapped = Vec::new();
+    for tool in tools
         .iter()
         .filter_map(|t| {
-            let jan = match t.to_ascii_lowercase().as_str() {
+            let rey30 = match t.trim().to_ascii_lowercase().as_str() {
                 "read" => Some("read"),
-                // Glob/Grep intentionally unmapped: Jan no longer advertises
-                // list/search tools (shell covers them). Mapping them would
-                // restrict a child to a tool it is never offered -- and a child
-                // scoped to *only* those would be left with none. Dropped instead,
-                // so such an agent inherits the full toolset (shell included).
-                // Claude Code's own name for its shell, translated like the rest
-                // of this table; Jan itself has no `bash` tool.
+                "glob" => Some("find"),
+                "grep" => Some("grep"),
                 "bash" => Some(tauri_plugin_agent_tools::tools::SHELL_TOOL),
                 "edit" => Some("edit"),
                 "write" => Some("write"),
@@ -515,10 +555,14 @@ fn map_claude_tools(tools: &[String]) -> Option<Vec<String>> {
                 "ask" => Some("ask"),
                 _ => None,
             };
-            jan.map(String::from)
+            rey30.map(String::from)
         })
-        .collect();
-    (!mapped.is_empty()).then_some(mapped)
+    {
+        if !mapped.contains(&tool) {
+            mapped.push(tool);
+        }
+    }
+    Some(mapped)
 }
 
 /// Agent definitions one plugin ships (`(name, description)`), for the
@@ -607,17 +651,13 @@ fn refuse_renamed_shell(list: Option<&[String]>, where_: &str) -> Result<(), Sub
 
 /// Effective tool allowlist for a subagent dispatch: the intersection of the
 /// definition's `allowed_tools`, the call-site override, and the parent's
-/// permissions, plus the always-on `skill_list`/`skill_read` pair. Deny (from
+/// permissions, plus child helpers for non-empty sets. Deny (from
 /// the parent) always wins. Returns the list to set as the child's
 /// `allowed_tools`, or `None` to inherit the parent's full toolset with no
 /// per-run allowlist (the parent's deny-list still applies at gate time).
 ///
-/// An empty allowlist is normalized to `None` (inherit), never "no tools": a
-/// model dispatching a one-off routinely emits `allowed_tools: []` for the
-/// optional array parameter, which used to hand the child only the forced
-/// skill/work tools and no `read`/`bash` -- the "subagent has no tools" failure.
-/// Restricting a child is still possible, with a non-empty list. (The plugin
-/// path already relies on this via `map_claude_tools` returning `None`.)
+/// An empty call-site array remains an omitted optional parameter. An explicit
+/// empty definition is deny-all, including the normally added helper tools.
 ///
 /// Fails closed: a tool named in `request` that the definition does not permit,
 /// or that the parent denies, is rejected rather than silently dropped. A
@@ -628,7 +668,6 @@ pub fn intersect_allowed_tools(
     request: Option<&[String]>,
     parent: &ToolPermissions,
 ) -> Result<Option<Vec<String>>, SubagentError> {
-    let definition = definition.filter(|d| !d.is_empty());
     let request = request.filter(|r| !r.is_empty());
     refuse_renamed_shell(definition, "the subagent definition's allowed_tools")?;
     refuse_renamed_shell(request, "allowed_tools")?;
@@ -652,6 +691,7 @@ pub fn intersect_allowed_tools(
         return Ok(Some(with_child_tools(&effective, parent)));
     }
     match definition {
+        Some([]) => Ok(Some(Vec::new())),
         Some(def) => {
             let filtered: Vec<String> = def
                 .iter()
@@ -667,7 +707,7 @@ pub fn intersect_allowed_tools(
 /// Hold a resolved child tool set to the parent's `ceiling`.
 ///
 /// With no ceiling the resolved set stands. Under one, a child that asked for
-/// nothing inherits the ceiling itself (the parent's whole set, never Jan's
+/// nothing inherits the ceiling itself (the parent's whole set, never Rey30 IDvj's
 /// whole set), and a child that asked for tools keeps those the ceiling
 /// contains. A requested name matches either exactly or as the bare name a host
 /// declared, since that is the name the host's prompt and the model use for
@@ -675,7 +715,8 @@ pub fn intersect_allowed_tools(
 /// already qualified its names in [`resolve_dispatch`]; doing it again here is
 /// a no-op on wire names and keeps this function correct on its own.
 ///
-/// Fails closed on a list that keeps nothing -- the child would otherwise run
+/// An explicit empty list stays empty. A non-empty list that keeps nothing fails
+/// closed -- the child would otherwise run
 /// with no tools, the silent "skill tools only" child -- naming what the parent
 /// may hand out so the model can retry. The forced skill tools a child is
 /// normally given are dropped here unless the ceiling holds them.
@@ -692,6 +733,9 @@ fn capped_tools(
     let Some(requested) = resolved else {
         return Ok(Some(ceiling.to_vec()));
     };
+    if requested.is_empty() {
+        return Ok(Some(requested));
+    }
     let mut kept: Vec<String> = Vec::new();
     for tool in &requested {
         if ceiling.contains(tool) && !kept.contains(tool) {
@@ -1710,8 +1754,8 @@ pub(crate) struct ParentRun {
     /// allowlist. A child can never be offered more than its parent was: a
     /// host-only RPC session sets one so its delegates cannot reach the shell,
     /// files or web the session itself was never given. The forced skill
-    /// tools are no exception here, since they are Jan's and the session
-    /// excluded Jan's tools.
+    /// tools are no exception here, since they are Rey30 IDvj's and the session
+    /// excluded Rey30 IDvj's tools.
     pub(crate) tool_ceiling: Option<Vec<String>>,
     /// Every non-host tool name the parent could reach: all MCP and plugin
     /// tools before plan mode, an allowlist or a deny rule filtered them, plus
@@ -1753,7 +1797,7 @@ pub(crate) fn configured_smol_model() -> Option<String> {
     crate::core::agent::global_config::smol_model().ok().flatten()
 }
 
-/// The desktop has no `~/.jan/config.toml`, so `smol` is the parent's model.
+/// The desktop has no `~/.rey30-idvj/config.toml`, so `smol` is the parent's model.
 #[cfg(not(feature = "cli"))]
 pub(crate) fn configured_smol_model() -> Option<String> {
     None
@@ -3328,7 +3372,7 @@ pub(crate) mod tests {
     fn unique_root(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let root = std::env::temp_dir().join(format!(
-            "jan_subagent_test_{tag}_{}_{n}",
+            "rey30_subagent_test_{tag}_{}_{n}",
             std::process::id()
         ));
         std::fs::create_dir_all(&root).expect("create test root");
@@ -3464,7 +3508,7 @@ pub(crate) mod tests {
     }
 
     /// The built-in scope is read-only, like the plugin scope: it ships with
-    /// Jan, so there is no file to write. A same-name project definition is
+    /// Rey30 IDvj, so there is no file to write. A same-name project definition is
     /// how a user replaces one.
     #[test]
     fn the_builtin_scope_is_not_a_create_target() {
@@ -3680,13 +3724,13 @@ pub(crate) mod tests {
         ToolPermissions::new(PermissionDefault::ReadOnly, &[], &deny, &[])
     }
 
-    /// A Claude Code agent's `Bash` is translated to Jan's `shell`, so a plugin
+    /// A Claude Code agent's `Bash` is translated to Rey30 IDvj's `shell`, so a plugin
     /// agent scoped to `Read, Bash` keeps a shell rather than losing it.
     #[test]
     fn a_claude_bash_tool_maps_to_the_shell_tool() {
         let tools = vec!["Read".to_string(), "Bash".to_string()];
         assert_eq!(
-            map_claude_tools(&tools),
+            map_claude_tools(Some(&tools)),
             Some(vec!["read".to_string(), "shell".to_string()])
         );
     }
@@ -3698,17 +3742,16 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn intersect_empty_lists_inherit_rather_than_stripping_tools() {
-        // A model emitting `allowed_tools: []` must not yield a toolless child
-        // (no read/bash) -- an empty allowlist inherits the full toolset.
+    fn intersect_empty_definition_denies_all_and_empty_request_still_inherits() {
         let p = ToolPermissions::allow_all();
         let empty: &[String] = &[];
         assert_eq!(intersect_allowed_tools(None, Some(empty), &p).unwrap(), None);
-        assert_eq!(intersect_allowed_tools(Some(empty), None, &p).unwrap(), None);
+        assert_eq!(intersect_allowed_tools(Some(empty), None, &p).unwrap(), Some(vec![]));
         assert_eq!(
             intersect_allowed_tools(Some(empty), Some(empty), &p).unwrap(),
-            None
+            Some(vec![])
         );
+        assert!(intersect_allowed_tools(Some(empty), Some(&["read".to_string()]), &p).is_err());
     }
 
     #[test]
@@ -3984,15 +4027,15 @@ pub(crate) mod tests {
 
         // A different model with no published price is refused rather than run
         // on the parent's rates. The name cannot appear in any real catalog.
-        let refused = child_cost_ceiling("no-such-model-jan-test", &parent)
+        let refused = child_cost_ceiling("no-such-model-rey30-idvj-test", &parent)
             .expect_err("an unpriceable child under a ceiling must be refused");
         let message = refused.to_string();
-        assert!(message.contains("no-such-model-jan-test"), "{message}");
+        assert!(message.contains("no-such-model-rey30-idvj-test"), "{message}");
         assert!(message.contains("no published price"), "{message}");
 
         // An unmetered parent is unchanged: nothing to price, nothing to refuse.
         assert_eq!(
-            child_cost_ceiling("no-such-model-jan-test", &parent_run()).expect("unmetered"),
+            child_cost_ceiling("no-such-model-rey30-idvj-test", &parent_run()).expect("unmetered"),
             None
         );
     }
@@ -4048,7 +4091,7 @@ pub(crate) mod tests {
     #[test]
     fn a_smol_child_is_priced_as_the_resolved_model() {
         let parent = ParentRun {
-            smol_model: Some("no-such-model-jan-test".to_string()),
+            smol_model: Some("no-such-model-rey30-idvj-test".to_string()),
             cost_remaining: Some(crate::core::agent::session::CostCeiling {
                 rates: crate::core::agent::session::TokenRates {
                     prompt_usd: 1e-6,
@@ -4062,7 +4105,7 @@ pub(crate) mod tests {
         };
         let model = child_model(&resolved_on(Some("smol")), &parent);
         let err = child_cost_ceiling(&model, &parent).expect_err("unpriced smol refused");
-        assert!(err.to_string().contains("no-such-model-jan-test"), "{err}");
+        assert!(err.to_string().contains("no-such-model-rey30-idvj-test"), "{err}");
     }
 
     /// `[agent].send_reasoning = false` has to reach the child body: a child
@@ -4613,7 +4656,7 @@ pub(crate) mod tests {
     }
 
     /// Under a ceiling a child is never offered more than its parent: no
-    /// allowlist inherits the ceiling, not Jan's whole set, and a list is
+    /// allowlist inherits the ceiling, not Rey30 IDvj's whole set, and a list is
     /// narrowed to it, forced skill tools included.
     #[cfg(feature = "cli")]
     #[test]
@@ -4625,6 +4668,11 @@ pub(crate) mod tests {
         assert_eq!(
             capped_tools(Some(names(&["observe", "bash", "skill_list"])), &run, "probe", &args).unwrap(),
             Some(names(&["host__observe"]))
+        );
+        assert_eq!(
+            capped_tools(Some(vec![]), &run, "probe", &args).unwrap(),
+            Some(vec![]),
+            "an explicit deny-all never inherits the parent's ceiling"
         );
     }
 
@@ -4660,7 +4708,7 @@ pub(crate) mod tests {
             )),
             mcp_servers: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             mcp_settings: Arc::new(tokio::sync::Mutex::new(McpSettings::default())),
-            jan_data_folder: std::env::temp_dir().to_string_lossy().into_owned(),
+            rey30_data_folder: std::env::temp_dir().to_string_lossy().into_owned(),
             permissions: ToolPermissions::allow_all(),
             project_root: Some(root.to_path_buf()),
             permission_requests: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
@@ -5836,7 +5884,7 @@ pub(crate) mod tests {
     }
 
     /// A Claude Code agent file's `model:` names a Claude tier, not an id any
-    /// Jan provider serves. `haiku` is the cheap tier, so it maps to the smol
+    /// Rey30 IDvj provider serves. `haiku` is the cheap tier, so it maps to the smol
     /// role; every other value (`sonnet`, `opus`, `inherit`) runs on the
     /// session's model, as before.
     #[test]
@@ -6154,7 +6202,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn plugin_agent_tools_map_known_names_and_drop_unknowns() {
+    fn plugin_agent_tools_map_read_only_equivalents_and_drop_unknowns() {
         let root = unique_root("plugin-tools");
         std::fs::create_dir_all(plugin_agents_dir(&root)).unwrap();
         std::fs::write(
@@ -6162,9 +6210,7 @@ pub(crate) mod tests {
             "---\nname: reader\ndescription: Reads\n---\nYou are a reader.",
         )
         .unwrap();
-        // tools is a Claude Code frontmatter list; NotebookRead has no Jan
-        // equivalent, and Glob/Grep are intentionally unmapped (Jan no longer
-        // advertises list/search tools) -- all three must drop, leaving `read`.
+        // NotebookRead has no native equivalent; Glob/Grep remain read-only.
         std::fs::write(
             plugin_agents_dir(&root).join("scout.md"),
             "---\nname: scout\ndescription: Scans\ntools: [Read, Glob, Grep, NotebookRead]\n---\nScan.",
@@ -6173,17 +6219,14 @@ pub(crate) mod tests {
 
         let reg = SubagentRegistry::load(&root);
         let def = reg.get("scout").expect("loaded");
-        assert_eq!(def.allowed_tools.as_deref(), Some(&["read".to_string()][..]));
+        assert_eq!(def.allowed_tools.as_deref(), Some(&["read".to_string(), "find".to_string(), "grep".to_string()][..]));
         // No tools field: no allowlist at all.
         assert_eq!(reg.get("reader").unwrap().allowed_tools, None);
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn plugin_agent_scoped_to_only_search_tools_inherits_full_toolset() {
-        // Glob/Grep are unmapped, so an agent listing only those maps to nothing
-        // -> None (inherit), never Some([]) -- otherwise it would be left with no
-        // way to search (bash is what covers it now).
+    fn plugin_agent_scoped_to_search_tools_never_receives_shell() {
         let root = unique_root("plugin-search-only");
         std::fs::create_dir_all(plugin_agents_dir(&root)).unwrap();
         std::fs::write(
@@ -6192,12 +6235,19 @@ pub(crate) mod tests {
         )
         .unwrap();
         let reg = SubagentRegistry::load(&root);
-        assert_eq!(reg.get("finder").unwrap().allowed_tools, None);
+        assert_eq!(reg.get("finder").unwrap().allowed_tools, Some(vec!["find".to_string(), "grep".to_string()]));
+        let p = ToolPermissions::allow_all();
+        let resolved = resolve_dispatch_plain(&reg, &req("finder", None), &p).unwrap();
+        let tools = resolved.allowed_tools.unwrap();
+        assert!(tools.iter().any(|t| t == "find"));
+        assert!(tools.iter().any(|t| t == "grep"));
+        assert!(!tools.iter().any(|t| matches!(t.as_str(), "shell" | "write" | "edit")));
+        assert!(resolve_dispatch_plain(&reg, &req("finder", Some(vec!["shell".to_string()])), &p).is_err());
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn plugin_agent_with_only_unknown_tools_gets_no_allowlist() {
+    fn plugin_agent_with_only_unknown_tools_remains_deny_all_through_dispatch() {
         let root = unique_root("plugin-unknown-tools");
         std::fs::create_dir_all(plugin_agents_dir(&root)).unwrap();
         std::fs::write(
@@ -6207,10 +6257,56 @@ pub(crate) mod tests {
         .unwrap();
 
         let reg = SubagentRegistry::load(&root);
-        // All names unknown -> None (inherit parent policy), never Some([])
-        // which the dispatcher treats as "no tools".
-        assert_eq!(reg.get("probe").unwrap().allowed_tools, None);
+        assert_eq!(reg.get("probe").unwrap().allowed_tools, Some(vec![]));
+        let p = ToolPermissions::allow_all();
+        let resolved = resolve_dispatch_plain(&reg, &req("probe", None), &p).unwrap();
+        assert_eq!(resolved.allowed_tools, Some(vec![]));
+        assert_eq!(child_body(&resolved, "inspect", &parent_run())["allowed_tools"], serde_json::json!([]));
+        assert!(resolve_dispatch_plain(&reg, &req("probe", Some(vec!["read".to_string()])), &p).is_err());
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_agent_distinguishes_absent_and_empty_tools() {
+        let absent = parse_plugin_agent("---\nname: inherited\n---\nBody.").unwrap();
+        let empty = parse_plugin_agent("---\nname: restricted\ntools: []\n---\nBody.").unwrap();
+        let null = parse_plugin_agent("---\nname: restricted\ntools: null\n---\nBody.").unwrap();
+        assert_eq!(absent.allowed_tools, None);
+        assert_eq!(empty.allowed_tools, Some(vec![]));
+        assert_eq!(null.allowed_tools, Some(vec![]));
+        assert!(parse_plugin_agent("---\nname: invalid\ntools: 42\n---\nBody.").is_none());
+        let duplicate = vec!["Read".to_string(), " read ".to_string()];
+        assert_eq!(map_claude_tools(Some(&duplicate)), Some(vec!["read".to_string()]));
+    }
+
+    #[test]
+    fn plugin_agent_comma_separated_tools_preserve_restrictions() {
+        let list = parse_plugin_agent("---\nname: reader\ntools: [Read, Glob, Grep]\n---\nBody.").unwrap();
+        let text = parse_plugin_agent("---\nname: reader\ntools: Read, Glob, Grep\n---\nBody.").unwrap();
+        assert_eq!(list.allowed_tools, text.allowed_tools);
+        let unknown = parse_plugin_agent("---\nname: restricted\ntools: NotebookRead, BashOutput\n---\nBody.").unwrap();
+        let empty = parse_plugin_agent("---\nname: restricted\ntools: ''\n---\nBody.").unwrap();
+        assert_eq!(unknown.allowed_tools, Some(vec![]));
+        assert_eq!(empty.allowed_tools, Some(vec![]));
+    }
+
+    #[test]
+    fn plugin_agent_untranslated_restrictions_never_inherit_parent_tools() {
+        for restriction in [
+            "disallowedTools: [Bash]", "disallowed-tools: Bash", "permissionMode: plan",
+            "sandbox_mode: read-only", "approval_policy: never", "allowedTools: [Read]",
+            "readOnly: true", "isolation: worktree", "tool_permissions: {deny: [Bash]}",
+            "denied_paths: [/private]", "writable_roots: [/project]", "toolPolicy: restricted",
+        ] {
+            let raw = format!("---\nname: restricted\n{restriction}\n---\nRead only.");
+            let def = parse_plugin_agent(&raw).unwrap();
+            assert_eq!(def.allowed_tools, Some(vec![]), "{restriction}");
+            let reg = registry_with("restricted", def.allowed_tools);
+            let p = ToolPermissions::allow_all();
+            let resolved = resolve_dispatch_plain(&reg, &req("restricted", None), &p).unwrap();
+            assert_eq!(resolved.allowed_tools, Some(vec![]), "{restriction}");
+            assert!(resolve_dispatch_plain(&reg, &req("restricted", Some(vec!["shell".into()])), &p).is_err());
+        }
     }
 
     #[test]

@@ -17,7 +17,7 @@ pub mod correlation;
 pub mod events;
 pub mod genai_bridge;
 pub mod git;
-// Not cli-gated: `~/.jan/config.toml` is the user's own layer, and its
+// Not cli-gated: `~/.rey30-idvj/config.toml` is the user's own layer, and its
 // `[[hooks]]` have to mean the same thing in the desktop app and the API
 // server as they do in the CLI. The rest of the module (provider records, the
 // TUI's settings writers) has no consumer outside the CLI, hence the allow

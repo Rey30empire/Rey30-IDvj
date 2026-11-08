@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # S3 cache of the mlx-server build: the executable plus mlx-swift's Metal bundle,
 # as xcodebuild leaves them (unsigned), which `make build-mlx-server` then stages
-# and signs from JAN_MLX_PREBUILT_DIR instead of building. Any failure here means
+# and signs from REY30_MLX_PREBUILT_DIR instead of building. Any failure here means
 # no prebuilt, which is exactly the xcodebuild build.
 #
 #   restore  resolve the Swift packages, fetch + verify the object for exactly
-#            that resolution, then export JAN_MLX_PREBUILT_DIR (needs BUCKET + AWS env)
+#            that resolution, then export REY30_MLX_PREBUILT_DIR (needs BUCKET + AWS env)
 #   save     pack this run's xcodebuild products and upload them as $KEY
 #            (needs BUCKET, KEY + AWS env)
 #
@@ -50,7 +50,7 @@ restore)
   d="$RUNNER_TEMP/mlx-prebuilt"
   rm -rf "$d" && mkdir -p "$d"
   if aws s3 cp "s3://$BUCKET/$k" - | tar -xzf - -C "$d" && is_complete "$d"; then
-    echo "JAN_MLX_PREBUILT_DIR=$d" >> "$GITHUB_ENV"
+    echo "REY30_MLX_PREBUILT_DIR=$d" >> "$GITHUB_ENV"
     echo "hit=true" >> "$GITHUB_OUTPUT"
     echo "::notice::mlx-prebuilt: hit $k"
   else

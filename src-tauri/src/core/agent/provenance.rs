@@ -7,7 +7,7 @@
 //! child, which is the shape Robot Studio already records from pi's
 //! `onPayload`.
 //!
-//! The hashes describe the body Jan built for the adapter: canonical JSON, every
+//! The hashes describe the body Rey30 IDvj built for the adapter: canonical JSON, every
 //! object's keys sorted recursively, so two bodies carrying the same members in
 //! a different order hash alike. They are therefore stable for a given run and
 //! comparable across runs of the same provider.

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# S3 cache of llama.cpp's cmake outputs, in the JAN_LLAMA_PREBUILT_DIR layout
+# S3 cache of llama.cpp's cmake outputs, in the REY30_LLAMA_PREBUILT_DIR layout
 # build.rs links against: lib/ (stage 2 archives plus ggml-prefix/lib), an
 # empty include/ and bin/ (ggml-prefix/bin). Any failure here means no
 # prebuilt, which is exactly the full cmake build.
 #
 #   key <features>  print the object key for this job's native-build inputs,
 #                   exit 1 if not cacheable. Run it as `make engine-prebuilt-key`.
-#   restore         fetch + verify it, then export JAN_LLAMA_PREBUILT_DIR
+#   restore         fetch + verify it, then export REY30_LLAMA_PREBUILT_DIR
 #                   (needs BUCKET + AWS env)
 #   save            pack this run's cmake outputs and upload them as $KEY
 #                   (needs BUCKET, KEY + AWS env)
@@ -23,9 +23,9 @@ unixpath() { if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"; else p
 script_code() { nocr < "$1" | sed '/^[[:space:]]*\(#.*\)\{0,1\}$/d'; }
 
 # build.rs's ARCHIVES, read rather than copied so the two cannot drift, minus
-# jan_llama_shim, which cc rebuilds on every build
+# rey30_llama_shim, which cc rebuilds on every build
 archives() {
-  nocr < "$P/build.rs" | sed -n '/const ARCHIVES: /,/];/s/^ *"\([^"]*\)",*$/\1/p' | grep -vx jan_llama_shim
+  nocr < "$P/build.rs" | sed -n '/const ARCHIVES: /,/];/s/^ *"\([^"]*\)",*$/\1/p' | grep -vx rey30_llama_shim
 }
 
 # Everything the prebuilt link and stage-engine.sh need. build.rs itself only
@@ -42,7 +42,7 @@ is_complete() {
 case "${1:-}" in
 key)
   features=${2:?usage: make engine-prebuilt-key}
-  [ -z "${JAN_LLAMA_CPP_DIR:-}" ] || exit 1 # a local checkout is not the pinned source
+  [ -z "${REY30_LLAMA_CPP_DIR:-}" ] || exit 1 # a local checkout is not the pinned source
   # ROCm's version is not keyed, and no desktop build ships the hip backend
   [[ ",$features," != *,engine-hip,* ]] || exit 1
   rs=$(nocr < "$P/build.rs")
@@ -51,7 +51,7 @@ key)
   [ -n "$tag" ] && [ -n "$triple" ] || exit 1
 
   t="$triple $features"
-  for v in JAN_ENGINE_CUDA_ARCHS CUDACXX CC CXX CFLAGS CXXFLAGS LDFLAGS CUDAFLAGS CUDAHOSTCXX \
+  for v in REY30_ENGINE_CUDA_ARCHS CUDACXX CC CXX CFLAGS CXXFLAGS LDFLAGS CUDAFLAGS CUDAHOSTCXX \
            CMAKE_GENERATOR CMAKE_TOOLCHAIN_FILE; do
     t+=" $v=${!v:-}"
   done
@@ -109,7 +109,7 @@ restore)
   rm -rf "$d" && mkdir -p "$d"
   # Streamed: no second copy on disk, and GNU tar never parses "D:" in -f as a remote host
   if aws s3 cp "s3://$BUCKET/$k" - | tar -xzf - -C "$d" && is_complete "$d"; then
-    echo "JAN_LLAMA_PREBUILT_DIR=$d" >> "$GITHUB_ENV"
+    echo "REY30_LLAMA_PREBUILT_DIR=$d" >> "$GITHUB_ENV"
     echo "hit=true" >> "$GITHUB_OUTPUT"
     echo "::notice::engine-prebuilt: hit $k"
   else
@@ -122,7 +122,7 @@ save)
   exe=
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) exe=.exe ;; esac
   # A non-empty staged worker proves both cmake stages built and linked in this run
-  [ -s "src-tauri/resources/bin/jan-llama-worker$exe" ] || {
+  [ -s "src-tauri/resources/bin/rey30-idvj-llama-worker$exe" ] || {
     echo "::warning::engine-prebuilt: engine not built this run; not saving"; exit 0; }
   marker=$(ls -t "${CARGO_TARGET_DIR:-$P/target}"/release/build/tauri-plugin-llamacpp-*/out/engine-build-root.txt | head -1)
   root=$(unixpath "$(nocr < "$marker" | tr -d '\n')") # relocated out of OUT_DIR on Windows

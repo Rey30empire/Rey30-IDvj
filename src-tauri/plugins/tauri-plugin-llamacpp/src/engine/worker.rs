@@ -1,4 +1,4 @@
-//! Supervises the `jan-llama-worker` process.
+//! Supervises the `rey30-idvj-llama-worker` process.
 //!
 //! This is the crash boundary. The worker links llama.cpp statically, but in
 //! its own process, because `GGML_ASSERT` calls `abort()` unconditionally and
@@ -62,14 +62,14 @@ pub enum WorkerError {
 impl std::fmt::Display for WorkerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Spawn(m) => write!(f, "could not start jan-llama-worker: {m}"),
+            Self::Spawn(m) => write!(f, "could not start rey30-idvj-llama-worker: {m}"),
             Self::WrongArchitecture(m) => write!(
                 f,
-                "jan-llama-worker is built for a different processor than this computer's: {m}"
+                "rey30-idvj-llama-worker is built for a different processor than this computer's: {m}"
             ),
-            Self::Handshake(m) => write!(f, "jan-llama-worker did not come up: {m}"),
+            Self::Handshake(m) => write!(f, "rey30-idvj-llama-worker did not come up: {m}"),
             Self::Timeout(d) => {
-                write!(f, "jan-llama-worker did not report a port within {d:?}")
+                write!(f, "rey30-idvj-llama-worker did not report a port within {d:?}")
             }
         }
     }
@@ -317,10 +317,10 @@ pub fn describe_exit(status: &ExitStatus) -> String {
 
 /// Env var the worker reads its bearer token from. Never an argv flag: argv is
 /// world-readable via `ps` / `/proc/<pid>/cmdline`, and the supervisor logs it.
-pub const API_KEY_ENV: &str = "JAN_LLAMA_API_KEY";
+pub const API_KEY_ENV: &str = "REY30_LLAMA_API_KEY";
 
 /// How long to wait for the worker to unwind after it accepts `/shutdown`.
-/// Generous because unwinding runs `jan_llama_engine_stop` per resident model,
+/// Generous because unwinding runs `rey30_llama_engine_stop` per resident model,
 /// which terminates each `server_queue` loop and frees the model.
 const SHUTDOWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
@@ -443,7 +443,7 @@ impl std::fmt::Debug for WorkerHandle {
 /// Ties the worker's lifetime to ours on Windows, which has no process group.
 ///
 /// `kill_on_drop` is a tokio destructor, and `TerminateProcess` runs no
-/// destructors, so a force-quit Jan -- Task Manager, or the NSIS installer's own
+/// destructors, so a force-quit Rey30 IDvj -- Task Manager, or the NSIS installer's own
 /// kill of the running app -- leaves the worker alive. It exits eventually,
 /// because losing our end of its stdin pipe is its stop signal, but only after
 /// draining requests, saving slots and freeing every model, and until then it
@@ -475,7 +475,7 @@ mod reap {
         }
     }
 
-    /// Best effort: a Jan already confined to a job that forbids nesting should
+    /// Best effort: a Rey30 IDvj already confined to a job that forbids nesting should
     /// lose the reaping guarantee, not the engine.
     pub fn confine(child: RawHandle) -> Option<Job> {
         let job = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
@@ -539,8 +539,8 @@ impl WorkerHandle {
     /// reason the worker is our own binary rather than a downloaded
     /// `llama-server`: the router could only be signalled, and Windows has no
     /// deliverable SIGTERM equivalent (`GenerateConsoleCtrlEvent(CTRL_C_EVENT)`
-    /// needs process group 0, which would kill Jan too), so it had to be
-    /// force-killed there. A force kill skips `jan_llama_engine_stop`, leaving
+    /// needs process group 0, which would kill Rey30 IDvj too), so it had to be
+    /// force-killed there. A force kill skips `rey30_llama_engine_stop`, leaving
     /// `server_queue` loops unterminated and the model unfreed.
     ///
     /// Signals remain the fallback for a worker too wedged to answer.
@@ -548,12 +548,12 @@ impl WorkerHandle {
         if self.request_shutdown() {
             match tokio::time::timeout(SHUTDOWN_TIMEOUT, self.child.wait()).await {
                 Ok(Ok(status)) => {
-                    log::info!("jan-llama-worker exited gracefully: {status}");
+                    log::info!("rey30-idvj-llama-worker exited gracefully: {status}");
                     return;
                 }
                 Ok(Err(e)) => log::warn!("waiting on the worker failed: {e}"),
                 Err(_) => log::warn!(
-                    "jan-llama-worker did not exit within {}s of /shutdown; falling back",
+                    "rey30-idvj-llama-worker did not exit within {}s of /shutdown; falling back",
                     SHUTDOWN_TIMEOUT.as_secs()
                 ),
             }
@@ -632,7 +632,7 @@ async fn wait_for_drain(drain: Option<tokio::task::JoinHandle<()>>) {
 ///
 /// Absolute only: `current_dir` also changes how the OS resolves a *relative*
 /// program path, so doing this unconditionally would make a dev's
-/// `--bin build/jan-llama-worker` be looked up inside `build/`. Every shipped
+/// `--bin build/rey30-idvj-llama-worker` be looked up inside `build/`. Every shipped
 /// path is absolute (`resource_dir()`, or `sidecar_path` off
 /// `current_exe`), so the hardening lands exactly where it matters.
 pub(crate) fn worker_cwd(exe: &Path) -> Option<&Path> {
@@ -661,7 +661,7 @@ pub async fn spawn(
     let mut cmd = Command::new(exe);
     // Without this the worker flashes a console window on Windows, the way
     // every other spawn in this plugin already avoids.
-    jan_utils::system::setup_windows_process_flags(&mut cmd);
+    rey30_idvj_utils::system::setup_windows_process_flags(&mut cmd);
     if let Some(dir) = worker_cwd(exe) {
         cmd.current_dir(dir);
     }
@@ -720,7 +720,7 @@ pub async fn spawn(
                     lines.next_line().await
                 };
                 let Ok(Some(line)) = next else { break };
-                log::debug!("jan-llama-worker: {line}");
+                log::debug!("rey30-idvj-llama-worker: {line}");
                 remember_stderr_line(&tail, &line);
                 for (fault, text) in reader.feed(&line) {
                     report(fault, text);
@@ -777,7 +777,7 @@ pub async fn spawn(
     // Keep draining stdout so the worker never blocks on a full pipe.
     tokio::spawn(async move {
         while let Ok(Some(line)) = lines.next_line().await {
-            log::debug!("jan-llama-worker: {line}");
+            log::debug!("rey30-idvj-llama-worker: {line}");
         }
     });
 
@@ -800,9 +800,9 @@ pub async fn spawn(
 /// lays out a bundled sidecar.
 pub fn worker_file_name() -> &'static str {
     if cfg!(windows) {
-        "jan-llama-worker.exe"
+        "rey30-idvj-llama-worker.exe"
     } else {
-        "jan-llama-worker"
+        "rey30-idvj-llama-worker"
     }
 }
 
@@ -830,10 +830,10 @@ pub(crate) mod tests {
 
     #[test]
     fn worker_cwd_is_the_exe_dir_only_for_absolute_paths() {
-        let exe = std::env::temp_dir().join("bin").join("jan-llama-worker");
+        let exe = std::env::temp_dir().join("bin").join("rey30-idvj-llama-worker");
         assert_eq!(worker_cwd(&exe), exe.parent());
-        assert!(worker_cwd(Path::new("build/jan-llama-worker")).is_none());
-        assert!(worker_cwd(Path::new("jan-llama-worker")).is_none());
+        assert!(worker_cwd(Path::new("build/rey30-idvj-llama-worker")).is_none());
+        assert!(worker_cwd(Path::new("rey30-idvj-llama-worker")).is_none());
     }
 
     // Restored with the marker lists intact: each entry came from a real crash
@@ -1150,7 +1150,7 @@ pub(crate) mod tests {
         use std::os::unix::fs::PermissionsExt;
 
         let dir = tempfile::tempdir().unwrap();
-        let exe = dir.path().join("jan-llama-worker");
+        let exe = dir.path().join("rey30-idvj-llama-worker");
         let mut header = Vec::new();
         // mach_header_64: magic, cputype (PowerPC), cpusubtype, MH_EXECUTE, ncmds,
         // sizeofcmds, flags, reserved.
@@ -1208,7 +1208,7 @@ pub(crate) mod tests {
         for b in ["MTL", "BLAS", "CPU"] {
             remember_stderr_line(
                 &tail,
-                &format!("load_backend: loaded {b} backend from /opt/jan/libggml-{b}.so"),
+                &format!("load_backend: loaded {b} backend from /opt/rey30-idvj/libggml-{b}.so"),
             );
         }
         assert_eq!(

@@ -1,6 +1,6 @@
 //! Per-model metadata cached from a provider's `/models` listing.
 //!
-//! `~/.jan/config.toml` records a provider's model **ids**, and that is all the
+//! `~/.rey30-idvj/config.toml` records a provider's model **ids**, and that is all the
 //! agent needs to route a request. A router-style endpoint reports much more
 //! per model -- `context_length`, `max_completion_tokens` and per-token
 //! `pricing` -- which is exactly what the header gauge, `/context` and
@@ -8,7 +8,7 @@
 //! [`super::model_capabilities`], whose catalog is a hand-maintained table of
 //! model families).
 //!
-//! That metadata lives here, in `~/.jan/model_catalog.json`, rather than in
+//! That metadata lives here, in `~/.rey30-idvj/model_catalog.json`, rather than in
 //! `config.toml`: the config is hand-edited and a pricing block per model would
 //! bury the three lines a user actually writes. This file is a **cache** --
 //! deleting it costs nothing but a refresh, and nothing here is a secret.
@@ -155,7 +155,7 @@ pub struct Catalog {
 }
 
 fn catalog_path() -> Result<PathBuf, String> {
-    Ok(crate::core::agent::global_config::global_jan_dir()?.join("model_catalog.json"))
+    Ok(crate::core::agent::global_config::global_rey30_dir()?.join("model_catalog.json"))
 }
 
 /// Read the cache. A missing or unreadable file is an empty catalog, never an
@@ -247,7 +247,7 @@ impl Catalog {
         unique_bare_match(self.providers.values(), model_id)
     }
 
-    /// Persist the cache, creating `~/.jan` if needed.
+    /// Persist the cache, creating `~/.rey30-idvj` if needed.
     pub fn save(&self) -> Result<(), String> {
         let path = catalog_path()?;
         if let Some(parent) = path.parent() {
@@ -355,7 +355,7 @@ fn model_info(entry: &serde_json::Value) -> ModelInfo {
     }
 }
 
-/// A JSON number, or a number written as a string. Every price in the Jan
+/// A JSON number, or a number written as a string. Every price in the Rey30 IDvj
 /// Router listing is a string (`"0.0000008"`), while `context_length` is a
 /// number, and other gateways swap which is which.
 fn number(value: &serde_json::Value) -> Option<f64> {
@@ -371,13 +371,13 @@ mod tests {
     use crate::core::agent::global_config::with_temp_home;
     use serde_json::json;
 
-    /// One entry in the shape the Jan Router serves: pricing as strings, window
+    /// One entry in the shape the Rey30 IDvj Router serves: pricing as strings, window
     /// and output cap as numbers.
     fn router_entry(id: &str) -> serde_json::Value {
         json!({
             "id": id,
             "object": "model",
-            "owned_by": "Jan Router",
+            "owned_by": "Rey30 IDvj Router",
             "model_display_name": "claude-opus-5",
             "pricing": {
                 "currency": "USD",

@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use tauri_plugin_agent_tools::skills::{DEFAULT_JAN_SKILL, DEFAULT_JAN_SKILL_NAME};
+use tauri_plugin_agent_tools::skills::{DEFAULT_REY30_SKILL, DEFAULT_REY30_SKILL_NAME};
 use tauri_plugin_agent_tools::workspace::workspace_filename;
 
 /// `<store_root>/skills`, in the project's store (see `project::store_root`).
@@ -26,22 +26,22 @@ pub(crate) fn skills_dir(root: &Path) -> PathBuf {
     crate::core::agent::project::store_root(root).join("skills")
 }
 
-/// The user-wide skill store root: `~/.jan` (skills live in its `skills/`,
-/// beside the user memory scope `~/.jan/memory`). Resolve through
-/// [`crate::core::agent::project::jan_home`] in every build so sandbox hiding
+/// The user-wide skill store root: `~/.rey30-idvj` (skills live in its `skills/`,
+/// beside the user memory scope `~/.rey30-idvj/memory`). Resolve through
+/// [`crate::core::agent::project::rey30_home`] in every build so sandbox hiding
 /// and plugin install workers agree on the root. Unit tests use that resolver's
 /// shared process scratch home and must run serially when mutating user skills.
 pub(crate) fn user_store_root() -> Option<PathBuf> {
-    crate::core::agent::project::jan_home()
+    crate::core::agent::project::rey30_home()
 }
 
-/// `~/.jan/skills`, the user scope: skills visible from every project.
+/// `~/.rey30-idvj/skills`, the user scope: skills visible from every project.
 pub(crate) fn user_skills_dir() -> Option<PathBuf> {
     user_store_root().map(|home| tauri_plugin_agent_tools::skills::skills_dir(&home))
 }
 
 /// Where a skill came from. Resolution order (earlier shadows later on the
-/// same plain name): project, then user, then the built-in `jan` skill.
+/// same plain name): project, then user, then the built-in `rey30-idvj` skill.
 /// Plugin skills are always qualified `<plugin>:<name>`, so they never collide
 /// with a plain name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -76,7 +76,7 @@ pub(crate) struct SkillEntry {
     pub is_folder: bool,
     /// The plugin this skill ships in (`Some`), or `None` for a project skill.
     pub plugin: Option<String>,
-    /// True for a skill from the user scope (`~/.jan/skills`).
+    /// True for a skill from the user scope (`~/.rey30-idvj/skills`).
     pub user: bool,
 }
 
@@ -276,7 +276,7 @@ pub(crate) fn discover(root: &Path) -> Vec<SkillEntry> {
     out
 }
 
-/// All user-scope skills (`~/.jan/skills`), sorted by name.
+/// All user-scope skills (`~/.rey30-idvj/skills`), sorted by name.
 pub(crate) fn discover_user() -> Vec<SkillEntry> {
     let Some(dir) = user_skills_dir() else {
         return Vec::new();
@@ -289,7 +289,7 @@ pub(crate) fn discover_user() -> Vec<SkillEntry> {
 
 /// A skill file's identity on disk for deduplication: its canonical path, so
 /// the same folder reached through two symlinks (or a project `skills/` that
-/// is itself a link to `~/.jan/skills`) counts once.
+/// is itself a link to `~/.rey30-idvj/skills`) counts once.
 fn canonical(file: &Path) -> PathBuf {
     std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf())
 }
@@ -463,7 +463,7 @@ pub(crate) struct SkillReportRow {
 }
 
 /// The `/skills` listing: active skills (both invocation sides), the built-in
-/// `jan` skill, and every shadowed entry, marked. `enabled` is the
+/// `rey30-idvj` skill, and every shadowed entry, marked. `enabled` is the
 /// `[skills].enabled` whitelist, reported rather than filtered.
 #[cfg(any(feature = "cli", test))]
 pub(crate) fn report(root: &Path, enabled: &[String]) -> Vec<SkillReportRow> {
@@ -482,19 +482,19 @@ pub(crate) fn report(root: &Path, enabled: &[String]) -> Vec<SkillReportRow> {
     };
     let mut rows: Vec<SkillReportRow> = active.iter().map(|e| row(e, None)).collect();
     rows.extend(shadowed.iter().map(|s| row(&s.entry, Some(s.by))));
-    let builtin = default_jan_skill_meta();
-    let jan_owner = active
+    let builtin = default_rey30_skill_meta();
+    let rey30_owner = active
         .iter()
-        .find(|e| e.plugin.is_none() && e.name == DEFAULT_JAN_SKILL_NAME)
+        .find(|e| e.plugin.is_none() && e.name == DEFAULT_REY30_SKILL_NAME)
         .map(SkillEntry::scope);
     rows.push(SkillReportRow {
         name: builtin.name,
         scope: SkillScope::Builtin,
         description: builtin.description,
-        shadowed_by: jan_owner,
+        shadowed_by: rey30_owner,
         user_invocable: true,
         model_invocable: true,
-        enabled: enabled.is_empty() || enabled.iter().any(|n| n == DEFAULT_JAN_SKILL_NAME),
+        enabled: enabled.is_empty() || enabled.iter().any(|n| n == DEFAULT_REY30_SKILL_NAME),
     });
     rows.sort_by(|a, b| {
         a.name
@@ -649,21 +649,21 @@ fn meta_for(entry: &SkillEntry, parsed: &ParsedSkill) -> SkillMeta {
         scope: entry.scope(),
     }
 }
-/// Whether a name refers to the built-in Jan skill (aliased `jan`), which is
+/// Whether a name refers to the built-in Rey30 IDvj skill (aliased `rey30-idvj`), which is
 /// always available even with no project skills installed.
-fn is_default_jan_skill(name: &str) -> bool {
-    safe_stem(name).ok().as_deref() == Some(DEFAULT_JAN_SKILL_NAME)
+fn is_default_rey30_skill(name: &str) -> bool {
+    safe_stem(name).ok().as_deref() == Some(DEFAULT_REY30_SKILL_NAME)
 }
 
-/// The built-in Jan skill's metadata: the plugin-embedded onboarding skill is
+/// The built-in Rey30 IDvj skill's metadata: the plugin-embedded onboarding skill is
 /// advertised in every catalog even with zero project skills installed, but
 /// never force-loaded - its full body stays embedded and is fetched on demand
-/// via `skill_read` / `/skill:jan`, honoring the same invocation flags as any
-/// other skill. A project or plugin skill named "jan" shadows this default.
-fn default_jan_skill_meta() -> SkillMeta {
-    let parsed = parse(DEFAULT_JAN_SKILL);
+/// via `skill_read` / `/skill:rey30-idvj`, honoring the same invocation flags as any
+/// other skill. A project or plugin skill named "rey30-idvj" shadows this default.
+fn default_rey30_skill_meta() -> SkillMeta {
+    let parsed = parse(DEFAULT_REY30_SKILL);
     SkillMeta {
-        name: DEFAULT_JAN_SKILL_NAME.to_string(),
+        name: DEFAULT_REY30_SKILL_NAME.to_string(),
         description: describe(&parsed),
         plugin: None,
         user_invocable: true,
@@ -711,15 +711,15 @@ fn side_catalog(
             Some(meta_for(&e, &parsed))
         })
         .collect();
-    // The built-in Jan skill is always advertised so onboarding works even in
+    // The built-in Rey30 IDvj skill is always advertised so onboarding works even in
     // an empty project (mirrors the plugin's side_catalog). It honors the
     // enabled whitelist and side filter, and is skipped if a project or plugin
-    // skill named "jan" already shadows it.
-    if (enabled.is_empty() || enabled.iter().any(|n| n == DEFAULT_JAN_SKILL_NAME))
-        && side(&parse(DEFAULT_JAN_SKILL))
-        && !skills.iter().any(|m| m.name == DEFAULT_JAN_SKILL_NAME)
+    // skill named "rey30-idvj" already shadows it.
+    if (enabled.is_empty() || enabled.iter().any(|n| n == DEFAULT_REY30_SKILL_NAME))
+        && side(&parse(DEFAULT_REY30_SKILL))
+        && !skills.iter().any(|m| m.name == DEFAULT_REY30_SKILL_NAME)
     {
-        skills.push(default_jan_skill_meta());
+        skills.push(default_rey30_skill_meta());
     }
     skills
 }
@@ -766,11 +766,11 @@ pub(crate) fn plugin_skill_metas(root: &Path, plugin: &str) -> Vec<SkillMeta> {
 
 /// Raw SKILL.md text (frontmatter included). Test-only: the desktop editor
 /// reads skills through the plugin crate's `read_raw` (which also resolves the
-/// built-in jan skill); core resolves the same files for invocation dispatch.
+/// built-in rey30-idvj skill); core resolves the same files for invocation dispatch.
 #[cfg(test)]
 pub(crate) fn read_raw(root: &Path, name: &str) -> Result<String, String> {
-    if is_default_jan_skill(name) {
-        return Ok(parse(DEFAULT_JAN_SKILL).body);
+    if is_default_rey30_skill(name) {
+        return Ok(parse(DEFAULT_REY30_SKILL).body);
     }
     let entry = resolve_readable(root, name)?;
     std::fs::read_to_string(&entry.file).map_err(|e| format!("ERROR: {e}"))
@@ -873,9 +873,9 @@ pub(crate) fn build_invocation_message(
             });
             (body, dir_note)
         }
-        // The built-in Jan skill has no file on disk; serve its embedded body
+        // The built-in Rey30 IDvj skill has no file on disk; serve its embedded body
         // on demand, exactly like the plugin's skill_read path.
-        Err(_) if is_default_jan_skill(name) => (parse(DEFAULT_JAN_SKILL).body, None),
+        Err(_) if is_default_rey30_skill(name) => (parse(DEFAULT_REY30_SKILL).body, None),
         Err(e) => return Err(e),
     };
     let args = args.trim();
@@ -902,7 +902,7 @@ pub(crate) fn read_for_model(root: &Path, enabled: &[String], name: &str) -> Res
             let raw = std::fs::read_to_string(&entry.file).map_err(|e| format!("ERROR: {e}"))?;
             Ok(parse(&raw).body)
         }
-        Err(_) if meta.scope == SkillScope::Builtin => Ok(parse(DEFAULT_JAN_SKILL).body),
+        Err(_) if meta.scope == SkillScope::Builtin => Ok(parse(DEFAULT_REY30_SKILL).body),
         Err(_) => Err(not_found()),
     }
 }
@@ -997,7 +997,7 @@ mod tests {
 
     #[test]
     fn user_skill_store_matches_sandbox_hidden_root() {
-        let home = crate::core::agent::project::jan_home().unwrap();
+        let home = crate::core::agent::project::rey30_home().unwrap();
         assert_eq!(user_store_root(), Some(home.clone()));
         assert_eq!(user_skills_dir(), Some(home.join("skills")));
         assert_eq!(crate::core::agent::project::hidden_root(true), Some(home));
@@ -1028,7 +1028,7 @@ mod tests {
     #[test]
     fn discover_finds_folder_and_flat_skills_sorted() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_test_{}",
+            "rey30_skills_test_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1047,7 +1047,7 @@ mod tests {
     #[test]
     fn write_new_creates_folder_form_read_delete_roundtrip() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_rt_{}",
+            "rey30_skills_rt_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1128,7 +1128,7 @@ mod tests {
     #[test]
     fn catalog_and_user_catalog_split_invocation_sides() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_sides_{}",
+            "rey30_skills_sides_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1148,12 +1148,12 @@ mod tests {
         write("user_only", "disable-model-invocation: true\n");
 
         let model: Vec<_> = catalog(&root, &[]).into_iter().map(|m| m.name).collect();
-        assert_eq!(model, vec!["both", "model_only", "jan"], "model side: {model:?}");
+        assert_eq!(model, vec!["both", "model_only", "rey30-idvj"], "model side: {model:?}");
         let user: Vec<_> = user_catalog(&root, &[])
             .into_iter()
             .map(|m| m.name)
             .collect();
-        assert_eq!(user, vec!["both", "user_only", "jan"], "user side: {user:?}");
+        assert_eq!(user, vec!["both", "user_only", "rey30-idvj"], "user side: {user:?}");
 
         // Both flags still visible to the management list.
         let all = list_meta(&root);
@@ -1180,7 +1180,7 @@ mod tests {
     #[test]
     fn build_invocation_message_injects_body_and_args() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_inv_{}",
+            "rey30_skills_inv_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1220,7 +1220,7 @@ mod tests {
     #[test]
     fn catalog_enabled_whitelist_filters() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_wl_{}",
+            "rey30_skills_wl_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1228,7 +1228,7 @@ mod tests {
         ));
         write(&root, "a", "body a").unwrap();
         write(&root, "b", "body b").unwrap();
-        // Empty whitelist = all skills (both project skills + built-in jan).
+        // Empty whitelist = all skills (both project skills + built-in rey30-idvj).
         assert_eq!(catalog(&root, &[]).len(), 3);
         // Non-empty whitelist restricts to the listed names.
         let only_a = catalog(&root, &["a".to_string()]);
@@ -1240,7 +1240,7 @@ mod tests {
     #[test]
     fn write_existing_flat_stays_flat() {
         let root = std::env::temp_dir().join(format!(
-            "jan_skills_flat_{}",
+            "rey30_skills_flat_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1261,7 +1261,7 @@ mod tests {
 
     fn temp_root(tag: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
-            "jan_pluginskills_{tag}_{}",
+            "rey30_pluginskills_{tag}_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()
@@ -1499,7 +1499,7 @@ mod tests {
             .elapsed()
             .unwrap()
             .as_nanos();
-        let main = std::env::temp_dir().join(format!("jan_wt_main_{tag}_{n}"));
+        let main = std::env::temp_dir().join(format!("rey30_wt_main_{tag}_{n}"));
         std::fs::create_dir_all(&main).unwrap();
         let run = |args: &[&str]| -> bool {
             std::process::Command::new("git")
@@ -1514,7 +1514,7 @@ mod tests {
         {
             return None;
         }
-        let linked = std::env::temp_dir().join(format!("jan_wt_link_{tag}_{n}"));
+        let linked = std::env::temp_dir().join(format!("rey30_wt_link_{tag}_{n}"));
         let l = linked.to_string_lossy().to_string();
         if !run(&["worktree", "add", &l]) {
             return None;
@@ -1555,7 +1555,7 @@ mod tests {
     }
 
     /// Skills written into the (per-process, test-only) user scope
-    /// `~/.jan/skills`, removed on drop so no other test sees them.
+    /// `~/.rey30-idvj/skills`, removed on drop so no other test sees them.
     struct UserSkills(Vec<std::path::PathBuf>);
 
     impl UserSkills {
@@ -1659,20 +1659,20 @@ mod tests {
         assert_eq!(read_for_model(&root, &[], "u394-prepare").unwrap(), "user prep body");
         assert_eq!(read_for_model(&root, &[], "rel:u394-prepare").unwrap(), "plugin prep body");
         // Nothing is shadowed: the names differ.
-        assert!(report(&root, &[]).iter().all(|r| r.shadowed_by.is_none() || r.name == "jan"));
+        assert!(report(&root, &[]).iter().all(|r| r.shadowed_by.is_none() || r.name == "rey30-idvj"));
         let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn built_in_jan_is_shadowed_by_a_user_skill_named_jan() {
+    fn built_in_rey30_is_shadowed_by_a_user_skill_named_rey30() {
         let mut user = UserSkills::new();
-        user.folder("jan", "---\ndescription: my jan\n---\nmine\n");
+        user.folder("rey30-idvj", "---\ndescription: my rey30-idvj\n---\nmine\n");
         let root = temp_root("janu");
         let model = catalog(&root, &[]);
-        let jan: Vec<_> = model.iter().filter(|m| m.name == "jan").collect();
-        assert_eq!(jan.len(), 1);
-        assert_eq!(jan[0].scope, SkillScope::User);
-        assert_eq!(read_for_model(&root, &[], "jan").unwrap(), "mine");
+        let rey30: Vec<_> = model.iter().filter(|m| m.name == "rey30-idvj").collect();
+        assert_eq!(rey30.len(), 1);
+        assert_eq!(rey30[0].scope, SkillScope::User);
+        assert_eq!(read_for_model(&root, &[], "rey30-idvj").unwrap(), "mine");
         let builtin = report(&root, &[])
             .into_iter()
             .find(|r| r.scope == SkillScope::Builtin)
@@ -1699,8 +1699,8 @@ mod tests {
         // The whitelist applies: a plugin not enabled is unreadable.
         assert!(read_for_model(&root, &["other".into()], "rel:prepare").is_err());
         assert!(read_for_model(&root, &["rel".into()], "rel:prepare").is_ok());
-        // The built-in jan skill still reads.
-        assert!(!read_for_model(&root, &[], "jan").unwrap().is_empty());
+        // The built-in rey30-idvj skill still reads.
+        assert!(!read_for_model(&root, &[], "rey30-idvj").unwrap().is_empty());
         let _ = std::fs::remove_dir_all(&root);
     }
 

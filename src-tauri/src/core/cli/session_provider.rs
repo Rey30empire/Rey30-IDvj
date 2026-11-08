@@ -10,7 +10,7 @@
 //! `ProviderConfig`s built from it, and the desktop does not compile `core::cli`
 //! at all.
 //!
-//! **RPC** installs nothing: `jan cli agent rpc` takes no provider overrides by
+//! **RPC** installs nothing: `rey30-idvj cli agent rpc` takes no provider overrides by
 //! design, because an ADK host brings its own per session, so its sessions build
 //! with `ProviderOverrides::default()`. The `session-overrides` capability
 //! describes the TUI, `run` and `step`.
@@ -18,7 +18,7 @@
 //! **Session-scoped provider.** One named with an explicit `--provider` whose
 //! base URL or key came from these overrides
 //! ([`ProviderOverrides::session_scoped_provider`]). Its model ids and prices
-//! describe the endpoint this session points at, not the one `~/.jan` was
+//! describe the endpoint this session points at, not the one `~/.rey30-idvj` was
 //! written for, so they live here, in memory, and never reach `config.toml` or
 //! `model_catalog.json`:
 //!
@@ -117,12 +117,12 @@ pub(crate) fn tokamak_is_session_scoped() -> bool {
 
 /// What a refused Tokamak sign-in change says.
 pub(crate) const TOKAMAK_REFUSAL: &str = "this session's Tokamak credential comes from the \
-     environment (the launcher); run `jan login` outside it";
+     environment (the launcher); run `rey30-idvj login` outside it";
 
 /// The session's Tokamak key, when Tokamak is the explicitly named session
 /// provider and the key came from the session. Account calls (`/usage`, `auth
 /// status`) use this and nothing else from the session: a key given for any
-/// other provider, or a `JAN_API_KEY` that reached a Desktop-selected one, is
+/// other provider, or a `REY30_API_KEY` that reached a Desktop-selected one, is
 /// never sent to Tokamak.
 pub(crate) fn tokamak_key() -> Option<String> {
     let guard = read();
@@ -240,7 +240,7 @@ pub(crate) fn reset() {
 
 /// Run `f` in a temp home with `overrides` installed as the session's, then
 /// reset. Nested inside `with_temp_home` so it is serialized with every other
-/// test that touches `~/.jan` -- the provider rebuilds read both.
+/// test that touches `~/.rey30-idvj` -- the provider rebuilds read both.
 #[cfg(test)]
 pub(crate) fn with_session<T>(
     overrides: ProviderOverrides,

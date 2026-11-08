@@ -7,7 +7,7 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use jan_utils::{
+use rey30_idvj_utils::{
     is_cors_header, is_same_or_app_origin, is_trusted_origin, is_valid_host, remove_prefix,
 };
 use reqwest::Client;
@@ -576,7 +576,7 @@ pub struct ProxyConfig {
 
 /// Whether a request carrying this `Origin` may proceed. Requests without an
 /// Origin (curl, SDKs, CLI tools, LAN clients) always may; browser requests
-/// must come from a trusted origin (see `jan_utils::is_trusted_origin`).
+/// must come from a trusted origin (see `rey30_idvj_utils::is_trusted_origin`).
 ///
 /// Runs on every non-preflight request, before auth and body parsing, because
 /// a browser sends "simple" cross-origin POSTs (e.g. `text/plain`) without a
@@ -701,7 +701,7 @@ async fn proxy_request(
     model_param_defaults: Arc<Mutex<HashMap<String, serde_json::Value>>>,
     mcp_servers: SharedMcpServers,
     mcp_settings: Arc<Mutex<McpSettings>>,
-    jan_data_folder: String,
+    rey30_data_folder: String,
 ) -> Result<Response<ResBody>, hyper::Error> {
     if req.method() == hyper::Method::OPTIONS {
         log::debug!(
@@ -1057,7 +1057,7 @@ async fn proxy_request(
                             mlx_sessions.clone(),
                             mcp_servers.clone(),
                             mcp_settings.clone(),
-                            &jan_data_folder,
+                            &rey30_data_folder,
                         )
                         .await
                         {
@@ -1318,7 +1318,7 @@ async fn proxy_request(
             // Load assistant config for system prompt + model hint when assistant_id is provided.
             let (assistant_instructions, assistant_model_hint) =
                 if let Some(assistant_id) = assistant_id.as_deref() {
-                    match load_assistant_config(&jan_data_folder, assistant_id) {
+                    match load_assistant_config(&rey30_data_folder, assistant_id) {
                         Ok(v) => v,
                         Err(e) => {
                             let mut error_response =
@@ -1607,7 +1607,7 @@ async fn proxy_request(
                             mlx_sessions.clone(),
                             mcp_servers.clone(),
                             mcp_settings.clone(),
-                            &jan_data_folder,
+                            &rey30_data_folder,
                         )
                         .await
                         {
@@ -2416,7 +2416,7 @@ fn is_insecure_public_bind(host: &str, api_key: &str) -> bool {
 
 /// Convert a TCP bind failure into a user-facing message. Address-in-use
 /// (Windows error 10048 / WSAEADDRINUSE, Unix EADDRINUSE) almost always means
-/// a leftover Jan process or another service still owns the port after a
+/// a leftover Rey30 IDvj process or another service still owns the port after a
 /// restart, so name the port and the remedy instead of surfacing a bare OS
 /// errno. Any other error is passed through unchanged.
 fn map_bind_error(
@@ -2425,7 +2425,7 @@ fn map_bind_error(
 ) -> Box<dyn std::error::Error + Send + Sync> {
     if err.kind() == std::io::ErrorKind::AddrInUse {
         let msg = format!(
-            "Port {port} ({addr}) is already in use. A previous Jan process may still be \
+            "Port {port} ({addr}) is already in use. A previous Rey30 IDvj process may still be \
              running or another application may be using the port. Close the leftover \
              process and try again, or pick a different port in Settings > Local API Server.",
             port = addr.port()
@@ -2491,7 +2491,7 @@ pub async fn start_server(
     model_param_defaults: Arc<Mutex<HashMap<String, serde_json::Value>>>,
     mcp_servers: SharedMcpServers,
     mcp_settings: Arc<Mutex<McpSettings>>,
-    jan_data_folder: String,
+    rey30_data_folder: String,
     enable_server_tool_execution: bool,
     cors_enabled: bool,
 ) -> Result<u16, Box<dyn std::error::Error + Send + Sync>> {
@@ -2509,7 +2509,7 @@ pub async fn start_server(
         model_param_defaults,
         mcp_servers,
         mcp_settings,
-        jan_data_folder,
+        rey30_data_folder,
         enable_server_tool_execution,
         cors_enabled,
     )
@@ -2531,7 +2531,7 @@ async fn start_server_internal(
     model_param_defaults: Arc<Mutex<HashMap<String, serde_json::Value>>>,
     mcp_servers: SharedMcpServers,
     mcp_settings: Arc<Mutex<McpSettings>>,
-    jan_data_folder: String,
+    rey30_data_folder: String,
     enable_server_tool_execution: bool,
     cors_enabled: bool,
 ) -> Result<u16, Box<dyn std::error::Error + Send + Sync>> {
@@ -2586,7 +2586,7 @@ async fn start_server_internal(
             return Err(map_bind_error(addr, e));
         }
     };
-    log::info!("Jan API server started on http://{addr}");
+    log::info!("Rey30 IDvj API server started on http://{addr}");
 
     let server_task = tokio::spawn(async move {
         loop {
@@ -2607,7 +2607,7 @@ async fn start_server_internal(
             let model_param_defaults = model_param_defaults.clone();
             let mcp_servers = mcp_servers.clone();
             let mcp_settings = mcp_settings.clone();
-            let jan_data_folder = jan_data_folder.clone();
+            let rey30_data_folder = rey30_data_folder.clone();
 
             let svc = service_fn(move |req| {
                 let client = client.clone();
@@ -2618,7 +2618,7 @@ async fn start_server_internal(
                 let model_param_defaults = model_param_defaults.clone();
                 let mcp_servers = mcp_servers.clone();
                 let mcp_settings = mcp_settings.clone();
-                let jan_data_folder = jan_data_folder.clone();
+                let rey30_data_folder = rey30_data_folder.clone();
                 async move {
                     // Taken before the request resolves the engine's address and
                     // kept until its response body is finished, so a device-change
@@ -2636,7 +2636,7 @@ async fn start_server_internal(
                         model_param_defaults,
                         mcp_servers,
                         mcp_settings,
-                        jan_data_folder,
+                        rey30_data_folder,
                     )
                     .await?;
                     Ok::<_, hyper::Error>(response.map(|body| hold_lease(body, lease)))
@@ -2655,7 +2655,7 @@ async fn start_server_internal(
 
     *handle_guard = Some(server_task);
     let actual_port = addr.port();
-    log::info!("Jan API server started successfully on port {actual_port}");
+    log::info!("Rey30 IDvj API server started successfully on port {actual_port}");
     Ok(actual_port)
 }
 
@@ -2667,7 +2667,7 @@ pub async fn stop_server(
     if let Some(handle) = handle_guard.take() {
         handle.abort();
         *handle_guard = None;
-        log::info!("Jan API server stopped");
+        log::info!("Rey30 IDvj API server stopped");
     } else {
         log::debug!("Server was not running");
     }

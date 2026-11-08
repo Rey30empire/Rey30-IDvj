@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use crate::permissions::ToolPermissions;
 use crate::tools::cmdscan::{normalize, scan_command, CommandScan};
 use crate::tools::sandbox::{
-    command_touches_hidden_root, escapes_read_roots, escapes_write_roots, in_hidden_root,
+    command_touches_hidden_root, escapes_read_roots, escapes_write_roots, in_hidden_root, resolve_path,
 };
 use crate::tools::{BuiltinTool, Capability};
+use crate::workspace::{is_pluma_library_path, overlaps_pluma_library};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -126,16 +127,15 @@ impl SessionGrants {
     }
 }
 
-/// Why a call was refused outright. The reason reaches the model, and the two
-/// cases need different wording: a policy deny is something the user can edit in
-/// `agent.toml`, while a hidden path is structural -- telling the model to check
-/// a deny list would send it reading a file that is itself hidden.
+/// Why a call was refused outright. Policy denies and protected paths need
+/// distinct wording because only policy denies can be edited in `agent.toml`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DenyReason {
     /// `[tools] deny` in agent.toml names this tool.
     Policy,
-    /// The call reaches the Jan home (`~/.jan`), hidden from every tool.
+    /// The call reaches the Rey30 IDvj home (`~/.rey30-idvj`), hidden from every tool.
     Hidden,
+    PrivateLibrary,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -157,7 +157,7 @@ pub struct GateContext<'a> {
     /// The subset of `read_roots` the caller marked writable: writes inside one
     /// are ordinary in-project writes rather than escapes.
     pub write_roots: &'a [PathBuf],
-    /// The Jan home (`~/.jan`: `config.toml` with keys and hooks, every
+    /// The Rey30 IDvj home (`~/.rey30-idvj`: `config.toml` with keys and hooks, every
     /// project's store). Set while the shell is sandboxed; paths and commands
     /// reaching it are refused outright, wherever it sits relative to the
     /// project (running in `$HOME` puts it inside). See
@@ -165,13 +165,32 @@ pub struct GateContext<'a> {
     pub hidden_root: Option<&'a Path>,
 }
 
-/// Decide how a built-in tool call should be gated, combining the static
-/// agent.toml policy, capability class, sandbox escape, and session grants.
-///
-/// Precedence: deny (agent.toml) > explicit allow/allow_write (agent.toml) >
-/// session grant > capability rules. Reads inside the project are silently
-/// allowed; reads that escape the project, and all writes/exec, prompt (unless
-/// already granted this session or pre-approved in agent.toml).
+pub(crate) fn touches_pluma_library(
+    tool: &BuiltinTool,
+    args: &serde_json::Value,
+    project_root: &Path,
+    scratch: Option<&Path>,
+) -> bool {
+    let is_directory_search = matches!(tool.name, "ls" | "find" | "grep");
+    tool.path_args.iter().any(|key| {
+        let raw = args
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .or_else(|| (is_directory_search && *key == "path").then_some("."));
+        let Some(raw) = raw else { return false };
+        let path = resolve_path(project_root, scratch, raw);
+        if is_directory_search {
+            overlaps_pluma_library(&path)
+        } else if tool.name == "screenshot" {
+            is_pluma_library_path(&path) || path.parent().is_some_and(overlaps_pluma_library)
+        } else {
+            is_pluma_library_path(&path)
+        }
+    })
+}
+
+/// Resolve protected paths and explicit denies before configured allows, session
+/// grants and the ordinary capability rules.
 pub fn resolve_decision(
     tool: &BuiltinTool,
     args: &serde_json::Value,
@@ -179,6 +198,9 @@ pub fn resolve_decision(
     perms: &ToolPermissions,
     grants: &SessionGrants,
 ) -> Decision {
+    if touches_pluma_library(tool, args, ctx.project_root, ctx.scratch) {
+        return Decision::HardDeny(DenyReason::PrivateLibrary);
+    }
     if perms.is_denied(tool.name) {
         return Decision::HardDeny(DenyReason::Policy);
     }
@@ -234,7 +256,7 @@ pub fn resolve_decision(
             }
         }
         // Native web tools (Net) touch no filesystem path and run no shell
-        // command; they only perform outbound HTTP through Jan's provider
+        // command; they only perform outbound HTTP through Rey30 IDvj's provider
         // adapter. Treat them like read-only reads inside the project: allowed
         // without a prompt (an explicit agent.toml deny above still wins).
         Capability::Net => Decision::Allow,
@@ -297,7 +319,7 @@ mod tests {
 
     fn unique_root() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("jan_gate_test_{}_{}", std::process::id(), n));
+        let dir = std::env::temp_dir().join(format!("rey30_gate_test_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).expect("create test root");
         dir
     }
@@ -402,35 +424,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// Regression for the #9065 review: with `$HOME` as the project, the Jan
+    /// Regression for the #9065 review: with `$HOME` as the project, the Rey30 IDvj
     /// home is inside it, and neither default permissions, a session Write
     /// grant nor an allow-all policy may reach its keys, hooks or the agent's
     /// own permissions.
     #[test]
-    fn the_jan_home_is_refused_when_the_project_is_home() {
+    fn the_rey30_home_is_refused_when_the_project_is_home() {
         let home = unique_root();
-        let jan = home.join(".jan");
-        std::fs::create_dir_all(jan.join("projects/home-1")).unwrap();
-        std::fs::write(jan.join("config.toml"), b"[providers]\n").unwrap();
-        std::fs::write(jan.join("projects/home-1/agent.toml"), b"[tools]\n").unwrap();
+        let rey30 = home.join(".rey30-idvj");
+        std::fs::create_dir_all(rey30.join("projects/home-1")).unwrap();
+        std::fs::write(rey30.join("config.toml"), b"[providers]\n").unwrap();
+        std::fs::write(rey30.join("projects/home-1/agent.toml"), b"[tools]\n").unwrap();
         let ctx = GateContext {
             project_root: &home,
             scratch: None,
             read_roots: &[],
             write_roots: &[],
-            hidden_root: Some(&jan),
+            hidden_root: Some(&rey30),
         };
         let mut granted = SessionGrants::default();
         granted.grant(PromptKind::Write);
-        granted.grant_command("cat ~/.jan/config.toml");
+        granted.grant_command("cat ~/.rey30-idvj/config.toml");
         let hidden = Decision::HardDeny(DenyReason::Hidden);
         let cases = [
-            ("read", json!({"path": ".jan/config.toml"})),
-            ("write", json!({"path": ".jan/projects/home-1/agent.toml", "content": ""})),
-            ("edit", json!({"path": ".jan/config.toml"})),
-            ("ls", json!({"path": ".jan"})),
-            ("grep", json!({"pattern": "key", "path": ".jan"})),
-            ("shell", json!({"command": "cat ~/.jan/config.toml"})),
+            ("read", json!({"path": ".rey30-idvj/config.toml"})),
+            ("write", json!({"path": ".rey30-idvj/projects/home-1/agent.toml", "content": ""})),
+            ("edit", json!({"path": ".rey30-idvj/config.toml"})),
+            ("ls", json!({"path": ".rey30-idvj"})),
+            ("grep", json!({"pattern": "key", "path": ".rey30-idvj"})),
+            ("shell", json!({"command": "cat ~/.rey30-idvj/config.toml"})),
         ];
         for perms in [ToolPermissions::default(), ToolPermissions::allow_all()] {
             for (tool, args) in &cases {
@@ -451,14 +473,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&home);
     }
 
-    /// The Jan home is refused from any project, not only when it is inside:
-    /// an escaping read of `~/.jan/config.toml` must not reach a prompt.
+    /// The Rey30 IDvj home is refused from any project, not only when it is inside:
+    /// an escaping read of `~/.rey30-idvj/config.toml` must not reach a prompt.
     #[test]
-    fn the_jan_home_is_refused_from_an_ordinary_project() {
+    fn the_rey30_home_is_refused_from_an_ordinary_project() {
         let home = unique_root();
-        let jan = home.join(".jan");
-        std::fs::create_dir_all(&jan).unwrap();
-        std::fs::write(jan.join("config.toml"), b"k").unwrap();
+        let rey30 = home.join(".rey30-idvj");
+        std::fs::create_dir_all(&rey30).unwrap();
+        std::fs::write(rey30.join("config.toml"), b"k").unwrap();
         let project = home.join("proj");
         std::fs::create_dir_all(&project).unwrap();
         let ctx = GateContext {
@@ -466,9 +488,9 @@ mod tests {
             scratch: None,
             read_roots: &[],
             write_roots: &[],
-            hidden_root: Some(&jan),
+            hidden_root: Some(&rey30),
         };
-        let config = jan.join("config.toml");
+        let config = rey30.join("config.toml");
         let d = resolve_decision(
             lookup("read").unwrap(),
             &json!({"path": config.to_str().unwrap()}),
@@ -589,16 +611,16 @@ mod tests {
     }
 
     /// The two hard denies still win: a denied shell, and a command reaching
-    /// the Jan home, are refused before anyone is asked to unconfine them.
+    /// the Rey30 IDvj home, are refused before anyone is asked to unconfine them.
     #[test]
     fn hard_denies_win_over_escalation() {
         let root = unique_root();
-        let jan = root.join(".jan");
-        std::fs::create_dir_all(&jan).unwrap();
-        let ctx = GateContext { hidden_root: Some(&jan), ..escalation_ctx(&root) };
+        let rey30 = root.join(".rey30-idvj");
+        std::fs::create_dir_all(&rey30).unwrap();
+        let ctx = GateContext { hidden_root: Some(&rey30), ..escalation_ctx(&root) };
         let d = resolve_decision(
             lookup("shell").unwrap(),
-            &json!({"command": "cat .jan/config.toml", "escalate": true}),
+            &json!({"command": "cat .rey30-idvj/config.toml", "escalate": true}),
             &ctx,
             &ToolPermissions::allow_all(),
             &SessionGrants::default(),

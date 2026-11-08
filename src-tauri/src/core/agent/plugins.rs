@@ -1,5 +1,5 @@
 //! Plugin install/removal and marketplace search. A plugin is a directory
-//! `~/.jan/projects/<slug>/plugins/<name>/` cloned from a git repository, so installing
+//! `~/.rey30-idvj/projects/<slug>/plugins/<name>/` cloned from a git repository, so installing
 //! from GitHub (or any git host) is just `git clone`. No lockfile or registry
 //! file: an installed plugin is a directory, removed by deleting it. Installing
 //! never executes plugin code — a plugin carries skills (instructions) plus an
@@ -41,7 +41,7 @@ const SHELL_METACHARS: &[char] = &[
     ';', '&', '|', '`', '$', '(', ')', '{', '}', '<', '>', '\\', '\n', '\r', '\t',
 ];
 
-const USER_AGENT: &str = "jan-agent-plugin-manager";
+const USER_AGENT: &str = "rey30-idvj-agent-plugin-manager";
 
 // How a bare collection URL that holds several plugins is resolved after the
 // clone. A collection has no payload at the root, so we enumerate the plugins
@@ -250,11 +250,10 @@ pub(crate) fn find_installed(root: &Path, query: &str) -> Option<(String, Instal
     Some(entries.swap_remove(index))
 }
 
-/// `~/.jan/agent/plugin-env/`, shared by CLI setup and desktop discovery.
+/// `~/.rey30-idvj/agent/plugin-env/`, shared by CLI setup and desktop discovery.
 fn plugin_env_dir() -> Result<PathBuf, String> {
-    dirs::home_dir()
-        .map(|home| home.join(".jan").join("agent").join("plugin-env"))
-        .ok_or_else(|| "could not resolve the user's home directory".to_string())
+    super::global_config::global_rey30_dir()
+        .map(|home| home.join("agent").join("plugin-env"))
 }
 
 /// `plugin-env/<plugin>.toml` under `dir`.
@@ -792,7 +791,7 @@ fn repo_dir_name(url: &str) -> Option<&str> {
 }
 
 fn git(args: &[&str]) -> Result<String, String> {
-    let program = jan_utils::git_program().map_err(|e| format!("ERROR: git: {e}"))?;
+    let program = rey30_idvj_utils::git_program().map_err(|e| format!("ERROR: git: {e}"))?;
     let out = Command::new(program)
         .args(args)
         .output()
@@ -1264,7 +1263,7 @@ mod tests {
     /// A local git repo fixture containing a plugin payload.
     fn make_repo(tag: &str, with_manifest: bool) -> PathBuf {
         let repo =
-            std::env::temp_dir().join(format!("jan_plugin_repo_{tag}_{}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30_plugin_repo_{tag}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&repo);
         std::fs::create_dir_all(repo.join("skills").join("prepare")).unwrap();
         std::fs::write(
@@ -1287,14 +1286,14 @@ mod tests {
             "commit",
             "-m",
             "init",
-            "--author=Jan Test <test@jan.ai>",
+            "--author=Rey30 IDvj Test <test@rey30-idvj.ai>",
         ])
         .unwrap();
         repo
     }
 
     fn unique_root(tag: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("jan_plugin_test_{tag}_{}", std::process::id()))
+        std::env::temp_dir().join(format!("rey30_plugin_test_{tag}_{}", std::process::id()))
     }
 
     #[test]
@@ -1449,7 +1448,7 @@ mod tests {
 
     #[tokio::test]
     async fn install_rejects_empty_repo_and_cleans_up() {
-        let repo = std::env::temp_dir().join(format!("jan_plugin_empty_{}", std::process::id()));
+        let repo = std::env::temp_dir().join(format!("rey30_plugin_empty_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&repo);
         std::fs::create_dir_all(&repo).unwrap();
         git(&["init", repo.to_str().unwrap()]).unwrap();
@@ -1543,7 +1542,7 @@ mod tests {
     #[tokio::test]
     async fn install_collection_lists_plugin_choices() {
         let repo = std::env::temp_dir().join(format!(
-            "jan_plugin_collection_{}",
+            "rey30_plugin_collection_{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&repo);
@@ -1593,7 +1592,7 @@ mod tests {
     #[tokio::test]
     async fn install_collection_with_single_plugin_installs_it() {
         let repo = std::env::temp_dir().join(format!(
-            "jan_plugin_singleton_{}",
+            "rey30_plugin_singleton_{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&repo);
@@ -1634,7 +1633,7 @@ mod tests {
     #[tokio::test]
     async fn install_nested_collection_lists_plugin_choices() {
         let repo = std::env::temp_dir().join(format!(
-            "jan_nested_collection_{}",
+            "rey30_nested_collection_{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&repo);
@@ -1692,7 +1691,7 @@ mod tests {
     #[tokio::test]
     async fn install_nested_collection_with_single_plugin_installs_it() {
         let repo = std::env::temp_dir().join(format!(
-            "jan_nested_singleton_{}",
+            "rey30_nested_singleton_{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&repo);
@@ -1841,7 +1840,7 @@ mod tests {
     /// A local git repo fixture that is a collection of two plugins, `alpha`
     /// and `beta`, at its root.
     fn make_collection(tag: &str) -> PathBuf {
-        let repo = std::env::temp_dir().join(format!("jan_plugin_coll_{tag}_{}", std::process::id()));
+        let repo = std::env::temp_dir().join(format!("rey30_plugin_coll_{tag}_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&repo);
         for name in ["alpha", "beta"] {
             let d = repo.join(name).join("skills").join("prepare");
@@ -2012,7 +2011,7 @@ mod tests {
     }
 
     /// An installed plugin (by directory convention) whose manifest declares
-    /// one required env var, plus the store dir tests use instead of `~/.jan`.
+    /// one required env var, plus the store dir tests use instead of `~/.rey30-idvj`.
     fn plugin_with_env_requirement(tag: &str, var: &str, url: &str) -> (PathBuf, PathBuf) {
         let root = unique_root(tag);
         // Create the root first: the store is keyed on the canonical path,
@@ -2128,10 +2127,10 @@ mod tests {
             std::fs::create_dir_all(&plugin).unwrap();
             std::fs::write(
                 plugin.join("plugin.toml"),
-                "[setup.env]\nJAN_PLUGIN_ISOLATION_TOKEN = \"\"\n",
+                "[setup.env]\nREY30_PLUGIN_ISOLATION_TOKEN = \"\"\n",
             ).unwrap();
             let store = root.join("key-store");
-            save_plugin_env_in(&store, "acme", "JAN_PLUGIN_ISOLATION_TOKEN", value).unwrap();
+            save_plugin_env_in(&store, "acme", "REY30_PLUGIN_ISOLATION_TOKEN", value).unwrap();
             sync_env_registry_in(root, &store);
         }
         // Both projects are registered before either launches a shell.
@@ -2139,7 +2138,7 @@ mod tests {
             (&first, "first-secret"), (&second, "second-secret"), (&unrelated, "unset"),
         ] {
             let child = proc::spawn(
-                proc::shell(), "printf '%s' \"${JAN_PLUGIN_ISOLATION_TOKEN-unset}\"", root, None,
+                proc::shell(), "printf '%s' \"${REY30_PLUGIN_ISOLATION_TOKEN-unset}\"", root, None,
                 proc::ShellEnv::default(), None,
                 ).await.unwrap();
             let pid = child.id().unwrap();
@@ -2152,7 +2151,7 @@ mod tests {
         std::fs::write(crate::core::agent::skills::plugins_dir(&first).join("acme").join("plugin.toml"), "name = \"acme\"\n").unwrap();
         sync_env_registry_in(&first, &first.join("key-store"));
         let child = proc::spawn(
-            proc::shell(), "printf '%s' \"${JAN_PLUGIN_ISOLATION_TOKEN-unset}\"", &first, None,
+            proc::shell(), "printf '%s' \"${REY30_PLUGIN_ISOLATION_TOKEN-unset}\"", &first, None,
             proc::ShellEnv::default(), None,
             ).await.unwrap();
         let pid = child.id().unwrap();

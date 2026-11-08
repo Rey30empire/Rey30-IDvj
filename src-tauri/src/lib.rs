@@ -1,4 +1,4 @@
-// The headless `jan` CLI and the desktop app are mutually exclusive builds: the
+// The headless `rey30-idvj` CLI and the desktop app are mutually exclusive builds: the
 // `cli` feature gates off every Tauri-dependent module, so pairing it with the
 // Tauri stack leaves the desktop entry points without their subsystems. Note
 // that `--features cli` alone still implies `default` (and therefore
@@ -6,21 +6,21 @@
 #[cfg(all(feature = "cli", feature = "tauri-app"))]
 compile_error!(
     "features `cli` and `tauri-app`/`desktop` are mutually exclusive; \
-     build the CLI from the standalone crate: `cd src-tauri/jan-cli && cargo build --features cli`"
+     build the CLI from the standalone crate: `cd src-tauri/rey30-idvj-cli && cargo build --features cli`"
 );
 
 pub mod core;
 
 #[cfg(not(feature = "cli"))]
 use core::{
-    app::commands::get_jan_data_folder_path,
+    app::commands::get_rey30_data_folder_path,
     downloads::models::DownloadManagerState,
     mcp::models::McpSettings,
     setup::{self, setup_mcp},
     state::AppState,
 };
 #[cfg(not(feature = "cli"))]
-use jan_utils::generate_app_token;
+use rey30_idvj_utils::generate_app_token;
 #[cfg(not(feature = "cli"))]
 use std::{
     collections::{HashMap, HashSet},
@@ -37,6 +37,23 @@ use tokio::sync::Mutex;
 macro_rules! invoke_commands_with_extras {
     ($($extra:path),* $(,)?) => {
         tauri::generate_handler![
+        core::integrations::commands::import_resources_scan,
+        core::integrations::commands::import_resources_commit,
+        core::integrations::commands::import_resources_github_status,
+        core::integrations::commands::import_resources_github_login,
+        core::integrations::commands::import_resources_github_poll,
+        core::integrations::commands::import_resources_github_cancel,
+        core::integrations::commands::import_resources_github_repos,
+        core::integrations::commands::import_resources_github_scan,
+        core::integrations::commands::mcp_catalog_list,
+        core::integrations::commands::mcp_catalog_review,
+        core::integrations::commands::mcp_catalog_configure,
+        core::integrations::commands::rey30_skill_pack_status,
+        core::integrations::commands::rey30_skill_pack_install,
+        core::system::character_audio::character_audio_capabilities,
+        core::system::character_audio::character_audio_synthesize,
+        core::system::character_audio::character_audio_transcribe,
+        core::system::character_audio::character_audio_cancel,
         // FS commands - Deperecate soon
         core::filesystem::commands::join_path,
         core::filesystem::commands::mkdir,
@@ -56,7 +73,7 @@ macro_rules! invoke_commands_with_extras {
         core::app::commands::get_app_configurations,
         core::app::commands::get_user_home_path,
         core::app::commands::update_app_configuration,
-        core::app::commands::get_jan_data_folder_path,
+        core::app::commands::get_rey30_data_folder_path,
         core::app::commands::get_configuration_file_path,
         core::app::commands::default_data_folder_path,
         core::app::commands::change_app_data_folder,
@@ -65,6 +82,7 @@ macro_rules! invoke_commands_with_extras {
         core::app::settings_store::settings_get,
         core::app::settings_store::settings_set,
         core::app::settings_store::settings_remove,
+        core::app::settings_store::settings_commit,
         core::server::provider_secrets::set_secret,
         core::server::provider_secrets::get_secret,
         // System commands
@@ -119,7 +137,7 @@ macro_rules! invoke_commands_with_extras {
         core::mcp::commands::get_mcp_auth_status,
         core::mcp::commands::authorize_mcp_server,
         core::mcp::commands::clear_mcp_auth,
-        core::mcp::commands::check_jan_browser_extension_connected,
+        core::mcp::commands::check_rey30_browser_extension_connected,
         // Threads
         core::threads::commands::list_threads,
         core::threads::commands::create_thread,
@@ -256,6 +274,20 @@ async fn handle_graceful_exit<R: tauri::Runtime>(
     tauri::mobile_entry_point
 )]
 pub fn run() {
+    #[cfg(windows)]
+    {
+        let preparation = tauri_plugin_agent_tools::workspace::configured_agent_home()
+            .and_then(|_| core::app::webview_migration::before_webviews());
+        if let Err(error) = preparation {
+            eprintln!("{error}");
+            rfd::MessageDialog::new()
+                .set_title("Rey30 IDvj - ajustes pendientes de migración")
+                .set_description(&error)
+                .set_level(rfd::MessageLevel::Error)
+                .show();
+            std::process::exit(1);
+        }
+    }
     // Installed before any plugin: the toolset crate owns no config format, so
     // the `execute_tool` IPC command can only reach a user's `[[hooks]]`
     // through a resolver the app hands it. Without this the desktop is the one
@@ -272,7 +304,7 @@ pub fn run() {
     //
     // Not in e2e builds: single-instance keys off a hardcoded /tmp socket on
     // macOS (a D-Bus name on Linux, a named mutex on Windows), none of which the
-    // test harness's HOME/XDG/TMPDIR overrides isolate. With a real Jan already running, the
+    // test harness's HOME/XDG/TMPDIR overrides isolate. With a real Rey30 IDvj already running, the
     // test binary would hand over its argv and exit before the embedded
     // WebDriver server ever bound.
     #[cfg(all(desktop, not(feature = "e2e")))]
@@ -319,12 +351,37 @@ pub fn run() {
         app_builder = app_builder.plugin(tauri_plugin_hardware::init());
     }
 
-    // Desktop: include updater commands
+    // Desktop-only commands
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let app_builder = app_builder.invoke_handler(invoke_commands_with_extras![
         // Custom updater commands (desktop only)
         core::updater::commands::check_for_app_updates,
         core::updater::commands::is_update_available,
+        core::literary_library::literary_library_status,
+        core::literary_library::literary_library_search,
+        core::system::pluma_realtime::pluma_realtime_start,
+        core::system::pluma_realtime::pluma_realtime_send,
+        core::system::pluma_realtime::pluma_realtime_stop,
+        core::system::pluma_clone::pluma_clone_reference_status,
+        core::system::pluma_clone::pluma_clone_reference_choose,
+        core::system::pluma_clone::pluma_clone_reference_clear,
+        core::system::pluma_clone::pluma_clone_start,
+        core::system::pluma_clone::pluma_clone_stop,
+        core::system::pluma_clone::pluma_clone_cancel_turn,
+        core::system::pluma_clone::pluma_clone_chat,
+        core::system::pluma_clone::pluma_clone_chat_stream,
+        core::system::pluma_clone::pluma_clone_speak,
+        core::system::pluma_clone::pluma_clone_sing,
+        core::system::pluma_first_asr::pluma_first_asr_start,
+        core::system::pluma_first_asr::pluma_first_asr_send,
+        core::system::pluma_first_asr::pluma_first_asr_finish,
+        core::system::pluma_first_asr::pluma_first_asr_stop,
+        core::system::wsl_hub::wsl_hub_list,
+        core::system::wsl_hub::wsl_hub_resolve_model,
+        core::system::pluma_documents::pluma_documents_list,
+        core::system::pluma_documents::pluma_documents_read,
+        core::system::pluma_documents::pluma_documents_create,
+        core::system::pluma_documents::pluma_documents_edit,
     ]);
 
     // Mobile: no updater commands
@@ -364,7 +421,7 @@ pub fn run() {
             {
                 let handle = app.handle().clone();
                 tauri_plugin_agent_tools::workspace::set_data_folder_resolver(Arc::new(
-                    move || get_jan_data_folder_path(handle.clone()),
+                    move || get_rey30_data_folder_path(handle.clone()),
                 ));
             }
             app.handle().plugin(
@@ -376,7 +433,7 @@ pub fn run() {
                         tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                         tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
                         tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
-                            path: get_jan_data_folder_path(app.handle().clone()).join("logs"),
+                            path: get_rey30_data_folder_path(app.handle().clone()).join("logs"),
                             file_name: Some("app".to_string()),
                         }),
                     ])
@@ -385,12 +442,20 @@ pub fn run() {
             // Load the read grants before the event loop delivers any IPC, so a
             // read of a path the user picked in an earlier session is allowed.
             core::filesystem::grants::init(app.handle());
-            #[cfg(not(any(target_os = "ios", target_os = "android")))]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            match core::integrations::skill_pack::install(&get_rey30_data_folder_path(
+                app.handle().clone(),
+            )) {
+                Ok(pack) => {
+                    for warning in pack.warnings {
+                        log::warn!("Paquete de habilidades: {warning}");
+                    }
+                }
+                Err(error) => log::error!("No se pudo instalar el paquete de habilidades: {error}"),
+            }
+            // Release signing and an owned update feed must be configured
+            // before enabling automatic binary replacement for this fork.
 
-            // A factory reset only moves data aside and restarts; deleting it,
-            // which can take a while for a big models folder, happens here.
+            // Preserve legacy reset backups without deleting or changing their contents.
             {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn_blocking(move || {
@@ -398,16 +463,16 @@ pub fn run() {
                 });
             }
 
-            // Reap engines a previous Jan left running: the llama-server router of
+            // Reap engines a previous Rey30 IDvj left running: the llama-server router of
             // a 0.8.4 that was updated in place, or an mlx-server whose app was
             // killed. Neither can be stopped by the version that started it.
             #[cfg(not(any(target_os = "ios", target_os = "android")))]
             {
-                let data_folder = get_jan_data_folder_path(app.handle().clone());
+                let data_folder = get_rey30_data_folder_path(app.handle().clone());
                 tauri::async_runtime::spawn_blocking(move || {
                     let killed = core::system::orphans::sweep_orphaned_engines(&data_folder);
                     if killed > 0 {
-                        log::warn!("Reaped {killed} engine process(es) left by a previous Jan");
+                        log::warn!("Reaped {killed} engine process(es) left by a previous Rey30 IDvj");
                     }
                 });
             }
@@ -432,7 +497,7 @@ pub fn run() {
             }
 
             // Start migration
-            let mut store_path = get_jan_data_folder_path(app.handle().clone());
+            let mut store_path = get_rey30_data_folder_path(app.handle().clone());
             store_path.push("store.json");
             let store = app
                 .handle()
@@ -457,9 +522,9 @@ pub fn run() {
             }
 
             // Not in e2e builds: on Windows `register_all` writes HKCU
-            // Software\Classes\jan\shell\open\command and points it at the
+            // Software\Classes\rey30-idvj\shell\open\command and points it at the
             // running exe, so every run would repoint the developer's real
-            // `jan://` handler at target/debug/Jan-Desktop.exe. The registry is
+            // `rey30-idvj://` handler at target/debug/Rey30-IDvj.exe. The registry is
             // outside everything the harness's env overrides can reach. (On
             // Linux it writes into `data_dir()/applications`, which XDG_DATA_HOME
             // does redirect -- but no spec opens a deep link, so skip both.)
@@ -500,6 +565,11 @@ pub fn run() {
         } = &event
         {
             if label == "main" && !SHUTTING_DOWN.load(Ordering::SeqCst) {
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                {
+                    core::system::pluma_realtime::stop_all();
+                    core::system::pluma_clone::stop_all();
+                }
                 // macOS: closing the window hides it; the app (and background
                 // services) keep running. Quit happens via Cmd+Q / dock / tray,
                 // which routes through RunEvent::ExitRequested.
@@ -564,6 +634,11 @@ pub fn run() {
             return;
         }
         if let RunEvent::Exit = event {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                core::system::pluma_realtime::stop_all();
+                core::system::pluma_clone::stop_all();
+            }
             let app_handle = app.clone();
 
             #[cfg(not(any(target_os = "ios", target_os = "android")))]

@@ -2,8 +2,8 @@
 //! (separately opted into) traces over OTLP/HTTP, to a collector the user names (janhq/jan-internal#393).
 //!
 //! Off by default: nothing here runs, and no request is made, unless
-//! [`config::enabled`] says so. This is separate from Jan's own update-check
-//! ping (`cli::telemetry`), which goes to Jan; this goes only to the user's
+//! [`config::enabled`] says so. This is separate from Rey30 IDvj's own update-check
+//! ping (`cli::telemetry`), which goes to Rey30 IDvj; this goes only to the user's
 //! endpoint.
 //!
 //! One sink, fed from what the engine already reports:
@@ -61,7 +61,7 @@ const RETRY_DELAY: Duration = Duration::from_secs(1);
 /// The longest `Retry-After` honoured; a longer one counts as a failed export.
 const MAX_RETRY_DELAY: Duration = Duration::from_secs(10);
 
-/// Telemetry capabilities this build reports in `jan cli agent status`.
+/// Telemetry capabilities this build reports in `rey30-idvj cli agent status`.
 /// `otlp-delta`: `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta` is
 /// honoured and every metric point carries `session.id`, so a backend that
 /// sums delta points per session can fold them.
@@ -173,7 +173,7 @@ impl From<&Usage> for Tokens {
 pub enum Refusal {
     /// The user answered a permission prompt with deny.
     User,
-    /// Project policy, plan mode or the hidden Jan home.
+    /// Project policy, plan mode or the hidden Rey30 IDvj home.
     Config,
     /// A `PreToolUse` hook said no.
     Hook,
@@ -418,7 +418,7 @@ pub fn init(
 
 /// Whether this process exports telemetry ([`init`] turned the exporter on).
 /// While it does, the `OTEL_EXPORTER_OTLP_*HEADERS` in the environment are
-/// Jan's own collector credentials, which child processes must not inherit.
+/// Rey30 IDvj's own collector credentials, which child processes must not inherit.
 pub fn is_active() -> bool {
     GLOBAL.get().is_some()
 }
@@ -575,16 +575,16 @@ impl Drop for RunScope {
 
 /// `(name, description, unit, is_double)` for every metric this exports.
 const METRICS: &[(&str, &str, &str, bool)] = &[
-    ("jan_agent.session.count", "Sessions started", "1", false),
-    ("jan_agent.prompt.count", "User prompts submitted", "1", false),
-    ("jan_agent.turn.count", "Agent loop turns (model requests that start a step)", "1", false),
-    ("jan_agent.token.usage", "Tokens used, by type", "tokens", false),
-    ("jan_agent.cost.usage", "Estimated cost from the model catalog's published prices", "USD", true),
-    ("jan_agent.api_request.count", "Provider requests, by outcome", "1", false),
-    ("jan_agent.tool.count", "Tool calls, by tool, decision and outcome", "1", false),
-    ("jan_agent.active_time.total", "Time the agent spent running", "s", true),
-    ("jan_agent.compaction.count", "History compactions", "1", false),
-    ("jan_agent.telemetry.dropped", "Telemetry signals dropped on a full queue", "1", false),
+    ("rey30_agent.session.count", "Sessions started", "1", false),
+    ("rey30_agent.prompt.count", "User prompts submitted", "1", false),
+    ("rey30_agent.turn.count", "Agent loop turns (model requests that start a step)", "1", false),
+    ("rey30_agent.token.usage", "Tokens used, by type", "tokens", false),
+    ("rey30_agent.cost.usage", "Estimated cost from the model catalog's published prices", "USD", true),
+    ("rey30_agent.api_request.count", "Provider requests, by outcome", "1", false),
+    ("rey30_agent.tool.count", "Tool calls, by tool, decision and outcome", "1", false),
+    ("rey30_agent.active_time.total", "Time the agent spent running", "s", true),
+    ("rey30_agent.compaction.count", "History compactions", "1", false),
+    ("rey30_agent.telemetry.dropped", "Telemetry signals dropped on a full queue", "1", false),
 ];
 
 type SeriesKey = (&'static str, Vec<(String, String)>);
@@ -815,7 +815,7 @@ impl State {
         };
         let mut all: Attrs = vec![(
             "span.type".into(),
-            AnyValue::Str(name.trim_start_matches("jan_agent.").to_string()),
+            AnyValue::Str(name.trim_start_matches("rey30_agent.").to_string()),
         )];
         if let Some(s) = session {
             all.push(("session.id".into(), AnyValue::Str(s.to_string())));
@@ -866,7 +866,7 @@ impl State {
             trace_id: i.trace_id,
             span_id: i.span_id,
             parent_span_id: self.cfg.parent.map(|(_, span)| span),
-            name: "jan_agent.interaction".into(),
+            name: "rey30_agent.interaction".into(),
             kind: encode::SPAN_KIND_INTERNAL,
             start_unix_nano: i.start,
             end_unix_nano: wall.max(i.start),
@@ -905,7 +905,7 @@ impl State {
                         self.run_session.insert(None, s.clone());
                         if self.sessions_seen.insert(s.clone()) {
                             let attrs = self.session_attr(Some(s));
-                            self.add("jan_agent.session.count", attrs, 1.0);
+                            self.add("rey30_agent.session.count", attrs, 1.0);
                         }
                     }
                 }
@@ -915,30 +915,30 @@ impl State {
                         uuid::Uuid::new_v4().to_string(),
                     );
                     let attrs = self.session_attr(session.as_deref());
-                    self.add("jan_agent.prompt.count", attrs, 1.0);
+                    self.add("rey30_agent.prompt.count", attrs, 1.0);
                     let mut fields: Attrs =
                         vec![("prompt_length".into(), AnyValue::Int(length as i64))];
                     if let Some(text) = text {
                         fields.push(("prompt".into(), AnyValue::Str(text)));
                     }
-                    self.log(wall, "jan_agent.user_prompt", false, session.as_deref(), None, fields);
+                    self.log(wall, "rey30_agent.user_prompt", false, session.as_deref(), None, fields);
                 }
             }
             Signal::RunEnd { session, run_id, elapsed } => {
                 // Only the top-level run: a child's time overlaps its parent's.
                 if run_id.is_none() {
                     let attrs = self.session_attr(session.as_deref());
-                    self.add("jan_agent.active_time.total", attrs, elapsed.as_secs_f64());
+                    self.add("rey30_agent.active_time.total", attrs, elapsed.as_secs_f64());
                     self.end_interaction(session.as_deref(), wall);
                 }
             }
             Signal::Compaction { message_count } => {
                 let session = self.main_session.clone();
                 let attrs = self.session_attr(session.as_deref());
-                self.add("jan_agent.compaction.count", attrs, 1.0);
+                self.add("rey30_agent.compaction.count", attrs, 1.0);
                 self.log(
                     wall,
-                    "jan_agent.compaction",
+                    "rey30_agent.compaction",
                     false,
                     session.as_deref(),
                     None,
@@ -1001,7 +1001,7 @@ impl State {
                 ] {
                     let mut attrs = base.clone();
                     attrs.push(metric_attr("type", kind));
-                    self.add("jan_agent.token.usage", attrs, n as f64);
+                    self.add("rey30_agent.token.usage", attrs, n as f64);
                 }
                 let cost = self
                     .pricer
@@ -1009,11 +1009,11 @@ impl State {
                     .and_then(|price| price(provider.as_deref(), &model))
                     .map(|rates| rates.cost_usd(prompt, output, cached, written));
                 if let Some(cost) = cost {
-                    self.add("jan_agent.cost.usage", base.clone(), cost);
+                    self.add("rey30_agent.cost.usage", base.clone(), cost);
                 }
                 let mut ok = base;
                 ok.push(metric_attr("success", "true"));
-                self.add("jan_agent.api_request.count", ok, 1.0);
+                self.add("rey30_agent.api_request.count", ok, 1.0);
                 let mut fields: Attrs = vec![
                     ("model".into(), AnyValue::Str(model)),
                     ("input_tokens".into(), AnyValue::Int(input as i64)),
@@ -1043,7 +1043,7 @@ impl State {
                     attrs.push(("success".into(), AnyValue::Bool(true)));
                     let start = request.as_ref().map_or(wall, |r| r.wall);
                     self.span(
-                        "jan_agent.llm_request",
+                        "rey30_agent.llm_request",
                         encode::SPAN_KIND_CLIENT,
                         session.as_deref(),
                         child.as_ref(),
@@ -1053,7 +1053,7 @@ impl State {
                         attrs,
                     );
                 }
-                self.log(wall, "jan_agent.api_request", false, session.as_deref(), child.as_ref(), fields);
+                self.log(wall, "rey30_agent.api_request", false, session.as_deref(), child.as_ref(), fields);
             }
             EventSignal::Step => {
                 // Carries the run's session like every other point, so a
@@ -1062,7 +1062,7 @@ impl State {
                 let session = self.session_of(&run);
                 let mut attrs = self.session_attr(session.as_deref());
                 attrs.push(metric_attr("agent", if child.is_some() { "subagent" } else { "main" }));
-                self.add("jan_agent.turn.count", attrs, 1.0);
+                self.add("rey30_agent.turn.count", attrs, 1.0);
             }
             EventSignal::ToolCall { id, name, args } => {
                 self.tools.insert((run, id), PendingTool { at, wall, name, args });
@@ -1093,10 +1093,10 @@ impl State {
                 attrs.push(metric_attr("tool_name", tool.name.clone()));
                 attrs.push(metric_attr("decision", decision));
                 attrs.push(metric_attr("success", success.to_string()));
-                self.add("jan_agent.tool.count", attrs, 1.0);
+                self.add("rey30_agent.tool.count", attrs, 1.0);
                 self.log(
                     wall,
-                    "jan_agent.tool_decision",
+                    "rey30_agent.tool_decision",
                     false,
                     session.as_deref(),
                     child.as_ref(),
@@ -1127,7 +1127,7 @@ impl State {
                     attrs.push(("gen_ai.tool.name".into(), AnyValue::Str(tool.name.clone())));
                     attrs.push(("gen_ai.operation.name".into(), AnyValue::Str("execute_tool".into())));
                     self.span(
-                        "jan_agent.tool",
+                        "rey30_agent.tool",
                         encode::SPAN_KIND_INTERNAL,
                         session.as_deref(),
                         child.as_ref(),
@@ -1137,7 +1137,7 @@ impl State {
                         attrs,
                     );
                 }
-                self.log(wall, "jan_agent.tool_result", !success, session.as_deref(), child.as_ref(), fields);
+                self.log(wall, "rey30_agent.tool_result", !success, session.as_deref(), child.as_ref(), fields);
             }
             EventSignal::Error { code, message } => {
                 let session = self.session_of(&run);
@@ -1152,7 +1152,7 @@ impl State {
                         attrs.push(("error.type".into(), AnyValue::Str(code.clone())));
                         attrs.push(("error".into(), AnyValue::Str(message.clone())));
                         self.span(
-                            "jan_agent.llm_request",
+                            "rey30_agent.llm_request",
                             encode::SPAN_KIND_CLIENT,
                             session.as_deref(),
                             child.as_ref(),
@@ -1174,20 +1174,20 @@ impl State {
                         attrs.push(metric_attr("provider", p.clone()));
                     }
                     attrs.push(metric_attr("success", "false"));
-                    self.add("jan_agent.api_request.count", attrs, 1.0);
+                    self.add("rey30_agent.api_request.count", attrs, 1.0);
                     fields.push(("model".into(), AnyValue::Str(r.model)));
                     fields.push((
                         "duration_ms".into(),
                         AnyValue::Int(at.saturating_duration_since(r.at).as_millis() as i64),
                     ));
                 }
-                self.log(wall, "jan_agent.api_error", true, session.as_deref(), child.as_ref(), fields);
+                self.log(wall, "rey30_agent.api_error", true, session.as_deref(), child.as_ref(), fields);
             }
             EventSignal::SubagentEnd { failed } => {
                 let session = self.session_of(&None);
                 self.log(
                     wall,
-                    "jan_agent.subagent_result",
+                    "rey30_agent.subagent_result",
                     failed,
                     session.as_deref(),
                     child.as_ref(),
@@ -1231,7 +1231,7 @@ impl State {
             Temporality::Delta => self.session_attr(self.main_session.as_deref()),
             Temporality::Cumulative => Vec::new(),
         };
-        let dropped_key = ("jan_agent.telemetry.dropped", dropped_attrs);
+        let dropped_key = ("rey30_agent.telemetry.dropped", dropped_attrs);
         let dropped_entry =
             (dropped > 0 && self.dropped_reportable()).then_some((&dropped_key, dropped as f64));
         for ((name, attrs), value) in self
@@ -1373,7 +1373,7 @@ impl Worker {
             state: State::new(Arc::clone(&cfg), pricer),
             origin: Origin {
                 resource,
-                scope_name: "jan-agent".to_string(),
+                scope_name: "rey30-idvj-agent".to_string(),
                 scope_version: version.to_string(),
             },
             cfg,

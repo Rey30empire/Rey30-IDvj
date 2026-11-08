@@ -1,6 +1,6 @@
 use super::helpers::*;
 use super::models::*;
-use crate::core::filesystem::helpers::resolve_path_within_jan_data_folder;
+use crate::core::filesystem::helpers::resolve_path_within_rey30_data_folder;
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
 
@@ -282,20 +282,20 @@ fn test_download_scope_accepts_absolute_path_inside_canonical_root() {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let base_dir = std::env::temp_dir().join(format!("jan-download-scope-{unique}"));
-    let configured_root = base_dir.join("home").join("user").join("jan-data");
+    let base_dir = std::env::temp_dir().join(format!("rey30-idvj-download-scope-{unique}"));
+    let configured_root = base_dir.join("home").join("user").join("rey30-idvj-data");
     let canonical_root = base_dir
         .join("var")
         .join("home")
         .join("user")
-        .join("jan-data");
+        .join("rey30-idvj-data");
     fs::create_dir_all(&canonical_root).unwrap();
     fs::create_dir_all(configured_root.parent().unwrap()).unwrap();
     symlink(&canonical_root, &configured_root).unwrap();
 
     let candidate = canonical_root.join("llamacpp/backends/v1/backend.tar.gz");
     let (_, resolved_path) =
-        resolve_path_within_jan_data_folder(&configured_root, candidate.to_string_lossy().as_ref())
+        resolve_path_within_rey30_data_folder(&configured_root, candidate.to_string_lossy().as_ref())
             .unwrap();
 
     let expected_path = canonical_root
@@ -388,47 +388,66 @@ fn test_download_item_deserialization() {
 
 // ===== convert_to_mirror_url =====
 
+const TEST_MIRROR: &str = "https://mirror.example.com/";
+
+#[test]
+fn test_mirror_is_off_unless_configured_at_build_time() {
+    let url = "https://huggingface.co/some/repo/resolve/main/model.gguf";
+    if option_env!("REY30_MIRROR_URL").is_none() {
+        assert!(convert_to_mirror_url(url).is_none());
+    }
+}
+
 #[test]
 fn test_convert_to_mirror_url_huggingface() {
     let url = "https://huggingface.co/some/repo/resolve/main/model.gguf";
-    let mirror = convert_to_mirror_url(url).expect("should produce a mirror url");
-    assert!(mirror.starts_with("https://apps") && mirror.contains(".jan.ai/"));
-    assert!(mirror.ends_with("huggingface.co/some/repo/resolve/main/model.gguf"));
+    let mirror = mirror_url_with_prefix(url, TEST_MIRROR).expect("should produce a mirror url");
+    assert_eq!(
+        mirror,
+        "https://mirror.example.com/huggingface.co/some/repo/resolve/main/model.gguf"
+    );
+}
+
+#[test]
+fn test_convert_to_mirror_url_adds_a_missing_slash() {
+    let mirror = mirror_url_with_prefix("https://huggingface.co/f", "https://mirror.example.com")
+        .expect("should produce a mirror url");
+    assert_eq!(mirror, "https://mirror.example.com/huggingface.co/f");
 }
 
 #[test]
 fn test_convert_to_mirror_url_huggingface_subdomain() {
     // Subdomains of mirror domains should also be mirrored
     let url = "https://cdn.huggingface.co/file.bin";
-    let mirror = convert_to_mirror_url(url).expect("subdomain should mirror");
+    let mirror = mirror_url_with_prefix(url, TEST_MIRROR).expect("subdomain should mirror");
     assert!(mirror.ends_with("cdn.huggingface.co/file.bin"));
 }
 
 #[test]
 fn test_convert_to_mirror_url_http_scheme() {
     let url = "http://huggingface.co/file";
-    let mirror = convert_to_mirror_url(url).expect("http should be stripped too");
+    let mirror = mirror_url_with_prefix(url, TEST_MIRROR).expect("http should be stripped too");
     assert!(mirror.ends_with("huggingface.co/file"));
     assert!(!mirror.contains("http://huggingface.co"));
 }
 
 #[test]
 fn test_convert_to_mirror_url_non_mirror_domain() {
-    assert!(convert_to_mirror_url("https://example.com/file.bin").is_none());
-    assert!(convert_to_mirror_url("https://github.com/x/y").is_none());
+    assert!(mirror_url_with_prefix("https://example.com/file.bin", TEST_MIRROR).is_none());
+    assert!(mirror_url_with_prefix("https://github.com/x/y", TEST_MIRROR).is_none());
 }
 
 #[test]
 fn test_convert_to_mirror_url_invalid_url() {
-    assert!(convert_to_mirror_url("not a url").is_none());
-    assert!(convert_to_mirror_url("").is_none());
+    assert!(mirror_url_with_prefix("not a url", TEST_MIRROR).is_none());
+    assert!(mirror_url_with_prefix("", TEST_MIRROR).is_none());
 }
 
 #[test]
 fn test_convert_to_mirror_url_not_substring_match() {
     // A domain that merely contains "huggingface.co" as substring (not as suffix) must NOT match
     let url = "https://huggingface.co.evil.com/file";
-    assert!(convert_to_mirror_url(url).is_none());
+    assert!(mirror_url_with_prefix(url, TEST_MIRROR).is_none());
 }
 
 // ===== err_to_string =====

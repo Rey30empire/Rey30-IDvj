@@ -225,7 +225,7 @@ mod tests {
 
     fn temp_root(tag: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
-            "jan_commands_{tag}_{}",
+            "rey30_commands_{tag}_{}",
             std::time::SystemTime::UNIX_EPOCH
                 .elapsed()
                 .unwrap()

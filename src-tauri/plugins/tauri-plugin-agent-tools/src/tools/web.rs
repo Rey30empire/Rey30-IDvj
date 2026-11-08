@@ -23,11 +23,11 @@ use tauri_plugin_websearch::provider::{
 const FETCH_MAX_CHARS: usize = 40_000;
 
 /// Environment variables consulted for an optional Exa credential, in priority
-/// order. `JAN_EXA_API_KEY` is Jan's namespaced variable; `EXA_API_KEY` matches
+/// order. `REY30_EXA_API_KEY` is Rey30 IDvj's namespaced variable; `EXA_API_KEY` matches
 /// Exa's own convention and the key already used by the legacy Exa MCP
 /// registration, so an existing configuration keeps working. When neither is
 /// set, the keyless hosted path is used automatically.
-const EXA_API_KEY_ENVS: &[&str] = &["JAN_EXA_API_KEY", "EXA_API_KEY"];
+const EXA_API_KEY_ENVS: &[&str] = &["REY30_EXA_API_KEY", "EXA_API_KEY"];
 
 fn exa_api_key() -> Option<String> {
     for var in EXA_API_KEY_ENVS {

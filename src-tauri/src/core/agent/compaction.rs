@@ -579,7 +579,7 @@ mod tests {
     #[tokio::test]
     async fn pre_compact_hooks_fire_with_the_message_count() {
         let root = std::env::temp_dir().join(format!(
-            "jan_precompact_{}",
+            "rey30_precompact_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -613,7 +613,7 @@ mod tests {
     #[tokio::test]
     async fn pre_compact_is_a_no_op_without_hooks() {
         let root = std::env::temp_dir().join(format!(
-            "jan_precompact_none_{}",
+            "rey30_precompact_none_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()

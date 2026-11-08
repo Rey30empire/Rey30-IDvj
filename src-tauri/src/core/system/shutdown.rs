@@ -20,7 +20,7 @@ const MCP_CLEANUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 /// Safe to run more than once: each step is a no-op when there is nothing left
 /// to stop, so the `RunEvent::Exit` handler can follow it.
 pub async fn shutdown_cleanup<R: Runtime>(app: &AppHandle<R>) {
-    // Drain debounced settings writes so the next version, and the jan CLI,
+    // Drain debounced settings writes so the next version, and the rey30-idvj CLI,
     // never read a stale settings.json.
     crate::core::app::settings_store::flush_settings();
 

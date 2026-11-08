@@ -1561,23 +1561,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
-name = "jan-utils"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "hmac",
- "rand 0.8.6",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "tokio-util",
- "url",
- "windows-sys 0.60.2",
-]
-
-[[package]]
 name = "javascriptcore-rs"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2632,6 +2615,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rey30-idvj-utils"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "hmac",
+ "rand 0.8.6",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-util",
+ "url",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3432,12 +3432,12 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "jan-utils",
  "lddtree",
  "log",
  "nix",
  "rand 0.8.6",
  "reqwest 0.12.28",
+ "rey30-idvj-utils",
  "serde",
  "serde_json",
  "sha2",

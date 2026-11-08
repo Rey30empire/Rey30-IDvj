@@ -50,10 +50,10 @@ const COMMANDS: &[&str] = &[
 fn main() {
     tauri_plugin::Builder::new(COMMANDS).build();
 
-    println!("cargo:rustc-env=JAN_LLAMA_CPP_TAG={LLAMA_CPP_TAG}");
-    println!("cargo:rustc-env=JAN_LLAMA_CPP_BUILD_NUMBER={LLAMA_CPP_BUILD_NUMBER}");
-    println!("cargo:rustc-env=JAN_LLAMA_CPP_COMMIT={LLAMA_CPP_COMMIT}");
-    println!("cargo:rustc-env=JAN_LLAMA_CPP_VERSION={LLAMA_CPP_VERSION}");
+    println!("cargo:rustc-env=REY30_LLAMA_CPP_TAG={LLAMA_CPP_TAG}");
+    println!("cargo:rustc-env=REY30_LLAMA_CPP_BUILD_NUMBER={LLAMA_CPP_BUILD_NUMBER}");
+    println!("cargo:rustc-env=REY30_LLAMA_CPP_COMMIT={LLAMA_CPP_COMMIT}");
+    println!("cargo:rustc-env=REY30_LLAMA_CPP_VERSION={LLAMA_CPP_VERSION}");
 
     // Features reach a build script only as CARGO_FEATURE_* env vars -- a
     // `#[cfg(feature = ...)]` here would silently never fire.
@@ -69,7 +69,7 @@ fn main() {
 /// taking a `std::string`; on Windows that decodes with the ANSI code page, so
 /// any path holding a character outside it -- a Cyrillic user name is enough --
 /// reads as a file that does not exist. With this manifest the same calls
-/// decode UTF-8, which is what Jan writes. Only the worker needs it: the engine
+/// decode UTF-8, which is what Rey30 IDvj writes. Only the worker needs it: the engine
 /// runs nowhere else. Windows before 1903 ignores the setting, which is what
 /// the shim's ini fallback is for.
 fn embed_utf8_manifest() {
@@ -79,11 +79,11 @@ fn embed_utf8_manifest() {
         return;
     }
     let manifest = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("jan-llama-worker.manifest");
+        .join("rey30-idvj-llama-worker.manifest");
     println!("cargo:rerun-if-changed={}", manifest.display());
-    println!("cargo:rustc-link-arg-bin=jan-llama-worker=/MANIFEST:EMBED");
+    println!("cargo:rustc-link-arg-bin=rey30-idvj-llama-worker=/MANIFEST:EMBED");
     println!(
-        "cargo:rustc-link-arg-bin=jan-llama-worker=/MANIFESTINPUT:{}",
+        "cargo:rustc-link-arg-bin=rey30-idvj-llama-worker=/MANIFESTINPUT:{}",
         manifest.display()
     );
 }
@@ -99,7 +99,7 @@ mod engine {
     /// references, so on GNU ld they go inside one --start-group rather than
     /// being ordered by hand. No ggml here: stage 1 builds it shared.
     const ARCHIVES: &[&str] = &[
-        "jan_llama_shim",
+        "rey30_llama_shim",
         "server-context",
         "llama-common",
         "llama-common-base",
@@ -261,24 +261,24 @@ mod engine {
         ("engine-metal", "-DGGML_METAL=ON"),
     ];
 
-    /// The GPUs a HIP build targets when JAN_ENGINE_HIP_TARGETS is unset: the
+    /// The GPUs a HIP build targets when REY30_ENGINE_HIP_TARGETS is unset: the
     /// list janhq/llama.cpp's menlo-build.yml shipped for the previous engine.
     /// Without an explicit list cmake asks `rocm_agent_enumerator`, which on a
     /// GPU-less build host yields nothing or the compiler's single default.
     const HIP_TARGETS: &str = "gfx908;gfx90a;gfx942;gfx1030;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1200;gfx1201";
 
     pub fn build() {
-        println!("cargo:rerun-if-changed=shim/jan_llama_shim.cpp");
-        println!("cargo:rerun-if-changed=shim/jan_llama_shim.h");
-        println!("cargo:rerun-if-env-changed=JAN_LLAMA_PREBUILT_DIR");
-        println!("cargo:rerun-if-env-changed=JAN_LLAMA_CPP_DIR");
-        println!("cargo:rerun-if-env-changed=JAN_ENGINE_CUDA_ARCHS");
+        println!("cargo:rerun-if-changed=shim/rey30_llama_shim.cpp");
+        println!("cargo:rerun-if-changed=shim/rey30_llama_shim.h");
+        println!("cargo:rerun-if-env-changed=REY30_LLAMA_PREBUILT_DIR");
+        println!("cargo:rerun-if-env-changed=REY30_LLAMA_CPP_DIR");
+        println!("cargo:rerun-if-env-changed=REY30_ENGINE_CUDA_ARCHS");
         for var in ["CUDACXX", "CUDA_PATH", "CUDA_HOME", "CUDAToolkit_ROOT"] {
             println!("cargo:rerun-if-env-changed={var}");
         }
-        println!("cargo:rerun-if-env-changed=JAN_ENGINE_HIP_TARGETS");
-        println!("cargo:rerun-if-env-changed=JAN_ENGINE_BUILD_LOG");
-        println!("cargo:rerun-if-env-changed=JAN_ENGINE_BUILD_DIR");
+        println!("cargo:rerun-if-env-changed=REY30_ENGINE_HIP_TARGETS");
+        println!("cargo:rerun-if-env-changed=REY30_ENGINE_BUILD_LOG");
+        println!("cargo:rerun-if-env-changed=REY30_ENGINE_BUILD_DIR");
 
         // The worker reports this in its handshake so the app can set it against
         // the NVIDIA driver (#9189). Read on the prebuilt path too: the prebuilt
@@ -286,7 +286,7 @@ mod engine {
         // toolkit that is on this host.
         if feature_enabled("engine-cuda") {
             if let Some((_, v)) = nvcc_version() {
-                println!("cargo:rustc-env=JAN_ENGINE_CUDA_TOOLKIT={}.{}", v.0, v.1);
+                println!("cargo:rustc-env=REY30_ENGINE_CUDA_TOOLKIT={}.{}", v.0, v.1);
             }
         }
 
@@ -303,13 +303,13 @@ mod engine {
         // source tree) and `bin/` (ggml-prefix/bin: the runtime-loaded backend
         // modules, plus ggml.dll and ggml-base.dll on Windows).
         let (mut search_dirs, generated_include, backend_dir) =
-            if let Ok(dir) = env::var("JAN_LLAMA_PREBUILT_DIR") {
+            if let Ok(dir) = env::var("REY30_LLAMA_PREBUILT_DIR") {
                 let dir = PathBuf::from(dir);
                 let lib = dir.join("lib");
                 let inc = dir.join("include");
                 assert!(
                     lib.is_dir() && inc.is_dir(),
-                    "JAN_LLAMA_PREBUILT_DIR={} must contain lib/ and include/",
+                    "REY30_LLAMA_PREBUILT_DIR={} must contain lib/ and include/",
                     dir.display()
                 );
                 (vec![lib], inc, dir.join("bin"))
@@ -338,7 +338,7 @@ mod engine {
         // `cargo run`/`cargo test` binary has no such neighbours, so the worker
         // falls back to this path via GGML_BACKEND_PATH.
         println!(
-            "cargo:rustc-env=JAN_GGML_BACKEND_DIR={}",
+            "cargo:rustc-env=REY30_GGML_BACKEND_DIR={}",
             backend_dir.display()
         );
     }
@@ -365,7 +365,7 @@ mod engine {
     /// out`) is easily 130+ chars, and nvcc then dies with "Could not open
     /// output file ...fattn-...cu.obj.d" because the depfile crosses MAX_PATH.
     /// When that would happen, the trees move to a short per-OUT_DIR directory
-    /// under %LOCALAPPDATA% instead. `JAN_ENGINE_BUILD_DIR` overrides the
+    /// under %LOCALAPPDATA% instead. `REY30_ENGINE_BUILD_DIR` overrides the
     /// location outright, on every platform. Relocated trees are not removed
     /// by `cargo clean`.
     fn build_root() -> PathBuf {
@@ -382,11 +382,11 @@ mod engine {
     }
 
     fn resolve_build_root(out: &Path) -> PathBuf {
-        if let Ok(dir) = env::var("JAN_ENGINE_BUILD_DIR") {
+        if let Ok(dir) = env::var("REY30_ENGINE_BUILD_DIR") {
             let dir = dir.trim();
             if !dir.is_empty() {
                 let root = PathBuf::from(dir).join(out_dir_key(out));
-                fs::create_dir_all(&root).expect("could not create JAN_ENGINE_BUILD_DIR");
+                fs::create_dir_all(&root).expect("could not create REY30_ENGINE_BUILD_DIR");
                 return root;
             }
         }
@@ -399,11 +399,11 @@ mod engine {
         let base = env::var("LOCALAPPDATA")
             .map(PathBuf::from)
             .unwrap_or_else(|_| env::temp_dir());
-        let root = base.join("jan-engine").join(out_dir_key(out));
+        let root = base.join("rey30-idvj-engine").join(out_dir_key(out));
         println!(
             "cargo:warning=OUT_DIR is too long for nvcc/cl on Windows \
              ({} chars); building llama.cpp under {} instead. Set \
-             JAN_ENGINE_BUILD_DIR to choose the location.",
+             REY30_ENGINE_BUILD_DIR to choose the location.",
             out.as_os_str().len(),
             root.display()
         );
@@ -442,13 +442,13 @@ mod engine {
         fs::write(
             wrapper.join("CMakeLists.txt"),
             "cmake_minimum_required(VERSION 3.14)\n\
-             project(jan_ggml C CXX ASM)\n\
-             add_subdirectory(${JAN_GGML_SRC} ggml)\n",
+             project(rey30_ggml C CXX ASM)\n\
+             add_subdirectory(${REY30_GGML_SRC} ggml)\n",
         )
         .expect("could not write the ggml wrapper project");
 
         // The wrapper is regenerated each run, so its own path never changes;
-        // what changes is JAN_GGML_SRC inside it. A cache holding a different
+        // what changes is REY30_GGML_SRC inside it. A cache holding a different
         // value would silently keep building the old tree, so key off that.
         discard_stale_ggml_cache(&build, &src.join("ggml"));
 
@@ -480,7 +480,7 @@ mod engine {
         windows_generator(&mut cfg, src);
         cfg.arg("-S").arg(&wrapper).arg("-B").arg(&build);
         cfg.arg(format!(
-            "-DJAN_GGML_SRC={}",
+            "-DREY30_GGML_SRC={}",
             src.join("ggml").display()
         ));
         cfg.arg(format!("-DCMAKE_INSTALL_PREFIX={}", prefix.display()));
@@ -574,17 +574,17 @@ mod engine {
         // upstream ships them: datacenter parts, on datacenter drivers.
         // Mirrored per toolkit version rather than hardcoded, because a cuda12
         // build must keep 50/61/70 and cannot emit 121a before 12.9. arm64
-        // keeps upstream's default: no arm64 leg Jan ships runs on Turing.
-        let archs = env::var("JAN_ENGINE_CUDA_ARCHS").unwrap_or_default();
+        // keeps upstream's default: no arm64 leg Rey30 IDvj ships runs on Turing.
+        let archs = env::var("REY30_ENGINE_CUDA_ARCHS").unwrap_or_default();
         let archs = archs.trim();
         if !archs.is_empty() {
             cfg.arg(format!("-DCMAKE_CUDA_ARCHITECTURES={archs}"));
         } else if feature_enabled("engine-cuda")
             && env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default() == "x86_64"
         {
-            // A foreign JAN_LLAMA_CPP_DIR tree is not the b11669 the list was
+            // A foreign REY30_LLAMA_CPP_DIR tree is not the b11669 the list was
             // copied from, so only the vendored pin is held to it.
-            if env::var_os("JAN_LLAMA_CPP_DIR").is_none() {
+            if env::var_os("REY30_LLAMA_CPP_DIR").is_none() {
                 check_upstream_cuda_archs(src);
             }
             let (nvcc, v) = nvcc_version().unwrap_or_else(|| {
@@ -614,7 +614,7 @@ mod engine {
                     "could not read the CUDA version from `nvcc --version` (tried \
                      {tried}). Without it the engine would fall back to upstream's \
                      arch list, which has no Turing SASS (#9185). Point CUDACXX or \
-                     PATH at a working nvcc, or set JAN_ENGINE_CUDA_ARCHS explicitly."
+                     PATH at a working nvcc, or set REY30_ENGINE_CUDA_ARCHS explicitly."
                 )
             });
             let archs = default_cuda_archs(v);
@@ -635,7 +635,7 @@ mod engine {
             cfg.arg(format!("-DCMAKE_CUDA_ARCHITECTURES={archs}"));
         }
         if feature_enabled("engine-hip") {
-            let targets = env::var("JAN_ENGINE_HIP_TARGETS").unwrap_or_default();
+            let targets = env::var("REY30_ENGINE_HIP_TARGETS").unwrap_or_default();
             let targets = targets.trim();
             let targets = if targets.is_empty() {
                 HIP_TARGETS
@@ -712,7 +712,7 @@ mod engine {
             // mtmd's video path fork/execs ffmpeg.
             "-DMTMD_VIDEO=OFF",
             // cpp-httplib's TLS, which only serves llama.cpp's own HTTPS model
-            // downloads -- Jan fetches models in Rust and the worker listens on
+            // downloads -- Rey30 IDvj fetches models in Rust and the worker listens on
             // loopback. On by default, and it puts OpenSSL symbols in an
             // archive nothing links an OpenSSL into: on Linux they resolve by
             // accident against the one reqwest already pulls in, on macOS,
@@ -747,7 +747,7 @@ mod engine {
     /// source directory.
     ///
     /// The build dir is keyed only by OUT_DIR, so switching between the
-    /// vendored clone and a `JAN_LLAMA_CPP_DIR` checkout leaves a cache
+    /// vendored clone and a `REY30_LLAMA_CPP_DIR` checkout leaves a cache
     /// pointing at the old tree, and cmake then hard-fails with "does not match
     /// the source used to generate cache". Wiping is safe: everything in there
     /// is derived.
@@ -809,7 +809,7 @@ mod engine {
 
     /// Same idea as `discard_foreign_cache`, but stage 1's cache home is the
     /// generated wrapper (whose path is stable), so the value that identifies
-    /// the source is the cached `JAN_GGML_SRC`.
+    /// the source is the cached `REY30_GGML_SRC`.
     fn discard_stale_ggml_cache(build_dir: &Path, ggml_src: &Path) {
         discard_other_generator(build_dir);
         let cache = build_dir.join("CMakeCache.txt");
@@ -818,7 +818,7 @@ mod engine {
         };
         let cached = text
             .lines()
-            .find_map(|l| l.split_once("JAN_GGML_SRC:").and_then(|(_, r)| r.split_once('=')))
+            .find_map(|l| l.split_once("REY30_GGML_SRC:").and_then(|(_, r)| r.split_once('=')))
             .map(|(_, v)| v.trim().to_string());
         let Some(cached) = cached else { return };
 
@@ -1015,7 +1015,7 @@ mod engine {
             upstream == ours,
             "{} names CUDA archs {upstream:?}, but default_cuda_archs (copied from \
              b11669) covers {ours:?}. Update default_cuda_archs to the new list, \
-             keeping 75 as -real (#9185), or set JAN_ENGINE_CUDA_ARCHS.",
+             keeping 75 as -real (#9185), or set REY30_ENGINE_CUDA_ARCHS.",
             cml.display()
         );
     }
@@ -1047,17 +1047,17 @@ mod engine {
         matches!(arch.as_str(), "x86_64" | "aarch64" | "riscv64")
     }
 
-    /// `JAN_LLAMA_CPP_DIR` overrides the vendored clone, which is what a
+    /// `REY30_LLAMA_CPP_DIR` overrides the vendored clone, which is what a
     /// llama.cpp contributor working against a local tree wants.
     fn source_dir() -> PathBuf {
-        if let Ok(dir) = env::var("JAN_LLAMA_CPP_DIR") {
+        if let Ok(dir) = env::var("REY30_LLAMA_CPP_DIR") {
             return PathBuf::from(dir);
         }
         let vendored = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vendor/llama.cpp");
         assert!(
             vendored.join("CMakeLists.txt").is_file(),
             "vendor/llama.cpp is empty -- run `make engine-source` to \
-             shallow-clone {LLAMA_CPP_TAG}, or point JAN_LLAMA_CPP_DIR at an \
+             shallow-clone {LLAMA_CPP_TAG}, or point REY30_LLAMA_CPP_DIR at an \
              existing checkout. (Looked in {})",
             vendored.display()
         );
@@ -1072,7 +1072,7 @@ mod engine {
         let mut cc = cc::Build::new();
         cc.cpp(true)
             .std("c++17")
-            .file("shim/jan_llama_shim.cpp")
+            .file("shim/rey30_llama_shim.cpp")
             .include("shim")
             .include(src.join("include"))
             .include(src.join("ggml/include"))
@@ -1083,7 +1083,7 @@ mod engine {
             .include(src.join("vendor/nlohmann"))
             .include(generated_include)
             .include(generated_include.join("common"));
-        cc.compile("jan_llama_shim");
+        cc.compile("rey30_llama_shim");
         PathBuf::from(env::var("OUT_DIR").unwrap())
     }
 
@@ -1147,7 +1147,7 @@ mod engine {
         }
     }
 
-    /// Runs a build step, streaming its output to `JAN_ENGINE_BUILD_LOG` when set.
+    /// Runs a build step, streaming its output to `REY30_ENGINE_BUILD_LOG` when set.
     ///
     /// Cargo captures a build script's stdout and stderr and only surfaces them
     /// if the script fails, so a cmake/nvcc run that takes fifteen minutes
@@ -1158,7 +1158,7 @@ mod engine {
     /// reaches cargo's own error output, which is the one place a developer is
     /// guaranteed to look.
     fn run(cmd: &mut Command, what: &str) {
-        let log_path = env::var_os("JAN_ENGINE_BUILD_LOG").map(PathBuf::from);
+        let log_path = env::var_os("REY30_ENGINE_BUILD_LOG").map(PathBuf::from);
 
         // The directory is the caller's to name and need not exist yet -- the
         // Makefile points this at src-tauri/target, which the plugin's own

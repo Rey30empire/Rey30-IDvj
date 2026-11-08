@@ -2,8 +2,8 @@
 //!
 //! **Store root** -- holds `memory/` and `skills/`. Long-term: memories and
 //! skills outlive any single conversation, so on the desktop this is a permanent
-//! directory in the Jan data folder. A project (the CLI agent) keeps its store
-//! at `~/.jan/projects/<slug>` instead; both are just a store root to
+//! directory in the Rey30 IDvj data folder. A project (the CLI agent) keeps its store
+//! at `~/.rey30-idvj/projects/<slug>` instead; both are just a store root to
 //! everything downstream.
 //!
 //! **Project root** -- the sandbox the filesystem tools (read/ls/find/grep, and
@@ -21,6 +21,54 @@
 
 use std::path::{Path, PathBuf};
 
+pub const CONFIG_HOME_ENV: &str = "REY30_CONFIG_HOME";
+pub const PLUMA_LIBRARY_ROOT: &str = r"D:\Libreria General";
+pub const PLUMA_LIBRARY_DENIED: &str = "La biblioteca local está reservada a Pluma.";
+
+/// An explicit agent-state directory. Invalid overrides never fall through to
+/// the real user profile, including on Windows where HOME is not authoritative.
+pub fn validate_agent_home_override(
+    raw: Option<std::ffi::OsString>,
+) -> Result<Option<PathBuf>, String> {
+    let Some(raw) = raw else { return Ok(None) };
+    let path = PathBuf::from(raw);
+    if !path.is_absolute() || path.parent().is_none()
+        || path.to_string_lossy().split(['/', '\\']).any(|part| part == "." || part == "..")
+    {
+        return Err(format!("{CONFIG_HOME_ENV} must name an absolute directory below a filesystem root"));
+    }
+    // Resolve an existing junction/symlink even when the final directory has
+    // not been created. The resolved destination must still be below a root.
+    let mut ancestor = path.as_path();
+    let mut suffix = Vec::new();
+    let mut resolved = loop {
+        match std::fs::symlink_metadata(ancestor) {
+            Ok(_) => {
+                let resolved = ancestor.canonicalize()
+                    .map_err(|error| format!("{CONFIG_HOME_ENV} cannot be resolved: {error}"))?;
+                if !resolved.is_dir() {
+                    return Err(format!("{CONFIG_HOME_ENV} must name a directory"));
+                }
+                break resolved;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                suffix.push(ancestor.file_name().ok_or_else(|| format!("{CONFIG_HOME_ENV} has no usable ancestor"))?.to_os_string());
+                ancestor = ancestor.parent().ok_or_else(|| format!("{CONFIG_HOME_ENV} has no usable ancestor"))?;
+            }
+            Err(error) => return Err(format!("{CONFIG_HOME_ENV} cannot be inspected: {error}")),
+        }
+    };
+    for component in suffix.iter().rev() { resolved.push(component); }
+    if !resolved.is_absolute() || resolved.parent().is_none() {
+        return Err(format!("{CONFIG_HOME_ENV} resolves to a filesystem root"));
+    }
+    Ok(Some(path))
+}
+
+pub fn configured_agent_home() -> Result<Option<PathBuf>, String> {
+    validate_agent_home_override(std::env::var_os(CONFIG_HOME_ENV))
+}
+
 const THREADS: &str = "threads";
 
 /// Where Cowork session sandboxes live, a sibling of `threads/`.
@@ -36,23 +84,31 @@ pub fn store_dir(store_root: &Path, kind: &str) -> PathBuf {
     store_root.join(kind)
 }
 
-/// Where projects' stores live under a Jan home: `<jan_home>/projects`.
+/// Where projects' stores live under a Rey30 IDvj home: `<rey30_home>/projects`.
 const PROJECTS: &str = "projects";
 
 /// The directory a project stored its state in before it moved out of the
 /// project: `<project_root>/.jan`. Only the launch migration reads it.
 pub const LEGACY_DIR: &str = ".jan";
 
-/// `~/.jan`, the user-wide agent home, or `None` when the home directory is
+/// `~/.rey30-idvj`, the user-wide agent home, or `None` when the home directory is
 /// unset or degenerate (a `/` home would put every project's state at the
 /// filesystem root).
 ///
 /// Test builds of this crate resolve a per-process temp directory instead, so
-/// no test writes into the developer's real `~/.jan`.
-pub fn jan_home() -> Option<PathBuf> {
+/// no test writes into the developer's real `~/.rey30-idvj`.
+pub fn rey30_home() -> Option<PathBuf> {
+    match configured_agent_home() {
+        Ok(Some(path)) => return Some(path),
+        Err(error) => {
+            eprintln!("{error}");
+            return None;
+        }
+        Ok(None) => {}
+    }
     #[cfg(test)]
     {
-        Some(std::env::temp_dir().join(format!("jan-test-home-{}", std::process::id())))
+        Some(std::env::temp_dir().join(format!("rey30-idvj-test-home-{}", std::process::id())))
     }
     #[cfg(not(test))]
     {
@@ -64,26 +120,28 @@ pub fn jan_home() -> Option<PathBuf> {
         if home.parent().is_none() || home.as_os_str().is_empty() {
             return None;
         }
-        Some(home.join(".jan"))
+        let current = home.join(".rey30-idvj");
+        let previous = home.join(".jan");
+        Some(if !current.exists() && previous.is_dir() { previous } else { current })
     }
 }
 
 /// The directory every surface hides from the general tools and the sandboxed
-/// shell: the Jan home, holding `config.toml` (provider keys, hooks) and every
+/// shell: the Rey30 IDvj home, holding `config.toml` (provider keys, hooks) and every
 /// project's store. Only while `sandbox` is on; an unconfined run is the user
 /// opting out of containment. The memory/skill tools reach the store by name
 /// and are unaffected.
 pub fn hidden_root(sandbox: bool) -> Option<PathBuf> {
     if sandbox {
-        jan_home()
+        rey30_home()
     } else {
         None
     }
 }
 
-/// `<jan_home>/projects`.
-pub fn projects_dir(jan_home: &Path) -> PathBuf {
-    jan_home.join(PROJECTS)
+/// `<rey30_home>/projects`.
+pub fn projects_dir(rey30_home: &Path) -> PathBuf {
+    rey30_home.join(PROJECTS)
 }
 
 /// FNV-1a of the path's bytes, 8 hex digits. `DefaultHasher` is explicitly not
@@ -112,7 +170,7 @@ pub fn path_slug(path: &Path) -> String {
 /// The path a project's store is keyed on: the project root, canonicalized,
 /// with a linked git worktree mapped back onto its main checkout.
 ///
-/// Without the mapping, a session running in `~/.jan/worktrees/<slug>/<id>`
+/// Without the mapping, a session running in `~/.rey30-idvj/worktrees/<slug>/<id>`
 /// would get a fresh, empty store and lose the project's memory, skills and
 /// config. A subdirectory of a worktree maps to the same subdirectory of the
 /// main checkout. Read straight from the `.git` file rather than by running
@@ -152,13 +210,13 @@ pub fn project_key(project_root: &Path) -> PathBuf {
     root
 }
 
-/// A project's store root under a given Jan home:
-/// `<jan_home>/projects/<slug>`.
-pub fn project_store_in(jan_home: &Path, project_root: &Path) -> PathBuf {
-    projects_dir(jan_home).join(path_slug(&project_key(project_root)))
+/// A project's store root under a given Rey30 IDvj home:
+/// `<rey30_home>/projects/<slug>`.
+pub fn project_store_in(rey30_home: &Path, project_root: &Path) -> PathBuf {
+    projects_dir(rey30_home).join(path_slug(&project_key(project_root)))
 }
 
-/// A project's store root: `~/.jan/projects/<slug>`, holding `agent.toml`,
+/// A project's store root: `~/.rey30-idvj/projects/<slug>`, holding `agent.toml`,
 /// `memory/`, `skills/`, `subagents/`, `plugins/` and threads.
 ///
 /// Kept outside the project so the agent's own state never sits in the tree
@@ -166,13 +224,13 @@ pub fn project_store_in(jan_home: &Path, project_root: &Path) -> PathBuf {
 /// home directory it falls back to the legacy in-project location so the agent
 /// still works.
 pub fn project_store(project_root: &Path) -> PathBuf {
-    project_store_at(jan_home().as_deref(), project_root)
+    project_store_at(rey30_home().as_deref(), project_root)
 }
 
-/// [`project_store`] against an explicit Jan home, for callers that resolve the
+/// [`project_store`] against an explicit Rey30 IDvj home, for callers that resolve the
 /// home themselves (the app substitutes a temp home in its tests).
-pub fn project_store_at(jan_home: Option<&Path>, project_root: &Path) -> PathBuf {
-    match jan_home {
+pub fn project_store_at(rey30_home: Option<&Path>, project_root: &Path) -> PathBuf {
+    match rey30_home {
         Some(home) => project_store_in(home, project_root),
         None => legacy_project_store(project_root),
     }
@@ -201,19 +259,19 @@ pub fn project_meta(store: &Path) -> Option<String> {
     value.get("path")?.as_str().map(str::to_string)
 }
 
-/// Where a project kept its store before the move: `<project_root>/.jan/agent`.
+/// Where a project kept its store before the move: `<project_root>/.rey30-idvj/agent`.
 pub fn legacy_project_store(project_root: &Path) -> PathBuf {
     project_root.join(LEGACY_DIR).join("agent")
 }
 
-/// The desktop's permanent store root: `<jan_data_folder>/agent-workspace`.
+/// The desktop's permanent store root: `<rey30_data_folder>/agent-workspace`.
 ///
-/// Never cleaned up -- this is what makes memories long-term. Resolving the Jan
-/// data folder itself stays with the app (it owns the `JAN_DATA_FOLDER` override
+/// Never cleaned up -- this is what makes memories long-term. Resolving the Rey30 IDvj
+/// data folder itself stays with the app (it owns the `REY30_DATA_FOLDER` override
 /// and the configured `data_folder`); this crate only decides where inside it
 /// the agent's directories live.
-pub fn permanent_store(jan_data_folder: &Path) -> PathBuf {
-    jan_data_folder.join("agent-workspace")
+pub fn permanent_store(rey30_data_folder: &Path) -> PathBuf {
+    rey30_data_folder.join("agent-workspace")
 }
 
 /// Where per-thread sandboxes live: `<permanent_store>/threads`.
@@ -221,25 +279,25 @@ pub fn permanent_store(jan_data_folder: &Path) -> PathBuf {
 /// A sibling of `memory/` and `skills/`, not a parent, so a thread's sandbox
 /// root cannot contain the store and `escapes_project` refuses any path that
 /// climbs out toward it.
-pub fn threads_dir(jan_data_folder: &Path) -> PathBuf {
-    permanent_store(jan_data_folder).join(THREADS)
+pub fn threads_dir(rey30_data_folder: &Path) -> PathBuf {
+    permanent_store(rey30_data_folder).join(THREADS)
 }
 
 /// Where per-session sandboxes live: `<permanent_store>/sessions`.
-pub fn sessions_dir(jan_data_folder: &Path) -> PathBuf {
-    permanent_store(jan_data_folder).join(SESSIONS)
+pub fn sessions_dir(rey30_data_folder: &Path) -> PathBuf {
+    permanent_store(rey30_data_folder).join(SESSIONS)
 }
 
 /// A Cowork session's sandbox root:
-/// `<jan_data_folder>/agent-workspace/sessions/<session_id>`.
-pub fn session_workspace(jan_data_folder: &Path, session_id: &str) -> Result<PathBuf, String> {
-    Ok(sessions_dir(jan_data_folder).join(thread_segment(session_id)?))
+/// `<rey30_data_folder>/agent-workspace/sessions/<session_id>`.
+pub fn session_workspace(rey30_data_folder: &Path, session_id: &str) -> Result<PathBuf, String> {
+    Ok(sessions_dir(rey30_data_folder).join(thread_segment(session_id)?))
 }
 
 /// A thread's ephemeral sandbox root:
-/// `<jan_data_folder>/agent-workspace/threads/<thread_id>`.
-pub fn thread_workspace(jan_data_folder: &Path, thread_id: &str) -> Result<PathBuf, String> {
-    Ok(threads_dir(jan_data_folder).join(thread_segment(thread_id)?))
+/// `<rey30_data_folder>/agent-workspace/threads/<thread_id>`.
+pub fn thread_workspace(rey30_data_folder: &Path, thread_id: &str) -> Result<PathBuf, String> {
+    Ok(threads_dir(rey30_data_folder).join(thread_segment(thread_id)?))
 }
 
 /// Case-folded on Windows and macOS, whose default filesystems treat two
@@ -274,6 +332,50 @@ pub(crate) fn is_within(inner: &Path, outer: &Path) -> bool {
     inner == outer || inner.starts_with(&format!("{}/", outer.trim_end_matches('/')))
 }
 
+pub fn is_pluma_library_path(path: &Path) -> bool {
+    pluma_library_path_matches(path, false)
+}
+
+pub fn overlaps_pluma_library(path: &Path) -> bool {
+    pluma_library_path_matches(path, true)
+}
+
+#[cfg(windows)]
+fn pluma_library_path_matches(path: &Path, include_ancestors: bool) -> bool {
+    use crate::tools::sandbox::{canonicalize_lenient, lexical_normalize};
+
+    fn canonical_key(path: &Path) -> PathBuf {
+        let canonical = canonicalize_lenient(path).unwrap_or_else(|_| lexical_normalize(path));
+        let raw = canonical.to_string_lossy();
+        if let Some(unc) = raw.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{unc}"));
+        }
+        PathBuf::from(raw.strip_prefix(r"\\?\").unwrap_or(&raw))
+    }
+
+    let root = canonical_key(Path::new(PLUMA_LIBRARY_ROOT));
+    let target = canonical_key(path);
+    is_within(&target, &root) || (include_ancestors && is_within(&root, &target))
+}
+
+#[cfg(not(windows))]
+fn pluma_library_path_matches(_: &Path, _: bool) -> bool {
+    false
+}
+
+#[cfg(all(test, windows))]
+#[test]
+fn reserves_pluma_library_and_its_subtree() {
+    assert!(is_pluma_library_path(Path::new(r"d:\libreria general\prueba-no-existe.md")));
+    assert!(is_pluma_library_path(Path::new(r"\\?\D:\Libreria General")));
+    assert!(!is_pluma_library_path(Path::new(r"D:\Libreria General Copia\prueba.md")));
+    assert!(overlaps_pluma_library(Path::new(r"D:\")));
+    assert!(!overlaps_pluma_library(Path::new(r"D:\Otros Proyectos")));
+    assert!(!is_pluma_library_path(Path::new(
+        r"D:\Modelos IA Rey30\Qwen3.5-9B-Q4_K_M\model.gguf"
+    )));
+}
+
 /// Validate a folder the user asked to attach read-only, returning its
 /// canonical form.
 ///
@@ -286,7 +388,7 @@ pub(crate) fn is_within(inner: &Path, outer: &Path) -> bool {
 ///   `escapes_project` start returning false for the whole tree;
 /// - a root inside the workspace is already writable, so calling it read-only
 ///   would be a lie;
-/// - a root containing the Jan data folder would re-expose `settings.json` and
+/// - a root containing the Rey30 IDvj data folder would re-expose `settings.json` and
 ///   the provider keys the mask exists to hide;
 /// - the filesystem root has no meaningful "outside" left to protect.
 pub fn validate_read_root(
@@ -297,6 +399,9 @@ pub fn validate_read_root(
     let canonical = root
         .canonicalize()
         .map_err(|e| format!("attached folder {} is unreadable: {e}", root.display()))?;
+    if overlaps_pluma_library(&canonical) {
+        return Err(PLUMA_LIBRARY_DENIED.into());
+    }
     if !canonical.is_dir() {
         return Err(format!("{} is not a folder", canonical.display()));
     }
@@ -318,7 +423,7 @@ pub fn validate_read_root(
         let mask = mask.canonicalize().unwrap_or_else(|_| mask.to_path_buf());
         if is_within(&mask, &canonical) {
             return Err(format!(
-                "{} contains the Jan data folder and cannot be attached",
+                "{} contains the Rey30 IDvj data folder and cannot be attached",
                 canonical.display()
             ));
         }
@@ -326,7 +431,7 @@ pub fn validate_read_root(
     Ok(canonical)
 }
 
-/// Supplies the Jan data folder the host app is configured with.
+/// Supplies the Rey30 IDvj data folder the host app is configured with.
 pub type DataFolderResolver = std::sync::Arc<dyn Fn() -> PathBuf + Send + Sync>;
 
 static DATA_FOLDER_RESOLVER: std::sync::OnceLock<DataFolderResolver> = std::sync::OnceLock::new();
@@ -337,7 +442,7 @@ pub fn set_data_folder_resolver(resolver: DataFolderResolver) {
     let _ = DATA_FOLDER_RESOLVER.set(resolver);
 }
 
-/// The Jan data folder an IPC command works in.
+/// The Rey30 IDvj data folder an IPC command works in.
 ///
 /// The commands take a `data_folder` argument, but it only stands in for what
 /// the host already knows: everything containment rests on (the sandbox
@@ -383,10 +488,10 @@ const PROTECTED_HOME_DIRS: &[&str] = &[
     "Library/Keychains",
     "Library/Services",
     "Library/Application Scripts",
-    // Every app's own data and configuration, Jan's included.
+    // Every app's own data and configuration, Rey30 IDvj's included.
     "Library/Application Support",
     "AppData/Local/Microsoft/WindowsApps",
-    // Per-user installs, Jan's own on Windows.
+    // Per-user installs, Rey30 IDvj's own on Windows.
     "AppData/Local/Programs",
     "AppData/Roaming/Microsoft/Windows/Start Menu",
 ];
@@ -410,7 +515,7 @@ pub fn user_home() -> Option<PathBuf> {
 /// Refused: the home directory itself or any folder above it, whose top level
 /// holds the shell rc files and profile scripts; any folder inside, or
 /// containing, a [`PROTECTED_HOME_DIRS`] entry (also where that entry is a
-/// symlink); and the Jan data folder or any folder inside it. A writable attach
+/// symlink); and the Rey30 IDvj data folder or any folder inside it. A writable attach
 /// is the workspace root, writable by the file tools and the sandboxed shell
 /// alike, so these would hand the agent persistence or credentials. Without a
 /// home folder none of this can be checked, so the attach is refused.
@@ -430,7 +535,7 @@ pub fn validate_write_root(
         .unwrap_or_else(|_| data_folder.to_path_buf());
     if is_within(root, &data) || is_within(root, data_folder) {
         return Err(format!(
-            "{} is inside the Jan data folder and cannot be attached writable",
+            "{} is inside the Rey30 IDvj data folder and cannot be attached writable",
             root.display()
         ));
     }
@@ -440,6 +545,26 @@ pub fn validate_write_root(
              folder inside it instead",
             root.display()
         ));
+    }
+    #[cfg(windows)]
+    for variable in [
+        "SystemRoot",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+        "ProgramData",
+    ] {
+        let Some(path) = std::env::var_os(variable).map(PathBuf::from) else {
+            continue;
+        };
+        if !path.is_absolute() {
+            continue;
+        }
+        let overlaps = |protected: &Path| is_within(root, protected) || is_within(protected, root);
+        if overlaps(&path) || path.canonicalize().ok().as_deref().is_some_and(overlaps) {
+            return Err("Windows system and application directories cannot be attached writable"
+                .to_string());
+        }
     }
     for rel in PROTECTED_HOME_DIRS {
         let protected = home.join(rel);
@@ -459,7 +584,7 @@ pub fn validate_write_root(
 }
 
 /// The session-scoped scratch directory: a subdirectory of the host temp dir
-/// (e.g. `/tmp/jan-agent-<session>` on Linux), where `bash` scratch files
+/// (e.g. `/tmp/rey30-idvj-agent-<session>` on Linux), where `bash` scratch files
 /// persist across calls for one session and the filesystem tools may write.
 ///
 /// Every backend exposes it, but not the same way. Bubblewrap binds it over the
@@ -474,11 +599,11 @@ pub fn validate_write_root(
 /// the filesystem with an id from outside goes through [`ensure_scratch_dir`] or
 /// [`remove_scratch_dir`], which accept only a valid [`thread_segment`].
 pub fn scratch_dir(session: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("jan-agent-{session}"))
+    std::env::temp_dir().join(format!("rey30-idvj-agent-{session}"))
 }
 
 /// [`scratch_dir`] for an id that must first pass [`thread_segment`], so a
-/// separator or `..` in it can never move the scratch out of `jan-agent-*`.
+/// separator or `..` in it can never move the scratch out of `rey30-idvj-agent-*`.
 fn checked_scratch_dir(session: &str) -> Result<PathBuf, String> {
     Ok(scratch_dir(&thread_segment(session)?))
 }
@@ -549,7 +674,7 @@ pub async fn ensure_scratch_dir_path(dir: &Path) -> Result<PathBuf, String> {
 
 /// How long a scratch directory may sit untouched before the startup sweep
 /// treats it as abandoned. Age-based rather than "remove every scratch at
-/// startup" so a second Jan instance cannot wipe the first one's live scratch.
+/// startup" so a second Rey30 IDvj instance cannot wipe the first one's live scratch.
 const SCRATCH_STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(24 * 60 * 60);
 
 /// Delete abandoned scratch directories in the host temp dir, returning how many
@@ -562,7 +687,7 @@ const SCRATCH_STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(
 /// it. Age is the only signal available, so anything untouched for
 /// [`SCRATCH_STALE_AFTER`] is collected. Called once at startup.
 ///
-/// Failures are silent per entry: another user's `jan-agent-*` in a shared
+/// Failures are silent per entry: another user's `rey30-idvj-agent-*` in a shared
 /// `/tmp` is not ours to delete and simply fails the unlink.
 pub async fn sweep_stale_scratch_dirs() -> usize {
     sweep_scratch_older_than(&std::env::temp_dir(), SCRATCH_STALE_AFTER).await
@@ -577,7 +702,7 @@ async fn sweep_scratch_older_than(root: &Path, max_age: std::time::Duration) -> 
     while let Ok(Some(entry)) = entries.next_entry().await {
         let name = entry.file_name();
         let Some(name) = name.to_str() else { continue };
-        if !name.starts_with("jan-agent-") {
+        if !name.starts_with("rey30-idvj-agent-") {
             continue;
         }
         // `symlink_metadata`: a symlink named like a scratch is not one, and
@@ -612,8 +737,8 @@ pub async fn remove_scratch_dir(session: &str) -> Result<(), String> {
 
 /// Create the permanent store and its `memory/`/`skills/` subdirectories,
 /// returning the store root. Idempotent.
-pub async fn ensure_permanent_store(jan_data_folder: &Path) -> Result<PathBuf, String> {
-    let root = permanent_store(jan_data_folder);
+pub async fn ensure_permanent_store(rey30_data_folder: &Path) -> Result<PathBuf, String> {
+    let root = permanent_store(rey30_data_folder);
     for kind in ["memory", "skills"] {
         tokio::fs::create_dir_all(store_dir(&root, kind))
             .await
@@ -628,18 +753,18 @@ pub async fn ensure_permanent_store(jan_data_folder: &Path) -> Result<PathBuf, S
 /// canonicalizes the root, and a missing root is treated as an escape, so every
 /// call would otherwise be refused.
 pub async fn ensure_thread_workspace(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     thread_id: &str,
 ) -> Result<PathBuf, String> {
-    ensure_workspace_at(thread_workspace(jan_data_folder, thread_id)?).await
+    ensure_workspace_at(thread_workspace(rey30_data_folder, thread_id)?).await
 }
 
 /// Create a Cowork session's sandbox (idempotent) and return it.
 pub async fn ensure_session_workspace(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     session_id: &str,
 ) -> Result<PathBuf, String> {
-    ensure_workspace_at(session_workspace(jan_data_folder, session_id)?).await
+    ensure_workspace_at(session_workspace(rey30_data_folder, session_id)?).await
 }
 
 async fn ensure_workspace_at(dir: PathBuf) -> Result<PathBuf, String> {
@@ -651,18 +776,18 @@ async fn ensure_workspace_at(dir: PathBuf) -> Result<PathBuf, String> {
 
 /// Delete a thread's sandbox. Idempotent: a missing sandbox is Ok.
 pub async fn remove_thread_workspace(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     thread_id: &str,
 ) -> Result<(), String> {
-    remove_workspace_at(thread_workspace(jan_data_folder, thread_id)?, thread_id).await
+    remove_workspace_at(thread_workspace(rey30_data_folder, thread_id)?, thread_id).await
 }
 
 /// Delete a Cowork session's sandbox. Idempotent: a missing sandbox is Ok.
 pub async fn remove_session_workspace(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     session_id: &str,
 ) -> Result<(), String> {
-    remove_workspace_at(session_workspace(jan_data_folder, session_id)?, session_id).await
+    remove_workspace_at(session_workspace(rey30_data_folder, session_id)?, session_id).await
 }
 
 async fn remove_workspace_at(dir: PathBuf, id: &str) -> Result<(), String> {
@@ -685,10 +810,10 @@ async fn remove_workspace_at(dir: PathBuf, id: &str) -> Result<(), String> {
 /// leftovers cannot accumulate. An unreadable threads directory is not an error:
 /// nothing has been created yet.
 pub async fn sweep_thread_workspaces(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     keep: &[String],
 ) -> Result<usize, String> {
-    sweep_workspaces_in(threads_dir(jan_data_folder), keep).await
+    sweep_workspaces_in(threads_dir(rey30_data_folder), keep).await
 }
 
 /// Delete every Cowork session sandbox whose id is not in `keep`.
@@ -696,10 +821,10 @@ pub async fn sweep_thread_workspaces(
 /// Reads only `sessions_dir`, so it can never reach a chat thread's sandbox, and
 /// the thread sweep can never reach a session's.
 pub async fn sweep_session_workspaces(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     keep: &[String],
 ) -> Result<usize, String> {
-    sweep_workspaces_in(sessions_dir(jan_data_folder), keep).await
+    sweep_workspaces_in(sessions_dir(rey30_data_folder), keep).await
 }
 
 async fn sweep_workspaces_in(dir: PathBuf, keep: &[String]) -> Result<usize, String> {
@@ -811,12 +936,56 @@ mod tests {
 
     fn tmp_root(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!("jan_{tag}_{}_{}", std::process::id(), n))
+        std::env::temp_dir().join(format!("rey30_{tag}_{}_{}", std::process::id(), n))
     }
 
     fn unique_data_folder() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        std::env::temp_dir().join(format!("jan_ws_test_{}_{}", std::process::id(), n))
+        std::env::temp_dir().join(format!("rey30_ws_test_{}_{}", std::process::id(), n))
+    }
+
+    #[test]
+    fn agent_home_override_is_exact_and_rejects_unsafe_fallbacks() {
+        assert_eq!(validate_agent_home_override(None).unwrap(), None);
+        assert!(validate_agent_home_override(Some("".into())).is_err());
+        assert!(validate_agent_home_override(Some("relative/home".into())).is_err());
+        assert!(validate_agent_home_override(Some(std::env::temp_dir().join("..").into_os_string())).is_err());
+        assert!(validate_agent_home_override(Some(std::env::temp_dir().join(".").into_os_string())).is_err());
+        #[cfg(windows)]
+        let root = PathBuf::from(r"C:\");
+        #[cfg(not(windows))]
+        let root = PathBuf::from("/");
+        assert!(validate_agent_home_override(Some(root.into_os_string())).is_err());
+        let exact = std::env::temp_dir().join("rey30-agent-state");
+        assert_eq!(
+            validate_agent_home_override(Some(exact.clone().into_os_string())).unwrap(),
+            Some(exact)
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn agent_home_override_rejects_a_junction_to_the_drive_root() {
+        use std::os::windows::process::CommandExt;
+        let temporary = tmp_root("config-root-junction");
+        std::fs::create_dir(&temporary).unwrap();
+        let junction = temporary.join("root-junction");
+        let root = temporary.ancestors().last().unwrap();
+        let quote = |path: &Path| path.to_string_lossy().replace('\'', "''");
+        let script = format!(
+            "New-Item -ItemType Junction -Path '{}' -Target '{}' -ErrorAction Stop | Out-Null",
+            quote(&junction), quote(root)
+        );
+        let result = std::process::Command::new("powershell.exe")
+            .creation_flags(0x0800_0000)
+            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+            .output().unwrap();
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+        let validation = validate_agent_home_override(Some(junction.clone().into_os_string()));
+        // Remove only the junction entry, never its target.
+        std::fs::remove_dir(&junction).unwrap();
+        std::fs::remove_dir(&temporary).unwrap();
+        assert!(validation.is_err());
     }
 
     #[test]
@@ -829,12 +998,12 @@ mod tests {
         );
     }
 
-    /// A project's store lives under the Jan home, never inside the project.
+    /// A project's store lives under the Rey30 IDvj home, never inside the project.
     #[test]
-    fn project_store_is_under_jan_home_projects() {
-        let home = Path::new("/home/u/.jan");
-        let store = project_store_in(home, Path::new("/nonexistent/src/jan"));
-        assert_eq!(store, Path::new("/home/u/.jan/projects/jan-f1654549"));
+    fn project_store_is_under_rey30_home_projects() {
+        let home = Path::new("/home/u/.rey30-idvj");
+        let store = project_store_in(home, Path::new("/nonexistent/src/rey30-idvj"));
+        assert_eq!(store, Path::new("/home/u/.rey30-idvj/projects/rey30-idvj-061874d7"));
         assert!(!project_store(Path::new("/p")).starts_with("/p"));
     }
 
@@ -842,7 +1011,7 @@ mod tests {
     /// rather than letting a refactor quietly orphan every existing store.
     #[test]
     fn the_slug_hash_is_pinned() {
-        assert_eq!(path_slug(Path::new("/home/u/src/jan")), "jan-582afba2");
+        assert_eq!(path_slug(Path::new("/home/u/src/rey30-idvj")), "rey30-idvj-46f49fe4");
     }
 
     /// A session in a linked worktree must share its main checkout's store.
@@ -899,7 +1068,7 @@ mod tests {
     #[tokio::test]
     async fn stale_scratch_dirs_are_swept_and_fresh_ones_are_not() {
         let root = tmp_root("scratch_sweep");
-        let orphan = root.join("jan-agent-orphan");
+        let orphan = root.join("rey30-idvj-agent-orphan");
         ensure_scratch_dir_path(&orphan).await.unwrap();
         std::fs::write(orphan.join("spill.txt"), b"leaked").unwrap();
         let bystander = root.join("not-a-scratch");
@@ -1104,7 +1273,7 @@ mod tests {
     }
     #[test]
     fn host_data_folder_wins_over_the_requested_one() {
-        let host = PathBuf::from("/host/Jan/data");
+        let host = PathBuf::from("/host/Rey30 IDvj/data");
         assert_eq!(
             pick_data_folder(Some(host.clone()), "/Users/x/Library/LaunchAgents"),
             host
@@ -1117,7 +1286,7 @@ mod tests {
         );
     }
 
-    const DATA: &str = "/srv/jan-data";
+    const DATA: &str = "/srv/rey30-idvj-data";
 
     fn write_root(root: &str, home: &str) -> Result<(), String> {
         validate_write_root(Path::new(root), Some(Path::new(home)), Path::new(DATA))
@@ -1154,10 +1323,10 @@ mod tests {
             "/home/u/Applications",
             "/home/u/Applications/Tool.app",
             "/home/u/Library/Application Support",
-            "/home/u/Library/Application Support/Jan/data",
+            "/home/u/Library/Application Support/Rey30 IDvj/data",
             "/home/u/Library/Application Support/Code/User",
             "/home/u/AppData/Local/Programs",
-            "/home/u/AppData/Local/Programs/Jan",
+            "/home/u/AppData/Local/Programs/Rey30 IDvj",
             "/home/u/.vscode/extensions",
             "/home/u/.npm",
             "/home/u/.nvm/versions",
@@ -1180,7 +1349,7 @@ mod tests {
             "/home/u/Library-notes",
             "/home/u/binaries",
             "/srv/work",
-            "/srv/jan-data-export",
+            "/srv/rey30-idvj-data-export",
         ] {
             assert!(write_root(ok, "/home/u").is_ok(), "{ok} should be accepted");
         }
@@ -1195,7 +1364,7 @@ mod tests {
     #[test]
     fn validate_write_root_refuses_the_data_folder_and_inside_it() {
         assert!(write_root(DATA, "/home/u").is_err());
-        assert!(write_root("/srv/jan-data/threads", "/home/u").is_err());
+        assert!(write_root("/srv/rey30-idvj-data/threads", "/home/u").is_err());
     }
 
     // APFS and NTFS are case-insensitive by default, and `canonicalize` keeps
@@ -1226,7 +1395,7 @@ mod tests {
             "/System/Volumes/Data",
             "/system/volumes/data/Users/u/.ssh",
             "/System/Volumes/Data/Users/u/Library/LaunchAgents",
-            "/System/Volumes/Data/srv/jan-data/threads",
+            "/System/Volumes/Data/srv/rey30-idvj-data/threads",
         ] {
             assert!(write_root(bad, "/Users/u").is_err(), "{bad} should be refused");
         }
@@ -1328,12 +1497,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
-    /// Attaching a folder that contains the Jan data folder would re-expose
+    /// Attaching a folder that contains the Rey30 IDvj data folder would re-expose
     /// settings.json and the provider keys the mask exists to hide.
     #[test]
     fn validate_read_root_refuses_a_root_containing_the_data_folder() {
         let base = tmp_root("vrr_mask");
-        let data = base.join("jan-data");
+        let data = base.join("rey30-idvj-data");
         let ws = data.join("agent-workspace/threads/t1");
         std::fs::create_dir_all(&ws).unwrap();
         assert!(validate_read_root(&base, &ws, Some(&data)).is_err());

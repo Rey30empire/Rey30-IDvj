@@ -47,7 +47,7 @@ use url::Url;
 pub(crate) const SESSIONS_PATH: &str = "/auth/cli/sessions";
 
 /// Identifies this client in the approve page ("… is requesting access").
-const CLIENT_NAME: &str = "Jan CLI";
+const CLIENT_NAME: &str = "Rey30 IDvj CLI";
 
 /// Fallbacks for a server that omits them, matching the reference client.
 const DEFAULT_EXPIRES_IN: u64 = 600;
@@ -375,7 +375,7 @@ impl PendingAuth {
                 }
                 Ok(Poll::Expired) => {
                     return Err(
-                        "the sign-in expired before it was approved. Run `jan login` again."
+                        "the sign-in expired before it was approved. Run `rey30-idvj login` again."
                             .to_string(),
                     )
                 }
@@ -394,13 +394,13 @@ impl PendingAuth {
             // out on a silent server -- saying "timed out" would contradict a
             // reason like "approved but no API key".
             Some((e, true)) => format!(
-                "could not confirm the sign-in before the window closed: {e} Run `jan login` again."
+                "could not confirm the sign-in before the window closed: {e} Run `rey30-idvj login` again."
             ),
             Some((e, _)) => format!(
-                "timed out waiting for browser approval (last poll error: {e}). Run `jan login` \
+                "timed out waiting for browser approval (last poll error: {e}). Run `rey30-idvj login` \
                  again."
             ),
-            None => "timed out waiting for browser approval. Run `jan login` again.".to_string(),
+            None => "timed out waiting for browser approval. Run `rey30-idvj login` again.".to_string(),
         })
     }
 }
@@ -495,7 +495,7 @@ async fn poll_once(api_root: &str, session_id: &str, verifier: &str) -> Result<P
 
 fn describe_poll_failure(status: u16, error: Option<&str>) -> String {
     match status {
-        401 | 403 => "the sign-in session could not be verified - re-run `jan login`.".to_string(),
+        401 | 403 => "the sign-in session could not be verified - re-run `rey30-idvj login`.".to_string(),
         429 => "Tokamak is rate limiting - wait a moment and try again.".to_string(),
         500..=599 => format!("Tokamak is unavailable right now (HTTP {status})."),
         _ => match error {
@@ -560,11 +560,11 @@ struct UserPayload {
     name: Option<String>,
 }
 
-const WAKE_PAGE: &str = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Jan CLI</title>\
+const WAKE_PAGE: &str = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Rey30 IDvj CLI</title>\
 </head><body style=\"font-family:system-ui,sans-serif;display:flex;align-items:center;\
 justify-content:center;height:100vh;margin:0\"><div style=\"text-align:center\">\
 <div style=\"font-size:2rem;margin-bottom:.5rem\">&#10003;</div>\
-<h1 style=\"font-size:1.3rem;font-weight:500;margin:0 0 .4rem\">Jan CLI authorized</h1>\
+<h1 style=\"font-size:1.3rem;font-weight:500;margin:0 0 .4rem\">Rey30 IDvj CLI authorized</h1>\
 <p style=\"opacity:.6;margin:0\">Return to your terminal. You can close this tab.</p>\
 </div></body></html>";
 
@@ -1029,7 +1029,7 @@ mod tests {
                 .expect_err("an unapproved session times out");
             assert_eq!(
                 err,
-                "timed out waiting for browser approval. Run `jan login` again."
+                "timed out waiting for browser approval. Run `rey30-idvj login` again."
             );
             assert_eq!(
                 requests.lock().unwrap().len(),
@@ -1063,7 +1063,7 @@ mod tests {
             assert_eq!(
                 err,
                 "could not confirm the sign-in before the window closed: the sign-in was approved \
-                 but Tokamak returned no API key. Run `jan login` again."
+                 but Tokamak returned no API key. Run `rey30-idvj login` again."
             );
         });
     }

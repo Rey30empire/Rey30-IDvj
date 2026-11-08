@@ -10,6 +10,7 @@ mod constants;
 
 pub use error::RagError;
 pub use constants::*;
+pub use parser::parse_document_bytes;
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("rag")

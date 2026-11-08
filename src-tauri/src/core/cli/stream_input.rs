@@ -104,7 +104,7 @@ pub(crate) enum InputMessage {
 
 /// One input line, as the wire shape: the [`INPUT_KINDS`], with the fields
 /// each carries. The wire shape is a serde type rather than a hand-rolled walk
-/// over a `Value` so the protocol schema can be derived from it -- `jan cli
+/// over a `Value` so the protocol schema can be derived from it -- `rey30-idvj cli
 /// agent schema` publishes this shape, and a hand-written copy of it would be
 /// correct only until the parser moved.
 ///

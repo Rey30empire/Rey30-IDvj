@@ -1,5 +1,5 @@
-//! User-wide `~/.jan/config.toml` provider config. Lets Jan Agent run
-//! standalone (no Jan Desktop) with credentials scoped to the whole user, not
+//! User-wide `~/.rey30-idvj/config.toml` provider config. Lets Rey30 IDvj Agent run
+//! standalone (no Rey30 IDvj Desktop) with credentials scoped to the whole user, not
 //! just one project. Optional: a missing file yields an empty provider set,
 //! not an error.
 
@@ -11,9 +11,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::state::ProviderConfig;
 
-const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Jan Agent global provider config.
+const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Rey30 IDvj Agent global provider config.
 # Applies to every project unless overridden by that project's
-# agent.toml [provider] section (~/.jan/projects/<project>/agent.toml).
+# agent.toml [provider] section (~/.rey30-idvj/projects/<project>/agent.toml).
 #
 # default_model = "my-model"        # used when no --model / agent.toml model is set
 # smol_model = "my-fast-model"       # fast model for the `smol` role (/goal evaluation,
@@ -50,16 +50,16 @@ const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Jan Agent global provider config.
 #                                     # /terminal-setup when this terminal is
 #                                     # dropping Shift+Enter or Option+Delete.
 #                                     # On by default
-# claude_code_alias = false             # allow Jan to reuse Claude Code's
+# claude_code_alias = false             # allow Rey30 IDvj to reuse Claude Code's
 #                                     # keychain login; on by default
 # hide_secrets = true                 # replace secret-named env values, URL
 #                                     # passwords and credential-shaped tokens
 #                                     # with placeholders before a request goes
 #                                     # to a model; tool calls get the real
 #                                     # value back. Off by default;
-#                                     # JAN_HIDE_SECRETS=1|0 overrides it
+#                                     # REY30_HIDE_SECRETS=1|0 overrides it
 # memory_cross_project = false        # hide other projects' memory from the
-#                                     # agent (the root ~/.jan/MEMORY.md lists
+#                                     # agent (the root ~/.rey30-idvj/MEMORY.md lists
 #                                     # them by default)
 # prune_threads = true                # delete old saved threads at TUI start,
 #                                     # under each project's agent.toml
@@ -76,7 +76,7 @@ const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Jan Agent global provider config.
 # enabled = true                      # usage metrics and events to YOUR
 #                                     # collector (OTEL_EXPORTER_OTLP_* env);
 #                                     # off by default. A project's agent.toml
-#                                     # [telemetry] and JAN_AGENT_ENABLE_TELEMETRY
+#                                     # [telemetry] and REY30_AGENT_ENABLE_TELEMETRY
 #                                     # win over this
 #
 # [context]
@@ -91,15 +91,15 @@ const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Jan Agent global provider config.
 #                                     # "tavily" (needs a key), "searxng"
 #                                     # (needs endpoint) or "you". Keys are
 #                                     # kept in the secret store: set them
-#                                     # with /settings or `jan config
+#                                     # with /settings or `rey30-idvj config
 #                                     # web-search --api-key`, not here
 # endpoint = "https://searx.example.com"
 #
 # [experimental]                      # features that may change or go away
-# acp = true                          # allow `jan acp`, the Agent Client
+# acp = true                          # allow `rey30-idvj acp`, the Agent Client
 #                                     # Protocol server editors such as Zed
 #                                     # and JetBrains drive. Off by default;
-#                                     # JAN_EXPERIMENTAL_ACP wins over this
+#                                     # REY30_EXPERIMENTAL_ACP wins over this
 #
 # [providers.my-provider]
 # api_key = "sk-..."
@@ -160,8 +160,8 @@ struct GlobalConfigToml {
     /// for the check to know it was answered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     terminal_hint: Option<bool>,
-    /// Allow Jan to reuse Claude Code's keychain login. `None` = the default,
-    /// on; set false to keep Jan from reading or refreshing that credential.
+    /// Allow Rey30 IDvj to reuse Claude Code's keychain login. `None` = the default,
+    /// on; set false to keep Rey30 IDvj from reading or refreshing that credential.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     claude_code_alias: Option<bool>,
     /// Hide secrets from model requests (`core::agent::secrets`). `None` = the
@@ -226,7 +226,7 @@ struct GlobalConfigToml {
     providers: HashMap<String, GlobalProviderEntry>,
 }
 
-/// `[web_search]` in `~/.jan/config.toml`. Each key is `None` when unset.
+/// `[web_search]` in `~/.rey30-idvj/config.toml`. Each key is `None` when unset.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct WebSearchSection {
     /// Backend id (`exa`, `tavily`, `searxng`, `you`). `None` = Exa.
@@ -243,7 +243,7 @@ impl WebSearchSection {
     }
 }
 
-/// `[tui]` in `~/.jan/config.toml`. Each key is `None` when unset.
+/// `[tui]` in `~/.rey30-idvj/config.toml`. Each key is `None` when unset.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 struct TuiSection {
     /// Animate the TUI (shimmer, throbbers). `None` = on.
@@ -257,11 +257,11 @@ impl TuiSection {
     }
 }
 
-/// `[experimental]` in `~/.jan/config.toml`. Each key is `None` when unset,
+/// `[experimental]` in `~/.rey30-idvj/config.toml`. Each key is `None` when unset,
 /// which means off.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 struct ExperimentalSection {
-    /// `jan acp`, the Agent Client Protocol server.
+    /// `rey30-idvj acp`, the Agent Client Protocol server.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     acp: Option<bool>,
 }
@@ -272,7 +272,7 @@ impl ExperimentalSection {
     }
 }
 
-/// `[telemetry]` in `~/.jan/config.toml` or a project's `agent.toml`. Only the
+/// `[telemetry]` in `~/.rey30-idvj/config.toml` or a project's `agent.toml`. Only the
 /// switch lives here: where the data goes is the standard `OTEL_*` env, so one
 /// collector setup serves every OpenTelemetry-speaking tool unchanged.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
@@ -318,7 +318,7 @@ struct GlobalProviderEntry {
     account: Option<String>,
     /// Extra request headers sent with every request to this provider, inference
     /// and `/models` listing alike: `headers = { "X-Team" = "infra" }`. A
-    /// session's `JAN_CUSTOM_HEADERS` beats a header of the same name here.
+    /// session's `REY30_CUSTOM_HEADERS` beats a header of the same name here.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     headers: BTreeMap<String, String>,
     /// Parse `<think>` tags in this provider's content as reasoning. `None`
@@ -354,22 +354,29 @@ pub(crate) struct ProviderUpdate {
     pub account: Option<Option<String>>,
 }
 
-/// `~/.jan`, the user-wide config directory.
-pub(crate) fn global_jan_dir() -> Result<PathBuf, String> {
+/// `~/.rey30-idvj`, the user-wide config directory.
+pub(crate) fn global_rey30_dir() -> Result<PathBuf, String> {
+    if let Some(path) = tauri_plugin_agent_tools::workspace::configured_agent_home()? {
+        return Ok(path);
+    }
     #[cfg(test)]
     let home = TEST_HOME.with(|home| Some(home.borrow().path().to_path_buf()));
     #[cfg(not(test))]
     let home = dirs::home_dir();
-    home.map(|home| home.join(".jan"))
+    home.map(|home| {
+        let current = home.join(".rey30-idvj");
+        let previous = home.join(".jan");
+        if !current.exists() && previous.is_dir() { previous } else { current }
+    })
         .ok_or_else(|| "could not resolve the user's home directory".to_string())
 }
 
-/// `~/.jan/config.toml`.
+/// `~/.rey30-idvj/config.toml`.
 pub(crate) fn global_config_path() -> Result<PathBuf, String> {
-    Ok(global_jan_dir()?.join("config.toml"))
+    Ok(global_rey30_dir()?.join("config.toml"))
 }
 
-/// Load provider configs from `~/.jan/config.toml`. Missing file -> empty map
+/// Load provider configs from `~/.rey30-idvj/config.toml`. Missing file -> empty map
 /// (standalone-with-no-global-config is valid); malformed file -> error.
 pub(crate) fn load_global_config() -> Result<HashMap<String, ProviderConfig>, String> {
     let path = match global_config_path() {
@@ -405,7 +412,7 @@ pub(crate) fn load_global_config() -> Result<HashMap<String, ProviderConfig>, St
                         .collect(),
                     models: entry.models,
                     api_type: entry.api_type,
-                    // `~/.jan/config.toml` describes the desktop app's
+                    // `~/.rey30-idvj/config.toml` describes the desktop app's
                     // providers, which size compaction from the project's
                     // `[provider]`/`[agent]` sections instead.
                     compaction_ratio: None,
@@ -415,7 +422,7 @@ pub(crate) fn load_global_config() -> Result<HashMap<String, ProviderConfig>, St
         .collect())
 }
 
-/// Resolve a default model from `~/.jan/config.toml` for a standalone agent:
+/// Resolve a default model from `~/.rey30-idvj/config.toml` for a standalone agent:
 /// the explicit `default_model` key if set, else the first model of the first
 /// provider (providers sorted by name for determinism). `None` when nothing is
 /// configured. Errors only on a malformed file.
@@ -431,7 +438,7 @@ pub(crate) fn default_model() -> Result<Option<String>, String> {
         .find_map(|(_, entry)| entry.models.into_iter().next()))
 }
 
-/// Resolve the `smol` role model from `~/.jan/config.toml`: the explicit
+/// Resolve the `smol` role model from `~/.rey30-idvj/config.toml`: the explicit
 /// `smol_model` key if set. `None` when unset (callers fall back to the
 /// session's main model). Errors only on a malformed file.
 pub(crate) fn smol_model() -> Result<Option<String>, String> {
@@ -439,7 +446,7 @@ pub(crate) fn smol_model() -> Result<Option<String>, String> {
     Ok(config.smol_model.filter(|m| !m.trim().is_empty()))
 }
 
-/// `[telemetry].enabled` in `~/.jan/config.toml`; `None` when unset. Fails
+/// `[telemetry].enabled` in `~/.rey30-idvj/config.toml`; `None` when unset. Fails
 /// open to "unset" like every other preference here: telemetry is never a
 /// reason for a session not to start. CLI-only, like its sole caller.
 #[cfg(feature = "cli")]
@@ -447,20 +454,20 @@ pub(crate) fn telemetry_setting() -> Option<bool> {
     load_raw().ok().and_then(|config| config.telemetry.enabled)
 }
 
-/// `hide_secrets` in `~/.jan/config.toml`; `None` when unset. Fails open to
+/// `hide_secrets` in `~/.rey30-idvj/config.toml`; `None` when unset. Fails open to
 /// "unset" (off): a preference file must never stop a session from starting.
 pub(crate) fn hide_secrets_setting() -> Option<bool> {
     load_raw().ok().and_then(|config| config.hide_secrets)
 }
 
-/// `[experimental].acp` in `~/.jan/config.toml`; `None` when unset. A malformed
+/// `[experimental].acp` in `~/.rey30-idvj/config.toml`; `None` when unset. A malformed
 /// file reads as unset, which is off: an experimental surface fails closed.
 #[cfg(feature = "cli")]
 pub(crate) fn experimental_acp_setting() -> Option<bool> {
     load_raw().ok().and_then(|config| config.experimental.acp)
 }
 
-/// Whether the TUI should track the mouse (`mouse` in `~/.jan/config.toml`),
+/// Whether the TUI should track the mouse (`mouse` in `~/.rey30-idvj/config.toml`),
 /// defaulting to on. A display preference must never block startup, so an
 /// unreadable or malformed config yields the default rather than an error.
 pub(crate) fn mouse_enabled() -> bool {
@@ -470,7 +477,7 @@ pub(crate) fn mouse_enabled() -> bool {
         .unwrap_or(true)
 }
 
-/// Whether the TUI animates (`[tui] animations` in `~/.jan/config.toml`),
+/// Whether the TUI animates (`[tui] animations` in `~/.rey30-idvj/config.toml`),
 /// defaulting to on. Off holds every animated element on its static fallback.
 /// A display preference must never block startup, so an unreadable config
 /// yields the default. CLI-only, like its sole caller.
@@ -483,7 +490,7 @@ pub(crate) fn animations_enabled() -> bool {
 }
 
 /// Whether the TUI may offer `/terminal-setup` at startup (`terminal_hint` in
-/// `~/.jan/config.toml`), defaulting to on. Declining the offer leaves no trace
+/// `~/.rey30-idvj/config.toml`), defaulting to on. Declining the offer leaves no trace
 /// on disk -- the check reads the terminal's own config -- so this key is what
 /// turns a standing note off. A display preference must never block startup, so
 /// an unreadable config yields the default.
@@ -494,8 +501,8 @@ pub(crate) fn terminal_hint_enabled() -> bool {
         .unwrap_or(true)
 }
 
-/// Whether Jan may reuse Claude Code's keychain login
-/// (`claude_code_alias` in `~/.jan/config.toml`), defaulting to on. This
+/// Whether Rey30 IDvj may reuse Claude Code's keychain login
+/// (`claude_code_alias` in `~/.rey30-idvj/config.toml`), defaulting to on. This
 /// setting is deliberately opt-out to preserve existing behavior while making
 /// the cross-tool credential reuse explicit and reversible.
 pub(crate) fn claude_code_alias_enabled() -> bool {
@@ -505,7 +512,7 @@ pub(crate) fn claude_code_alias_enabled() -> bool {
         .unwrap_or(true)
 }
 
-/// Whether `bash` runs sandboxed by default (`sandbox` in `~/.jan/config.toml`).
+/// Whether `bash` runs sandboxed by default (`sandbox` in `~/.rey30-idvj/config.toml`).
 /// `None` when unset, so the caller can let a project's `agent.toml` or the
 /// `--sandbox` flag decide before falling back to the surface default.
 ///
@@ -516,7 +523,7 @@ pub(crate) fn sandbox_setting() -> Option<bool> {
     load_raw().ok().and_then(|config| config.sandbox)
 }
 
-/// `[context].fallback_files` from `~/.jan/config.toml`, or `None` when unset
+/// `[context].fallback_files` from `~/.rey30-idvj/config.toml`, or `None` when unset
 /// or unreadable, so the project's `agent.toml` and then the built-in default
 /// decide. Like the other preferences, a bad file never blocks a session.
 pub(crate) fn context_fallback_files_setting() -> Option<Vec<String>> {
@@ -527,7 +534,7 @@ pub(crate) fn context_fallback_files_setting() -> Option<Vec<String>> {
 }
 
 /// Whether a session gets its own git worktree by default (`worktree` in
-/// `~/.jan/config.toml`). `None` when unset, so a project's `agent.toml` or the
+/// `~/.rey30-idvj/config.toml`). `None` when unset, so a project's `agent.toml` or the
 /// `--worktree` flag decides first. Unreadable config yields `None`, like
 /// [`sandbox_setting`]: a preference must not block a session from starting.
 pub(crate) fn worktree_setting() -> Option<bool> {
@@ -535,7 +542,7 @@ pub(crate) fn worktree_setting() -> Option<bool> {
 }
 
 /// Whether saved threads are pruned at TUI start (`prune_threads` in
-/// `~/.jan/config.toml`), defaulting to off. An unreadable config also reads
+/// `~/.rey30-idvj/config.toml`), defaulting to off. An unreadable config also reads
 /// as off: the failure direction of a setting that deletes data is to keep it.
 /// CLI-only, like its sole caller.
 #[cfg(feature = "cli")]
@@ -546,7 +553,7 @@ pub(crate) fn prune_threads_enabled() -> bool {
         .unwrap_or(false)
 }
 
-/// `[web_search]` in `~/.jan/config.toml`. Unset on an unreadable or malformed
+/// `[web_search]` in `~/.rey30-idvj/config.toml`. Unset on an unreadable or malformed
 /// config: the default backend still works, and a preference file must never
 /// stop a session from starting.
 pub(crate) fn web_search_setting() -> WebSearchSection {
@@ -581,7 +588,7 @@ pub(crate) fn resolve_web_search() -> tauri_plugin_websearch::provider::WebSearc
     }
 }
 
-/// Persist `[web_search]` into `~/.jan/config.toml`, format-preserving like
+/// Persist `[web_search]` into `~/.rey30-idvj/config.toml`, format-preserving like
 /// [`set_global_key`]. A `None` field removes that key; the table goes too once
 /// it is empty, so resetting leaves no stray header behind.
 #[cfg(feature = "cli")]
@@ -617,7 +624,7 @@ pub(crate) fn set_web_search(section: &WebSearchSection) -> Result<PathBuf, Stri
 }
 
 /// Host env-var names the sandboxed `bash` may inherit beyond the base
-/// allowlist (`env_passthrough` in `~/.jan/config.toml`), merged under a
+/// allowlist (`env_passthrough` in `~/.rey30-idvj/config.toml`), merged under a
 /// project's `[tools].env_passthrough`. Empty on an unreadable or malformed
 /// config: a shell-env preference must never block a session from starting.
 pub(crate) fn env_passthrough_setting() -> Vec<String> {
@@ -627,7 +634,7 @@ pub(crate) fn env_passthrough_setting() -> Vec<String> {
 }
 
 /// Explicit key=value overrides for the `bash` env (`env_set` in
-/// `~/.jan/config.toml`), sorted by key. Same fail-open rationale as
+/// `~/.rey30-idvj/config.toml`), sorted by key. Same fail-open rationale as
 /// [`env_passthrough_setting`].
 pub(crate) fn env_set_setting() -> Vec<(String, String)> {
     load_raw()
@@ -707,7 +714,7 @@ pub(crate) fn think_tags_enabled_for(
 }
 
 /// Whether other projects' memory is listed and readable
-/// (`memory_cross_project` in `~/.jan/config.toml`), defaulting to on.
+/// (`memory_cross_project` in `~/.rey30-idvj/config.toml`), defaulting to on.
 /// Unreadable config yields the default, like the other preferences.
 // Test builds pin cross-project memory off (see `project::memory_roots`).
 #[cfg_attr(test, allow(dead_code))]
@@ -719,7 +726,7 @@ pub(crate) fn memory_cross_project_enabled() -> bool {
 }
 
 /// Whether the TUI streams reasoning into its live tail while folding is on
-/// (`stream_reasoning` in `~/.jan/config.toml`), defaulting to on. `false` keeps
+/// (`stream_reasoning` in `~/.rey30-idvj/config.toml`), defaulting to on. `false` keeps
 /// a folded block off screen entirely, leaving the header badge to stand for it.
 ///
 /// A display preference must never block startup, so an unreadable or malformed
@@ -731,7 +738,7 @@ pub(crate) fn stream_reasoning_enabled() -> bool {
         .unwrap_or(true)
 }
 
-/// The TUI colour-theme preference (`theme` in `~/.jan/config.toml`): `"light"`,
+/// The TUI colour-theme preference (`theme` in `~/.rey30-idvj/config.toml`): `"light"`,
 /// `"dark"`, or `"auto"`. `None` when unset, which the TUI treats as auto-detect
 /// from the terminal background. An unreadable or malformed config yields `None`
 /// so a display preference never blocks startup.
@@ -740,7 +747,7 @@ pub(crate) fn theme_setting() -> Option<String> {
 }
 
 /// How long an unanswered `ask` prompt waits before it auto-answers with each
-/// question's recommended option (`ask_timeout_secs` in `~/.jan/config.toml`).
+/// question's recommended option (`ask_timeout_secs` in `~/.rey30-idvj/config.toml`).
 /// `None` -- the default -- means wait forever, preserving today's blocking
 /// behavior until the user answers; `0` is treated the same as unset so the
 /// disabling value and the absent key agree.
@@ -755,7 +762,7 @@ pub(crate) fn ask_timeout() -> Option<std::time::Duration> {
         .map(std::time::Duration::from_secs)
 }
 
-/// Root-level (non-`[providers.*]`) keys of `~/.jan/config.toml`, used to spot
+/// Root-level (non-`[providers.*]`) keys of `~/.rey30-idvj/config.toml`, used to spot
 /// the one mistake this file invites: appending a top-level key to the end of
 /// the file, where it silently lands inside whichever `[providers.*]` table
 /// happens to be last.
@@ -774,7 +781,7 @@ const ROOT_KEYS: &[&str] = &[
 
 /// Render a TOML parse failure with a fix, not just a location. `toml`'s own
 /// message points at the offending line and stops there, which is useless for
-/// the common case: `echo 'key = v' >> ~/.jan/config.toml` appends *after* the
+/// the common case: `echo 'key = v' >> ~/.rey30-idvj/config.toml` appends *after* the
 /// last `[providers.*]` header, so the key parses as a provider field and
 /// collides on a second append. Naming the root key and the remedy turns a
 /// dead end into a one-step fix.
@@ -796,7 +803,7 @@ fn parse_error(path: &std::path::Path, err: &impl std::fmt::Display, message: &s
     )
 }
 
-/// Read `~/.jan/config.toml` into the raw TOML struct for editing. Missing file
+/// Read `~/.rey30-idvj/config.toml` into the raw TOML struct for editing. Missing file
 /// -> default (empty); malformed file -> error, so a set never silently drops an
 /// unparseable file's contents.
 fn load_raw() -> Result<GlobalConfigToml, String> {
@@ -808,11 +815,11 @@ fn load_raw() -> Result<GlobalConfigToml, String> {
     toml::from_str(&raw).map_err(|e| parse_error(&path, &e, e.message()))
 }
 
-/// Serialize the config back to `~/.jan/config.toml`, creating `~/.jan` if
+/// Serialize the config back to `~/.rey30-idvj/config.toml`, creating `~/.rey30-idvj` if
 /// needed. The directory is user-scoped; the file is world-unreadable on Unix
 /// since it holds API keys.
 fn write_raw(config: &GlobalConfigToml) -> Result<PathBuf, String> {
-    let dir = global_jan_dir()?;
+    let dir = global_rey30_dir()?;
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
     let path = dir.join("config.toml");
@@ -832,9 +839,9 @@ fn restrict_permissions(path: &std::path::Path) {
 #[cfg(not(unix))]
 fn restrict_permissions(_path: &std::path::Path) {}
 
-/// Create or update a provider entry in `~/.jan/config.toml`, merging with any
+/// Create or update a provider entry in `~/.rey30-idvj/config.toml`, merging with any
 /// existing entry (see [`ProviderUpdate`]). Returns the config path. This is the
-/// headless write path that lets a standalone Jan Agent set credentials with no
+/// headless write path that lets a standalone Rey30 IDvj Agent set credentials with no
 /// Desktop app present.
 pub(crate) fn set_provider(name: &str, update: ProviderUpdate) -> Result<PathBuf, String> {
     if name.trim().is_empty() {
@@ -944,8 +951,8 @@ pub(crate) fn adopt_default_model(model: &str) -> Result<Option<DefaultModelChan
 }
 
 /// Server-assigned metadata for a provider's stored key, when a v5 device-flow
-/// login recorded any. Used by `jan auth status` / the expiry warning and by
-/// `jan auth logout` to revoke the exact key.
+/// login recorded any. Used by `rey30-idvj auth status` / the expiry warning and by
+/// `rey30-idvj auth logout` to revoke the exact key.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct StoredKeyMeta {
     pub key_id: Option<String>,
@@ -967,7 +974,7 @@ pub(crate) fn provider_key_meta(name: &str) -> Result<StoredKeyMeta, String> {
     })
 }
 
-/// Remove a provider entry from `~/.jan/config.toml`. Returns `true` if the
+/// Remove a provider entry from `~/.rey30-idvj/config.toml`. Returns `true` if the
 /// provider existed and was removed, `false` if it was already absent.
 pub(crate) fn remove_provider(name: &str) -> Result<bool, String> {
     let mut config = load_raw()?;
@@ -978,7 +985,7 @@ pub(crate) fn remove_provider(name: &str) -> Result<bool, String> {
     Ok(true)
 }
 
-/// Read one top-level scalar from `~/.jan/config.toml` as a display string.
+/// Read one top-level scalar from `~/.rey30-idvj/config.toml` as a display string.
 /// `None` when the key is absent or the file is unreadable. Reads through
 /// `toml_edit` rather than the typed struct so the caller gets the value the
 /// user actually typed, and so a key this build does not know about still
@@ -996,7 +1003,7 @@ pub(crate) fn global_value(key: &str) -> Option<String> {
     })
 }
 
-/// Persist a top-level scalar into `~/.jan/config.toml`, format-preserving.
+/// Persist a top-level scalar into `~/.rey30-idvj/config.toml`, format-preserving.
 /// `None` removes the key so its default applies again.
 ///
 /// This edits the document rather than round-tripping the typed struct the way
@@ -1030,10 +1037,10 @@ pub(crate) fn set_global_key(key: &str, value: Option<toml_edit::Item>) -> Resul
     Ok(path)
 }
 
-/// Scaffold `~/.jan/config.toml` with a commented example, if it doesn't exist
+/// Scaffold `~/.rey30-idvj/config.toml` with a commented example, if it doesn't exist
 /// yet. Idempotent and clobber-safe: never overwrites an existing file.
 pub(crate) fn ensure_global_config() -> Result<PathBuf, String> {
-    let dir = global_jan_dir()?;
+    let dir = global_rey30_dir()?;
     std::fs::create_dir_all(&dir)
         .map_err(|e| format!("Failed to create {}: {e}", dir.display()))?;
     let path = dir.join("config.toml");
@@ -1108,7 +1115,7 @@ mod tests {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             with_temp_home(|home| {
                 scratch = Some(home.to_path_buf());
-                assert_eq!(global_config_path().unwrap(), home.join(".jan/config.toml"));
+                assert_eq!(global_config_path().unwrap(), home.join(".rey30-idvj/config.toml"));
                 ensure_global_config().unwrap();
                 panic!("exercise fixture cleanup");
             });
@@ -1130,7 +1137,7 @@ mod tests {
     fn hide_secrets_is_unset_by_default_and_reads_its_key() {
         with_temp_home(|home| {
             assert_eq!(hide_secrets_setting(), None, "missing file");
-            let path = home.join(".jan").join("config.toml");
+            let path = home.join(".rey30-idvj").join("config.toml");
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, "hide_secrets = true\n").unwrap();
             assert_eq!(hide_secrets_setting(), Some(true));
@@ -1414,7 +1421,7 @@ mod tests {
     #[test]
     fn set_web_search_round_trips_and_clears_the_table() {
         with_temp_home(|home| {
-            let path = home.join(".jan").join("config.toml");
+            let path = home.join(".rey30-idvj").join("config.toml");
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, "# keep me\n[providers.p]\nbase_url = \"https://x\"\n")
                 .unwrap();
@@ -1442,12 +1449,12 @@ mod tests {
     #[test]
     fn set_global_key_scaffolds_a_missing_config() {
         with_temp_home(|home| {
-            let path = home.join(".jan").join("config.toml");
+            let path = home.join(".rey30-idvj").join("config.toml");
             assert!(!path.exists(), "starting from no config");
 
             set_global_key("stream_reasoning", Some(toml_edit::value(false))).expect("set");
             let raw = std::fs::read_to_string(&path).unwrap();
-            assert!(raw.contains("Jan Agent global provider config"), "{raw}");
+            assert!(raw.contains("Rey30 IDvj Agent global provider config"), "{raw}");
             assert!(!stream_reasoning_enabled());
         });
     }
@@ -1513,7 +1520,7 @@ mod tests {
     fn ensure_scaffolds_and_is_idempotent() {
         with_temp_home(|home| {
             let path = ensure_global_config().expect("ensure");
-            assert_eq!(path, home.join(".jan").join("config.toml"));
+            assert_eq!(path, home.join(".rey30-idvj").join("config.toml"));
             assert!(path.exists());
 
             std::fs::write(&path, "[providers.openai]\napi_key = \"sk-x\"\n").unwrap();

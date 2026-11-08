@@ -105,7 +105,7 @@ mod tests {
 
     fn temp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "jan-shot-pages-{tag}-{}-{}",
+            "rey30-idvj-shot-pages-{tag}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -122,17 +122,17 @@ mod tests {
     fn the_target_and_files_beside_it_are_allowed_for_its_window_only() {
         let dir = temp_dir("in");
         let pages = ScreenshotPages::new();
-        assert!(!pages.allows("jan-shot-1", &dir.join("chart.html")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("chart.html")));
         pages
-            .register("jan-shot-1", &dir.join("chart.html"), PageScope::Directory)
+            .register("rey30-idvj-shot-1", &dir.join("chart.html"), PageScope::Directory)
             .unwrap();
-        assert!(pages.allows("jan-shot-1", &dir.join("chart.html")));
-        assert!(pages.allows("jan-shot-1", &dir.join("assets/style.css")));
-        assert!(!pages.allows("jan-shot-2", &dir.join("chart.html")));
+        assert!(pages.allows("rey30-idvj-shot-1", &dir.join("chart.html")));
+        assert!(pages.allows("rey30-idvj-shot-1", &dir.join("assets/style.css")));
+        assert!(!pages.allows("rey30-idvj-shot-2", &dir.join("chart.html")));
         // A directory is not a page.
-        assert!(!pages.allows("jan-shot-1", &dir.join("assets")));
-        pages.unregister("jan-shot-1");
-        assert!(!pages.allows("jan-shot-1", &dir.join("chart.html")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("assets")));
+        pages.unregister("rey30-idvj-shot-1");
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("chart.html")));
     }
 
     #[test]
@@ -141,11 +141,11 @@ mod tests {
         std::fs::write(dir.join("notes.txt"), "private").unwrap();
         let pages = ScreenshotPages::new();
         pages
-            .register("jan-shot-1", &dir.join("chart.html"), PageScope::FileOnly)
+            .register("rey30-idvj-shot-1", &dir.join("chart.html"), PageScope::FileOnly)
             .unwrap();
-        assert!(pages.allows("jan-shot-1", &dir.join("chart.html")));
-        assert!(!pages.allows("jan-shot-1", &dir.join("notes.txt")));
-        assert!(!pages.allows("jan-shot-1", &dir.join("assets/style.css")));
+        assert!(pages.allows("rey30-idvj-shot-1", &dir.join("chart.html")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("notes.txt")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("assets/style.css")));
     }
 
     #[test]
@@ -154,14 +154,14 @@ mod tests {
         let other = temp_dir("other");
         let pages = ScreenshotPages::new();
         pages
-            .register("jan-shot-1", &dir.join("chart.html"), PageScope::Directory)
+            .register("rey30-idvj-shot-1", &dir.join("chart.html"), PageScope::Directory)
             .unwrap();
-        assert!(!pages.allows("jan-shot-1", &other.join("chart.html")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &other.join("chart.html")));
         let escape = dir
             .join("..")
             .join(other.file_name().unwrap())
             .join("chart.html");
-        assert!(!pages.allows("jan-shot-1", &escape));
+        assert!(!pages.allows("rey30-idvj-shot-1", &escape));
     }
 
     #[cfg(unix)]
@@ -172,9 +172,9 @@ mod tests {
         std::os::unix::fs::symlink(other.join("chart.html"), dir.join("leak.html")).unwrap();
         let pages = ScreenshotPages::new();
         pages
-            .register("jan-shot-1", &dir.join("chart.html"), PageScope::Directory)
+            .register("rey30-idvj-shot-1", &dir.join("chart.html"), PageScope::Directory)
             .unwrap();
-        assert!(!pages.allows("jan-shot-1", &dir.join("leak.html")));
+        assert!(!pages.allows("rey30-idvj-shot-1", &dir.join("leak.html")));
     }
 
     #[test]
@@ -182,7 +182,7 @@ mod tests {
         let pages = ScreenshotPages::new();
         assert!(pages
             .register(
-                "jan-shot-1",
+                "rey30-idvj-shot-1",
                 Path::new("/definitely/not/here.html"),
                 PageScope::Directory
             )

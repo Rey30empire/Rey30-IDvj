@@ -1,4 +1,4 @@
-//! Parsing of the `router.preset.ini` Jan generates.
+//! Parsing of the `router.preset.ini` Rey30 IDvj generates.
 //!
 //! Lives in the library rather than the worker binary because the reload
 //! endpoint re-reads the file at runtime, so both the startup path and the
@@ -70,7 +70,7 @@ pub fn shared_value(ini: &str, key: &str) -> Option<String> {
 /// Load specs for every model in a preset.
 ///
 /// The spec carries the section body so `Registry::reload` can diff it. Two
-/// presets that differ only in a model Jan did not touch therefore leave that
+/// presets that differ only in a model Rey30 IDvj did not touch therefore leave that
 /// model loaded, which is the whole point of reloading rather than restarting.
 pub fn specs(ini_path: &str, ini: &str) -> HashMap<String, LoadSpec> {
     let mut bodies = section_bodies(ini);
@@ -142,10 +142,10 @@ embeddings = true
 
     #[test]
     fn a_shared_value_keeps_paths_with_spaces_and_equals_signs() {
-        let ini = "[*]\nslot-save-path = /home/a b/Jan Data/cache\n";
+        let ini = "[*]\nslot-save-path = /home/a b/Rey30 IDvj Data/cache\n";
         assert_eq!(
             shared_value(ini, "slot-save-path"),
-            Some("/home/a b/Jan Data/cache".to_string())
+            Some("/home/a b/Rey30 IDvj Data/cache".to_string())
         );
         assert_eq!(
             shared_value("[*]\nchat-template = a=b\n", "chat-template"),

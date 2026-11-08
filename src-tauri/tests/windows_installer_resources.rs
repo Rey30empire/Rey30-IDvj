@@ -8,7 +8,7 @@
 //! the setup exe -- which is the primary release asset *and* the auto-updater
 //! payload, making it the more damaging half.
 //!
-//! This has already happened twice: #7618 hand-added `jan-cli.exe`, and the
+//! This has already happened twice: #7618 hand-added `rey30-idvj-cli.exe`, and the
 //! engine worker plus its ggml modules fell through the same gap. Nothing in the
 //! build fails when it happens, which is why it needs a test rather than a
 //! comment.
@@ -37,7 +37,7 @@ fn nsis_block<'a>(template: &'a str, opener: &str, end: &str) -> &'a str {
     &rest[..stop]
 }
 
-/// The shortcut retarget on a main-binary rename (`jan.exe` -> `Jan-Desktop.exe`
+/// The shortcut retarget on a main-binary rename (`rey30-idvj.exe` -> `Rey30-IDvj.exe`
 /// in 0.8.5, #9125) needs the previous name from the uninstall key. A passive
 /// upgrade runs the old uninstaller from `PageLeaveReinstall`, which deletes that
 /// key before `Section Install` runs, so the name has to be captured in

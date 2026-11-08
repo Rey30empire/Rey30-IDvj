@@ -19,7 +19,7 @@
 //!
 //! Snapshots are kept OUT of the user's branch, HEAD, and index: we stage into a
 //! throwaway index file (`GIT_INDEX_FILE`) and build commit objects with
-//! `commit-tree`, reachable only from a hidden `refs/jan/agent/snapshots/<id>`
+//! `commit-tree`, reachable only from a hidden `refs/rey30-idvj/agent/snapshots/<id>`
 //! ref. The user's `git status`, current branch, and staged changes are never
 //! touched. Shelling out keeps us free of a libgit2 dependency.
 
@@ -28,10 +28,10 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// A `git` command, resolved by [`jan_utils::git_program`] so Windows never
-/// runs a `git.exe` from Jan's own folder.
+/// A `git` command, resolved by [`rey30_idvj_utils::git_program`] so Windows never
+/// runs a `git.exe` from Rey30 IDvj's own folder.
 fn git_command() -> Result<Command, String> {
-    jan_utils::git_program()
+    rey30_idvj_utils::git_program()
         .map(Command::new)
         .map_err(|e| format!("failed to launch git: {e}"))
 }
@@ -62,10 +62,10 @@ fn git(args: &[&str]) -> Result<String, String> {
 fn run(repo: &Path, index: Option<&Path>, args: &[&str]) -> Result<String, String> {
     let mut cmd = git_command()?;
     cmd.arg("-C").arg(repo).args(args);
-    cmd.env("GIT_AUTHOR_NAME", "Jan Agent")
-        .env("GIT_AUTHOR_EMAIL", "agent@jan.ai")
-        .env("GIT_COMMITTER_NAME", "Jan Agent")
-        .env("GIT_COMMITTER_EMAIL", "agent@jan.ai");
+    cmd.env("GIT_AUTHOR_NAME", "Rey30 IDvj Agent")
+        .env("GIT_AUTHOR_EMAIL", "agent@rey30-idvj.ai")
+        .env("GIT_COMMITTER_NAME", "Rey30 IDvj Agent")
+        .env("GIT_COMMITTER_EMAIL", "agent@rey30-idvj.ai");
     if let Some(idx) = index {
         cmd.env("GIT_INDEX_FILE", idx);
     }
@@ -89,7 +89,7 @@ fn temp_index() -> PathBuf {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-    std::env::temp_dir().join(format!("jan-agent-idx-{}-{n}", std::process::id()))
+    std::env::temp_dir().join(format!("rey30-idvj-agent-idx-{}-{n}", std::process::id()))
 }
 
 /// A stable index path for a thread's snapshot chain, kept across calls (not
@@ -101,7 +101,7 @@ fn temp_index() -> PathBuf {
 #[cfg(feature = "cli")]
 fn snapshot_index(thread_id: &str) -> Result<PathBuf, String> {
     validate_index_key(thread_id)?;
-    Ok(std::env::temp_dir().join(format!("jan-agent-snap-idx-{thread_id}")))
+    Ok(std::env::temp_dir().join(format!("rey30-idvj-agent-snap-idx-{thread_id}")))
 }
 
 /// Prefix of the one-shot index key a fork uses for its source thread.
@@ -125,7 +125,7 @@ fn validate_index_key(key: &str) -> Result<(), String> {
 #[cfg(feature = "cli")]
 pub(crate) fn snapshot_ref(thread_id: &str) -> Result<String, String> {
     crate::core::threads::utils::validate_thread_id(thread_id)?;
-    Ok(format!("refs/jan/agent/snapshots/{thread_id}"))
+    Ok(format!("refs/rey30-idvj/agent/snapshots/{thread_id}"))
 }
 
 /// True when git tracks any file under `path` (a directory in a work tree).
@@ -416,7 +416,7 @@ mod tests {
     /// the suite skips instead of failing on a box without git.
     fn init_repo() -> Option<PathBuf> {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let root = std::env::temp_dir().join(format!("jan_snap_test_{}_{n}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30_snap_test_{}_{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).ok()?;
         let r = root.to_string_lossy().to_string();
@@ -441,7 +441,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&wt);
 
         let head = head_sha(&root).expect("a repo with one commit has a HEAD");
-        worktree_add(&root, &wt, "jan/agent/test1", &head).expect("worktree add");
+        worktree_add(&root, &wt, "rey30-idvj/agent/test1", &head).expect("worktree add");
 
         assert!(wt.join("a.txt").is_file(), "the tree was checked out");
         assert!(worktree_registered(&root, &wt));
@@ -451,7 +451,7 @@ mod tests {
         );
         assert_eq!(
             current_branch(&wt).as_deref(),
-            Some("jan/agent/test1"),
+            Some("rey30-idvj/agent/test1"),
             "the worktree is on its own branch"
         );
         // The main checkout is untouched by work done in the worktree.
@@ -491,7 +491,7 @@ mod tests {
             root.file_name().unwrap().to_string_lossy()
         ));
         let _ = std::fs::remove_dir_all(&wt);
-        worktree_add(&root, &wt, "jan/agent/test2", &snap).expect("worktree add at a snapshot");
+        worktree_add(&root, &wt, "rey30-idvj/agent/test2", &snap).expect("worktree add at a snapshot");
         assert_eq!(
             std::fs::read_to_string(wt.join("a.txt")).unwrap(),
             "two\n",
@@ -535,7 +535,7 @@ mod tests {
         assert!(snapshot(&root, Some(&hostile), "m", "t-bad", &[]).is_err());
         assert!(update_ref(&root, "t-bad", &hostile).is_err());
         let wt = root.join("wt");
-        assert!(worktree_add(&root, &wt, "jan/agent/bad", &hostile).is_err());
+        assert!(worktree_add(&root, &wt, "rey30-idvj/agent/bad", &hostile).is_err());
         assert!(!out.exists());
         assert!(!wt.exists());
         // A real id still works for restore.
@@ -664,7 +664,7 @@ mod tests {
         }
         assert_eq!(
             snapshot_ref("0f8c2a3e-1b2c-4d5e-8f90-123456789abc").unwrap(),
-            "refs/jan/agent/snapshots/0f8c2a3e-1b2c-4d5e-8f90-123456789abc"
+            "refs/rey30-idvj/agent/snapshots/0f8c2a3e-1b2c-4d5e-8f90-123456789abc"
         );
         let Some(root) = init_repo() else { return };
         assert!(update_ref(&root, "../../heads/main", "HEAD").is_err());
@@ -704,7 +704,7 @@ mod tests {
     #[test]
     fn repo_root_is_none_outside_git() {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("jan_nogit_{}_{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("rey30_nogit_{}_{n}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         if repo_root(&std::env::temp_dir()).is_none() {
             assert!(repo_root(&dir).is_none());

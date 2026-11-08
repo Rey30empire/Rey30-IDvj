@@ -3,12 +3,13 @@
 //! The desktop activation stack (`core/mcp/helpers.rs`) is generic over a Tauri
 //! `AppHandle` (data-folder lookup, `AppState`, event emit, bundled `bun`/`uv`
 //! rewriting, health-monitor tasks). The CLI has no `AppHandle`, so this module
-//! provides a focused connector: it reads the same `<jan_data>/mcp_config.json`,
+//! provides a focused connector: it reads the same `<rey30_data>/mcp_config.json`,
 //! reuses the shared `extract_command_args`/`extract_active_status` parsers, and
 //! connects http/sse/stdio transports directly into a `SharedMcpServers` map that
-//! the agent loop already consumes. No bundled-runtime rewriting, no Jan Browser
+//! the agent loop already consumes. No bundled-runtime rewriting, no Rey30 IDvj Browser
 //! MCP bridge, no auto-reconnect monitor -- the CLI relies on the user's PATH.
 
+use crate::core::mcp::constants::is_browser_mcp_server_name;
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -24,7 +25,7 @@ use rmcp::{
 use serde_json::Value;
 use tokio::process::Command;
 
-use crate::core::app::commands::resolve_jan_data_folder;
+use crate::core::app::commands::resolve_rey30_data_folder;
 use crate::core::mcp::models::McpSettings;
 use crate::core::mcp::models::{extract_active_status, extract_command_args, McpServerConfig};
 use crate::core::mcp::oauth;
@@ -34,6 +35,7 @@ use super::providers::ProviderOverrides;
 
 /// The Jan Browser MCP needs the desktop bridge/lockfile machinery, so it is
 /// never offered or connected from the CLI.
+#[cfg(test)]
 const BROWSER_MCP_NAME: &str = "Jan Browser MCP";
 
 /// A configured server as read from `mcp_config.json`.
@@ -45,16 +47,16 @@ pub struct McpServerEntry {
 
 /// Resolve the config path under a data folder. `data_folder` is threaded
 /// through the internal helpers so tests can point at a tempdir without a global
-/// override; the public API uses the real Jan data folder via
-/// `resolve_jan_data_folder()`.
+/// override; the public API uses the real Rey30 IDvj data folder via
+/// `resolve_rey30_data_folder()`.
 fn config_path(data_folder: &std::path::Path) -> PathBuf {
     data_folder.join("mcp_config.json")
 }
 
-/// The real Jan data folder (the env override in `resolve_jan_data_folder`
-/// applies, so a `JAN_DATA_FOLDER` redirect still works end to end).
+/// The real Rey30 IDvj data folder (the env override in `resolve_rey30_data_folder`
+/// applies, so a `REY30_DATA_FOLDER` redirect still works end to end).
 fn default_data_folder() -> PathBuf {
-    resolve_jan_data_folder()
+    resolve_rey30_data_folder()
 }
 
 fn read_config(data_folder: &std::path::Path) -> Value {
@@ -75,8 +77,10 @@ fn write_config(data_folder: &std::path::Path, cfg: &Value) -> Result<(), String
         serde_json::json!({})
     };
     let obj = doc.as_object_mut().ok_or("mcp_config is not an object")?;
-    obj.entry("mcpServers").or_insert_with(|| serde_json::json!({}));
-    obj.entry("mcpSettings").or_insert_with(|| serde_json::json!({}));
+    obj.entry("mcpServers")
+        .or_insert_with(|| serde_json::json!({}));
+    obj.entry("mcpSettings")
+        .or_insert_with(|| serde_json::json!({}));
 
     let body = serde_json::to_string_pretty(&doc).map_err(|e| e.to_string())?;
     // A machine where the desktop app never ran has no data folder yet, and this
@@ -146,7 +150,7 @@ pub fn list_servers_in(data_folder: &std::path::Path) -> Vec<McpServerEntry> {
     };
     let mut out: Vec<McpServerEntry> = servers
         .iter()
-        .filter(|(name, _)| name.as_str() != BROWSER_MCP_NAME)
+        .filter(|(name, _)| !is_browser_mcp_server_name(name.as_str()))
         .map(|(name, config)| McpServerEntry {
             name: name.clone(),
             active: extract_active_status(config).unwrap_or(false),
@@ -187,10 +191,7 @@ pub fn validate_config(config: &Value) -> Result<(), String> {
     let obj = config
         .as_object()
         .ok_or_else(|| "server config must be a JSON object".to_string())?;
-    let transport = obj
-        .get("type")
-        .and_then(Value::as_str)
-        .unwrap_or("stdio");
+    let transport = obj.get("type").and_then(Value::as_str).unwrap_or("stdio");
     match transport {
         "http" | "sse" => {
             if obj.get("url").and_then(Value::as_str).is_none() {
@@ -219,7 +220,7 @@ pub fn validate_server_name(name: &str) -> Result<(), String> {
     if name.trim().is_empty() {
         return Err("server name cannot be empty".to_string());
     }
-    if name == BROWSER_MCP_NAME {
+    if is_browser_mcp_server_name(name) {
         return Err(format!(
             "'{name}' is the desktop-only browser bridge and cannot be edited from the CLI"
         ));
@@ -229,7 +230,7 @@ pub fn validate_server_name(name: &str) -> Result<(), String> {
 
 /// Build a ready-to-persist server entry from typed fields, mirroring the
 /// desktop's transport contract. `env`/`headers` are already parsed maps; the
-/// callers (`jan cli mcp add` flags and the TUI form) both funnel through here
+/// callers (`rey30-idvj cli mcp add` flags and the TUI form) both funnel through here
 /// so neither re-implements the shape or its validation.
 pub fn build_server_config(
     transport: &str,
@@ -327,7 +328,7 @@ fn get_server_in(data_folder: &std::path::Path, name: &str) -> Option<McpServerE
     let cfg = read_config(data_folder);
     let servers = cfg.get("mcpServers")?.as_object()?;
     let config = servers.get(name)?;
-    if name == BROWSER_MCP_NAME {
+    if is_browser_mcp_server_name(name) {
         return None;
     }
     Some(McpServerEntry {
@@ -338,7 +339,7 @@ fn get_server_in(data_folder: &std::path::Path, name: &str) -> Option<McpServerE
 }
 
 /// Split a `KEY=VALUE` pair, rejecting anything without a separator or an empty
-/// key. Shared by the headless `jan cli mcp add` flags and the TUI add/edit form
+/// key. Shared by the headless `rey30-idvj cli mcp add` flags and the TUI add/edit form
 /// so the two surfaces parse `--env`/`--header` identically.
 pub fn split_kv(kv: &str, what: &str) -> Result<(String, String), String> {
     match kv.split_once('=') {
@@ -374,7 +375,10 @@ pub fn parse_pairs(s: &str, what: &str) -> Result<serde_json::Map<String, Value>
 pub enum ConnectError {
     /// The server advertises OAuth and there are no usable credentials for it.
     /// `/mcp` turns this into an `Authenticate` action.
-    NeedsAuth { server: String, detail: String },
+    NeedsAuth {
+        server: String,
+        detail: String,
+    },
     Failed(String),
 }
 
@@ -423,11 +427,34 @@ async fn connect_in(
     config: &Value,
     servers: &SharedMcpServers,
 ) -> Result<(), ConnectError> {
-    if name == BROWSER_MCP_NAME {
+    let resolved = crate::core::integrations::credentials::resolve(data_folder, name, config)
+        .map_err(ConnectError::Failed)?;
+    let secrets = crate::core::integrations::credentials::sensitive_values(&resolved);
+    connect_resolved(data_folder, name, &resolved, servers)
+        .await
+        .map_err(|error| match error {
+            ConnectError::Failed(detail) => ConnectError::Failed(
+                crate::core::integrations::credentials::redact(&detail, &secrets),
+            ),
+            ConnectError::NeedsAuth { server, detail } => ConnectError::NeedsAuth {
+                server,
+                detail: crate::core::integrations::credentials::redact(&detail, &secrets),
+            },
+        })
+}
+
+async fn connect_resolved(
+    data_folder: &std::path::Path,
+    name: &str,
+    config: &Value,
+    servers: &SharedMcpServers,
+) -> Result<(), ConnectError> {
+    if is_browser_mcp_server_name(name) {
         return Err(ConnectError::Failed(
             "Jan Browser MCP is desktop-only".to_string(),
         ));
     }
+
     let params = extract_command_args(config)
         .ok_or_else(|| ConnectError::Failed(format!("invalid MCP config for '{name}'")))?;
     // Bounds how long a server may take to answer `initialize`, by the same
@@ -545,7 +572,7 @@ fn stdio_command(params: &McpServerConfig, scrub: &[String]) -> Command {
     cmd
 }
 
-/// The OTLP exporter's header variables. While Jan's own telemetry is on they
+/// The OTLP exporter's header variables. While Rey30 IDvj's own telemetry is on they
 /// hold its collector credentials (a launcher puts its API key there).
 const OTLP_HEADER_VARS: &[&str] = &[
     "OTEL_EXPORTER_OTLP_HEADERS",
@@ -555,7 +582,7 @@ const OTLP_HEADER_VARS: &[&str] = &[
 ];
 
 /// The variables a stdio MCP server must not inherit from this session: the
-/// credentials Jan was given to reach its own model gateway and collector.
+/// credentials Rey30 IDvj was given to reach its own model gateway and collector.
 fn inherited_credentials() -> Vec<String> {
     credential_vars(
         ProviderOverrides::session().explicit_provider_name(),
@@ -563,15 +590,15 @@ fn inherited_credentials() -> Vec<String> {
     )
 }
 
-/// Deliberately narrow. `JAN_API_KEY`, the explicit `--provider`'s own
-/// `<PROVIDER>_API_KEY` and `JAN_CUSTOM_HEADERS` only ever address Jan's
+/// Deliberately narrow. `REY30_API_KEY`, the explicit `--provider`'s own
+/// `<PROVIDER>_API_KEY` and `REY30_CUSTOM_HEADERS` only ever address Rey30 IDvj's
 /// gateway. A Desktop-selected provider's variable (`OPENAI_API_KEY`, ...) is
 /// left alone, because servers commonly read those for themselves, and so are
-/// the OTLP header variables while Jan exports nothing: they are then the
+/// the OTLP header variables while Rey30 IDvj exports nothing: they are then the
 /// user's, for a server that exports to its own collector.
 fn credential_vars(explicit_provider: Option<&str>, telemetry_on: bool) -> Vec<String> {
     let mut names = vec![
-        "JAN_API_KEY".to_string(),
+        "REY30_API_KEY".to_string(),
         super::providers::CUSTOM_HEADERS_ENV.to_string(),
     ];
     if let Some(provider) = explicit_provider {
@@ -633,7 +660,7 @@ fn kill_process_tree(pid: u32) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new(jan_utils::windows_system_tool("taskkill.exe"))
+        let _ = std::process::Command::new(rey30_idvj_utils::windows_system_tool("taskkill.exe"))
             .args(["/F", "/T", "/PID", &pid.to_string()])
             .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .output();
@@ -662,16 +689,14 @@ where
 fn client_info() -> ClientInfo {
     ClientInfo::new(
         ClientCapabilities::default(),
-        Implementation::new("Jan CLI Client", "0.0.1"),
+        Implementation::new("Rey30 IDvj CLI Client", "0.0.1"),
     )
 }
 
 /// Build a reqwest client that sends the configured `headers` on every request
 /// (http auth). Non-string header names/values are skipped. Uses `reqwest13`
 /// because rmcp's streamable-http transport is implemented for reqwest 0.13.
-fn http_client(
-    headers: &serde_json::Map<String, Value>,
-) -> Result<reqwest13::Client, String> {
+fn http_client(headers: &serde_json::Map<String, Value>) -> Result<reqwest13::Client, String> {
     let mut map = reqwest13::header::HeaderMap::new();
     for (key, value) in headers.iter() {
         if let Some(v) = value.as_str() {
@@ -782,7 +807,10 @@ pub async fn describe(name: &str, servers: &SharedMcpServers) -> Option<ServerDe
             format!("{command} {}", args.join(" "))
         }
     } else {
-        cfg.get("url").and_then(Value::as_str).unwrap_or("").to_string()
+        cfg.get("url")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
     };
 
     // The lock is held only for the cached `initialize` response; nothing here
@@ -1127,27 +1155,21 @@ mod tests {
         // Missing command.
         assert!(upsert_server_in(folder, "x", &serde_json::json!({ "args": [] })).is_err());
         // Missing args.
-        assert!(
-            upsert_server_in(folder, "x", &serde_json::json!({ "command": "npx" })).is_err()
-        );
+        assert!(upsert_server_in(folder, "x", &serde_json::json!({ "command": "npx" })).is_err());
         // Unknown transport.
-        assert!(
-            upsert_server_in(
-                folder,
-                "x",
-                &serde_json::json!({ "type": "bogus", "url": "http://x" })
-            )
-            .is_err()
-        );
+        assert!(upsert_server_in(
+            folder,
+            "x",
+            &serde_json::json!({ "type": "bogus", "url": "http://x" })
+        )
+        .is_err());
         // Desktop-only browser bridge.
-        assert!(
-            upsert_server_in(
-                folder,
-                BROWSER_MCP_NAME,
-                &serde_json::json!({ "command": "npx", "args": [] })
-            )
-            .is_err()
-        );
+        assert!(upsert_server_in(
+            folder,
+            BROWSER_MCP_NAME,
+            &serde_json::json!({ "command": "npx", "args": [] })
+        )
+        .is_err());
     }
 
     #[test]
@@ -1255,15 +1277,18 @@ mod tests {
 
     #[test]
     fn gateway_credentials_are_scrubbed_and_a_desktop_providers_key_is_not() {
-        // No explicit provider, no telemetry: only Jan's own gateway variables.
-        assert_eq!(credential_vars(None, false), ["JAN_API_KEY", "JAN_CUSTOM_HEADERS"]);
+        // No explicit provider, no telemetry: only Rey30 IDvj's own gateway variables.
+        assert_eq!(
+            credential_vars(None, false),
+            ["REY30_API_KEY", "REY30_CUSTOM_HEADERS"]
+        );
 
-        // A launcher's session: the named provider's key and, while Jan
+        // A launcher's session: the named provider's key and, while Rey30 IDvj
         // exports, its collector headers too.
         let launched = credential_vars(Some("tokamak"), true);
         for name in [
-            "JAN_API_KEY",
-            "JAN_CUSTOM_HEADERS",
+            "REY30_API_KEY",
+            "REY30_CUSTOM_HEADERS",
             "TOKAMAK_API_KEY",
             "OTEL_EXPORTER_OTLP_HEADERS",
             "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
@@ -1273,7 +1298,9 @@ mod tests {
             assert!(launched.iter().any(|n| n == name), "{name} in {launched:?}");
         }
         // Keys servers read for themselves stay.
-        assert!(!launched.iter().any(|n| n == "OPENAI_API_KEY" || n == "GITHUB_TOKEN"));
+        assert!(!launched
+            .iter()
+            .any(|n| n == "OPENAI_API_KEY" || n == "GITHUB_TOKEN"));
 
         // Telemetry off: the OTLP headers are the user's, for a server that
         // exports to its own collector.
@@ -1302,8 +1329,12 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(envs.get("JAN_API_KEY"), Some(&None), "removed");
-        assert_eq!(envs.get("OTEL_EXPORTER_OTLP_HEADERS"), Some(&None), "removed");
+        assert_eq!(envs.get("REY30_API_KEY"), Some(&None), "removed");
+        assert_eq!(
+            envs.get("OTEL_EXPORTER_OTLP_HEADERS"),
+            Some(&None),
+            "removed"
+        );
         assert_eq!(
             envs.get("TOKAMAK_API_KEY"),
             Some(&Some("the-servers-own".to_string())),
@@ -1321,7 +1352,7 @@ mod tests {
         let params = extract_command_args(&serde_json::json!({
             "command": "/usr/bin/env",
             "args": [],
-            "env": { "JAN_TEST_SERVER_OWN": "kept" },
+            "env": { "REY30_TEST_SERVER_OWN": "kept" },
         }))
         .unwrap();
         let out = stdio_command(&params, &["HOME".to_string()])
@@ -1330,8 +1361,14 @@ mod tests {
             .expect("spawn env");
         let env = String::from_utf8_lossy(&out.stdout);
         assert!(!env.lines().any(|l| l.starts_with("HOME=")), "{env}");
-        assert!(env.lines().any(|l| l == "JAN_TEST_SERVER_OWN=kept"), "{env}");
-        assert!(env.lines().any(|l| l.starts_with("PATH=")), "the rest is inherited");
+        assert!(
+            env.lines().any(|l| l == "REY30_TEST_SERVER_OWN=kept"),
+            "{env}"
+        );
+        assert!(
+            env.lines().any(|l| l.starts_with("PATH=")),
+            "the rest is inherited"
+        );
     }
 
     #[test]

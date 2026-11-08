@@ -79,7 +79,7 @@ pub struct PluginTool {
     pub parameters: serde_json::Value,
     pub command: String,
     pub timeout_secs: u64,
-    /// The plugin root the command runs relative to, for `jan cli agent status`.
+    /// The plugin root the command runs relative to, for `rey30-idvj cli agent status`.
     pub source: PathBuf,
 }
 
@@ -337,7 +337,7 @@ mod tests {
         static COUNTER: AtomicU32 = AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
         let dir =
-            std::env::temp_dir().join(format!("jan-plugintools-{tag}-{}-{n}", std::process::id()));
+            std::env::temp_dir().join(format!("rey30-idvj-plugintools-{tag}-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

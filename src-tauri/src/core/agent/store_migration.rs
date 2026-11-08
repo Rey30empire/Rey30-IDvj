@@ -54,7 +54,7 @@ impl Outcome {
                 from.display()
             )),
             Outcome::Tracked { from, to } => Some(format!(
-                "{} is tracked by git, so it was not moved; Jan now reads {}. Copy what you \
+                "{} is tracked by git, so it was not moved; Rey30 IDvj now reads {}. Copy what you \
                  need there, then remove {} from the repo",
                 from.display(),
                 to.display(),
@@ -66,17 +66,17 @@ impl Outcome {
 
 /// Move `<project>/.jan/agent` to `store` when the workspace still has one.
 ///
-/// `jan_home` is the global `~/.jan`; a workspace whose `.jan` *is* that
+/// `rey30_home` is the global `~/.jan`; a workspace whose `.jan` *is* that
 /// directory (running in `$HOME`) is skipped rather than having the user's
 /// config swallowed. Crash-safe: the tree is copied to a temp sibling of
 /// `store` and renamed into place before the source is deleted, so an
 /// interrupted run leaves the legacy copy intact and simply retries next time.
-pub fn migrate_on_launch(project_root: &Path, store: &Path, jan_home: Option<&Path>) -> Outcome {
+pub fn migrate_on_launch(project_root: &Path, store: &Path, rey30_home: Option<&Path>) -> Outcome {
     let legacy_dir = project_root.join(LEGACY_DIR);
     if !legacy_dir.is_dir() {
         return Outcome::Absent;
     }
-    if let Some(home) = jan_home {
+    if let Some(home) = rey30_home {
         if same_path(&legacy_dir, home) {
             return Outcome::Skipped;
         }
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn a_workspace_without_jan_is_left_alone() {
+    fn a_workspace_without_rey30_is_left_alone() {
         let dir = tempfile::tempdir().unwrap();
         let store = dir.path().join("home/projects/p-1");
         let out = migrate_on_launch(dir.path(), &store, None);
@@ -224,7 +224,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_state_moves_and_the_jan_dir_goes_away() {
+    fn legacy_state_moves_and_the_rey30_dir_goes_away() {
         let dir = tempfile::tempdir().unwrap();
         let project = legacy_project(dir.path());
         let store = dir.path().join("home/projects/p-1");
@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn unrelated_entries_in_jan_are_kept_and_reported() {
+    fn unrelated_entries_in_rey30_are_kept_and_reported() {
         let dir = tempfile::tempdir().unwrap();
         let project = legacy_project(dir.path());
         std::fs::write(project.join(".jan").join("other.txt"), "x").unwrap();
@@ -294,10 +294,10 @@ mod tests {
         assert!(!project.join(".jan/agent").exists());
     }
 
-    /// Running in `$HOME` makes `<workspace>/.jan` the global Jan home, which
+    /// Running in `$HOME` makes `<workspace>/.jan` the global Rey30 IDvj home, which
     /// holds `config.toml` and every other project's store.
     #[test]
-    fn the_global_jan_home_is_never_migrated() {
+    fn the_global_rey30_home_is_never_migrated() {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join(".jan");
         std::fs::create_dir_all(home.join("agent").join("subagents")).unwrap();
@@ -310,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    fn a_jan_dir_without_an_agent_store_is_skipped() {
+    fn a_rey30_dir_without_an_agent_store_is_skipped() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join(".jan")).unwrap();
         let store = dir.path().join("home/projects/p-1");

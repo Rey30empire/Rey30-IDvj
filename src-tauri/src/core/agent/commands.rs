@@ -15,7 +15,7 @@ use crate::core::agent::project::{
 use crate::core::agent::skill_hub;
 use crate::core::agent::skills as agent_skills;
 use crate::core::agent::subagent;
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 use tauri_plugin_agent_tools::skills::{self, SkillMeta};
 use tauri_plugin_agent_tools::workspace;
 
@@ -194,7 +194,7 @@ pub struct SubagentDefinitionDto {
 }
 
 /// Every subagent saved for the desktop, from the single
-/// `<jan_data>/agent-workspace/subagents/` directory.
+/// `<rey30_data>/agent-workspace/subagents/` directory.
 ///
 /// Deliberately not the CLI's plugin/user/project merge: Cowork has no project
 /// root in a default session, and an attached folder is mounted read-only, so
@@ -205,7 +205,7 @@ pub struct SubagentDefinitionDto {
 pub async fn agent_subagent_list<R: tauri::Runtime>(
     app_handle: tauri::AppHandle<R>,
 ) -> Result<Vec<SubagentDefinitionDto>, String> {
-    let dir = subagent::desktop_subagents_dir(&get_jan_data_folder_path(app_handle));
+    let dir = subagent::desktop_subagents_dir(&get_rey30_data_folder_path(app_handle));
     Ok(
         subagent::SubagentRegistry::load_one(&dir, subagent::SubagentScope::User)
             .list()

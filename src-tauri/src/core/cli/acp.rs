@@ -1,4 +1,4 @@
-//! `jan acp` (experimental): the agent served over the Agent Client Protocol
+//! `rey30-idvj acp` (experimental): the agent served over the Agent Client Protocol
 //! (ACP, <https://agentclientprotocol.com>) on stdio, so editors such as Zed and
 //! JetBrains can drive it.
 //!
@@ -18,7 +18,7 @@
 //! MCP servers a client passes in `session/new`/`session/load` are connected
 //! alongside the project's own, over stdio (the transport every ACP agent must
 //! support); HTTP and SSE are not advertised. Out of scope for this cut:
-//! consuming the client's `fs/*` and `terminal/*` (Jan's own tools serve the
+//! consuming the client's `fs/*` and `terminal/*` (Rey30 IDvj's own tools serve the
 //! filesystem) and `session/set_mode`. Neither is advertised.
 
 use std::collections::HashMap;
@@ -54,14 +54,14 @@ use crate::core::agent::r#loop::{run_orchestration_steered, settle_permission};
 use crate::core::agent::todo::{TodoList, TodoStatus};
 
 /// The env var that switches the experimental server on. Any explicit value
-/// wins over `[experimental].acp` in `~/.jan/config.toml`, so `=0` turns it off.
-pub const ENABLE_ENV: &str = "JAN_EXPERIMENTAL_ACP";
+/// wins over `[experimental].acp` in `~/.rey30-idvj/config.toml`, so `=0` turns it off.
+pub const ENABLE_ENV: &str = "REY30_EXPERIMENTAL_ACP";
 
-/// Printed (to stderr) when `jan acp` runs without the opt-in.
-pub const DISABLED_MESSAGE: &str = "`jan acp` is experimental and off by default. Enable it with \
-     JAN_EXPERIMENTAL_ACP=1, or set `acp = true` under `[experimental]` in ~/.jan/config.toml.";
+/// Printed (to stderr) when `rey30-idvj acp` runs without the opt-in.
+pub const DISABLED_MESSAGE: &str = "`rey30-idvj acp` is experimental and off by default. Enable it with \
+     REY30_EXPERIMENTAL_ACP=1, or set `acp = true` under `[experimental]` in ~/.rey30-idvj/config.toml.";
 
-/// Whether `jan acp` may run: the env var, then the global config, then off.
+/// Whether `rey30-idvj acp` may run: the env var, then the global config, then off.
 pub fn enabled() -> bool {
     enabled_from(
         std::env::var(ENABLE_ENV).ok().as_deref(),
@@ -75,8 +75,8 @@ fn enabled_from(env: Option<&str>, config: Option<bool>) -> bool {
         .unwrap_or(false)
 }
 
-/// The argument a terminal-auth client appends to the configured `jan acp`
-/// invocation to sign in (`jan acp --login`).
+/// The argument a terminal-auth client appends to the configured `rey30-idvj acp`
+/// invocation to sign in (`rey30-idvj acp --login`).
 pub const LOGIN_ARG: &str = "--login";
 
 const ALLOW_ONCE: &str = "allow_once";
@@ -119,7 +119,7 @@ pub async fn serve() -> Result<(), String> {
     // `session/cancel` and permission replies it is waiting on.
     Agent
         .builder()
-        .name("jan")
+        .name("rey30-idvj")
         .on_receive_request(
             async move |req: InitializeRequest, responder: Responder<InitializeResponse>, _cx| {
                 responder.respond(initialize_response(&req))
@@ -179,18 +179,18 @@ pub async fn serve() -> Result<(), String> {
         .map_err(|e| format!("ACP connection failed: {e}"))
 }
 
-/// What Jan advertises. Only what is consumed: no client `fs`/`terminal`, no
+/// What Rey30 IDvj advertises. Only what is consumed: no client `fs`/`terminal`, no
 /// MCP transports, so a client never assumes its unsaved buffers are read.
 fn initialize_response(req: &InitializeRequest) -> InitializeResponse {
     // Echo a version this build speaks, else the latest it does; a client that
     // cannot speak it disconnects, as the spec prescribes.
     let version = req.protocol_version.min(ProtocolVersion::LATEST);
     // A terminal method may only be offered to a client that said it can run
-    // one. It relaunches `jan acp --login`, the interactive sign-in.
+    // one. It relaunches `rey30-idvj acp --login`, the interactive sign-in.
     let auth_methods = if req.client_capabilities.auth.terminal {
         vec![AuthMethod::Terminal(
-            AuthMethodTerminal::new("jan-login", "Sign in to Jan")
-                .description("Opens `jan login` to sign in to Tokamak and save an API key".to_string())
+            AuthMethodTerminal::new("rey30-idvj-login", "Sign in to Rey30 IDvj")
+                .description("Opens `rey30-idvj login` to sign in to Tokamak and save an API key".to_string())
                 .args(vec![LOGIN_ARG.to_string()]),
         )]
     } else {
@@ -203,11 +203,11 @@ fn initialize_response(req: &InitializeRequest) -> InitializeResponse {
             ),
         )
         .auth_methods(auth_methods)
-        .agent_info(Implementation::new("jan", env!("CARGO_PKG_VERSION")))
+        .agent_info(Implementation::new("rey30-idvj", env!("CARGO_PKG_VERSION")))
 }
 
-/// Jan's credentials live in `~/.jan/config.toml`, filled by `jan login` or
-/// `jan config set`, so authenticating is checking that one is usable.
+/// Rey30 IDvj's credentials live in `~/.rey30-idvj/config.toml`, filled by `rey30-idvj login` or
+/// `rey30-idvj config set`, so authenticating is checking that one is usable.
 async fn authenticate() -> Result<AuthenticateResponse, Error> {
     if super::providers::has_usable_provider(None) {
         Ok(AuthenticateResponse::new())
@@ -218,7 +218,7 @@ async fn authenticate() -> Result<AuthenticateResponse, Error> {
 
 fn auth_required(detail: &str) -> Error {
     Error::auth_required().data(json!({
-        "message": format!("{detail}: run `jan login`, or `jan config set --provider <name> --api-key <key> --base-url <url> --model <id>`"),
+        "message": format!("{detail}: run `rey30-idvj login`, or `rey30-idvj config set --provider <name> --api-key <key> --base-url <url> --model <id>`"),
     }))
 }
 

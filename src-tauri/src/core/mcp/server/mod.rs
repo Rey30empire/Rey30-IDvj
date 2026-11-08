@@ -1,4 +1,4 @@
-//! Jan as an MCP *server*: the built-in agent toolset offered to any other
+//! Rey30 IDvj as an MCP *server*: the built-in agent toolset offered to any other
 //! agent that speaks MCP (Claude Code, Codex CLI, a custom orchestrator).
 //!
 //! This is the mirror of `core::mcp::helpers`, which consumes other people's
@@ -93,7 +93,7 @@ pub struct ServeOptions {
     pub store_root: PathBuf,
     /// The `[skills].enabled` whitelist; empty means every skill.
     pub enabled_skills: Vec<String>,
-    /// `~/.jan`, whose `skills/` is the user scope `skill_write` `scope:"user"`
+    /// `~/.rey30-idvj`, whose `skills/` is the user scope `skill_write` `scope:"user"`
     /// writes to. `None` refuses that scope.
     pub user_store_root: Option<PathBuf>,
     /// Let the sandboxed shell reach the network.
@@ -109,7 +109,7 @@ pub struct ServeOptions {
 }
 
 impl ServeOptions {
-    /// Defaults for a project root: its store under `~/.jan/projects`, the read-only served
+    /// Defaults for a project root: its store under `~/.rey30-idvj/projects`, the read-only served
     /// set, sandbox on.
     pub fn new(project_root: PathBuf) -> Self {
         let store_root = crate::core::agent::project::store_root(&project_root);
@@ -127,20 +127,20 @@ impl ServeOptions {
     }
 }
 
-/// The MCP server: Jan's built-in toolset behind a `ServerHandler`.
+/// The MCP server: Rey30 IDvj's built-in toolset behind a `ServerHandler`.
 ///
 /// Cheap to clone (an `Arc` and one path), which is what the Streamable HTTP
 /// transport needs -- it builds a fresh handler per session from a factory.
 #[derive(Debug, Clone)]
-pub struct JanToolServer {
+pub struct Rey30ToolServer {
     opts: Arc<ServeOptions>,
-    /// The Jan home, refused to every served tool whether or not `bash` is
+    /// The Rey30 IDvj home, refused to every served tool whether or not `bash` is
     /// sandboxed: a served client is a program, not a user at the terminal,
     /// and there is no one here to approve reaching keys or hooks.
     hidden_root: Option<std::path::PathBuf>,
 }
 
-impl JanToolServer {
+impl Rey30ToolServer {
     pub fn new(opts: ServeOptions) -> Self {
         Self {
             hidden_root: crate::core::agent::project::hidden_root(true),
@@ -234,7 +234,7 @@ impl JanToolServer {
         if !self.opts.served.is_served(name) {
             return (
                 format!(
-                    "ERROR: tool '{name}' is not served by this Jan MCP server. \
+                    "ERROR: tool '{name}' is not served by this Rey30 IDvj MCP server. \
                      Mutating filesystem tools and the shell are opt-in."
                 ),
                 Vec::new(),
@@ -258,10 +258,13 @@ impl JanToolServer {
             Decision::HardDeny(DenyReason::Policy) => {
                 return (format!("ERROR: tool '{name}' is denied by policy"), Vec::new())
             }
+            Decision::HardDeny(DenyReason::PrivateLibrary) => {
+                return (format!("ERROR: {}", tauri_plugin_agent_tools::workspace::PLUMA_LIBRARY_DENIED), Vec::new())
+            }
             Decision::HardDeny(DenyReason::Hidden) => {
                 return (
                     format!(
-                        "ERROR: tool '{name}' was refused: the Jan home (~/.jan) is hidden. \
+                        "ERROR: tool '{name}' was refused: the Rey30 IDvj home (~/.rey30-idvj) is hidden. \
                          Use the memory_* and skill_* tools instead."
                     ),
                     Vec::new(),
@@ -319,12 +322,12 @@ fn image_block(data_url: &str) -> Option<ContentBlock> {
     Some(ContentBlock::image(payload.to_string(), mime.to_string()))
 }
 
-impl ServerHandler for JanToolServer {
+impl ServerHandler for Rey30ToolServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("jan", env!("CARGO_PKG_VERSION")))
+            .with_server_info(Implementation::new("rey30-idvj", env!("CARGO_PKG_VERSION")))
             .with_instructions(
-                "Jan's built-in agent tools, confined to one project root. Filesystem paths \
+                "Rey30 IDvj's built-in agent tools, confined to one project root. Filesystem paths \
                  are resolved against that root and a path escaping it is refused. Tools that \
                  would need an interactive approval return an error instead of blocking.",
             )

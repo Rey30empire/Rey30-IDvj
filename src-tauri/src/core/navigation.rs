@@ -271,7 +271,7 @@ mod tests {
             "about:config",
             "blob:https://evil.example/2b6f0cc9",
             "blob:asset://localhost/x",
-            "jan://open",
+            "rey30-idvj://open",
             "mailto:a@b.c",
         ] {
             assert!(!is_app_url(&u(bad), None), "{bad} should be refused");
@@ -296,7 +296,7 @@ mod tests {
     /// A directory holding `chart.html` and `assets/style.css`, unique per call.
     fn shot_dir(tag: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "jan-nav-{tag}-{}-{}",
+            "rey30-idvj-nav-{tag}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -338,8 +338,8 @@ mod tests {
             "main",
             "logs-app-window",
             "system-monitor-window",
-            "jan-shot",
-            "x-jan-shot-1",
+            "rey30-idvj-shot",
+            "x-rey30-idvj-shot-1",
         ] {
             assert!(
                 !allows_navigation_with(label, &target, None, &pages),
@@ -416,7 +416,7 @@ mod tests {
         assert!(opens_externally(&u("http://example.com/")));
         assert!(!opens_externally(&u("file:///etc/passwd")));
         assert!(!opens_externally(&u("asset://localhost/x")));
-        assert!(!opens_externally(&u("jan://open")));
+        assert!(!opens_externally(&u("rey30-idvj://open")));
         assert!(!opens_externally(&u("javascript:alert(1)")));
     }
 

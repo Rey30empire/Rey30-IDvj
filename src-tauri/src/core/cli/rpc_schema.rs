@@ -1,11 +1,11 @@
 //! The typed request shapes accepted by the JSON-RPC dispatcher. Schemas are
 //! derived from the same types that deserialize incoming params.
 //!
-//! `jan cli agent rpc-schema` prints the document, and `--out` writes the copy
+//! `rey30-idvj cli agent rpc-schema` prints the document, and `--out` writes the copy
 //! committed at `protocol/rpc-schema.json`, which CI regenerates and diffs: an
 //! envelope change cannot land without the artifact moving with it. It is the
 //! RPC counterpart of `protocol/schema.json`, and covers this surface only -
-//! the stream-json records are in that file, and ACP (`jan acp`)
+//! the stream-json records are in that file, and ACP (`rey30-idvj acp`)
 //! uses the upstream ACP schema rather than one of its own.
 //!
 //! Like that one, the document has to regenerate byte-identically: keys are
@@ -59,9 +59,9 @@ pub struct SessionStartParams {
     #[serde(default)]
     pub subagents: Option<bool>,
     /// The session's whole system prompt, sent byte for byte in place of the
-    /// one Jan composes: no Jan identity, guides, environment, date, git state
+    /// one Rey30 IDvj composes: no Rey30 IDvj identity, guides, environment, date, git state
     /// or recalled project memory. Its answers are still indexed for later
-    /// sessions unless it is `ephemeral`. Jan may still append runtime notices
+    /// sessions unless it is `ephemeral`. Rey30 IDvj may still append runtime notices
     /// to the conversation.
     /// Children keep their own prompts.
     #[serde(default)]
@@ -74,14 +74,15 @@ fn builtins_default() -> bool {
     true
 }
 
-/// Who gates host tool calls. `jan` prompts through `permission_request` the
+/// Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the
 /// way any opaque tool is prompted; `host` means the host's own callback is
-/// the gate, so Jan never asks about a host tool.
+/// the gate, so Rey30 IDvj never asks about a host tool.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionOwner {
     #[default]
-    Jan,
+    #[serde(rename = "jan", alias = "rey30")]
+    Rey30,
     Host,
 }
 

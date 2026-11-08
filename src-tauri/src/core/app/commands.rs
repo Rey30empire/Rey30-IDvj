@@ -13,17 +13,17 @@ use super::helpers::copy_dir_recursive;
 #[cfg(not(feature = "cli"))]
 use crate::core::state::AppState;
 
-/// Canonical Jan app support directory (`%APPDATA%/Jan` on Windows).
+/// Canonical Rey30 IDvj app support directory (`%APPDATA%/Rey30 IDvj` on Windows).
 fn resolve_human_readable_app_data_dir() -> Option<PathBuf> {
     paths::data_dir().map(|d| d.join(env!("CARGO_PKG_NAME")))
 }
 
-/// Tauri bundle-id app support directory (e.g. `%APPDATA%/jan.ai.app` on Windows).
+/// Tauri bundle-id app support directory (e.g. `%APPDATA%/com.rey30.idvj.app` on Windows).
 fn resolve_bundle_app_data_dir() -> Option<PathBuf> {
     paths::data_dir().map(|d| d.join(TAURI_BUNDLE_IDENTIFIER))
 }
 
-/// Keep `%APPDATA%/Jan/settings.json` as canonical, but recover from legacy or
+/// Keep `%APPDATA%/Rey30 IDvj/settings.json` as canonical, but recover from legacy or
 /// alternate locations if users removed one directory (#7898).
 fn migrate_legacy_app_configuration(app_data_dir: &Path) -> std::io::Result<()> {
     fs::create_dir_all(app_data_dir)?;
@@ -48,11 +48,8 @@ fn migrate_from_candidates(canonical: &Path, candidates: Vec<PathBuf>) -> std::i
                 canonical.display()
             );
             fs::copy(&legacy, canonical)?;
-            // Remove the stale copy in the bundle-id folder so the canonical
-            // product-name location is the single source of truth (#7898).
-            if let Err(err) = fs::remove_file(&legacy) {
-                log::warn!("Failed to remove legacy config {}: {err}", legacy.display());
-            }
+            // Keep the source configuration usable by the previous install.
+            // Its data_folder is reused in place, including model weights.
             return Ok(());
         }
     }
@@ -66,6 +63,11 @@ fn legacy_app_config_candidate_paths(_app_data_dir: &Path) -> Vec<PathBuf> {
         paths.push(bundle_dir.join(CONFIGURATION_FILE_NAME));
     }
 
+    if let Some(root) = paths::data_dir() {
+        paths.push(root.join("Jan").join(CONFIGURATION_FILE_NAME));
+        paths.push(root.join("jan.ai.app").join(CONFIGURATION_FILE_NAME));
+    }
+
     #[cfg(target_os = "linux")]
     {
         let package_name = env!("CARGO_PKG_NAME");
@@ -74,6 +76,8 @@ fn legacy_app_config_candidate_paths(_app_data_dir: &Path) -> Vec<PathBuf> {
             if legacy != _app_data_dir.join(CONFIGURATION_FILE_NAME) {
                 paths.push(legacy);
             }
+            paths.push(config_dir.join("Jan").join(CONFIGURATION_FILE_NAME));
+            paths.push(config_dir.join("jan.ai.app").join(CONFIGURATION_FILE_NAME));
         }
     }
 
@@ -99,8 +103,8 @@ fn app_data_dir_with_fallback<R: Runtime>(app_handle: &tauri::AppHandle<R>) -> P
         .join(package_name)
 }
 
-/// Resolve the Jan config file path without an AppHandle (for CLI use).
-/// Canonical location is `%APPDATA%/Jan/settings.json` (or OS equivalent),
+/// Resolve the Rey30 IDvj config file path without an AppHandle (for CLI use).
+/// Canonical location is `%APPDATA%/Rey30 IDvj/settings.json` (or OS equivalent),
 /// with fallback recovery from bundle-id location when needed.
 pub fn resolve_config_file_path() -> PathBuf {
     let app_data = resolve_human_readable_app_data_dir().unwrap_or_else(|| {
@@ -118,9 +122,9 @@ pub fn resolve_config_file_path() -> PathBuf {
     app_data.join(CONFIGURATION_FILE_NAME)
 }
 
-/// Run `f` with `JAN_DATA_FOLDER` pointed at a fresh temp directory, restoring
+/// Run `f` with `REY30_DATA_FOLDER` pointed at a fresh temp directory, restoring
 /// the previous value afterwards. Serialized on `SECRET_STORE_TEST_LOCK`, the
-/// one lock every `JAN_DATA_FOLDER` mutator takes: the env is process-wide and
+/// one lock every `REY30_DATA_FOLDER` mutator takes: the env is process-wide and
 /// Rust runs tests on threads, so a private lock here would exclude only the
 /// other callers of this helper while the secret-store tests redirected the
 /// folder (and dropped its temp dir) underneath a run already in progress.
@@ -131,23 +135,25 @@ pub(crate) fn with_temp_data_folder<T>(f: impl FnOnce(&std::path::Path) -> T) ->
         .unwrap_or_else(|e| e.into_inner());
 
     let dir = tempfile::tempdir().expect("tempdir");
-    let prev = std::env::var_os("JAN_DATA_FOLDER");
-    std::env::set_var("JAN_DATA_FOLDER", dir.path());
+    let prev = std::env::var_os("REY30_DATA_FOLDER");
+    std::env::set_var("REY30_DATA_FOLDER", dir.path());
     let result = f(dir.path());
     match prev {
-        Some(p) => std::env::set_var("JAN_DATA_FOLDER", p),
-        None => std::env::remove_var("JAN_DATA_FOLDER"),
+        Some(p) => std::env::set_var("REY30_DATA_FOLDER", p),
+        None => std::env::remove_var("REY30_DATA_FOLDER"),
     }
     result
 }
 
-/// Resolve the Jan data folder path without an AppHandle (for CLI use).
+/// Resolve the Rey30 IDvj data folder path without an AppHandle (for CLI use).
 /// Reads AppConfiguration from the config file; falls back to the default location.
-pub fn resolve_jan_data_folder() -> PathBuf {
+pub fn resolve_rey30_data_folder() -> PathBuf {
     // Explicit override wins on every platform. `dirs::data_dir()` reads
     // XDG_DATA_HOME only on Linux, so tests/headless consumers need a portable
     // way to redirect the data folder without relying on OS-specific env.
-    if let Ok(folder) = std::env::var("JAN_DATA_FOLDER") {
+    if let Ok(folder) = std::env::var("REY30_DATA_FOLDER")
+        .or_else(|_| std::env::var("JAN_DATA_FOLDER"))
+    {
         if !folder.is_empty() {
             return PathBuf::from(folder);
         }
@@ -163,9 +169,13 @@ pub fn resolve_jan_data_folder() -> PathBuf {
         }
     }
 
-    // Default: data_dir/Jan/data  (mirrors default_data_folder_path)
-    let app_name = std::env::var("APP_NAME").unwrap_or_else(|_| "Jan".to_string());
+    // Default: data_dir/Rey30 IDvj/data  (mirrors default_data_folder_path)
+    let app_name = std::env::var("APP_NAME").unwrap_or_else(|_| env!("CARGO_PKG_NAME").to_string());
     if let Some(data_dir) = paths::data_dir() {
+        let previous = data_dir.join("Jan").join("data");
+        if previous.is_dir() && !data_dir.join(&app_name).join("data").exists() {
+            return previous;
+        }
         return data_dir.join(&app_name).join("data");
     }
     let home = std::env::var("HOME")
@@ -264,7 +274,7 @@ pub(crate) fn write_app_configuration<R: Runtime>(
 
 #[cfg(not(feature = "cli"))]
 #[tauri::command]
-pub fn get_jan_data_folder_path<R: Runtime>(app_handle: tauri::AppHandle<R>) -> PathBuf {
+pub fn get_rey30_data_folder_path<R: Runtime>(app_handle: tauri::AppHandle<R>) -> PathBuf {
     if cfg!(test) {
         use std::cell::RefCell;
         thread_local! {
@@ -318,7 +328,11 @@ pub fn default_data_folder_path<R: Runtime>(app_handle: tauri::AppHandle<R>) -> 
     });
 
     let app_name = std::env::var("APP_NAME")
-        .unwrap_or_else(|_| app_handle.config().product_name.clone().unwrap());
+        .unwrap_or_else(|_| env!("CARGO_PKG_NAME").to_string());
+    let previous = path.join("Jan").join("data");
+    if previous.is_dir() && !path.join(&app_name).join("data").exists() {
+        return previous.to_string_lossy().into_owned();
+    }
     path.push(app_name);
     path.push("data");
 
@@ -344,7 +358,7 @@ pub fn change_app_data_folder<R: Runtime>(
     new_data_folder: String,
 ) -> Result<(), String> {
     // Get current data folder path
-    let current_data_folder = get_jan_data_folder_path(app_handle.clone());
+    let current_data_folder = get_rey30_data_folder_path(app_handle.clone());
     let new_data_folder_path = PathBuf::from(&new_data_folder);
     validate_new_data_folder(&new_data_folder_path, dirs::home_dir().as_deref())?;
 
@@ -499,19 +513,19 @@ mod tests {
         ];
         if cfg!(windows) {
             bad.extend(
-                [r"C:\", r"D:\", r"C:\Windows", r"c:\windows\jan", r"C:\Program Files\Jan"]
+                [r"C:\", r"D:\", r"C:\Windows", r"c:\windows\rey30-idvj", r"C:\Program Files\Rey30 IDvj"]
                     .map(PathBuf::from),
             );
         } else {
             bad.extend(
-                ["/", "/usr", "/usr/local/jan", "/etc/jan", "/System", "/Library/Jan", "/bin"]
+                ["/", "/usr", "/usr/local/rey30-idvj", "/etc/rey30-idvj", "/System", "/Library/Rey30 IDvj", "/bin"]
                     .map(PathBuf::from),
             );
         }
         for p in bad {
             assert!(validate_new_data_folder(&p, Some(&home)).is_err(), "{p:?}");
         }
-        for ok in [home.join("jan-data"), home.join("Documents").join("Jan"), tmp.path().join("elsewhere")] {
+        for ok in [home.join("rey30-idvj-data"), home.join("Documents").join("Rey30 IDvj"), tmp.path().join("elsewhere")] {
             assert!(validate_new_data_folder(&ok, Some(&home)).is_ok(), "{ok:?}");
         }
     }
@@ -525,38 +539,39 @@ mod tests {
         let link = tmp.path().join("link");
         std::os::unix::fs::symlink(&home, &link).unwrap();
         assert!(validate_new_data_folder(&link, Some(&home)).is_err());
-        assert!(validate_new_data_folder(&link.join("jan"), Some(&home)).is_ok());
+        assert!(validate_new_data_folder(&link.join("rey30-idvj"), Some(&home)).is_ok());
     }
 
     #[test]
-    fn migration_recovers_legacy_then_removes_stale_copy() {
+    fn migration_recovers_legacy_and_preserves_source() {
         let tmp = tempdir().expect("temp dir");
-        let canonical_dir = tmp.path().join("Jan");
+        let canonical_dir = tmp.path().join("Rey30 IDvj");
         let canonical = canonical_dir.join(CONFIGURATION_FILE_NAME);
-        let legacy = tmp.path().join("jan.ai.app").join(CONFIGURATION_FILE_NAME);
+        let legacy = tmp.path().join("com.rey30.idvj.app").join(CONFIGURATION_FILE_NAME);
 
         fs::create_dir_all(legacy.parent().unwrap()).expect("create legacy dir");
-        fs::write(&legacy, r#"{"data_folder":"D:\\jan.ai"}"#).expect("write legacy config");
+        fs::write(&legacy, r#"{"data_folder":"D:\\rey30-idvj.ai"}"#).expect("write legacy config");
 
         migrate_from_candidates(&canonical, vec![legacy.clone()]).expect("migration succeeds");
 
         let recovered = fs::read_to_string(&canonical).expect("read canonical");
         assert!(
-            recovered.contains(r#""data_folder":"D:\\jan.ai""#),
+            recovered.contains(r#""data_folder":"D:\\rey30-idvj.ai""#),
             "settings must be preserved in the canonical location"
         );
         assert!(
-            !legacy.exists(),
-            "stale legacy copy must be removed after recovery"
+            legacy.exists(),
+            "the previous install's configuration must remain intact"
         );
+        assert_eq!(fs::read(&legacy).unwrap(), fs::read(&canonical).unwrap());
     }
 
     #[test]
     fn migration_skips_when_canonical_exists() {
         let tmp = tempdir().expect("temp dir");
-        let canonical_dir = tmp.path().join("Jan");
+        let canonical_dir = tmp.path().join("Rey30 IDvj");
         let canonical = canonical_dir.join(CONFIGURATION_FILE_NAME);
-        let legacy = tmp.path().join("jan.ai.app").join(CONFIGURATION_FILE_NAME);
+        let legacy = tmp.path().join("com.rey30.idvj.app").join(CONFIGURATION_FILE_NAME);
 
         fs::create_dir_all(canonical.parent().unwrap()).expect("create canonical dir");
         fs::create_dir_all(legacy.parent().unwrap()).expect("create legacy dir");
@@ -572,7 +587,7 @@ mod tests {
     #[test]
     fn migration_handles_missing_legacy_files() {
         let tmp = tempdir().expect("temp dir");
-        let canonical = tmp.path().join("Jan").join(CONFIGURATION_FILE_NAME);
+        let canonical = tmp.path().join("Rey30 IDvj").join(CONFIGURATION_FILE_NAME);
         let missing = tmp.path().join("missing").join(CONFIGURATION_FILE_NAME);
 
         migrate_from_candidates(&canonical, vec![missing]).expect("migration succeeds");

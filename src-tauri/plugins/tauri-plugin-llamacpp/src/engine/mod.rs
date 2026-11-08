@@ -1,5 +1,5 @@
 //! Safe wrapper over llama.cpp's `server-context`, reached through the C shim
-//! in `shim/jan_llama_shim.cpp`.
+//! in `shim/rey30_llama_shim.cpp`.
 //!
 //! The engine runs *in this process*: no `llama-server` child, no downloaded
 //! binary. Everything OpenAI-shaped -- chat templating, tool-call parsing,
@@ -26,10 +26,10 @@ pub mod worker;
 pub mod sys;
 
 /// The llama.cpp this crate is pinned to, from `build.rs`.
-pub const PINNED_TAG: &str = env!("JAN_LLAMA_CPP_TAG");
-pub const PINNED_BUILD_NUMBER: &str = env!("JAN_LLAMA_CPP_BUILD_NUMBER");
-pub const PINNED_COMMIT: &str = env!("JAN_LLAMA_CPP_COMMIT");
-pub const PINNED_VERSION: &str = env!("JAN_LLAMA_CPP_VERSION");
+pub const PINNED_TAG: &str = env!("REY30_LLAMA_CPP_TAG");
+pub const PINNED_BUILD_NUMBER: &str = env!("REY30_LLAMA_CPP_BUILD_NUMBER");
+pub const PINNED_COMMIT: &str = env!("REY30_LLAMA_CPP_COMMIT");
+pub const PINNED_VERSION: &str = env!("REY30_LLAMA_CPP_VERSION");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EngineError {
@@ -71,7 +71,7 @@ pub enum Route {
     Models,
     Slots,
     /// `POST /slots/{id}?action=...`, the save/restore/erase actions. Not in
-    /// `from_http_path`: the slot store is Jan's own bookkeeping, not something
+    /// `from_http_path`: the slot store is Rey30 IDvj's own bookkeeping, not something
     /// the app's OpenAI-compatible surface should expose.
     SlotsAction,
     Completions,
@@ -145,7 +145,7 @@ pub use sys::{Engine, Response};
 /// `cargo run`/`cargo test` binary sits in `target/<profile>/` with no such
 /// neighbours, so `ensure_backend_path` points ggml at the build tree instead.
 #[cfg(feature = "engine")]
-pub const BUILD_BACKEND_DIR: &str = env!("JAN_GGML_BACKEND_DIR");
+pub const BUILD_BACKEND_DIR: &str = env!("REY30_GGML_BACKEND_DIR");
 
 /// Registers the ggml compute backends, once, before any other ggml call.
 ///

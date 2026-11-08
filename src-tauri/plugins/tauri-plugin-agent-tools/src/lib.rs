@@ -1,5 +1,5 @@
-//! The built-in agent toolset, shared by the Jan desktop app and the headless
-//! `jan` CLI.
+//! The built-in agent toolset, shared by the Rey30 IDvj desktop app and the headless
+//! `rey30-idvj` CLI.
 //!
 //! The toolset is Tauri-free: executing a tool needs nothing but
 //! `(&BuiltinTool, &serde_json::Value, &ToolContext)`, never an `AppHandle`.
@@ -33,7 +33,7 @@ mod webview_shot;
 /// The app's navigation guard keys on it: those windows load their target as a
 /// `file:` URL, which no other webview may, and only the files
 /// [`screenshot_pages`] records for them.
-pub const SCREENSHOT_WINDOW_LABEL_PREFIX: &str = "jan-shot-";
+pub const SCREENSHOT_WINDOW_LABEL_PREFIX: &str = "rey30-idvj-shot-";
 
 /// Runs the confined-spawn helper and exits, when this process was re-exec'd as
 /// one by the Windows sandbox backend. A no-op on every other platform and on a
@@ -73,6 +73,7 @@ pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
             commands::subagent_result_fill,
             commands::blackboard_write,
             commands::attachment_import,
+            commands::validate_cowork_folder,
             commands::execute_tool,
             commands::execute_tool_streaming,
             commands::start_monitor,

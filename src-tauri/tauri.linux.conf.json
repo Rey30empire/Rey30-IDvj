@@ -3,7 +3,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Jan",
+        "title": "Rey30 IDvj",
         "width": 1200,
         "minWidth": 1024,
         "height": 800,
@@ -25,7 +25,9 @@
     ],
     "resources": [
       "resources/LICENSE",
-      "resources/bin/jan-llama-worker",
+      "resources/NOTICE",
+      "resources/LICENSE-APACHE-2.0.txt",
+      "resources/bin/rey30-idvj-llama-worker",
       "resources/bin/lib*.so*"
     ],
     "externalBin": [

@@ -6,7 +6,7 @@
 //!
 //! - reads: everything except `$HOME`, with the thread workspace carved back in
 //!   (it lives under `$HOME`, so the carve-out is what keeps the sandbox usable
-//!   while `settings.json`, provider keys, and the rest of the Jan data folder
+//!   while `settings.json`, provider keys, and the rest of the Rey30 IDvj data folder
 //!   stay unreadable). The CLI can opt into `home_readonly`, which instead
 //!   mounts `$HOME` read-only so `git`/`ssh` credential helpers work. Reads
 //!   outside `$HOME` stay open because a process cannot start without its
@@ -64,9 +64,9 @@ impl Backend {
 pub struct Policy {
     /// The thread workspace: the only path that stays both readable and writable.
     pub workspace: PathBuf,
-    /// The agent's data-folder root. On the desktop this is the Jan data folder
+    /// The agent's data-folder root. On the desktop this is the Rey30 IDvj data folder
     /// (holding the permanent store, `settings.json`, and model files); it is
-    /// masked from the sandbox like `$HOME`, because a relocated `JAN_DATA_FOLDER`
+    /// masked from the sandbox like `$HOME`, because a relocated `REY30_DATA_FOLDER`
     /// outside `$HOME` would otherwise leave all of it readable by the shell. The
     /// CLI leaves this unset: there the project itself is the workspace, so
     /// masking it would hide the very files the agent works on.
@@ -95,9 +95,9 @@ pub struct Policy {
     /// allowed) read-write in the same position as `read_roots`; an entry
     /// present in both lists is bound once, writable.
     pub write_roots: Vec<PathBuf>,
-    /// The Jan home (`~/.jan`), hidden from the shell wherever it sits: under a
+    /// The Rey30 IDvj home (`~/.rey30-idvj`), hidden from the shell wherever it sits: under a
     /// read-only `$HOME`, inside the workspace (running in `$HOME`), or around
-    /// it (a Jan worktree in `~/.jan/worktrees/`). See [`Policy::with_hide_root`].
+    /// it (a Rey30 IDvj worktree in `~/.rey30-idvj/worktrees/`). See [`Policy::with_hide_root`].
     pub hide_root: Option<PathBuf>,
 }
 
@@ -117,7 +117,7 @@ impl Policy {
 
     /// Hide `hide_root` from the sandboxed shell. The gate's token scan of the
     /// command string is best-effort; this is what makes the directory
-    /// unreachable to the spellings a scan cannot see (`cd ~; cat .jan/*`, a
+    /// unreachable to the spellings a scan cannot see (`cd ~; cat .rey30-idvj/*`, a
     /// script the shell writes and runs). Not enforced on AppContainer, where
     /// carving a subpath back out of a granted folder would mean writing a deny
     /// ACE onto the user's directory; there the scan stands alone.
@@ -198,7 +198,7 @@ fn detect() -> Backend {
     // Escape hatch for CI and for users on kernels where the probe is wrong.
     // Only ever loosens to `None`, which withholds the tool: it cannot be used
     // to run commands unconfined.
-    if let Some(forced) = std::env::var_os("JAN_AGENT_SANDBOX") {
+    if let Some(forced) = std::env::var_os("REY30_AGENT_SANDBOX") {
         if forced.eq_ignore_ascii_case("none") || forced.eq_ignore_ascii_case("off") {
             return Backend::None;
         }
@@ -494,14 +494,14 @@ pub fn bwrap_args(policy: &Policy, cfg: &ShellConfig) -> Vec<String> {
         }
     }
     // Mask a relocated data folder the same way: `$HOME` hiding alone would leave
-    // a `JAN_DATA_FOLDER` outside the home readable, exposing the permanent
+    // a `REY30_DATA_FOLDER` outside the home readable, exposing the permanent
     // store and any co-located `settings.json`. The workspace is re-bound below
     // (it is nested under this root on the desktop), so it survives.
     if let Some(mask) = &policy.mask_root {
         push(&mut args, &["--tmpfs", &mask.to_string_lossy()]);
     }
-    // The Jan home, masked with the others: before the binds below, so a
-    // workspace living under it (a Jan worktree) is punched back through.
+    // The Rey30 IDvj home, masked with the others: before the binds below, so a
+    // workspace living under it (a Rey30 IDvj worktree) is punched back through.
     if let Some(hide) = &policy.hide_root {
         push(&mut args, &["--tmpfs", &hide.to_string_lossy()]);
     }
@@ -568,7 +568,7 @@ fn seatbelt_program() -> &'static str {
     }
 }
 
-/// Seatbelt rules hiding the Jan home; where they go in the profile decides
+/// Seatbelt rules hiding the Rey30 IDvj home; where they go in the profile decides
 /// whether they win over the workspace allow (see [`seatbelt_policy`]).
 const HIDE_RULES: &str = "(deny file-read* (subpath (param \"HIDE_ROOT\")))\n\
                           (deny file-write* (subpath (param \"HIDE_ROOT\")))\n";
@@ -611,7 +611,7 @@ pub fn seatbelt_policy(policy: &Policy) -> String {
         p.push_str("(deny file-read* (subpath (param \"MASK_ROOT\")))\n");
     }
     // Later rules win. Denied here, before the allows below, when the
-    // workspace lives under the Jan home (a worktree) so it is read back; when
+    // workspace lives under the Rey30 IDvj home (a worktree) so it is read back; when
     // the home lies inside an allowed root instead, the deny goes last.
     let hide_last = policy
         .hide_root
@@ -765,7 +765,7 @@ pub fn denial_hint(policy: &Policy) -> String {
     };
     // An attached folder the file tools can read but the shell cannot is a real
     // asymmetry on Windows, where granting it would mean permanently rewriting
-    // the DACL of a directory Jan does not own and never revokes. Saying so
+    // the DACL of a directory Rey30 IDvj does not own and never revokes. Saying so
     // beats letting the model read the folder with `read` and conclude `bash` is
     // broken when the same path is missing there.
     let attached = if policy.read_roots.is_empty() {
@@ -835,7 +835,7 @@ mod tests {
             use std::sync::atomic::{AtomicUsize, Ordering};
             static NEXT: AtomicUsize = AtomicUsize::new(0);
             let path = std::env::temp_dir().join(format!(
-                "jan_bwrap_{}_{}",
+                "rey30_bwrap_{}_{}",
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             ));
@@ -1107,12 +1107,12 @@ mod tests {
         args.join(" ")
     }
 
-    /// Running in `$HOME`: the Jan home is inside the workspace, so the
+    /// Running in `$HOME`: the Rey30 IDvj home is inside the workspace, so the
     /// workspace bind would shadow the first mask; a second one must follow.
     #[test]
-    fn bwrap_hides_the_jan_home_after_a_workspace_that_contains_it() {
+    fn bwrap_hides_the_rey30_home_after_a_workspace_that_contains_it() {
         let ws = "/home/u";
-        let hide = "/home/u/.jan";
+        let hide = "/home/u/.rey30-idvj";
         let text = joined(&bwrap_args(
             &Policy::new(Path::new(ws), false).with_hide_root(Path::new(hide)),
             &cfg(),
@@ -1122,12 +1122,12 @@ mod tests {
         assert!(bind < last, "the mask must follow the workspace bind: {text}");
     }
 
-    /// A Jan worktree lives under the home: the mask goes before the workspace
+    /// A Rey30 IDvj worktree lives under the home: the mask goes before the workspace
     /// bind only, or it would hide the tree the agent is working in.
     #[test]
-    fn bwrap_hides_the_jan_home_before_a_workspace_inside_it() {
-        let ws = "/home/u/.jan/worktrees/r-1/feat";
-        let hide = "/home/u/.jan";
+    fn bwrap_hides_the_rey30_home_before_a_workspace_inside_it() {
+        let ws = "/home/u/.rey30-idvj/worktrees/r-1/feat";
+        let hide = "/home/u/.rey30-idvj";
         let text = joined(&bwrap_args(
             &Policy::new(Path::new(ws), false).with_hide_root(Path::new(hide)),
             &cfg(),
@@ -1136,24 +1136,24 @@ mod tests {
         let mask = format!("--tmpfs {hide} ");
         assert_eq!(text.matches(&mask).count(), 1, "{text}");
         assert!(text.find(&mask).unwrap() < bind, "{text}");
-        assert!(!joined(&bwrap_args(&policy(), &cfg())).contains(".jan"));
+        assert!(!joined(&bwrap_args(&policy(), &cfg())).contains(".rey30-idvj"));
     }
 
     #[test]
-    fn seatbelt_orders_the_jan_home_deny_by_where_the_workspace_is() {
+    fn seatbelt_orders_the_rey30_home_deny_by_where_the_workspace_is() {
         let deny = "(deny file-read* (subpath (param \"HIDE_ROOT\")))";
         let allow = "(allow file-read* (subpath (param \"WORKSPACE\")))";
-        let home = Policy::new(Path::new("/Users/u"), false).with_hide_root(Path::new("/Users/u/.jan"));
+        let home = Policy::new(Path::new("/Users/u"), false).with_hide_root(Path::new("/Users/u/.rey30-idvj"));
         let p = seatbelt_policy(&home);
         assert!(p.find(allow).unwrap() < p.find(deny).unwrap(), "{p}");
         assert!(p.contains("(deny file-write* (subpath (param \"HIDE_ROOT\")))"));
-        let wt = Policy::new(Path::new("/Users/u/.jan/worktrees/r/f"), false)
-            .with_hide_root(Path::new("/Users/u/.jan"));
+        let wt = Policy::new(Path::new("/Users/u/.rey30-idvj/worktrees/r/f"), false)
+            .with_hide_root(Path::new("/Users/u/.rey30-idvj"));
         let p = seatbelt_policy(&wt);
         assert!(p.find(deny).unwrap() < p.find(allow).unwrap(), "{p}");
         // The path travels as a -D parameter, never interpolated into the profile.
-        assert!(!p.contains("/Users/u/.jan"), "{p}");
-        assert!(joined(&seatbelt_args(&wt, &cfg())).contains("-DHIDE_ROOT=/Users/u/.jan"));
+        assert!(!p.contains("/Users/u/.rey30-idvj"), "{p}");
+        assert!(joined(&seatbelt_args(&wt, &cfg())).contains("-DHIDE_ROOT=/Users/u/.rey30-idvj"));
         assert!(!seatbelt_policy(&policy()).contains("HIDE_ROOT"));
     }
 
@@ -1430,13 +1430,13 @@ mod tests {
     /// under the host temp dir, so a relocated scratch stays writable.
     #[test]
     fn seatbelt_grants_the_scratch_as_its_own_parameter() {
-        let scratch = Path::new("/var/scratch/jan-agent-s1");
+        let scratch = Path::new("/var/scratch/rey30-idvj-agent-s1");
         let p = seatbelt_policy(&policy().with_scratch_root(scratch));
         assert!(p.contains("(allow file-write* (subpath (param \"SCRATCH\")))"));
         let args = seatbelt_args(&policy().with_scratch_root(scratch), &cfg());
         assert!(args
             .iter()
-            .any(|a| a == "-DSCRATCH=/var/scratch/jan-agent-s1"));
+            .any(|a| a == "-DSCRATCH=/var/scratch/rey30-idvj-agent-s1"));
         assert!(
             !args[1].contains("/var/scratch"),
             "path must not be inlined"
@@ -1458,7 +1458,7 @@ mod tests {
     /// have no mount, so the real path is the only one that resolves.
     #[test]
     fn scratch_env_path_follows_what_the_backend_actually_mounts() {
-        let scratch = Path::new("/var/scratch/jan-agent-s1");
+        let scratch = Path::new("/var/scratch/rey30-idvj-agent-s1");
         let with = policy().with_scratch_root(scratch);
         assert_eq!(
             scratch_env_path(Backend::Bubblewrap, &with).as_deref(),
@@ -1531,7 +1531,7 @@ mod tests {
     /// is allowed to write, named as the sandbox exposes it.
     #[test]
     fn denial_hint_names_the_scratch_when_there_is_one() {
-        let scratch = Path::new("/var/scratch/jan-agent-s1");
+        let scratch = Path::new("/var/scratch/rey30-idvj-agent-s1");
         let hint = denial_hint(&policy().with_scratch_root(scratch));
         let expected = scratch_env_path(backend(), &policy().with_scratch_root(scratch))
             .expect("a scratch was set");
@@ -1582,7 +1582,7 @@ mod enforcement_tests {
 
     fn workspace() -> PathBuf {
         let n = N.fetch_add(1, Ordering::SeqCst);
-        let dir = temp_dir().join(format!("jan_jail_{}_{}", std::process::id(), n));
+        let dir = temp_dir().join(format!("rey30_jail_{}_{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).expect("create workspace");
         dir
     }
@@ -1689,7 +1689,7 @@ mod enforcement_tests {
     async fn writes_outside_the_workspace_never_reach_the_host() {
         require_backend!();
         let ws = workspace();
-        let victim = std::env::temp_dir().join(format!("jan_jail_victim_{}", std::process::id()));
+        let victim = std::env::temp_dir().join(format!("rey30_jail_victim_{}", std::process::id()));
         let _ = std::fs::remove_file(&victim);
         // The command may well succeed: on bubblewrap the temp dir is a private
         // tmpfs, so the write lands somewhere thrown away with the sandbox. What
@@ -1710,8 +1710,8 @@ mod enforcement_tests {
     async fn writes_to_read_only_system_paths_fail() {
         require_backend!();
         let ws = workspace();
-        let (ok, out) = run(&ws, false, "echo pwned > /etc/jan_jail_probe").await;
-        let leaked = Path::new("/etc/jan_jail_probe").exists();
+        let (ok, out) = run(&ws, false, "echo pwned > /etc/rey30_jail_probe").await;
+        let leaked = Path::new("/etc/rey30_jail_probe").exists();
         let _ = std::fs::remove_dir_all(&ws);
         assert!(
             !ok,
@@ -1760,7 +1760,7 @@ mod enforcement_tests {
         };
         // A real secret-shaped file in the real home, which the sandbox must not
         // be able to read back.
-        let secret = home.join(format!(".jan_jail_secret_{}", std::process::id()));
+        let secret = home.join(format!(".rey30_jail_secret_{}", std::process::id()));
         if std::fs::write(&secret, b"TOPSECRET").is_err() {
             eprintln!("skipping: home not writable");
             return;
@@ -1783,7 +1783,7 @@ mod enforcement_tests {
             return;
         };
         // A file in the real home the sandbox must now be able to read...
-        let secret = home.join(format!(".jan_jail_ro_read_{}", std::process::id()));
+        let secret = home.join(format!(".rey30_jail_ro_read_{}", std::process::id()));
         if std::fs::write(&secret, b"READABLE_SECRET").is_err() {
             eprintln!("skipping: home not writable");
             return;
@@ -1791,7 +1791,7 @@ mod enforcement_tests {
         let ws = workspace();
         let policy = Policy::new(&ws, false).with_home_readonly(true);
         // ...read it back, and fail to write a second file into the home.
-        let victim = home.join(format!(".jan_jail_ro_write_{}", std::process::id()));
+        let victim = home.join(format!(".rey30_jail_ro_write_{}", std::process::id()));
         let _ = std::fs::remove_file(&victim);
         let command = format!(
             "cat {} && echo pwned > {}",
@@ -1824,7 +1824,7 @@ mod enforcement_tests {
         assert!(!ok, "network must be denied by default");
     }
 
-    /// A relocated store root (e.g. `JAN_DATA_FOLDER` outside `$HOME`) must not
+    /// A relocated store root (e.g. `REY30_DATA_FOLDER` outside `$HOME`) must not
     /// be readable by the shell, even when it is not under the user's home.
     #[tokio::test]
     async fn a_relocated_store_root_is_not_readable() {

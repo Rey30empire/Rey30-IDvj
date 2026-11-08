@@ -101,7 +101,7 @@ fn usage_splits_tokens_by_type_with_model_and_provider() {
             usage(100, 10, 30, 20),
         ],
     );
-    let tokens = |kind| point(&state, "jan_agent.token.usage", &[("type", kind), ("model", "stub-model"), ("provider", "stub"), ("session.id", "sess-1")]);
+    let tokens = |kind| point(&state, "rey30_agent.token.usage", &[("type", kind), ("model", "stub-model"), ("provider", "stub"), ("session.id", "sess-1")]);
     // `cached` and `cache_write` are shares of `prompt_tokens`, so input is
     // what is left of it.
     assert_eq!(tokens("input"), Some(PointValue::Int(50)));
@@ -110,13 +110,13 @@ fn usage_splits_tokens_by_type_with_model_and_provider() {
     assert_eq!(tokens("cache_write"), Some(PointValue::Int(20)));
     // 50*1 + 30*0.5 + 20*1 (no write rate: the prompt rate) + 10*2
     assert_eq!(
-        point(&state, "jan_agent.cost.usage", &[("model", "stub-model")]),
+        point(&state, "rey30_agent.cost.usage", &[("model", "stub-model")]),
         Some(PointValue::Double(105.0))
     );
-    assert_eq!(point(&state, "jan_agent.session.count", &[]), Some(PointValue::Int(1)));
-    assert_eq!(point(&state, "jan_agent.turn.count", &[("agent", "main")]), Some(PointValue::Int(1)));
+    assert_eq!(point(&state, "rey30_agent.session.count", &[]), Some(PointValue::Int(1)));
+    assert_eq!(point(&state, "rey30_agent.turn.count", &[("agent", "main")]), Some(PointValue::Int(1)));
     let logs = state.logs.clone();
-    assert_eq!(log_names(&logs), vec!["jan_agent.user_prompt", "jan_agent.api_request"]);
+    assert_eq!(log_names(&logs), vec!["rey30_agent.user_prompt", "rey30_agent.api_request"]);
     let request = &logs[1];
     assert_eq!(attr(request, "input_tokens"), Some(&AnyValue::Int(50)));
     assert_eq!(attr(request, "request_bytes"), Some(&AnyValue::Int(123)));
@@ -129,7 +129,7 @@ fn usage_splits_tokens_by_type_with_model_and_provider() {
 #[test]
 fn an_unpriced_model_reports_no_cost_rather_than_zero() {
     let state = fold(cfg_with(false, false), None, &[provenance(None, "s"), usage(10, 1, 0, 0)]);
-    assert!(point(&state, "jan_agent.cost.usage", &[]).is_none());
+    assert!(point(&state, "rey30_agent.cost.usage", &[]).is_none());
 }
 
 #[test]
@@ -233,7 +233,7 @@ fn tool_decisions_name_their_source() {
     let decisions: Vec<(String, String)> = state
         .logs
         .iter()
-        .filter(|l| l.event_name == "jan_agent.tool_decision")
+        .filter(|l| l.event_name == "rey30_agent.tool_decision")
         .map(|l| {
             let s = |k| match attr(l, k) {
                 Some(AnyValue::Str(s)) => s.clone(),
@@ -254,11 +254,11 @@ fn tool_decisions_name_their_source() {
         ]
     );
     assert_eq!(
-        point(&state, "jan_agent.tool.count", &[("tool_name", "bash"), ("decision", "accept"), ("success", "false")]),
+        point(&state, "rey30_agent.tool.count", &[("tool_name", "bash"), ("decision", "accept"), ("success", "false")]),
         Some(PointValue::Int(1))
     );
     assert_eq!(
-        point(&state, "jan_agent.tool.count", &[("tool_name", "read"), ("success", "true")]),
+        point(&state, "rey30_agent.tool.count", &[("tool_name", "read"), ("success", "true")]),
         Some(PointValue::Int(1))
     );
 }
@@ -284,13 +284,13 @@ fn a_subagents_signals_carry_its_run_and_the_parent_session() {
     let request = state
         .logs
         .iter()
-        .find(|l| l.event_name == "jan_agent.api_request")
+        .find(|l| l.event_name == "rey30_agent.api_request")
         .unwrap();
     assert_eq!(attr(request, "agent.run_id"), Some(&AnyValue::Str("run-7".into())));
     assert_eq!(attr(request, "subagent.name"), Some(&AnyValue::Str("scout".into())));
     assert_eq!(attr(request, "session.id"), Some(&AnyValue::Str("sess-1".into())));
-    assert_eq!(point(&state, "jan_agent.turn.count", &[("agent", "subagent")]), Some(PointValue::Int(1)));
-    assert!(state.logs.iter().any(|l| l.event_name == "jan_agent.subagent_result"));
+    assert_eq!(point(&state, "rey30_agent.turn.count", &[("agent", "subagent")]), Some(PointValue::Int(1)));
+    assert!(state.logs.iter().any(|l| l.event_name == "rey30_agent.subagent_result"));
 }
 
 #[test]
@@ -303,11 +303,11 @@ fn an_error_after_a_request_counts_a_failed_request() {
             StreamEvent::Error { code: "error".into(), message: "HTTP 500".into() },
         ],
     );
-    let error = state.logs.iter().find(|l| l.event_name == "jan_agent.api_error").unwrap();
+    let error = state.logs.iter().find(|l| l.event_name == "rey30_agent.api_error").unwrap();
     assert_eq!(error.severity_number, 17);
     assert_eq!(attr(error, "model"), Some(&AnyValue::Str("stub-model".into())));
     assert_eq!(
-        point(&state, "jan_agent.api_request.count", &[("success", "false")]),
+        point(&state, "rey30_agent.api_request.count", &[("success", "false")]),
         Some(PointValue::Int(1))
     );
 }
@@ -439,11 +439,11 @@ async fn a_run_exports_metrics_and_logs_to_the_collector() {
         .iter()
         .map(|m| m["name"].as_str().unwrap())
         .collect();
-    for want in ["jan_agent.session.count", "jan_agent.token.usage", "jan_agent.turn.count", "jan_agent.active_time.total"] {
+    for want in ["rey30_agent.session.count", "rey30_agent.token.usage", "rey30_agent.turn.count", "rey30_agent.active_time.total"] {
         assert!(names.contains(&want), "{want} in {names:?}");
     }
     let resource = metrics["resourceMetrics"][0]["resource"]["attributes"].to_string();
-    assert!(resource.contains("jan-agent") && resource.contains("0.0.0-test"), "{resource}");
+    assert!(resource.contains("rey30-idvj-agent") && resource.contains("0.0.0-test"), "{resource}");
     let logs = body("/v1/logs");
     let events: Vec<&str> = logs["resourceLogs"][0]["scopeLogs"][0]["logRecords"]
         .as_array()
@@ -451,7 +451,7 @@ async fn a_run_exports_metrics_and_logs_to_the_collector() {
         .iter()
         .map(|r| r["eventName"].as_str().unwrap())
         .collect();
-    assert_eq!(events, vec!["jan_agent.user_prompt", "jan_agent.api_request"]);
+    assert_eq!(events, vec!["rey30_agent.user_prompt", "rey30_agent.api_request"]);
 }
 
 #[tokio::test]
@@ -464,7 +464,7 @@ async fn protobuf_is_the_default_encoding() {
     let (_, metrics) = seen.iter().find(|(p, _)| p == "/v1/metrics").expect("metrics POST");
     // Binary, and carrying the metric names as length-delimited strings.
     assert!(serde_json::from_slice::<Value>(metrics).is_err());
-    assert!(metrics.windows(21).any(|w| w == b"jan_agent.token.usage"));
+    assert!(metrics.windows(23).any(|w| w == b"rey30_agent.token.usage"));
 }
 
 #[tokio::test]
@@ -618,11 +618,11 @@ fn delta_exports_only_what_accrued_since_the_last_export() {
     assert!(first.iter().all(|m| m.temporality == Temporality::Delta));
     let input = [("type", "input"), ("session.id", "sess-1")];
     assert_eq!(
-        point_in(&first, "jan_agent.token.usage", &input).map(|p| p.0),
+        point_in(&first, "rey30_agent.token.usage", &input).map(|p| p.0),
         Some(PointValue::Int(10))
     );
     assert_eq!(
-        point_in(&first, "jan_agent.telemetry.dropped", &[]).map(|p| p.0),
+        point_in(&first, "rey30_agent.telemetry.dropped", &[]).map(|p| p.0),
         Some(PointValue::Int(2))
     );
     state.exported(100, 2);
@@ -639,18 +639,18 @@ fn delta_exports_only_what_accrued_since_the_last_export() {
     // Only this window's tokens, over this window, and no re-send of the
     // series that did not move (output, the session and prompt counts).
     assert_eq!(
-        point_in(&second, "jan_agent.token.usage", &input),
+        point_in(&second, "rey30_agent.token.usage", &input),
         Some((PointValue::Int(5), 100, 200))
     );
     assert_eq!(
-        point_in(&second, "jan_agent.token.usage", &[("type", "output")]),
+        point_in(&second, "rey30_agent.token.usage", &[("type", "output")]),
         None
     );
     assert!(second
         .iter()
-        .all(|m| m.name != "jan_agent.session.count" && m.name != "jan_agent.prompt.count"));
+        .all(|m| m.name != "rey30_agent.session.count" && m.name != "rey30_agent.prompt.count"));
     assert_eq!(
-        point_in(&second, "jan_agent.telemetry.dropped", &[]).map(|p| p.0),
+        point_in(&second, "rey30_agent.telemetry.dropped", &[]).map(|p| p.0),
         Some(PointValue::Int(1))
     );
 }
@@ -676,14 +676,14 @@ fn cumulative_stays_the_running_total() {
         .iter()
         .all(|m| m.temporality == Temporality::Cumulative));
     let (value, start, _) =
-        point_in(&metrics, "jan_agent.token.usage", &[("type", "input")]).unwrap();
+        point_in(&metrics, "rey30_agent.token.usage", &[("type", "input")]).unwrap();
     assert_eq!(value, PointValue::Int(15));
     assert_eq!(
         start, state.start_nanos,
         "a cumulative point starts when the exporter did"
     );
     assert!(
-        point_in(&metrics, "jan_agent.token.usage", &[("type", "output")]).is_some(),
+        point_in(&metrics, "rey30_agent.token.usage", &[("type", "output")]).is_some(),
         "unchanged series are re-sent"
     );
 }
@@ -710,7 +710,7 @@ fn a_closed_sessions_cumulative_series_go_once_their_final_values_are_out() {
     let has = |metrics: &[Metric], s: &str| {
         point_in(
             metrics,
-            "jan_agent.token.usage",
+            "rey30_agent.token.usage",
             &[("type", "input"), ("session.id", s)],
         )
         .is_some()
@@ -749,9 +749,9 @@ fn every_exported_metric_is_described() {
     for metric in state.metrics(3, 5) {
         assert!(!metric.description.is_empty() && !metric.unit.is_empty(), "{}", metric.name);
     }
-    let dropped = state.metrics(3, 5).into_iter().find(|m| m.name == "jan_agent.telemetry.dropped");
+    let dropped = state.metrics(3, 5).into_iter().find(|m| m.name == "rey30_agent.telemetry.dropped");
     assert_eq!(dropped.unwrap().points[0].value, PointValue::Int(5));
-    assert!(state.metrics(3, 0).iter().all(|m| m.name != "jan_agent.telemetry.dropped"));
+    assert!(state.metrics(3, 0).iter().all(|m| m.name != "rey30_agent.telemetry.dropped"));
 }
 
 #[test]
@@ -766,7 +766,7 @@ fn refusals_classify_the_messages_the_loop_builds() {
         Some(Refusal::Config)
     );
     assert_eq!(
-        refusal_of(&format!("ERROR: tool 'read' {HIDDEN_PATH_REFUSED} (~/.jan) holds")),
+        refusal_of(&format!("ERROR: tool 'read' {HIDDEN_PATH_REFUSED} (~/.rey30-idvj) holds")),
         Some(Refusal::Config)
     );
     assert_eq!(
@@ -799,13 +799,13 @@ fn overlapping_sessions_keep_their_own_prompt_id() {
     let prompt = |s: &str| {
         logs.iter()
             .find(|l| {
-                l.event_name == "jan_agent.user_prompt"
+                l.event_name == "rey30_agent.user_prompt"
                     && attr(l, "session.id") == Some(&AnyValue::Str(s.into()))
             })
             .and_then(|l| attr(l, "prompt.id"))
             .cloned()
     };
-    let request = logs.iter().find(|l| l.event_name == "jan_agent.api_request").unwrap();
+    let request = logs.iter().find(|l| l.event_name == "rey30_agent.api_request").unwrap();
     assert_ne!(prompt("sess-a"), prompt("sess-b"));
     assert_eq!(attr(request, "session.id"), Some(&AnyValue::Str("sess-a".into())));
     assert_eq!(attr(request, "prompt.id").cloned(), prompt("sess-a"));
@@ -892,7 +892,7 @@ fn a_turn_is_one_trace_rooted_at_its_interaction() {
     let names: Vec<&str> = spans.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(
         names,
-        vec!["jan_agent.llm_request", "jan_agent.tool", "jan_agent.llm_request", "jan_agent.interaction"]
+        vec!["rey30_agent.llm_request", "rey30_agent.tool", "rey30_agent.llm_request", "rey30_agent.interaction"]
     );
     let root = spans.last().unwrap();
     assert_eq!(root.parent_span_id, None, "no TRACEPARENT: the interaction is the root");
@@ -931,7 +931,7 @@ fn tool_spans_join_to_the_call_and_record_failure() {
         &[tool_call("call-9", "bash"), tool_result("call-9", true)],
     );
     let spans = state.take_spans();
-    let tool = spans.iter().find(|s| s.name == "jan_agent.tool").unwrap();
+    let tool = spans.iter().find(|s| s.name == "rey30_agent.tool").unwrap();
     assert_eq!(span_attr(tool, "tool_use_id"), Some(&AnyValue::Str("call-9".into())));
     assert_eq!(span_attr(tool, "gen_ai.tool.call.id"), Some(&AnyValue::Str("call-9".into())));
     assert_eq!(span_attr(tool, "tool_name"), Some(&AnyValue::Str("bash".into())));
@@ -945,14 +945,14 @@ fn span_content_is_gated() {
     let root = spans.last().unwrap();
     assert_eq!(span_attr(root, "user_prompt"), Some(&AnyValue::Str("<REDACTED>".into())));
     assert_eq!(span_attr(root, "user_prompt_length"), Some(&AnyValue::Int(11)));
-    let tool = spans.iter().find(|s| s.name == "jan_agent.tool").unwrap();
+    let tool = spans.iter().find(|s| s.name == "rey30_agent.tool").unwrap();
     assert_eq!(span_attr(tool, "tool_parameters"), None);
 
     let spans = traced_turn(cfg_traced(&[("OTEL_LOG_USER_PROMPTS", "1"), ("OTEL_LOG_TOOL_DETAILS", "1")]))
         .take_spans();
     let root = spans.last().unwrap();
     assert_eq!(span_attr(root, "user_prompt"), Some(&AnyValue::Str("secret plan".into())));
-    let tool = spans.iter().find(|s| s.name == "jan_agent.tool").unwrap();
+    let tool = spans.iter().find(|s| s.name == "rey30_agent.tool").unwrap();
     assert!(matches!(span_attr(tool, "tool_parameters"), Some(AnyValue::Str(a)) if a.contains("echo hi")));
 }
 
@@ -980,7 +980,7 @@ fn a_failed_request_is_an_error_span() {
         ],
     );
     let spans = state.take_spans();
-    let llm = spans.iter().find(|s| s.name == "jan_agent.llm_request").unwrap();
+    let llm = spans.iter().find(|s| s.name == "rey30_agent.llm_request").unwrap();
     let message = llm.error.as_deref().unwrap();
     assert!(message.contains("429") && !message.contains("sk-abcdefghijklmnop1234"), "{message}");
     assert_eq!(span_attr(llm, "success"), Some(&AnyValue::Bool(false)));
@@ -1012,8 +1012,8 @@ fn subagent_spans_nest_under_the_parents_interaction() {
         Signal::RunEnd { session: Some("sess-1".into()), run_id: None, elapsed: Duration::from_secs(1) },
     );
     let spans = state.take_spans();
-    let root = spans.iter().find(|s| s.name == "jan_agent.interaction").unwrap();
-    let llm = spans.iter().find(|s| s.name == "jan_agent.llm_request").unwrap();
+    let root = spans.iter().find(|s| s.name == "rey30_agent.interaction").unwrap();
+    let llm = spans.iter().find(|s| s.name == "rey30_agent.llm_request").unwrap();
     assert_eq!(llm.parent_span_id, Some(root.span_id));
     assert_eq!(span_attr(llm, "agent_id"), Some(&AnyValue::Str("r1".into())));
 }
@@ -1038,9 +1038,9 @@ async fn a_traced_run_posts_spans_to_v1_traces() {
                 .iter()
                 .map(|s| s["name"].as_str().unwrap())
                 .collect();
-            assert_eq!(names, vec!["jan_agent.llm_request", "jan_agent.interaction"]);
+            assert_eq!(names, vec!["rey30_agent.llm_request", "rey30_agent.interaction"]);
         } else {
-            assert!(body.windows(21).any(|w| w == b"jan_agent.interaction"));
+            assert!(body.windows(23).any(|w| w == b"rey30_agent.interaction"));
         }
     }
 }
@@ -1048,8 +1048,8 @@ async fn a_traced_run_posts_spans_to_v1_traces() {
 // ── Claude Code compatibility ────────────────────────────────────────────────
 //
 // Each Claude Code signal (https://code.claude.com/docs/en/monitoring-usage,
-// read 2026-09-28) and the jan_agent signal a dashboard built for it should
-// use instead, with the attribute keys that must be present. A row that jan
+// read 2026-09-28) and the rey30_agent signal a dashboard built for it should
+// use instead, with the attribute keys that must be present. A row that rey30-idvj
 // does not emit says why, so dropping a signal fails here instead of silently.
 
 enum Kind {
@@ -1058,35 +1058,35 @@ enum Kind {
     Span,
 }
 
-enum Jan {
+enum Rey30 {
     Same(&'static str, &'static [&'static str]),
     Unsupported(&'static str),
 }
 
-const CLAUDE_CODE: &[(&str, Kind, Jan)] = &[
-    ("claude_code.session.count", Kind::Metric, Jan::Same("jan_agent.session.count", &["session.id"])),
-    ("claude_code.token.usage", Kind::Metric, Jan::Same("jan_agent.token.usage", &["session.id", "model", "type"])),
-    ("claude_code.cost.usage", Kind::Metric, Jan::Same("jan_agent.cost.usage", &["session.id", "model"])),
-    ("claude_code.active_time.total", Kind::Metric, Jan::Same("jan_agent.active_time.total", &["session.id"])),
-    ("claude_code.code_edit_tool.decision", Kind::Metric, Jan::Same("jan_agent.tool.count", &["tool_name", "decision"])),
-    ("claude_code.lines_of_code.count", Kind::Metric, Jan::Unsupported("edit tools do not report line counts on the event stream")),
-    ("claude_code.pull_request.count", Kind::Metric, Jan::Unsupported("no PR detection in bash output")),
-    ("claude_code.commit.count", Kind::Metric, Jan::Unsupported("no commit detection in bash output")),
-    ("claude_code.user_prompt", Kind::Event, Jan::Same("jan_agent.user_prompt", &["event.name", "session.id", "prompt.id", "prompt_length"])),
-    ("claude_code.api_request", Kind::Event, Jan::Same("jan_agent.api_request", &["session.id", "prompt.id", "model", "input_tokens", "output_tokens", "cache_read_tokens", "duration_ms"])),
-    ("claude_code.api_error", Kind::Event, Jan::Same("jan_agent.api_error", &["session.id", "prompt.id", "error", "model", "duration_ms"])),
-    ("claude_code.tool_result", Kind::Event, Jan::Same("jan_agent.tool_result", &["session.id", "prompt.id", "tool_name", "success", "duration_ms", "decision", "decision_source"])),
-    ("claude_code.tool_decision", Kind::Event, Jan::Same("jan_agent.tool_decision", &["session.id", "prompt.id", "tool_name", "decision", "source"])),
-    ("claude_code.interaction", Kind::Span, Jan::Same("jan_agent.interaction", &["span.type", "session.id", "prompt.id", "user_prompt", "user_prompt_length", "interaction.sequence", "interaction.duration_ms"])),
-    ("claude_code.llm_request", Kind::Span, Jan::Same("jan_agent.llm_request", &["span.type", "model", "gen_ai.system", "gen_ai.request.model", "duration_ms", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "success"])),
-    ("claude_code.tool", Kind::Span, Jan::Same("jan_agent.tool", &["span.type", "tool_name", "duration_ms", "tool_use_id", "gen_ai.tool.call.id"])),
-    ("claude_code.tool.execution", Kind::Span, Jan::Unsupported("the event stream has no separate execution start; claude_code.tool's success/duration are on jan_agent.tool")),
-    ("claude_code.tool.blocked_on_user", Kind::Span, Jan::Unsupported("permission waits are not timed yet; decision/source are on jan_agent.tool_decision")),
-    ("claude_code.hook", Kind::Span, Jan::Unsupported("detailed-beta only in Claude Code; hooks do not report to the stream")),
+const CLAUDE_CODE: &[(&str, Kind, Rey30)] = &[
+    ("claude_code.session.count", Kind::Metric, Rey30::Same("rey30_agent.session.count", &["session.id"])),
+    ("claude_code.token.usage", Kind::Metric, Rey30::Same("rey30_agent.token.usage", &["session.id", "model", "type"])),
+    ("claude_code.cost.usage", Kind::Metric, Rey30::Same("rey30_agent.cost.usage", &["session.id", "model"])),
+    ("claude_code.active_time.total", Kind::Metric, Rey30::Same("rey30_agent.active_time.total", &["session.id"])),
+    ("claude_code.code_edit_tool.decision", Kind::Metric, Rey30::Same("rey30_agent.tool.count", &["tool_name", "decision"])),
+    ("claude_code.lines_of_code.count", Kind::Metric, Rey30::Unsupported("edit tools do not report line counts on the event stream")),
+    ("claude_code.pull_request.count", Kind::Metric, Rey30::Unsupported("no PR detection in bash output")),
+    ("claude_code.commit.count", Kind::Metric, Rey30::Unsupported("no commit detection in bash output")),
+    ("claude_code.user_prompt", Kind::Event, Rey30::Same("rey30_agent.user_prompt", &["event.name", "session.id", "prompt.id", "prompt_length"])),
+    ("claude_code.api_request", Kind::Event, Rey30::Same("rey30_agent.api_request", &["session.id", "prompt.id", "model", "input_tokens", "output_tokens", "cache_read_tokens", "duration_ms"])),
+    ("claude_code.api_error", Kind::Event, Rey30::Same("rey30_agent.api_error", &["session.id", "prompt.id", "error", "model", "duration_ms"])),
+    ("claude_code.tool_result", Kind::Event, Rey30::Same("rey30_agent.tool_result", &["session.id", "prompt.id", "tool_name", "success", "duration_ms", "decision", "decision_source"])),
+    ("claude_code.tool_decision", Kind::Event, Rey30::Same("rey30_agent.tool_decision", &["session.id", "prompt.id", "tool_name", "decision", "source"])),
+    ("claude_code.interaction", Kind::Span, Rey30::Same("rey30_agent.interaction", &["span.type", "session.id", "prompt.id", "user_prompt", "user_prompt_length", "interaction.sequence", "interaction.duration_ms"])),
+    ("claude_code.llm_request", Kind::Span, Rey30::Same("rey30_agent.llm_request", &["span.type", "model", "gen_ai.system", "gen_ai.request.model", "duration_ms", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "success"])),
+    ("claude_code.tool", Kind::Span, Rey30::Same("rey30_agent.tool", &["span.type", "tool_name", "duration_ms", "tool_use_id", "gen_ai.tool.call.id"])),
+    ("claude_code.tool.execution", Kind::Span, Rey30::Unsupported("the event stream has no separate execution start; claude_code.tool's success/duration are on rey30_agent.tool")),
+    ("claude_code.tool.blocked_on_user", Kind::Span, Rey30::Unsupported("permission waits are not timed yet; decision/source are on rey30_agent.tool_decision")),
+    ("claude_code.hook", Kind::Span, Rey30::Unsupported("detailed-beta only in Claude Code; hooks do not report to the stream")),
 ];
 
 #[test]
-fn every_claude_code_signal_has_a_jan_equivalent_or_a_reason() {
+fn every_claude_code_signal_has_a_rey30_equivalent_or_a_reason() {
     let pricer: Pricer = Box::new(|_, _| {
         Some(TokenRates { prompt_usd: 1e-6, completion_usd: 1e-6, cache_read_usd: None, cache_write_usd: None })
     });
@@ -1118,8 +1118,8 @@ fn every_claude_code_signal_has_a_jan_equivalent_or_a_reason() {
     let logs = state.take_logs();
 
     let mut missing = Vec::new();
-    for (theirs, kind, jan) in CLAUDE_CODE {
-        let Jan::Same(ours, keys) = jan else { continue };
+    for (theirs, kind, rey30) in CLAUDE_CODE {
+        let Rey30::Same(ours, keys) = rey30 else { continue };
         let keys_of: Vec<Vec<String>> = match kind {
             Kind::Metric => metrics
                 .iter()
@@ -1148,8 +1148,8 @@ fn every_claude_code_signal_has_a_jan_equivalent_or_a_reason() {
         }
     }
     assert!(missing.is_empty(), "Claude Code parity gaps:\n{}", missing.join("\n"));
-    for (theirs, _, jan) in CLAUDE_CODE {
-        if let Jan::Unsupported(why) = jan {
+    for (theirs, _, rey30) in CLAUDE_CODE {
+        if let Rey30::Unsupported(why) = rey30 {
             assert!(!why.is_empty(), "{theirs} needs a reason");
         }
     }
@@ -1163,7 +1163,7 @@ fn a_turn_carries_its_runs_session() {
         &[provenance(None, "sess-1"), StreamEvent::Step { index: 1, max: 0 }],
     );
     assert_eq!(
-        point(&state, "jan_agent.turn.count", &[("agent", "main"), ("session.id", "sess-1")]),
+        point(&state, "rey30_agent.turn.count", &[("agent", "main"), ("session.id", "sess-1")]),
         Some(PointValue::Int(1))
     );
 }
@@ -1179,12 +1179,12 @@ fn delta_drops_wait_for_a_session_to_carry_them() {
     start_run(&mut state, "sess-1");
     let metrics = state.metrics(200, 4);
     assert_eq!(
-        point_in(&metrics, "jan_agent.telemetry.dropped", &[("session.id", "sess-1")]).map(|p| p.0),
+        point_in(&metrics, "rey30_agent.telemetry.dropped", &[("session.id", "sess-1")]).map(|p| p.0),
         Some(PointValue::Int(4)),
         "the held drops go out with the first session"
     );
     let _ = state.exported(200, 4);
-    assert!(state.metrics(300, 4).iter().all(|m| m.name != "jan_agent.telemetry.dropped"));
+    assert!(state.metrics(300, 4).iter().all(|m| m.name != "rey30_agent.telemetry.dropped"));
 }
 
 #[test]
@@ -1195,23 +1195,23 @@ fn a_failed_delta_export_puts_its_window_back() {
     start_run(&mut state, "sess-1");
     feed(&mut state, &cfg, &[provenance(None, "sess-1"), usage(10, 1, 0, 0)]);
     let input = [("type", "input"), ("session.id", "sess-1")];
-    assert_eq!(point_in(&state.metrics(100, 2), "jan_agent.token.usage", &input).map(|p| p.0), Some(PointValue::Int(10)));
+    assert_eq!(point_in(&state.metrics(100, 2), "rey30_agent.token.usage", &input).map(|p| p.0), Some(PointValue::Int(10)));
     let taken = state.exported(100, 2);
     // More accrues while the export is in flight, then the export fails.
     feed(&mut state, &cfg, &[provenance(None, "sess-1"), usage(5, 0, 0, 0)]);
     state.export_failed(taken);
     let retry = state.metrics(200, 2);
     assert_eq!(
-        point_in(&retry, "jan_agent.token.usage", &input),
+        point_in(&retry, "rey30_agent.token.usage", &input),
         Some((PointValue::Int(15), started, 200)),
         "the failed window and what accrued since, over the whole span"
     );
     assert_eq!(
-        point_in(&retry, "jan_agent.telemetry.dropped", &[]).map(|p| p.0),
+        point_in(&retry, "rey30_agent.telemetry.dropped", &[]).map(|p| p.0),
         Some(PointValue::Int(2)),
         "drops the failed export carried are reported again"
     );
-    assert!(retry.iter().any(|m| m.name == "jan_agent.session.count"), "nothing the failed window held is lost");
+    assert!(retry.iter().any(|m| m.name == "rey30_agent.session.count"), "nothing the failed window held is lost");
 }
 
 #[test]
@@ -1222,7 +1222,7 @@ fn a_failed_cumulative_export_keeps_a_closed_sessions_final_values() {
     feed(&mut state, &cfg, &[provenance(None, "sess-a"), usage(10, 1, 0, 0)]);
     state.apply(Instant::now(), 3, Signal::SessionClosed { session: "sess-a".into() });
     let has_a = |metrics: &[Metric]| {
-        point_in(metrics, "jan_agent.token.usage", &[("type", "input"), ("session.id", "sess-a")]).is_some()
+        point_in(metrics, "rey30_agent.token.usage", &[("type", "input"), ("session.id", "sess-a")]).is_some()
     };
     let taken = state.exported(100, 0);
     assert!(!has_a(&state.metrics(150, 0)), "evicted once handed to an export");
@@ -1264,7 +1264,7 @@ async fn a_delta_window_whose_export_failed_goes_out_with_the_next() {
         body["resourceMetrics"][0]["scopeMetrics"][0]["metrics"]
             .as_array()?
             .iter()
-            .find(|m| m["name"] == "jan_agent.token.usage")?["sum"]["dataPoints"]
+            .find(|m| m["name"] == "rey30_agent.token.usage")?["sum"]["dataPoints"]
             .as_array()?
             .iter()
             .find(|p| p["attributes"].to_string().contains("\"input\""))?["asInt"]

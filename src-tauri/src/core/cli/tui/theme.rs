@@ -420,7 +420,7 @@ fn rgb_to_ansi16(r: u8, g: u8, b: u8) -> Color {
 }
 
 /// SGR parameters selecting `color` as the foreground, fitted to the depth the
-/// environment reports. For output printed outside the TUI (`jan --help`),
+/// environment reports. For output printed outside the TUI (`rey30-idvj --help`),
 /// which never runs `resolve_and_apply` and so reads the depth directly.
 pub(crate) fn fg_sgr(color: Color) -> String {
     fg_sgr_at(detect_depth(), color)
@@ -568,7 +568,7 @@ fn query_osc11_is_light() -> Option<bool> {
 mod tests {
     use super::*;
 
-    /// `jan --help` never sends a 256- or 16-colour terminal an RGB code: the
+    /// `rey30-idvj --help` never sends a 256- or 16-colour terminal an RGB code: the
     /// brand yellow lands on the xterm index or named colour `fit` picks.
     #[test]
     fn fg_sgr_fits_the_colour_to_the_depth() {

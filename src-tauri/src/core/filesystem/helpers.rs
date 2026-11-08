@@ -1,10 +1,11 @@
 use super::grants::{ReadGrants, DENIED_PREFIX};
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 #[cfg(windows)]
-use jan_utils::strip_verbatim_prefix;
-use jan_utils::{normalize_file_path, normalize_path};
+use rey30_idvj_utils::strip_verbatim_prefix;
+use rey30_idvj_utils::{normalize_file_path, normalize_path};
 use std::path::{Path, PathBuf};
 use tauri::{Manager, Runtime};
+use tauri_plugin_agent_tools::workspace::{is_pluma_library_path, PLUMA_LIBRARY_DENIED};
 
 /// Builds a path string for `join_path`. It does no scope checks: the result is
 /// only a string handed back to the caller, and every command that then touches
@@ -16,7 +17,7 @@ pub fn resolve_path<R: Runtime>(app_handle: tauri::AppHandle<R>, path: &str) -> 
             .trim_start_matches(std::path::MAIN_SEPARATOR)
             .trim_start_matches('/')
             .trim_start_matches('\\');
-        get_jan_data_folder_path(app_handle).join(relative_normalized)
+        get_rey30_data_folder_path(app_handle).join(relative_normalized)
     } else {
         PathBuf::from(path)
     };
@@ -32,14 +33,14 @@ fn is_file_uri(path: &str) -> bool {
     path.starts_with("file:/") || path.starts_with("file:\\")
 }
 
-fn resolve_path_input(path: &str, jan_data_folder: &Path) -> PathBuf {
+fn resolve_path_input(path: &str, rey30_data_folder: &Path) -> PathBuf {
     if is_file_uri(path) {
         let normalized = normalize_file_path(path);
         let relative_normalized = normalized
             .trim_start_matches(std::path::MAIN_SEPARATOR)
             .trim_start_matches('/')
             .trim_start_matches('\\');
-        jan_data_folder.join(relative_normalized)
+        rey30_data_folder.join(relative_normalized)
     } else {
         PathBuf::from(path)
     }
@@ -93,12 +94,12 @@ pub fn canonical_scope_path(path: &Path) -> PathBuf {
     normalize_scope_path(canonicalize_for_scope(path))
 }
 
-pub fn resolve_path_within_jan_data_folder(
-    jan_data_folder: &Path,
+pub fn resolve_path_within_rey30_data_folder(
+    rey30_data_folder: &Path,
     path: &str,
 ) -> Result<(PathBuf, PathBuf), String> {
-    let canonical_data = normalize_scope_path(canonicalize_for_scope(jan_data_folder));
-    let input_path = resolve_path_input(path, jan_data_folder);
+    let canonical_data = normalize_scope_path(canonicalize_for_scope(rey30_data_folder));
+    let input_path = resolve_path_input(path, rey30_data_folder);
     let resolved_path = if input_path.is_absolute() {
         normalize_path(&input_path)
     } else {
@@ -106,9 +107,13 @@ pub fn resolve_path_within_jan_data_folder(
     };
     let canonical_path = normalize_scope_path(canonicalize_for_scope(&resolved_path));
 
+    if is_pluma_library_path(&canonical_path) {
+        return Err(PLUMA_LIBRARY_DENIED.into());
+    }
+
     if !canonical_path.starts_with(&canonical_data) {
         return Err(format!(
-            "Path {} is outside of Jan data folder {}",
+            "Path {} is outside of Rey30 IDvj data folder {}",
             canonical_path.display(),
             canonical_data.display()
         ));
@@ -131,24 +136,27 @@ pub fn resolve_path_within_jan_data_folder(
 ///
 /// Anything else fails with [`DENIED_PREFIX`]. The commands that create, move
 /// or write files never take this path; they use
-/// [`resolve_path_within_jan_data_folder`].
+/// [`resolve_path_within_rey30_data_folder`].
 pub fn resolve_read_path(
-    jan_data_folder: &Path,
+    rey30_data_folder: &Path,
     path: &str,
     grants: &ReadGrants,
 ) -> Result<PathBuf, String> {
     if is_file_uri(path) || !Path::new(path).is_absolute() {
-        return resolve_path_within_jan_data_folder(jan_data_folder, path)
+        return resolve_path_within_rey30_data_folder(rey30_data_folder, path)
             .map(|(_, resolved)| resolved);
     }
     let path = PathBuf::from(path);
     let canonical = canonical_scope_path(&path);
-    let allowed = canonical.starts_with(canonical_scope_path(jan_data_folder))
+    if is_pluma_library_path(&canonical) {
+        return Err(PLUMA_LIBRARY_DENIED.into());
+    }
+    let allowed = canonical.starts_with(canonical_scope_path(rey30_data_folder))
         || grants.allows(&canonical)
         || grants.allows_typed_reference(&canonical);
     if !allowed {
         return Err(format!(
-            "{DENIED_PREFIX}: {} is outside the Jan data folder and the files and folders you picked",
+            "{DENIED_PREFIX}: {} is outside the Rey30 IDvj data folder and the files and folders you picked",
             path.display()
         ));
     }
@@ -159,20 +167,20 @@ pub fn resolve_app_read_path<R: Runtime>(
     app_handle: tauri::AppHandle<R>,
     path: &str,
 ) -> Result<PathBuf, String> {
-    let jan_data_folder = get_jan_data_folder_path(app_handle.clone());
+    let rey30_data_folder = get_rey30_data_folder_path(app_handle.clone());
     // Without the managed grants nothing outside the data folder is readable.
     let state = app_handle.try_state::<ReadGrants>();
     let none = ReadGrants::default();
     let grants: &ReadGrants = state.as_deref().unwrap_or(&none);
-    resolve_read_path(&jan_data_folder, path, grants)
+    resolve_read_path(&rey30_data_folder, path, grants)
 }
 
-pub fn resolve_app_path_within_jan_data_folder<R: Runtime>(
+pub fn resolve_app_path_within_rey30_data_folder<R: Runtime>(
     app_handle: tauri::AppHandle<R>,
     path: &str,
 ) -> Result<(PathBuf, PathBuf), String> {
-    let jan_data_folder = get_jan_data_folder_path(app_handle);
-    resolve_path_within_jan_data_folder(&jan_data_folder, path)
+    let rey30_data_folder = get_rey30_data_folder_path(app_handle);
+    resolve_path_within_rey30_data_folder(&rey30_data_folder, path)
 }
 
 #[cfg(test)]
@@ -188,7 +196,7 @@ mod tests {
         fs::create_dir_all(data.join("threads")).unwrap();
 
         let (root, resolved) =
-            resolve_path_within_jan_data_folder(&data, "threads").expect("resolves");
+            resolve_path_within_rey30_data_folder(&data, "threads").expect("resolves");
         assert!(resolved.starts_with(&root));
         assert!(resolved.ends_with("threads"));
     }
@@ -201,7 +209,7 @@ mod tests {
         fs::write(data.join("models/info.json"), "{}").unwrap();
 
         let (root, resolved) =
-            resolve_path_within_jan_data_folder(&data, "file://models/info.json")
+            resolve_path_within_rey30_data_folder(&data, "file://models/info.json")
                 .expect("resolves");
         assert!(resolved.starts_with(&root));
         assert!(resolved.ends_with("info.json"));
@@ -216,7 +224,7 @@ mod tests {
         fs::create_dir_all(&outside).unwrap();
         fs::write(outside.join("secret.txt"), "x").unwrap();
 
-        let result = resolve_path_within_jan_data_folder(&data, "../outside/secret.txt");
+        let result = resolve_path_within_rey30_data_folder(&data, "../outside/secret.txt");
         assert!(
             result.is_err(),
             "expected escape to be rejected, got {result:?}"
@@ -232,7 +240,7 @@ mod tests {
         let absolute = inner.to_string_lossy().to_string();
 
         let (root, resolved) =
-            resolve_path_within_jan_data_folder(&data, &absolute).expect("resolves");
+            resolve_path_within_rey30_data_folder(&data, &absolute).expect("resolves");
         assert!(resolved.starts_with(&root));
     }
 
@@ -244,7 +252,7 @@ mod tests {
         fs::create_dir_all(&data).unwrap();
         fs::create_dir_all(&elsewhere).unwrap();
 
-        let result = resolve_path_within_jan_data_folder(&data, &elsewhere.to_string_lossy());
+        let result = resolve_path_within_rey30_data_folder(&data, &elsewhere.to_string_lossy());
         assert!(result.is_err());
     }
 
@@ -256,7 +264,7 @@ mod tests {
 
         for uri in ["file:/../..", "file://../outside", "file:/a/../../../outside"] {
             assert!(
-                resolve_path_within_jan_data_folder(&data, uri).is_err(),
+                resolve_path_within_rey30_data_folder(&data, uri).is_err(),
                 "{uri} should be rejected"
             );
             assert!(
@@ -350,7 +358,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let data = tmp.path().to_path_buf();
 
-        let (root, resolved) = resolve_path_within_jan_data_folder(&data, "new/nested/file.txt")
+        let (root, resolved) = resolve_path_within_rey30_data_folder(&data, "new/nested/file.txt")
             .expect("resolves nonexistent child");
         assert!(resolved.starts_with(&root));
         assert!(resolved.ends_with("file.txt"));
@@ -361,39 +369,39 @@ mod tests {
         // Windows-style strings, checked on every host.
         for (data, child, plain_data) in [
             (
-                r"\\?\UNC\server\share\Jan",
-                r"\\?\UNC\server\share\Jan\threads\t.json",
-                r"\\server\share\Jan",
+                r"\\?\UNC\server\share\Rey30 IDvj",
+                r"\\?\UNC\server\share\Rey30 IDvj\threads\t.json",
+                r"\\server\share\Rey30 IDvj",
             ),
             (
-                r"\\?\C:\Users\u\Jan",
-                r"\\?\C:\Users\u\Jan\threads\t.json",
-                r"C:\Users\u\Jan",
+                r"\\?\C:\Users\u\Rey30 IDvj",
+                r"\\?\C:\Users\u\Rey30 IDvj\threads\t.json",
+                r"C:\Users\u\Rey30 IDvj",
             ),
         ] {
-            let data = jan_utils::strip_verbatim_prefix(data);
-            let child = jan_utils::strip_verbatim_prefix(child);
+            let data = rey30_idvj_utils::strip_verbatim_prefix(data);
+            let child = rey30_idvj_utils::strip_verbatim_prefix(child);
             assert_eq!(data, plain_data);
             assert!(child.starts_with(&format!("{data}\\")), "{child}");
         }
         // A plain path typed by the user lands in the same form.
         assert_eq!(
-            jan_utils::strip_verbatim_prefix(r"\\server\share\Jan"),
-            r"\\server\share\Jan"
+            rey30_idvj_utils::strip_verbatim_prefix(r"\\server\share\Rey30 IDvj"),
+            r"\\server\share\Rey30 IDvj"
         );
     }
 
     #[cfg(windows)]
     #[test]
     fn unc_data_folder_stays_absolute() {
-        let plain = normalize_scope_path(PathBuf::from(r"\\?\UNC\server\share\Jan"));
-        assert_eq!(plain, PathBuf::from(r"\\server\share\Jan"));
+        let plain = normalize_scope_path(PathBuf::from(r"\\?\UNC\server\share\Rey30 IDvj"));
+        assert_eq!(plain, PathBuf::from(r"\\server\share\Rey30 IDvj"));
         assert!(plain.is_absolute());
-        let child = normalize_scope_path(PathBuf::from(r"\\?\UNC\server\share\Jan\threads"));
+        let child = normalize_scope_path(PathBuf::from(r"\\?\UNC\server\share\Rey30 IDvj\threads"));
         assert!(child.starts_with(&plain));
         assert_eq!(
-            normalize_path(Path::new(r"\\?\UNC\server\share\Jan\x")),
-            PathBuf::from(r"\\server\share\Jan\x")
+            normalize_path(Path::new(r"\\?\UNC\server\share\Rey30 IDvj\x")),
+            PathBuf::from(r"\\server\share\Rey30 IDvj\x")
         );
     }
 }

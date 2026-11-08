@@ -25,12 +25,12 @@ for token in $TOKENS; do
 done
 if [ -n "$want" ]; then
   command -v nvcc >/dev/null 2>&1 || {
-    echo "error: JAN_ENGINE_VARIANT=$VARIANT needs nvcc on PATH" >&2
+    echo "error: REY30_ENGINE_VARIANT=$VARIANT needs nvcc on PATH" >&2
     exit 1
   }
   got=$(nvcc --version | sed -n 's/.*release \([0-9]*\)\..*/\1/p' | head -1)
   if [ "$got" != "$want" ]; then
-    echo "error: JAN_ENGINE_VARIANT=$VARIANT but nvcc reports CUDA $got" >&2
+    echo "error: REY30_ENGINE_VARIANT=$VARIANT but nvcc reports CUDA $got" >&2
     echo "       point PATH/CUDA_HOME at a CUDA $want toolkit, or build the cuda$got variant" >&2
     exit 1
   fi
@@ -39,7 +39,7 @@ fi
 
 if has_token hip || has_token rocm; then
   command -v hipcc >/dev/null 2>&1 || {
-    echo "error: JAN_ENGINE_VARIANT=$VARIANT needs hipcc on PATH (install ROCm)" >&2
+    echo "error: REY30_ENGINE_VARIANT=$VARIANT needs hipcc on PATH (install ROCm)" >&2
     exit 1
   }
   rocm="${ROCM_PATH:-${HIP_PATH:-/opt/rocm}}"

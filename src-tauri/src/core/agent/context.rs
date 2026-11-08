@@ -16,7 +16,14 @@ use tauri_plugin_agent_tools::memory;
 /// Default persona used only when no assistant instructions are supplied, so a
 /// bare project run still opens with a role statement instead of "# Working
 /// Directory". An assistant's own instructions replace this entirely.
-const DEFAULT_IDENTITY: &str = "You're currently running on Jan agent harness";
+const DEFAULT_IDENTITY: &str = "You're currently running on Rey30 IDvj agent harness";
+
+pub(crate) fn response_guidance() -> &'static str {
+    let skill = include_str!("../../../../resources/rey30-skills/original/rey30-redaccion-e-intencion/SKILL.md");
+    skill.strip_prefix("---")
+        .and_then(|frontmatter| frontmatter.split_once("\n---"))
+        .map_or(skill, |(_, body)| body.trim())
+}
 
 /// Always-on behavioral guidelines. Kept short and model-facing.
 const GUIDELINES: &str =
@@ -37,7 +44,7 @@ long-running command (a server, a build, a watcher), run it normally with a smal
 the timeout passes the command keeps running in the background, its output is captured, and you are \
 notified when it exits. A command you detach yourself is invisible to that: no output, no notice.";
 
-/// The instructions file Jan reads first in every directory of the walk from
+/// The instructions file Rey30 IDvj reads first in every directory of the walk from
 /// the project root up to the filesystem root. When a directory has a
 /// non-empty one it wins outright: nothing else in that directory is read.
 ///
@@ -210,11 +217,11 @@ pub(crate) fn load_skills(project_root: &Path) -> Option<String> {
 }
 
 /// Always-on guidance teaching the model that web access is a native built-in
-/// capability. Per jan-internal#196 the tools are provider-neutral: the model
+/// capability. Per rey30-idvj-internal#196 the tools are provider-neutral: the model
 /// must call `web_search`/`web_fetch`, never a provider-branded name like
 /// `exa_search`, and should cite the URLs it relies on.
 const WEB_TOOLS_GUIDE: &str = "# Web Access\n\nYou have two native, built-in tools for the live web. They are provider-neutral \
-(the search backend is configured by Jan) and work out of the box — do NOT look for, ask for, or call a \
+(the search backend is configured by Rey30 IDvj) and work out of the box — do NOT look for, ask for, or call a \
 provider-branded tool such as `exa_search`, and do not say you lack internet access.\n\n\
 ## When to use them\n\n\
 Reach for the web whenever the answer depends on current, external, or fast-changing information: recent events, \
@@ -443,7 +450,7 @@ fn render(composer: Composer, inputs: &CompositionInputs) -> Option<String> {
         Composer::AssistantInstructions => {
             Some(inputs.base.unwrap_or(DEFAULT_IDENTITY).to_string())
         }
-        Composer::Guidelines => Some(GUIDELINES.to_string()),
+        Composer::Guidelines => Some(format!("{GUIDELINES}\n\n{}", response_guidance())),
         Composer::WorkingDirectory => Some(format!(
             "# Working Directory\n\nCurrent project directory: `{}`\n\nAll relative paths in tool calls resolve against this directory unless stated otherwise.",
             inputs.project_root.display()
@@ -542,7 +549,7 @@ mod tests {
 
     fn scratch_project(tag: &str) -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let root = std::env::temp_dir().join(format!("jan_ctx_test_{tag}_{n}"));
+        let root = std::env::temp_dir().join(format!("rey30_ctx_test_{tag}_{n}"));
         let _ = std::fs::remove_dir_all(crate::core::agent::project::store_root(&root));
         std::fs::create_dir_all(&root).unwrap();
         root
@@ -561,10 +568,10 @@ mod tests {
     }
 
     #[test]
-    fn built_in_jan_skill_is_advertised_without_project_skills() {
+    fn built_in_rey30_skill_is_advertised_without_project_skills() {
         let root = scratch_project("nodir");
         let block = load_skills(&root).expect("built-in skills block");
-        assert!(block.contains("## Skill: jan"));
+        assert!(block.contains("## Skill: rey30-idvj"));
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -659,12 +666,12 @@ mod tests {
     fn build_system_prompt_orders_base_guide_then_skills() {
         let root = scratch_project("merge");
         write_skill(&root, "s.md", "Do the thing.");
-        let out = default_prompt(Some("You are Jan."), &root, None, false).expect("prompt");
-        assert!(out.starts_with("You are Jan."));
+        let out = default_prompt(Some("You are Rey30 IDvj."), &root, None, false).expect("prompt");
+        assert!(out.starts_with("You are Rey30 IDvj."));
         assert!(out.contains("Do the thing."));
         // Guide sits between the base prompt and the project skills.
         let guide = out.find("Skills and Project Memory").unwrap();
-        assert!(out.find("You are Jan.").unwrap() < guide);
+        assert!(out.find("You are Rey30 IDvj.").unwrap() < guide);
         assert!(guide < out.find("Do the thing.").unwrap());
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -706,7 +713,7 @@ mod tests {
     fn default_identity_and_guidelines_present_without_base() {
         let root = scratch_project("identity");
         let out = default_prompt(None, &root, None, false).expect("prompt");
-        assert!(out.starts_with("You're currently running on Jan agent harness"));
+        assert!(out.starts_with("You're currently running on Rey30 IDvj agent harness"));
         assert!(out.contains("# Guidelines"));
         assert!(out.contains("Be concise"));
         assert!(out.contains("Reach for `todo` only when work genuinely needs tracking"));
@@ -781,7 +788,7 @@ mod tests {
     /// #9079: a directory with no JAN.md falls back to AGENTS.md, and the tag
     /// names the file so the model can tell which one it got.
     #[test]
-    fn agents_md_is_read_where_there_is_no_jan_md() {
+    fn agents_md_is_read_where_there_is_no_rey30_md() {
         let root = scratch_project("agentsfallback");
         std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
         let files = discover_context_files(&root, &agents_only());
@@ -797,15 +804,15 @@ mod tests {
     /// One file per directory: a repo with both loads exactly what it loaded
     /// before the fallback existed.
     #[test]
-    fn jan_md_wins_over_agents_md_in_the_same_directory() {
+    fn rey30_md_wins_over_agents_md_in_the_same_directory() {
         let root = scratch_project("janwins");
-        std::fs::write(root.join("JAN.md"), "JAN_RULES").unwrap();
+        std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
         std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
         std::fs::write(root.join("CLAUDE.md"), "CLAUDE_RULES").unwrap();
         let all = vec!["AGENTS.md".to_string(), "CLAUDE.md".to_string()];
         let block = render_context_files(&discover_context_files(&root, &all)).unwrap();
-        let jan_only = render_context_files(&discover_context_files(&root, &[])).unwrap();
-        assert_eq!(block, jan_only, "JAN.md must shadow every fallback");
+        let rey30_only = render_context_files(&discover_context_files(&root, &[])).unwrap();
+        assert_eq!(block, rey30_only, "JAN.md must shadow every fallback");
         assert!(!block.contains("AGENTS_RULES") && !block.contains("CLAUDE_RULES"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -813,7 +820,7 @@ mod tests {
     /// An empty JAN.md does not count, the same rule as before: the directory
     /// falls through to its AGENTS.md.
     #[test]
-    fn an_empty_jan_md_falls_through_to_the_fallback() {
+    fn an_empty_rey30_md_falls_through_to_the_fallback() {
         let root = scratch_project("emptyjan");
         std::fs::write(root.join("JAN.md"), "  \n").unwrap();
         std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
@@ -865,7 +872,7 @@ mod tests {
     /// The common `JAN.md -> AGENTS.md` symlink loads once, as JAN.md.
     #[cfg(unix)]
     #[test]
-    fn a_symlinked_jan_md_loads_its_target_once() {
+    fn a_symlinked_rey30_md_loads_its_target_once() {
         let root = scratch_project("symlink");
         std::fs::write(root.join("AGENTS.md"), "SHARED_RULES").unwrap();
         std::os::unix::fs::symlink("AGENTS.md", root.join("JAN.md")).unwrap();
@@ -893,7 +900,7 @@ mod tests {
     }
 
     /// A project's `agent.toml` `[context]` is what `load_context_files` honours:
-    /// `[]` turns the fallback off, and a name Jan does not know is ignored.
+    /// `[]` turns the fallback off, and a name Rey30 IDvj does not know is ignored.
     #[test]
     fn agent_toml_context_section_configures_the_fallback() {
         let root = scratch_project("agenttoml");
@@ -1180,7 +1187,7 @@ mod tests {
         // order it declares them.
         let mut cursor = 0;
         for marker in [
-            "You're currently running on Jan agent harness",
+            "You're currently running on Rey30 IDvj agent harness",
             "# Guidelines",
             "# Working Directory",
             "# Runtime Environment",

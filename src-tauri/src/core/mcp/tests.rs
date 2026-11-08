@@ -1,8 +1,8 @@
 use super::commands::is_extension_not_connected_error;
 use super::helpers::{
-    add_server_config, add_server_config_with_path, jan_client_info, run_mcp_commands,
+    add_server_config, add_server_config_with_path, rey30_client_info, run_mcp_commands,
 };
-use crate::core::app::commands::get_jan_data_folder_path;
+use crate::core::app::commands::get_rey30_data_folder_path;
 use crate::core::state::{AppState, SharedMcpServers};
 use std::collections::HashMap;
 use std::fs::File;
@@ -24,7 +24,7 @@ async fn test_run_mcp_commands() {
     });
 
     // Get the app path where the config should be created
-    let app_path = get_jan_data_folder_path(app.handle().clone());
+    let app_path = get_rey30_data_folder_path(app.handle().clone());
     let config_path = app_path.join("mcp_config.json");
 
     // Ensure the directory exists
@@ -50,7 +50,7 @@ async fn test_run_mcp_commands() {
 #[test]
 fn test_add_server_config_new_file() {
     let app = mock_app();
-    let app_path = get_jan_data_folder_path(app.handle().clone());
+    let app_path = get_rey30_data_folder_path(app.handle().clone());
     let config_path = app_path.join("mcp_config_test_new.json");
 
     // Ensure the directory exists
@@ -101,7 +101,7 @@ fn test_add_server_config_new_file() {
 #[test]
 fn test_add_server_config_existing_servers() {
     let app = mock_app();
-    let app_path = get_jan_data_folder_path(app.handle().clone());
+    let app_path = get_rey30_data_folder_path(app.handle().clone());
     let config_path = app_path.join("mcp_config_test_existing.json");
 
     // Ensure the directory exists
@@ -168,7 +168,7 @@ fn test_add_server_config_existing_servers() {
 #[test]
 fn test_add_server_config_missing_config_file() {
     let app = mock_app();
-    let app_path = get_jan_data_folder_path(app.handle().clone());
+    let app_path = get_rey30_data_folder_path(app.handle().clone());
 
     // Ensure the directory exists
     if let Some(parent) = app_path.parent() {
@@ -812,7 +812,7 @@ fn test_mcp_lock_file_serde_round_trip() {
     use super::lockfile::McpLockFile;
     let lock = McpLockFile {
         pid: 4242,
-        jan_pid: std::process::id(),
+        rey30_pid: std::process::id(),
         port: 17389,
         server_name: "Jan Browser MCP".to_string(),
         created_at: "2026-01-01T00:00:00+00:00".to_string(),
@@ -867,7 +867,7 @@ fn test_create_read_delete_lock_file_round_trip() {
     assert_eq!(lock.port, port);
     assert_eq!(lock.server_name, "test-server");
     assert_eq!(lock.pid, fake_child_pid);
-    assert_eq!(lock.jan_pid, std::process::id());
+    assert_eq!(lock.rey30_pid, std::process::id());
     assert!(!lock.created_at.is_empty());
     assert!(!lock.hostname.is_empty());
 
@@ -941,7 +941,7 @@ async fn test_check_and_cleanup_stale_lock_removes_dead_pid_lock() {
     let dead_pid: u32 = i32::MAX as u32;
     let lock = McpLockFile {
         pid: dead_pid,
-        jan_pid: std::process::id(),
+        rey30_pid: std::process::id(),
         port,
         server_name: "ghost".to_string(),
         created_at: "2020-01-01T00:00:00+00:00".to_string(),
@@ -972,18 +972,18 @@ fn test_cleanup_own_locks_removes_only_current_pid_locks() {
     let _ = delete_lock_file(app.handle(), own_port);
     let _ = delete_lock_file(app.handle(), other_port);
 
-    // Lock owned by us (jan_pid matches current process)
+    // Lock owned by us (rey30_pid matches current process)
     let fake_child_pid = std::process::id().wrapping_add(1);
     create_lock_file(app.handle(), own_port, "ours", fake_child_pid).unwrap();
 
-    // Lock owned by a different Jan instance — write directly into the SAME dir lockfile uses
+    // Lock owned by a different Rey30 IDvj instance — write directly into the SAME dir lockfile uses
     let app_data_dir = app.handle().path().app_data_dir().expect("app data dir");
     std::fs::create_dir_all(&app_data_dir).ok();
     let other_path = app_data_dir.join(format!("mcp_lock_{}.json", other_port));
-    let foreign_jan_pid = if std::process::id() == 1 { 2 } else { 1 };
+    let foreign_rey30_pid = if std::process::id() == 1 { 2 } else { 1 };
     let foreign = McpLockFile {
-        pid: foreign_jan_pid,
-        jan_pid: foreign_jan_pid,
+        pid: foreign_rey30_pid,
+        rey30_pid: foreign_rey30_pid,
         port: other_port,
         server_name: "theirs".into(),
         created_at: "2020-01-01T00:00:00+00:00".into(),
@@ -1041,10 +1041,10 @@ async fn terminate_browser_mcp_reaps_process_group() {
     );
 }
 
-/// What a server sees in `initialize.clientInfo` when Jan connects: Jan and its
+/// What a server sees in `initialize.clientInfo` when Rey30 IDvj connects: Rey30 IDvj and its
 /// app version, not the `rmcp` crate's own default.
 #[tokio::test]
-async fn initialize_identifies_the_client_as_jan() {
+async fn initialize_identifies_the_client_as_rey30() {
     use rmcp::{ServerHandler, ServiceExt};
 
     #[derive(Clone)]
@@ -1063,13 +1063,13 @@ async fn initialize_identifies_the_client_as_jan() {
         seen
     });
 
-    let client = jan_client_info()
+    let client = rey30_client_info()
         .serve(client_io)
         .await
         .expect("client initializes");
     client.cancel().await.expect("client closes");
 
     let seen = server_task.await.expect("server task");
-    assert_eq!(seen.name, "Jan");
+    assert_eq!(seen.name, "Rey30 IDvj");
     assert_eq!(seen.version, env!("CARGO_PKG_VERSION"));
 }

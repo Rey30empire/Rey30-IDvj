@@ -14,12 +14,16 @@
 # this shell.
 set -euo pipefail
 
-PLUGIN_DIR="src-tauri/plugins/tauri-plugin-llamacpp"
-SRC_DIR="$PLUGIN_DIR/vendor/llama.cpp"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd -P)
+PLUGIN_DIR="$REPO_DIR/src-tauri/plugins/tauri-plugin-llamacpp"
+mkdir -p -- "$PLUGIN_DIR/vendor"
+VENDOR_DIR=$(CDPATH= cd -- "$PLUGIN_DIR/vendor" && pwd -P)
+SRC_DIR="$VENDOR_DIR/llama.cpp"
 SRC_URL="https://github.com/ggml-org/llama.cpp.git"
 
-if [ -n "${JAN_LLAMA_CPP_DIR:-}" ]; then
-  echo "engine source: using JAN_LLAMA_CPP_DIR=$JAN_LLAMA_CPP_DIR (skipping the vendored clone)"
+if [ -n "${REY30_LLAMA_CPP_DIR:-}" ]; then
+  echo "engine source: using REY30_LLAMA_CPP_DIR=$REY30_LLAMA_CPP_DIR (skipping the vendored clone)"
   exit 0
 fi
 
@@ -33,6 +37,11 @@ fi
 
 if [ ! -f "$SRC_DIR/CMakeLists.txt" ]; then
   echo "Cloning llama.cpp $TAG (shallow)..."
+  # Validate the exact, resolved parent before removing a partial clone.
+  if [ "$VENDOR_DIR" != "$PLUGIN_DIR/vendor" ] || [ -L "$SRC_DIR" ]; then
+    echo "error: refusing cleanup outside the plugin vendor directory: $SRC_DIR" >&2
+    exit 1
+  fi
   rm -rf "$SRC_DIR"
   git clone --depth 1 --branch "$TAG" "$SRC_URL" "$SRC_DIR" || {
     echo "error: could not clone $SRC_URL at tag $TAG" >&2
@@ -44,7 +53,7 @@ got=$(git -C "$SRC_DIR" rev-parse HEAD)
 if [ "$got" != "$COMMIT" ]; then
   echo "error: $SRC_DIR is at $got but build.rs pins $COMMIT." >&2
   echo "       The tag $TAG may have moved upstream, or the tree is stale." >&2
-  echo "       Delete it and re-run, or point JAN_LLAMA_CPP_DIR at a checkout." >&2
+  echo "       Delete it and re-run, or point REY30_LLAMA_CPP_DIR at a checkout." >&2
   exit 1
 fi
 echo "engine source: llama.cpp $TAG at $got"

@@ -59,7 +59,12 @@ pub struct MinimalChunkInput {
 /// would put the plugin -- and only the plugin -- back on the real profile.
 pub fn base_dir_in(data_root: &Path) -> PathBuf {
     let mut base = data_root.to_path_buf();
-    base.push("Jan");
+    let current = data_root.join("Rey30-IDvj").join("data").join("db");
+    let previous = data_root.join("Jan").join("data").join("db");
+    if !current.exists() && previous.is_dir() {
+        return previous;
+    }
+    base.push("Rey30-IDvj");
     base.push("data");
     base.push("db");
     base
@@ -192,7 +197,7 @@ const SQLITE_VEC_SYSTEM_DIRS: &[&str] = if cfg!(target_os = "macos") {
 
 pub fn possible_sqlite_vec_paths() -> Vec<String> {
     build_sqlite_vec_paths(
-        std::env::var("JAN_SQLITE_VEC_PATH").ok(),
+        std::env::var("REY30_SQLITE_VEC_PATH").ok(),
         std::env::current_exe().ok(),
     )
 }
@@ -834,7 +839,7 @@ mod tests {
 
     #[test]
     fn bundled_paths_are_searched_before_system_paths() {
-        let paths = build_sqlite_vec_paths(None, Some(PathBuf::from("/opt/jan/bin/jan")));
+        let paths = build_sqlite_vec_paths(None, Some(PathBuf::from("/opt/rey30-idvj/bin/rey30-idvj")));
         let bundled = paths
             .iter()
             .position(|p| p.contains("resources"))
@@ -873,7 +878,7 @@ mod tests {
 
     #[test]
     fn candidates_are_unique() {
-        let paths = build_sqlite_vec_paths(None, Some(PathBuf::from("/opt/jan/bin/jan")));
+        let paths = build_sqlite_vec_paths(None, Some(PathBuf::from("/opt/rey30-idvj/bin/rey30-idvj")));
         let mut seen = paths.clone();
         seen.sort();
         seen.dedup();

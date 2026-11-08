@@ -1,5 +1,5 @@
 {
-  "name": "@janhq/tauri-plugin-mlx-api",
+  "name": "@rey30-idvj/tauri-plugin-mlx-api",
   "version": "0.8.3",
   "private": true,
   "description": "Tauri plugin API for MLX-Swift inference on Apple Silicon",

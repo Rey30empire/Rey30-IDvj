@@ -63,7 +63,7 @@ pub fn session_request_id(session_id: Option<&str>) -> Option<String> {
     }
     // Prefixed so a correlation id is recognizable as ours in a provider's
     // dashboard, where it sits beside ids from every other client.
-    let id = format!("jan-{session}");
+    let id = format!("rey30-idvj-{session}");
     Some(sanitize(&id))
 }
 
@@ -99,7 +99,7 @@ fn sanitize(raw: &str) -> String {
 /// than forwarding the body, so this key never reaches a transcript or a
 /// resent request. A consumer that did forward a whole completion would have
 /// to drop it here first.
-pub const EXECUTION_ID_FIELD: &str = "_jan_execution_id";
+pub const EXECUTION_ID_FIELD: &str = "_rey30_execution_id";
 
 /// Attach a captured execution id to a completion body.
 pub fn attach_execution_id(completion: &mut serde_json::Value, execution_id: &str) {
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn a_session_yields_a_recognizable_id() {
         let id = session_request_id(Some("0b7c1d2e-3f45")).expect("a session has an id");
-        assert_eq!(id, "jan-0b7c1d2e-3f45");
+        assert_eq!(id, "rey30-idvj-0b7c1d2e-3f45");
     }
 
     /// No session means nothing to correlate, and sending a placeholder would

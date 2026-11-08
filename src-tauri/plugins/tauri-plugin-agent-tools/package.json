@@ -1,5 +1,5 @@
 {
-  "name": "@janhq/tauri-plugin-agent-tools-api",
+  "name": "@rey30-idvj/tauri-plugin-agent-tools-api",
   "version": "0.8.3",
   "private": true,
   "description": "Tauri plugin API for agent skill management",

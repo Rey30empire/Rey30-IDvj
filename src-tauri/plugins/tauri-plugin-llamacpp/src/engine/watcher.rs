@@ -2,8 +2,8 @@
 //!
 //! Distinct from the per-load listener in `commands::spawn_load_progress_listener`,
 //! which exists only for the duration of one load: this one lives as long as
-//! the worker and reports transitions Jan did not ask for. An LRU eviction
-//! under `models_max` is the case that matters -- Jan flips `activeModels` off
+//! the worker and reports transitions Rey30 IDvj did not ask for. An LRU eviction
+//! under `models_max` is the case that matters -- Rey30 IDvj flips `activeModels` off
 //! for unloads it requested itself, so without this the UI keeps showing a
 //! model the engine has already dropped.
 

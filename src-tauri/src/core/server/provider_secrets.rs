@@ -3,12 +3,12 @@
 //! Secrets never touch the settings file or webview storage. The key chain for
 //! a provider (primary key + fallbacks) is stored as a JSON array under a stable
 //! service/account pair in the OS keyring so an out-of-process consumer
-//! (jan CLI) can read it.
+//! (rey30-idvj CLI) can read it.
 //!
 //! The Linux Secret Service needs a D-Bus session + an unlocked keyring, which
 //! is often absent on headless/CI/SSH boxes. When the keyring is unavailable we
 //! fall back to an encrypted, permission-restricted file
-//! (`<jan_data>/provider_secrets.enc`, AES-256-GCM, `0600` on unix). The key is
+//! (`<rey30_data>/provider_secrets.enc`, AES-256-GCM, `0600` on unix). The key is
 //! derived from a stable per-machine id + an app salt: this defeats casual disk
 //! or backup inspection, the realistic threat for a headless fallback. It is not
 //! proof against an attacker who already has code + disk access on the box (no
@@ -26,7 +26,7 @@ use aes_gcm::{Aes256Gcm, Nonce};
 use keyring::Entry;
 use sha2::{Digest, Sha256};
 
-use crate::core::app::commands::resolve_jan_data_folder;
+use crate::core::app::commands::resolve_rey30_data_folder;
 
 const KEYRING_SERVICE: &str = "jan-providers";
 const SECRETS_FILE_NAME: &str = "provider_secrets.enc";
@@ -51,7 +51,7 @@ static INDEX_LOCK: Mutex<()> = Mutex::new(());
 static KEYRING_DOWN: AtomicBool = AtomicBool::new(false);
 
 fn keyring_down() -> bool {
-    KEYRING_DOWN.load(Ordering::Relaxed)
+    cfg!(feature = "e2e") || KEYRING_DOWN.load(Ordering::Relaxed)
 }
 
 /// Whether an error means the keyring backend itself is unusable (vs. a normal
@@ -73,11 +73,25 @@ fn note_keyring_failure(err: &keyring::Error) {
 }
 
 fn keyring_entry(provider: &str) -> keyring::Result<Entry> {
+    // E2E profiles must never read or overwrite the user's OS keyring.
+    if cfg!(feature = "e2e") {
+        return Err(keyring::Error::NoEntry);
+    }
     Entry::new(KEYRING_SERVICE, provider)
 }
 
+#[cfg(all(test, feature = "e2e"))]
+#[test]
+fn isolated_ui_cannot_construct_an_os_keyring_entry() {
+    assert!(keyring_down());
+    assert!(matches!(
+        keyring_entry("isolated-ui-fixture"),
+        Err(keyring::Error::NoEntry)
+    ));
+}
+
 fn secrets_file_path() -> PathBuf {
-    resolve_jan_data_folder().join(SECRETS_FILE_NAME)
+    resolve_rey30_data_folder().join(SECRETS_FILE_NAME)
 }
 
 /// Derive a stable 32-byte key from a per-machine id and a versioned app salt.
@@ -150,7 +164,7 @@ fn restrict_permissions(path: &PathBuf) {
 fn restrict_permissions(_path: &PathBuf) {}
 
 fn secrets_index_path() -> PathBuf {
-    resolve_jan_data_folder().join(SECRETS_INDEX_FILE_NAME)
+    resolve_rey30_data_folder().join(SECRETS_INDEX_FILE_NAME)
 }
 
 fn read_index() -> BTreeSet<String> {
@@ -366,10 +380,10 @@ mod tests {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             let dir = tempfile::tempdir().unwrap();
-            let prev_data_folder = std::env::var("JAN_DATA_FOLDER").ok();
+            let prev_data_folder = std::env::var("REY30_DATA_FOLDER").ok();
             // Portable override: XDG_DATA_HOME only redirects on Linux, so
             // relying on it fails the fallback tests on macOS/Windows.
-            std::env::set_var("JAN_DATA_FOLDER", dir.path());
+            std::env::set_var("REY30_DATA_FOLDER", dir.path());
             Self {
                 prev_data_folder,
                 _dir: dir,
@@ -381,8 +395,8 @@ mod tests {
     impl Drop for TempDataFolder {
         fn drop(&mut self) {
             match &self.prev_data_folder {
-                Some(v) => std::env::set_var("JAN_DATA_FOLDER", v),
-                None => std::env::remove_var("JAN_DATA_FOLDER"),
+                Some(v) => std::env::set_var("REY30_DATA_FOLDER", v),
+                None => std::env::remove_var("REY30_DATA_FOLDER"),
             }
         }
     }

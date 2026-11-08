@@ -1,4 +1,4 @@
-//! Interactive chat console over the agent loop (bare `jan`). A thin
+//! Interactive chat console over the agent loop (bare `rey30-idvj`). A thin
 //! renderer: the engine is shared with the plain CLI path, only the
 //! presentation differs. Maintains a running conversation — the user types
 //! messages into an input box, each submit spawns an agent run over the shared
@@ -207,7 +207,7 @@ fn is_suspend_key(key: &KeyEvent) -> bool {
 /// an external `kill -TSTP` restores the terminal first, and a caught signal no
 /// longer stops anything. A self-sent stop takes effect before `kill` returns,
 /// so the line after it runs on resume. It goes to the whole process group
-/// (pid 0), as the terminal's own Ctrl-Z would, so a wrapper `jan` was
+/// (pid 0), as the terminal's own Ctrl-Z would, so a wrapper `rey30-idvj` was
 /// launched through stops with it and the shell sees the job stop.
 /// `enable_raw_mode` re-reads the termios rather than reusing the pre-suspend
 /// one: the shell owned the terminal in between. The caller owes a full
@@ -218,7 +218,7 @@ fn suspend_to_shell(mouse: bool) -> io::Result<()> {
     use nix::unistd::Pid;
     if group_is_orphaned() {
         return Err(io::Error::other(
-            "no job-control shell above jan (ssh -t, docker exec); nothing could resume it",
+            "no job-control shell above rey30-idvj (ssh -t, docker exec); nothing could resume it",
         ));
     }
     restore_terminal_modes();
@@ -232,7 +232,7 @@ fn suspend_to_shell(mouse: bool) -> io::Result<()> {
 /// group of the same session, so no job-control shell is there to `fg` it. The
 /// kernel discards SIGTSTP for such a group (which is why vim's Ctrl-Z does
 /// nothing there), but SIGSTOP always stops, and nobody would send SIGCONT.
-/// A parent in jan's own group (`cargo run`, a launcher that does not `exec`)
+/// A parent in rey30-idvj's own group (`cargo run`, a launcher that does not `exec`)
 /// proves nothing, so the walk goes up through ancestors sharing the group to
 /// the first one outside it; that one decides. Anything that cannot be read
 /// counts as orphaned: a false "orphaned" only refuses a suspend, where a
@@ -260,7 +260,7 @@ fn group_is_orphaned() -> bool {
 }
 
 /// The decision behind `group_is_orphaned`, over the process table as three
-/// lookups so it is tested without one. `ancestor` starts at jan's parent.
+/// lookups so it is tested without one. `ancestor` starts at rey30-idvj's parent.
 #[cfg(unix)]
 fn orphaned_via(
     group: i32,
@@ -757,12 +757,12 @@ enum PickerKind {
     ThreadTree,
     /// Second step of a rewind: restore conversation only, or + workspace.
     RewindScope,
-    /// Read-only view of `~/.jan/config.toml` providers (`/config`). Enter closes.
+    /// Read-only view of `~/.rey30-idvj/config.toml` providers (`/config`). Enter closes.
     ViewConfig,
-    /// `/settings`: browse editable keys from agent.toml and `~/.jan/config.toml`;
+    /// `/settings`: browse editable keys from agent.toml and `~/.rey30-idvj/config.toml`;
     /// Enter opens a docked edit prompt for the selected row.
     AgentSettings,
-    /// `/settings > providers`: manage `~/.jan/config.toml` providers via a
+    /// `/settings > providers`: manage `~/.rey30-idvj/config.toml` providers via a
     /// docked add/edit wizard (`a`/`e`) or deletion (`d`).
     ProviderSettings,
     /// `/settings > subagents`: every saved subagent with the model it
@@ -874,7 +874,7 @@ impl Picker {
             PickerKind::ForkMessage => " ↑/↓ select   Enter fork   Esc cancel",
             PickerKind::ThreadTree => " ↑/↓ select   Enter resume   Esc cancel",
             PickerKind::RewindScope => " ↑/↓ select   Enter restore   Esc cancel",
-            PickerKind::ViewConfig => " set via: jan config set --provider <id> ...   Esc close",
+            PickerKind::ViewConfig => " set via: rey30-idvj config set --provider <id> ...   Esc close",
             PickerKind::AgentSettings => " ↑/↓ select   Enter edit   x unset   Esc close",
             PickerKind::SubagentModels => {
                 " ↑/↓ select   Enter choose model   x clear override   Esc back"
@@ -925,7 +925,7 @@ struct ModelItem {
 enum ModelTarget {
     /// The session's own model (`/model`), saved to `[agent].model`.
     Session,
-    /// `smol_model` in `~/.jan/config.toml`.
+    /// `smol_model` in `~/.rey30-idvj/config.toml`.
     SmolModel,
     /// `[subagents.<name>] model` in the project's agent.toml.
     Subagent(String),
@@ -1400,7 +1400,7 @@ struct PluginEnvEntry {
 /// plugin declares it needs. One entry per variable; the field is masked (the
 /// value never reaches the screen, scrollback, or transcript), Enter saves and
 /// advances, `s` skips, Esc abandons the remaining entries. Values go to
-/// `~/.jan/agent/plugin-env/<plugin>.toml` (0600) and are injected into the
+/// `~/.rey30-idvj/agent/plugin-env/<plugin>.toml` (0600) and are injected into the
 /// sandboxed shell on the next run.
 struct PluginSetupPrompt {
     plugin: String,
@@ -1893,7 +1893,7 @@ struct PendingToolRow {
     done: String,
 }
 
-/// What the session opens with: the `jan` wordmark plus the facts a first-time
+/// What the session opens with: the `rey30-idvj` wordmark plus the facts a first-time
 /// reader needs (which project, how tool calls are approved) and the commands to
 /// go on with. Held as data rather than rendered lines so the row re-lays out at
 /// the draw width like every other width-dependent row.
@@ -1905,7 +1905,7 @@ struct Banner {
     tools: String,
     /// The dedicated checkout the tools work in, when the session has one. The
     /// splash names it because with a worktree the edits do *not* land in the
-    /// directory the user started `jan` in, which is the one thing about this
+    /// directory the user started `rey30-idvj` in, which is the one thing about this
     /// mode that must never be a surprise.
     workspace: Option<String>,
     /// False when `--task` already seeded the first message, so the splash does
@@ -1913,7 +1913,7 @@ struct Banner {
     awaiting_first_message: bool,
 }
 
-/// Indent shared by every splash row, matching `jan --help`.
+/// Indent shared by every splash row, matching `rey30-idvj --help`.
 const BANNER_INDENT: u16 = 2;
 
 /// Commands worth putting in front of a first-time reader. The full list is
@@ -1947,7 +1947,7 @@ fn banner_lines(banner: &Banner, width: u16) -> Vec<Line<'static>> {
         ));
     } else {
         out.push(Line::from(vec![
-            Span::styled(format!("{indent}jan"), accent),
+            Span::styled(format!("{indent}rey30-idvj"), accent),
             Span::styled(format!(" v{}", banner.version), dim),
         ]));
     }
@@ -1962,7 +1962,7 @@ fn banner_lines(banner: &Banner, width: u16) -> Vec<Line<'static>> {
     };
     // No `model` row: the header leads with it, bold, two rows above. The
     // location is a different case -- the dock's copy is dim and easy to miss,
-    // and the tools act on that directory, so a `jan` started in the wrong one
+    // and the tools act on that directory, so a `rey30-idvj` started in the wrong one
     // is the mistake worth catching before the first message.
     let location = match &banner.branch {
         Some(branch) => format!("{} ⎇ {branch}", banner.project),
@@ -2615,7 +2615,7 @@ struct Transcript {
     /// existing block between its summary row and full detail for the session.
     show_reasoning: bool,
     /// Whether reasoning streams into the live tail while folding is on.
-    /// Defaults from `stream_reasoning` in `~/.jan/config.toml` (true). The open
+    /// Defaults from `stream_reasoning` in `~/.rey30-idvj/config.toml` (true). The open
     /// block shows its last `LIVE_REASONING_TAIL_LINES` lines and still folds to
     /// a summary row when the turn commits; false shows nothing but the header
     /// badge, as before. Orthogonal to `show_reasoning`, which unfolds for good.
@@ -4372,7 +4372,7 @@ struct App {
     last_esc: Option<Instant>,
     /// User-message index chosen in the rewind picker, carried into the scope step.
     rewind_target: Option<usize>,
-    /// The project's store (`~/.jan/projects/<slug>`) where this TUI's threads
+    /// The project's store (`~/.rey30-idvj/projects/<slug>`) where this TUI's threads
     /// are saved/listed.
     agent_dir: std::path::PathBuf,
     /// OpenAI-shaped conversation history sent with each run.
@@ -5425,8 +5425,8 @@ impl App {
         self.workspace = workspace;
     }
 
-    /// Run the session on `prompt` in place of Jan's system prompt, or back on
-    /// Jan's with `None`. Only a thread an RPC host wrote carries one; the run
+    /// Run the session on `prompt` in place of Rey30 IDvj's system prompt, or back on
+    /// Rey30 IDvj's with `None`. Only a thread an RPC host wrote carries one; the run
     /// args are swapped rather than edited because they are shared behind an
     /// `Arc` with any run already spawned from them.
     fn set_host_system_prompt(&mut self, prompt: Option<String>) {
@@ -7416,7 +7416,7 @@ impl App {
         let repo = self.repo_root.clone()?;
         let id = self.thread_id.clone()?;
         match job {
-            SnapshotJob::Base => Some((repo, None, "jan agent base".to_string(), id, Vec::new())),
+            SnapshotJob::Base => Some((repo, None, "rey30-idvj agent base".to_string(), id, Vec::new())),
             SnapshotJob::Checkpoint { changed, .. } => {
                 let parent = self
                     .checkpoints
@@ -7428,7 +7428,7 @@ impl App {
                     .iter()
                     .filter_map(|p| p.strip_prefix(&repo).ok().map(|p| p.to_path_buf()))
                     .collect();
-                Some((repo, parent, format!("jan agent turn {n}"), id, changed))
+                Some((repo, parent, format!("rey30-idvj agent turn {n}"), id, changed))
             }
         }
     }
@@ -7486,7 +7486,7 @@ impl App {
         self.sync_think_tags();
         // A model the session-scoped provider serves is this session's choice
         // only: its id names the session's endpoint, and saving it would start
-        // the next native `jan` in this project on a model nothing it has
+        // the next native `rey30-idvj` in this project on a model nothing it has
         // configured may serve.
         let session_only = self
             .serving_provider()
@@ -8507,7 +8507,7 @@ impl App {
     /// Recompute and publish the Orca-visible agent status from primary state
     /// (turn status plus pending prompts). The reporter dedupes, so calling
     /// this after every transition is cheap. The prompt preview carries the
-    /// pending permission summary (what Jan is blocked on) or the active
+    /// pending permission summary (what Rey30 IDvj is blocked on) or the active
     /// subagent task, matching Orca's card fields.
     fn publish_agent_status(&mut self) {
         use super::agent_status::AgentStatusState as S;
@@ -12058,7 +12058,7 @@ fn with_real_think_tag_gate<T>(f: impl FnOnce() -> T) -> T {
 /// `<mm:think>` tags (tags themselves dropped). An unterminated open tag makes
 /// the trailing text reasoning, which keeps live streaming clean.
 ///
-/// With `think_tags = false` in `~/.jan/config.toml` the tags carry no meaning:
+/// With `think_tags = false` in `~/.rey30-idvj/config.toml` the tags carry no meaning:
 /// the whole text is one answer run, so it renders verbatim and stays in the
 /// answer that goes back as history.
 fn split_reasoning(text: &str, parse_tags: bool) -> Vec<(bool, String)> {
@@ -12683,7 +12683,7 @@ fn update_command(app: &mut App) {
         return;
     }
     app.update_requested = true;
-    app.note("downloading the latest build...");
+    app.note("checking update configuration...");
 }
 
 /// Await an in-flight `/update` install, parking forever when none is running.
@@ -12711,7 +12711,7 @@ fn finish_update_install(app: &mut App, result: Result<super::updater::UpdateOut
     app.detail.clear();
     match result {
         Ok(UpdateOutcome::Installed { from, to, path }) => app.note(&format!(
-            "updated {} from {from} -> {to}; restart jan to run it",
+            "updated {} from {from} -> {to}; restart rey30-idvj to run it",
             tilde_path(&path)
         )),
         Ok(UpdateOutcome::UpToDate { version }) => {
@@ -12925,15 +12925,15 @@ pub async fn run(
     let mouse = crate::core::agent::global_config::mouse_enabled();
     enter_terminal_modes(&mut stdout, mouse).map_err(abort_startup)?;
     // Test-only hook for the real-PTY panic-recovery integration test
-    // (`jan-cli/tests/tui_panic.rs`): an in-memory unit test can prove the hook
+    // (`rey30-idvj-cli/tests/tui_panic.rs`): an in-memory unit test can prove the hook
     // fires, but only a genuine panic on a genuine terminal, with every mode
     // above already turned on, proves the terminal is actually left clean.
     // Gated on an env var rather than `#[cfg(test)]`: the test spawns the real
-    // `jan` binary (`CARGO_BIN_EXE_jan`), which is never built with cfg(test),
+    // `rey30-idvj` binary (`CARGO_BIN_EXE_rey30-idvj`), which is never built with cfg(test),
     // so the trigger ships in every build. Setting it only crashes the caller's
     // own session.
-    if std::env::var_os("JAN_TUI_PANIC_AFTER_RAW_MODE").is_some() {
-        panic!("JAN_TUI_PANIC_AFTER_RAW_MODE");
+    if std::env::var_os("REY30_TUI_PANIC_AFTER_RAW_MODE").is_some() {
+        panic!("REY30_TUI_PANIC_AFTER_RAW_MODE");
     }
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend).map_err(abort_startup)?;
@@ -13022,7 +13022,7 @@ pub async fn run(
         })
     {
         app.note(&hint);
-        app.system_detail_text("(terminal_hint = false in ~/.jan/config.toml silences this)");
+        app.system_detail_text("(terminal_hint = false in ~/.rey30-idvj/config.toml silences this)");
     }
     // A failed resume is not fatal: the note explains why and the blank session
     // the user already has stays usable.
@@ -13083,7 +13083,7 @@ pub async fn run(
     // say so on the real terminal now that the alternate screen is gone -- a
     // transcript note would vanish with it.
     if app.update_installing {
-        eprintln!("the update was still installing when jan exited; run `jan update` to finish it");
+        eprintln!("the update was still installing when rey30-idvj exited; run `rey30-idvj update` to finish it");
     }
     // The interactive session is over: wipe the persistent bash `/tmp` scratch
     // that its turns shared.
@@ -14112,7 +14112,7 @@ fn set_system_clipboard(text: String) {
 
 /// Put a selection on the system clipboard by both routes available to a TUI:
 /// the OS clipboard, which serves it for as long as this process runs, and
-/// OSC 52, which hands it to the terminal emulator so it survives `jan`
+/// OSC 52, which hands it to the terminal emulator so it survives `rey30-idvj`
 /// exiting and crosses an ssh/tmux session. OSC 52 goes second so that where it
 /// is supported the terminal ends up owning the selection.
 fn copy_to_clipboard(text: &str) {
@@ -14943,7 +14943,7 @@ async fn handle_model_picker_key(app: &mut App, key: KeyEvent, ctrl: bool) {
 /// persists to rather than a separately minted one.
 fn resume_hint(thread_id: &str) -> String {
     let id: String = thread_id.chars().take(8).collect();
-    format!("\x1b[2m[session {id} - resume with `jan --resume={id}`]\x1b[0m")
+    format!("\x1b[2m[session {id} - resume with `rey30-idvj --resume={id}`]\x1b[0m")
 }
 async fn handle_key(
     app: &mut App,
@@ -15318,7 +15318,7 @@ async fn handle_key_input(
             // deletes the selected provider only after a confirmation `d` on
             // the same row (an API key is unrecoverable). The leading
             // watermark row (an empty list) is inert. All writes go through
-            // the shared headless `~/.jan/config.toml` path.
+            // the shared headless `~/.rey30-idvj/config.toml` path.
             KeyCode::Char('a') if picker.kind == PickerKind::ProviderSettings => {
                 app.picker = None;
                 app.provider_prompt = Some(ProviderPrompt::new());
@@ -16446,13 +16446,13 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         name: "/config",
         hint: "[what you want]",
-        description: "View provider config (~/.jan/config.toml); with words, same as /vibe-setting",
+        description: "View provider config (~/.rey30-idvj/config.toml); with words, same as /vibe-setting",
         alias_of: None,
     },
     SlashCommand {
         name: "/settings",
         hint: "[what you want]",
-        description: "Edit agent.toml and ~/.jan settings (menu); with words, same as /vibe-setting",
+        description: "Edit agent.toml and ~/.rey30-idvj settings (menu); with words, same as /vibe-setting",
         alias_of: None,
     },
     SlashCommand {
@@ -16464,7 +16464,7 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         name: "/update",
         hint: "",
-        description: "Install the latest published build (takes effect on restart)",
+        description: "Report update configuration (signed release feed not configured)",
         alias_of: None,
     },
     SlashCommand {
@@ -17019,7 +17019,7 @@ fn init_command(app: &mut App) {
 
 /// The `/init` addendum for a project whose own file is the legacy `JAN.md`:
 /// keep editing it in place, and leave the rename to the user.
-const INIT_LEGACY_PARAGRAPH: &str = "`JAN.md` is Jan's legacy instructions file; new projects use \
+const INIT_LEGACY_PARAGRAPH: &str = "`JAN.md` is Rey30 IDvj's legacy instructions file; new projects use \
 `AGENTS.md`, which other coding agents read too. Keep editing `JAN.md` in place -- it wins over an \
 `AGENTS.md` in the same folder -- and do not rename it yourself. In your report, mention that the \
 user can rename it to `AGENTS.md` if they want one file shared by every agent.";
@@ -17210,7 +17210,7 @@ enum SettingScope {
     /// This project's `agent.toml` (in its store), under `[agent]` unless the key
     /// names its own section.
     Project,
-    /// The user-wide `~/.jan/config.toml`, at the document root.
+    /// The user-wide `~/.rey30-idvj/config.toml`, at the document root.
     Global,
 }
 
@@ -17743,7 +17743,7 @@ fn pairs_to_str(map: Option<&serde_json::Map<String, Value>>) -> String {
 }
 
 /// A docked multi-field wizard for adding or editing an OpenAI-compatible
-/// provider in `~/.jan/config.toml`. Mirrors `McpPrompt`: Up/Down move between
+/// provider in `~/.rey30-idvj/config.toml`. Mirrors `McpPrompt`: Up/Down move between
 /// fields, chars/backspace edit the current field, Enter saves. The API key is
 /// never echoed (see `secret_input::mask`). `edit` mode prefills from the
 /// existing entry and defaults `name` to it; `add` mode starts blank.
@@ -17920,7 +17920,7 @@ impl ProviderPrompt {
         }
     }
 
-    /// Persist the provider to `~/.jan/config.toml` via the headless config
+    /// Persist the provider to `~/.rey30-idvj/config.toml` via the headless config
     /// path the CLI shares. `api_type` stays default (OpenAI-compatible
     /// passthrough) unless an explicit type is chosen elsewhere. Returns an
     /// error keeping the prompt open on invalid input. The name is read-only
@@ -17961,7 +17961,7 @@ impl ProviderPrompt {
 /// Docked form for `/settings > web search`, the TUI twin of the desktop's Web
 /// Search page: pick the backend, then give it what it needs -- an API key
 /// (optional for keyless backends) or an instance URL (SearXNG). Saved through
-/// `cli_web_search_set`, the same path as `jan config web-search`.
+/// `cli_web_search_set`, the same path as `rey30-idvj config web-search`.
 struct WebSearchPrompt {
     /// Index into `tauri_plugin_websearch::provider::PROVIDERS`.
     provider: usize,
@@ -18279,7 +18279,7 @@ fn setting_path(def: &AgentSettingDef, toml_path: &std::path::Path) -> String {
         SettingScope::Project => toml_path.display().to_string(),
         SettingScope::Global => crate::core::agent::global_config::global_config_path()
             .map(|p| p.display().to_string())
-            .unwrap_or_else(|_| "~/.jan/config.toml".to_string()),
+            .unwrap_or_else(|_| "~/.rey30-idvj/config.toml".to_string()),
     }
 }
 
@@ -18475,13 +18475,13 @@ fn select_settings_row(app: &mut App, value: &str) {
 }
 
 /// Open the `/settings > providers` screen: a picker row per provider in
-/// `~/.jan/config.toml` (the standalone-agent credential store), with `a` to
+/// `~/.rey30-idvj/config.toml` (the standalone-agent credential store), with `a` to
 /// add, Enter to edit the selected row, and `d` pressed twice to delete it
 /// (the first `d` arms, the second confirms; see the picker key handler).
 fn open_provider_settings(app: &mut App) {
     let providers = match crate::core::agent::global_config::load_global_config() {
         Ok(c) => c,
-        Err(e) => return app.note(&format!("failed to read ~/.jan/config.toml: {e}")),
+        Err(e) => return app.note(&format!("failed to read ~/.rey30-idvj/config.toml: {e}")),
     };
     let mut providers: Vec<_> = providers.into_values().collect();
     providers.sort_by(|a, b| a.provider.cmp(&b.provider));
@@ -19343,7 +19343,7 @@ fn reload_skill_entries(skills: &[crate::core::agent::skills::SkillMeta]) -> Vec
         .collect()
 }
 
-/// `/skills`: every skill Jan can see from this project, with its scope and
+/// `/skills`: every skill Rey30 IDvj can see from this project, with its scope and
 /// invocation sides, and each one hidden by a same-named higher-precedence
 /// skill marked with what shadows it. Precedence: project > user > built-in;
 /// plugin skills are qualified `<plugin>:<name>` and never collide.
@@ -19863,7 +19863,7 @@ fn open_settings_model_picker(app: &mut App, target: ModelTarget, current: Optio
             app.model_picker = Some(ModelPicker { target, ..picker });
         }
         None => app.note(
-            "no models available (add a provider with `jan config set`, or configure one in the desktop app)",
+            "no models available (add a provider with `rey30-idvj config set`, or configure one in the desktop app)",
         ),
     }
 }
@@ -19877,7 +19877,7 @@ fn show_model_picker(app: &mut App) {
             app.model_picker = Some(picker);
         }
         None => app.note(
-            "no models available (add a provider with `jan config set`, or configure one in the desktop app)",
+            "no models available (add a provider with `rey30-idvj config set`, or configure one in the desktop app)",
         ),
     }
 }
@@ -20877,7 +20877,7 @@ fn logout_command(app: &mut App, provider: &str) {
 }
 /// Sign out of a provider from the pickers: clear the stored credential (API
 /// key or OAuth token) but keep the provider entry and its model list in
-/// `~/.jan/config.toml`, so a re-login is one Enter away. Distinct from
+/// `~/.rey30-idvj/config.toml`, so a re-login is one Enter away. Distinct from
 /// [`logout_command`] (which also removes the config entry) and from the
 /// provider-settings `d` delete.
 fn sign_out_provider(app: &mut App, provider: &str) {
@@ -21015,8 +21015,8 @@ fn finish_account_login(app: &mut App, result: Result<String, String>) {
 fn login_success_message(provider: &str) -> String {
     format!("signed in to {provider}. Use /model to select a model.")
 }
-/// Warn after a Claude account sign-in that Jan reaches Anthropic directly
-/// with the user's OAuth token. Since Jan is a third-party client (not the
+/// Warn after a Claude account sign-in that Rey30 IDvj reaches Anthropic directly
+/// with the user's OAuth token. Since Rey30 IDvj is a third-party client (not the
 /// official Claude Code CLI), usage proceeds against Anthropic's Claude Code
 /// Terms of Service at the user's own risk; there is no guarantee that
 /// Anthropic permits third-party access to the same quota.
@@ -21024,8 +21024,8 @@ fn warn_on_claude_login(app: &mut App, provider: &str) {
     if provider == "anthropic" {
         app.system(
             Level::Warn,
-            "Claude sign-in: Jan is a third-party client. Using the Claude Code \
-             quota through Jan may not be sanctioned by Anthropic; proceed at \
+            "Claude sign-in: Rey30 IDvj is a third-party client. Using the Claude Code \
+             quota through Rey30 IDvj may not be sanctioned by Anthropic; proceed at \
              your own risk and review Anthropic's Terms of Service.",
         );
     }
@@ -21091,9 +21091,9 @@ fn adopt_login_model(app: &mut App, login: &crate::core::cli::auth::LoginResult)
     }
 }
 
-/// Re-read `~/.jan/config.toml` (plus desktop and project layers) into the
+/// Re-read `~/.rey30-idvj/config.toml` (plus desktop and project layers) into the
 /// session's in-memory `args.provider_configs` map. Must be called after any
-/// mid-session credential write (`/login`, `jan config set`) because
+/// mid-session credential write (`/login`, `rey30-idvj config set`) because
 /// `prepare_agent_session` snapshots the provider map once at startup and
 /// never re-reads it. Without this, the first turn after sign-in fails
 /// upstream resolution (`"No upstream session found for model ..."`) and
@@ -21160,20 +21160,20 @@ fn terminal_setup_command(app: &mut App) {
 }
 
 /// Open the `/config` screen: a read-only view of the providers configured in
-/// `~/.jan/config.toml` (the standalone-agent credential store), with API keys
-/// redacted. Editing is headless via `jan config set/unset` (shown in the
+/// `~/.rey30-idvj/config.toml` (the standalone-agent credential store), with API keys
+/// redacted. Editing is headless via `rey30-idvj config set/unset` (shown in the
 /// footer), since a TUI is not the safe place to type secrets.
 fn open_config_screen(app: &mut App) {
     let configs = match crate::core::agent::global_config::load_global_config() {
         Ok(c) => c,
-        Err(e) => return app.note(&format!("failed to read ~/.jan/config.toml: {e}")),
+        Err(e) => return app.note(&format!("failed to read ~/.rey30-idvj/config.toml: {e}")),
     };
     let mut providers: Vec<_> = configs.into_values().collect();
     providers.sort_by(|a, b| a.provider.cmp(&b.provider));
 
     let items: Vec<PickerItem> = if providers.is_empty() {
         vec![PickerItem {
-            label: "no providers configured - run: jan config set --provider <id> --api-key <key>"
+            label: "no providers configured - run: rey30-idvj config set --provider <id> --api-key <key>"
                 .to_string(),
             value: String::new(),
             hint: None,
@@ -21644,7 +21644,7 @@ fn restore_run_mode(app: &mut App, metadata: Option<&serde_json::Value>) {
 }
 
 /// Reload the system prompt an RPC host wrote a thread under, or return to
-/// Jan's for a thread with none, so the resumed conversation keeps the prompt
+/// Rey30 IDvj's for a thread with none, so the resumed conversation keeps the prompt
 /// its history was produced under.
 fn restore_host_system_prompt(app: &mut App, metadata: Option<&serde_json::Value>) {
     let prompt = metadata
@@ -21657,7 +21657,7 @@ fn restore_host_system_prompt(app: &mut App, metadata: Option<&serde_json::Value
         // does not have; the user should know before the model reaches for them.
         app.note(
             "resumed on the host's system prompt from this thread; the host's tools are \
-             not available here. /new returns to Jan's prompt",
+             not available here. /new returns to Rey30 IDvj's prompt",
         );
     }
     app.set_host_system_prompt(prompt);
@@ -26895,7 +26895,7 @@ mod tests {
         extra_fm: &str,
     ) -> (App, std::path::PathBuf) {
         let root = std::env::temp_dir().join(format!(
-            "jan_tui_skill_{}_{}",
+            "r30_tui_skill_{}_{}", // as short as the old prefix: a longer path wraps the reload readout
             std::process::id(),
             uuid::Uuid::new_v4()
         ));
@@ -27044,7 +27044,7 @@ mod tests {
         run_command(&mut app, "update", &no_mcp()).await;
         assert!(app.update_requested, "the loop should pick up the request");
         assert!(
-            transcript_text(&app).contains("downloading"),
+            transcript_text(&app).contains("checking update configuration"),
             "no progress note"
         );
 
@@ -27066,7 +27066,7 @@ mod tests {
             Ok(UpdateOutcome::Installed {
                 from: "0.8.4-10".into(),
                 to: "0.8.4-11".into(),
-                path: std::path::PathBuf::from("/home/u/.local/bin/jan"),
+                path: std::path::PathBuf::from("/home/u/.local/bin/rey30-idvj"),
             }),
         );
         assert!(!app.update_installing);
@@ -27725,7 +27725,7 @@ mod tests {
     #[test]
     fn mcp_prompt_wraps_the_field_being_edited() {
         let mut app = test_app();
-        let command = "npx -y @modelcontextprotocol/server-filesystem /home/user/projects/jan";
+        let command = "npx -y @modelcontextprotocol/server-filesystem /home/user/projects/rey30-idvj";
         app.mcp_prompt = Some(super::McpPrompt {
             editing: None,
             field: super::McpField::Command,
@@ -27741,7 +27741,7 @@ mod tests {
         });
         let rows = render_rows(&mut app, 52, 26);
         let joined = rows.join(" ");
-        for word in ["@modelcontextprotocol/server-", "/home/user/projects/jan"] {
+        for word in ["@modelcontextprotocol/server-", "/home/user/projects/rey30-idvj"] {
             assert!(
                 joined.contains(word),
                 "field clipped ({word}):\n{}",
@@ -30003,7 +30003,7 @@ mod tests {
 
     #[test]
     fn load_image_file_encodes_base64_data_url() {
-        let path = std::env::temp_dir().join(format!("jan_img_{}.png", uuid::Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("rey30_img_{}.png", uuid::Uuid::new_v4()));
         std::fs::write(&path, [1u8, 2, 3, 4]).unwrap();
         let img = load_image_file(path.to_str().unwrap()).unwrap();
         assert!(img.data_url.starts_with("data:image/png;base64,"));
@@ -30015,12 +30015,12 @@ mod tests {
     fn load_first_file_image_skips_unloadable_entries() {
         let dir = std::env::temp_dir();
         let id = uuid::Uuid::new_v4();
-        let existing = dir.join(format!("jan_list_{id}.png"));
+        let existing = dir.join(format!("rey30_list_{id}.png"));
         std::fs::write(&existing, [1u8, 2, 3, 4]).unwrap();
-        let missing = dir.join(format!("jan_missing_{id}.png"));
-        let not_image = dir.join(format!("jan_doc_{id}.pdf"));
+        let missing = dir.join(format!("rey30_missing_{id}.png"));
+        let not_image = dir.join(format!("rey30_doc_{id}.pdf"));
         std::fs::write(&not_image, [1u8, 2, 3, 4]).unwrap();
-        let empty = dir.join(format!("jan_empty_{id}.png"));
+        let empty = dir.join(format!("rey30_empty_{id}.png"));
         std::fs::write(&empty, []).unwrap();
 
         // Skips missing, non-image and unloadable entries, keeping the basename.
@@ -30052,7 +30052,7 @@ mod tests {
 
     #[test]
     fn load_image_file_rejects_oversized() {
-        let path = std::env::temp_dir().join(format!("jan_big_{}.png", uuid::Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("rey30_big_{}.png", uuid::Uuid::new_v4()));
         let f = std::fs::File::create(&path).unwrap();
         f.set_len(MAX_IMAGE_BYTES + 1).unwrap();
         drop(f);
@@ -30063,7 +30063,7 @@ mod tests {
 
     #[test]
     fn load_image_file_rejects_empty() {
-        let path = std::env::temp_dir().join(format!("jan_empty_{}.png", uuid::Uuid::new_v4()));
+        let path = std::env::temp_dir().join(format!("rey30_empty_{}.png", uuid::Uuid::new_v4()));
         std::fs::write(&path, []).unwrap();
         assert!(load_image_file(path.to_str().unwrap()).is_err());
         std::fs::remove_file(&path).ok();
@@ -30421,7 +30421,7 @@ mod tests {
         app.thread_id = Some("t1".into());
         let (_, parent, msg, id, changed) = app.resolve_snapshot(&SnapshotJob::Base).unwrap();
         assert!(parent.is_none());
-        assert_eq!(msg, "jan agent base");
+        assert_eq!(msg, "rey30-idvj agent base");
         assert_eq!(id, "t1");
         assert!(changed.is_empty());
 
@@ -30437,7 +30437,7 @@ mod tests {
             Some("basesha"),
             "first checkpoint parents the base"
         );
-        assert_eq!(msg, "jan agent turn 1");
+        assert_eq!(msg, "rey30-idvj agent turn 1");
         assert_eq!(changed, vec![std::path::PathBuf::from("src/a.rs")]);
 
         // Disabled (no repo) -> job dropped.
@@ -30454,7 +30454,7 @@ mod tests {
     async fn branch_poll_picks_up_a_checkout_made_after_the_first_poll() {
         use std::process::Command;
         let n = std::process::id();
-        let root = std::env::temp_dir().join(format!("jan_tui_branch_poll_{n}"));
+        let root = std::env::temp_dir().join(format!("rey30_tui_branch_poll_{n}"));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
         let r = root.to_string_lossy().to_string();
@@ -31186,7 +31186,7 @@ mod tests {
     fn the_resume_hint_offers_a_copyable_continuation_command() {
         assert_eq!(
             resume_hint("0123456789abcdef"),
-            "\x1b[2m[session 01234567 - resume with `jan --resume=01234567`]\x1b[0m"
+            "\x1b[2m[session 01234567 - resume with `rey30-idvj --resume=01234567`]\x1b[0m"
         );
     }
 
@@ -31267,11 +31267,11 @@ mod tests {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
-        let prev_data_folder = std::env::var_os("JAN_DATA_FOLDER");
-        std::env::set_var("JAN_DATA_FOLDER", dir.path());
+        let prev_data_folder = std::env::var_os("REY30_DATA_FOLDER");
+        std::env::set_var("REY30_DATA_FOLDER", dir.path());
         crate::core::server::provider_secrets::force_file_secrets();
 
-        let mut env_vars = vec!["JAN_API_KEY".to_string()];
+        let mut env_vars = vec!["REY30_API_KEY".to_string()];
         env_vars.extend(
             crate::core::cli::auth::provider_catalog()
                 .into_iter()
@@ -31289,8 +31289,8 @@ mod tests {
         let result = crate::core::agent::global_config::with_temp_home(|_| f());
 
         match prev_data_folder {
-            Some(value) => std::env::set_var("JAN_DATA_FOLDER", value),
-            None => std::env::remove_var("JAN_DATA_FOLDER"),
+            Some(value) => std::env::set_var("REY30_DATA_FOLDER", value),
+            None => std::env::remove_var("REY30_DATA_FOLDER"),
         }
         for (var, value) in prev_env {
             match value {
@@ -31799,7 +31799,7 @@ mod tests {
 
         finish_account_login(
             &mut app,
-            Err("could not save provider configuration to /Users/alice/.jan/config.toml after callback code=callback-code-do-not-render with client_secret=sk-secret-do-not-render access_token=tok-secret-do-not-render scope=openid profile model.write model=claude-3 provider_payload={\"error\":\"invalid_grant\"}".to_string()),
+            Err("could not save provider configuration to /Users/alice/.rey30-idvj/config.toml after callback code=callback-code-do-not-render with client_secret=sk-secret-do-not-render access_token=tok-secret-do-not-render scope=openid profile model.write model=claude-3 provider_payload={\"error\":\"invalid_grant\"}".to_string()),
         );
 
         let screen = render_rows(&mut app, 100, 24).join("\n");
@@ -31808,7 +31808,7 @@ mod tests {
             "{screen}"
         );
         assert!(
-            !screen.contains("/Users/alice/.jan/config.toml"),
+            !screen.contains("/Users/alice/.rey30-idvj/config.toml"),
             "{screen}"
         );
         assert!(!screen.contains("callback-code-do-not-render"), "{screen}");
@@ -31862,7 +31862,7 @@ mod tests {
         let mut app = test_app();
 
         super::open_account_login_with_begin(&mut app, "anthropic", |_| {
-            Err("could not create callback from /Users/alice/.jan/config.toml with client_secret=sk-secret-do-not-render".to_string())
+            Err("could not create callback from /Users/alice/.rey30-idvj/config.toml with client_secret=sk-secret-do-not-render".to_string())
         });
 
         let text = transcript_text(&app);
@@ -31870,14 +31870,14 @@ mod tests {
             text.contains("anthropic sign-in failed: could not complete browser sign-in"),
             "{text}"
         );
-        assert!(!text.contains("/Users/alice/.jan/config.toml"), "{text}");
+        assert!(!text.contains("/Users/alice/.rey30-idvj/config.toml"), "{text}");
         assert!(!text.contains("sk-secret-do-not-render"), "{text}");
         assert!(app.account_login.is_none());
         assert!(app.account_login_submit.is_none());
     }
 
     /// `/login --paste-token` skips straight to the legacy field, the same
-    /// escape hatch `jan login --paste-token` gives, and never asks the loop for
+    /// escape hatch `rey30-idvj login --paste-token` gives, and never asks the loop for
     /// a browser session.
     #[tokio::test]
     async fn login_paste_token_forces_the_legacy_field() {
@@ -32513,7 +32513,7 @@ mod tests {
         let message = super::login_error_message(
             "tokamak",
             crate::core::cli::auth::LoginError::Persist(
-                "could not save provider configuration to /Users/alice/.jan/config.toml with key tk-secret-do-not-render".to_string(),
+                "could not save provider configuration to /Users/alice/.rey30-idvj/config.toml with key tk-secret-do-not-render".to_string(),
             ),
         );
 
@@ -32522,7 +32522,7 @@ mod tests {
             "tokamak sign-in failed: could not save sign-in securely"
         );
         assert!(
-            !message.contains("/Users/alice/.jan/config.toml"),
+            !message.contains("/Users/alice/.rey30-idvj/config.toml"),
             "{message}"
         );
         assert!(!message.contains("tk-secret-do-not-render"), "{message}");
@@ -32533,7 +32533,7 @@ mod tests {
         let message = super::login_error_message(
             "anthropic",
             crate::core::cli::auth::LoginError::OAuth(
-                "callback contained code=sk-secret-do-not-render from /Users/alice/.jan/config.toml".to_string(),
+                "callback contained code=sk-secret-do-not-render from /Users/alice/.rey30-idvj/config.toml".to_string(),
             ),
         );
 
@@ -32542,7 +32542,7 @@ mod tests {
             "anthropic sign-in failed: could not complete browser sign-in"
         );
         assert!(
-            !message.contains("/Users/alice/.jan/config.toml"),
+            !message.contains("/Users/alice/.rey30-idvj/config.toml"),
             "{message}"
         );
         assert!(!message.contains("sk-secret-do-not-render"), "{message}");
@@ -32586,7 +32586,7 @@ mod tests {
     fn reload_provider_configs_picks_up_login_credentials() {
         crate::core::agent::global_config::with_temp_home(|_| {
             // Seed a tokamak provider in the global config (simulates what
-            // `/login` persisted to `~/.jan/config.toml`).
+            // `/login` persisted to `~/.rey30-idvj/config.toml`).
             crate::core::agent::global_config::set_provider(
                 "tokamak",
                 crate::core::agent::global_config::ProviderUpdate {
@@ -32677,7 +32677,7 @@ mod tests {
         });
     }
 
-    /// A headless run (`jan cli agent run`, rpc, acp) never builds an `App`, yet
+    /// A headless run (`rey30-idvj cli agent run`, rpc, acp) never builds an `App`, yet
     /// its result strips reasoning by the serving provider's setting, so session
     /// setup has to resolve it from the provider that serves the model.
     #[test]
@@ -32936,7 +32936,7 @@ mod tests {
             mcp_settings: std::sync::Arc::new(tokio::sync::Mutex::new(
                 crate::core::mcp::models::McpSettings::default(),
             )),
-            jan_data_folder: String::new(),
+            rey30_data_folder: String::new(),
             permissions: tauri_plugin_agent_tools::permissions::ToolPermissions::default(),
             project_root: Some(app.project_root.clone()),
             permission_requests: std::sync::Arc::new(tokio::sync::Mutex::new(
@@ -33404,7 +33404,7 @@ mod tests {
     // ── /vibe-setting (#9078) ────────────────────────────────────────────
 
     /// A project agent.toml under a scratch HOME, so a global key written by a
-    /// test never reaches the developer's ~/.jan.
+    /// test never reaches the developer's ~/.rey30-idvj.
     fn vibe_app(body: &str) -> TestApp {
         let app = test_app();
         std::fs::create_dir_all(&app.agent_dir).unwrap();
@@ -33437,7 +33437,7 @@ mod tests {
             assert!(!before.contains("1000000"), "nothing written yet: {before}");
             let screen = render_rows(&mut app, 100, 30).join("\n");
             assert!(screen.contains("128000 -> 1000000"), "{screen}");
-            assert!(screen.contains("~/.jan/config.toml"), "{screen}");
+            assert!(screen.contains("~/.rey30-idvj/config.toml"), "{screen}");
             assert!(screen.contains("Apply? [y/N]"), "{screen}");
 
             super::vibe_setting::handle_key(&mut app, key(KeyCode::Char('y')), false);
@@ -33446,12 +33446,12 @@ mod tests {
             assert!(doc.contains("context_window = 1000000"), "{doc}");
             assert!(doc.contains("# keep me"), "format-preserving: {doc}");
             assert!(doc.contains("show_reasoning = true"), "{doc}");
-            let global = std::fs::read_to_string(home.join(".jan/config.toml")).unwrap();
+            let global = std::fs::read_to_string(home.join(".rey30-idvj/config.toml")).unwrap();
             assert!(global.contains("ask_timeout_secs = 30"), "{global}");
             let note = transcript_text(&app);
             assert!(note.contains("wrote 3 setting(s)"), "{note}");
             let flat = note.split_whitespace().collect::<Vec<_>>().join(" ");
-            assert!(flat.contains("show_reasoning, ask_timeout_secs apply when jan restarts"), "{flat}");
+            assert!(flat.contains("show_reasoning, ask_timeout_secs apply when rey30-idvj restarts"), "{flat}");
             assert!(flat.contains("run /reload config to apply context_window"), "{flat}");
             // A side call, not a turn: the conversation -- and so the cached
             // request prefix -- is exactly what it was before the command.
@@ -33881,8 +33881,8 @@ mod tests {
             let mut app = test_app();
             std::fs::create_dir_all(&app.agent_dir).unwrap();
             std::fs::write(app.agent_dir.join("agent.toml"), "[agent]\n").unwrap();
-            std::fs::create_dir_all(home.join(".jan")).unwrap();
-            let global_path = home.join(".jan").join("config.toml");
+            std::fs::create_dir_all(home.join(".rey30-idvj")).unwrap();
+            let global_path = home.join(".rey30-idvj").join("config.toml");
             std::fs::write(&global_path, "ask_timeout_secs = 5\n").unwrap();
 
             super::settings_command(&mut app, "");
@@ -38688,7 +38688,7 @@ mod tests {
     fn test_worktree(path: &str) -> Worktree {
         Worktree {
             path: std::path::PathBuf::from(path),
-            branch: "jan/agent/abc12345".to_string(),
+            branch: "rey30-idvj/agent/abc12345".to_string(),
         }
     }
 
@@ -39283,14 +39283,14 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn orphaned_group_walks_past_same_group_wrappers() {
-        // jan (group 20, session 10) under a shell (group 10, session 10).
+        // rey30-idvj (group 20, session 10) under a shell (group 10, session 10).
         let shell = (10, 1, 10, 10);
-        assert!(!orphaned(&[shell], 20, 10, 10), "a shell above jan can fg it");
-        // `cargo run`: jan's parent shares jan's group, its parent is the shell.
+        assert!(!orphaned(&[shell], 20, 10, 10), "a shell above rey30-idvj can fg it");
+        // `cargo run`: rey30-idvj's parent shares rey30-idvj's group, its parent is the shell.
         let cargo = (30, 10, 20, 10);
         assert!(
             !orphaned(&[shell, cargo], 20, 10, 30),
-            "a wrapper in jan's group is not the end of the chain"
+            "a wrapper in rey30-idvj's group is not the end of the chain"
         );
         // Two wrappers deep.
         let inner = (31, 30, 20, 10);
@@ -39302,7 +39302,7 @@ mod tests {
     fn orphaned_group_is_refused_when_nothing_above_can_resume_it() {
         // The parent is in another session (ssh -t, docker exec).
         assert!(orphaned(&[(10, 1, 10, 99)], 20, 10, 10));
-        // Every ancestor is in jan's own group, up to init.
+        // Every ancestor is in rey30-idvj's own group, up to init.
         let wrapper = (30, 1, 20, 10);
         assert!(orphaned(&[wrapper], 20, 10, 30), "the chain ends in the group");
         // The parent has gone.
@@ -41863,8 +41863,8 @@ mod tests {
         use crate::core::cli::tokamak::usage::Query;
         assert_eq!(super::parse_usage_mode("run"), super::UsageMode::Run);
         assert_eq!(
-            super::parse_usage_mode("correlate jan-session-7"),
-            super::UsageMode::Account(Query::Correlated("jan-session-7".to_string()))
+            super::parse_usage_mode("correlate rey30-idvj-session-7"),
+            super::UsageMode::Account(Query::Correlated("rey30-idvj-session-7".to_string()))
         );
         // A correlation with no id would search for everything, and must not
         // fall through to being looked up as an execution named "correlate".
@@ -43367,7 +43367,7 @@ mod tests {
     fn tilde_path_abbreviates_only_the_home_prefix() {
         let home = std::path::PathBuf::from(std::env::var_os("HOME").expect("HOME set in tests"));
         assert_eq!(tilde_path(&home), "~");
-        assert_eq!(tilde_path(&home.join("code/jan")), "~/code/jan");
+        assert_eq!(tilde_path(&home.join("code/rey30-idvj")), "~/code/rey30-idvj");
         // A path that merely starts with the same characters is not a child.
         assert_eq!(tilde_path(std::path::Path::new("/var/tmp/x")), "/var/tmp/x");
     }
@@ -43787,7 +43787,7 @@ mod tests {
     }
 
     /// A thread an RPC host wrote under its own system prompt resumes on that
-    /// prompt, carries it on the next save, and `/new` returns to Jan's.
+    /// prompt, carries it on the next save, and `/new` returns to Rey30 IDvj's.
     #[test]
     fn a_host_system_prompt_round_trips_through_thread_metadata() {
         let mut app = test_app();
@@ -43800,12 +43800,12 @@ mod tests {
         assert_eq!(saved[super::super::SYSTEM_PROMPT_KEY], "You drive the arm.");
 
         app.reset_session();
-        assert_eq!(prompt(&app), None, "a fresh session is Jan's again");
+        assert_eq!(prompt(&app), None, "a fresh session is Rey30 IDvj's again");
         assert!(app.thread_metadata().is_none());
 
         restore_host_system_prompt(&mut app, Some(&meta));
         restore_host_system_prompt(&mut app, Some(&serde_json::json!({})));
-        assert_eq!(prompt(&app), None, "a thread without one resumes on Jan's");
+        assert_eq!(prompt(&app), None, "a thread without one resumes on Rey30 IDvj's");
     }
 
     /// `/new` starts a session, so it takes a fresh session-start snapshot in
@@ -46091,7 +46091,7 @@ mod tests {
     fn slash_bare_lists_all_commands() {
         let mut app = test_app();
         app.input = "/".into();
-        // All built-ins plus the always-advertised built-in jan skill.
+        // All built-ins plus the always-advertised built-in rey30-idvj skill.
         assert_eq!(
             names(&app).len(),
             super::SLASH_COMMANDS.len() + 1,
@@ -46099,8 +46099,8 @@ mod tests {
             names(&app)
         );
         assert!(
-            names(&app).contains(&"/jan".to_string()),
-            "built-in jan skill row: {:?}",
+            names(&app).contains(&"/rey30-idvj".to_string()),
+            "built-in rey30-idvj skill row: {:?}",
             names(&app)
         );
     }
@@ -46109,14 +46109,16 @@ mod tests {
     fn slash_prefix_narrows_and_unmatched_hides() {
         let mut app = test_app();
         app.input = "/re".into();
-        // `/resume`, `/reasoning`, and `/reload` start with `re`; catalog
-        // order (stable sort on equal prefix score) keeps resume first.
+        // `/resume`, `/reasoning`, `/reload` and the built-in `/rey30-idvj`
+        // skill row start with `re`; catalog order (stable sort on equal
+        // prefix score) keeps resume first and the skill row after the commands.
         assert_eq!(
             names(&app),
             vec![
                 "/resume".to_string(),
                 "/reasoning".to_string(),
-                "/reload".to_string()
+                "/reload".to_string(),
+                "/rey30-idvj".to_string(),
             ]
         );
         app.input = "/xyz".into();
@@ -46209,7 +46211,7 @@ mod tests {
     fn slash_move_wraps_within_matches() {
         let mut app = test_app();
         app.input = "/".into();
-        // Built-ins plus the always-advertised built-in jan skill.
+        // Built-ins plus the always-advertised built-in rey30-idvj skill.
         let n = names(&app).len();
         app.slash_move(-1);
         assert_eq!(app.slash_selected, n - 1);
@@ -46779,7 +46781,7 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("user      tui394-review · User review."), "{out}");
-        assert!(out.contains("built-in  jan"), "{out}");
+        assert!(out.contains("built-in  rey30-idvj"), "{out}");
 
         // The popup offers the user skill once `/reload skills` rescans.
         run_command(&mut app, "reload skills", &no_mcp()).await;
@@ -46800,7 +46802,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reload_system_prompt_reads_jan_md() {
+    async fn reload_system_prompt_reads_rey30_md() {
         let (mut app, root) = skill_test_app("deploy", "How to deploy.");
         run_command(&mut app, "reload system-prompt", &no_mcp()).await;
         assert!(
@@ -47231,7 +47233,7 @@ mod tests {
     async fn plugin_command_installs_lists_dispatch_removes() {
         // Local git repo fixture with a plugin payload.
         let repo =
-            std::env::temp_dir().join(format!("jan_tui_plugin_repo_{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("rey30_tui_plugin_repo_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(repo.join("skills").join("prepare")).unwrap();
         std::fs::write(
             repo.join("skills").join("prepare").join("SKILL.md"),
@@ -47260,7 +47262,7 @@ mod tests {
                 "commit",
                 "-m",
                 "init",
-                "--author=Jan Test <test@jan.ai>",
+                "--author=Rey30 IDvj Test <test@rey30-idvj.ai>",
             ])
             .status()
             .unwrap();
@@ -47984,7 +47986,7 @@ mod tests {
         });
     }
 
-    /// Isolated from the real `~/.jan`: a cached `/models` listing there would
+    /// Isolated from the real `~/.rey30-idvj`: a cached `/models` listing there would
     /// resolve these windows as `provider` and shadow the source under test.
     #[test]
     fn set_model_notes_the_context_source() {
@@ -48367,7 +48369,7 @@ mod tests {
         let narrow = banner_text(&app, 24);
         let joined = narrow.join("\n");
         assert!(!joined.contains('█'), "{joined}");
-        assert!(joined.contains("jan"), "{joined}");
+        assert!(joined.contains("rey30-idvj"), "{joined}");
     }
 
     /// `/init` is the first thing a new project wants and is invisible unless
@@ -48385,7 +48387,7 @@ mod tests {
     /// an already-onboarded project (its own JAN.md, or an ancestor's) is quiet.
     #[test]
     fn init_invitation_tracks_whether_the_project_has_instructions() {
-        let root = std::env::temp_dir().join(format!("jan_init_invite_{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("rey30_init_invite_{}", std::process::id()));
         let nested = root.join("pkg");
         std::fs::create_dir_all(&nested).unwrap();
         assert!(!crate::core::agent::context::has_context_file(&nested));
@@ -48403,7 +48405,7 @@ mod tests {
     fn startup_note_names_an_agents_md_fallback() {
         crate::core::agent::global_config::with_temp_home(|_| {
             let root =
-                std::env::temp_dir().join(format!("jan_fallback_note_{}", std::process::id()));
+                std::env::temp_dir().join(format!("rey30_fallback_note_{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             std::fs::create_dir_all(&root).unwrap();
             let none = super::project_instructions_note(&root).expect("an invitation");
@@ -48414,7 +48416,7 @@ mod tests {
                 None,
                 "AGENTS.md is the default: nothing to say"
             );
-            std::fs::write(root.join("JAN.md"), "JAN_RULES").unwrap();
+            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
             let legacy = super::project_instructions_note(&root).expect("a legacy note");
             assert!(legacy.contains("JAN.md (legacy JAN.md)"), "{legacy}");
             let _ = std::fs::remove_dir_all(&root);
@@ -48452,10 +48454,10 @@ mod tests {
     /// starts from a CLAUDE.md, keeps a legacy JAN.md, and falls back to JAN.md
     /// when `[context].fallback_files` would not read AGENTS.md.
     #[test]
-    fn init_plan_defaults_to_agents_md_and_keeps_a_legacy_jan_md() {
+    fn init_plan_defaults_to_agents_md_and_keeps_a_legacy_rey30_md() {
         crate::core::agent::global_config::with_temp_home(|_| {
             let root =
-                std::env::temp_dir().join(format!("jan_init_plan_{}", std::process::id()));
+                std::env::temp_dir().join(format!("rey30_init_plan_{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             std::fs::create_dir_all(&root).unwrap();
             let plan = |file, existing, seed| super::InitPlan {
@@ -48472,7 +48474,7 @@ mod tests {
             std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
             assert_eq!(super::init_plan(&root), plan("AGENTS.md", true, None));
             // A legacy JAN.md shadows AGENTS.md, so /init edits it, not AGENTS.md.
-            std::fs::write(root.join("JAN.md"), "JAN_RULES").unwrap();
+            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
             assert_eq!(super::init_plan(&root), plan("JAN.md", true, None));
             // `fallback_files = []` reads JAN.md only: /init writes that.
             std::fs::remove_file(root.join("JAN.md")).unwrap();
@@ -48494,7 +48496,7 @@ mod tests {
     fn init_prompt_names_the_planned_file() {
         crate::core::agent::global_config::with_temp_home(|_| {
             let root =
-                std::env::temp_dir().join(format!("jan_init_seed_{}", std::process::id()));
+                std::env::temp_dir().join(format!("rey30_init_seed_{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             std::fs::create_dir_all(&root).unwrap();
             std::fs::write(root.join("CLAUDE.md"), "CLAUDE_RULES").unwrap();
@@ -48507,7 +48509,7 @@ mod tests {
             assert!(transcript_text(&app).contains("writing AGENTS.md from this project's CLAUDE.md"));
             let _ = std::fs::remove_dir_all(&app.agent_dir);
 
-            std::fs::write(root.join("JAN.md"), "JAN_RULES").unwrap();
+            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
             let mut app = test_app();
             app.project_root = root.clone();
             super::init_command(&mut app);
@@ -48541,7 +48543,7 @@ mod tests {
         let narrow = banner_text(&app, 24);
         let joined = narrow.join("\n");
         assert!(!joined.contains('█'), "{joined}");
-        assert!(joined.contains("jan"), "{joined}");
+        assert!(joined.contains("rey30-idvj"), "{joined}");
         for line in &narrow {
             assert!(
                 line.chars().count() <= 24,

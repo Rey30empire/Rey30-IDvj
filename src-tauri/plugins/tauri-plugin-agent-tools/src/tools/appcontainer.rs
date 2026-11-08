@@ -68,7 +68,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// keep two spellings of one workspace on one container.
 pub fn moniker(workspace: &Path) -> String {
     let key = workspace.to_string_lossy().to_lowercase();
-    format!("Jan.Agent.{:016x}", fnv1a(key.as_bytes()))
+    format!("Rey30 IDvj.Agent.{:016x}", fnv1a(key.as_bytes()))
 }
 
 /// argv for the helper re-exec. Shaped like the other backends -- fixed
@@ -282,13 +282,13 @@ fn spawn_failure(program: &Path, error: &std::io::Error) -> String {
         Some(DENIED) => format!(
             "could not start {} inside the sandbox: {error}. A shell installed \
              under your user profile is unreadable to the sandbox; install it \
-             system-wide (under Program Files), or unset JAN_AGENT_SHELL to use \
+             system-wide (under Program Files), or unset REY30_AGENT_SHELL to use \
              the built-in Windows PowerShell.",
             program.display()
         ),
         Some(ENVVAR_NOT_FOUND) => format!(
             "could not start {} inside the sandbox: {error}. The sandbox could \
-             not build an environment for the shell, which is a bug in Jan \
+             not build an environment for the shell, which is a bug in Rey30 IDvj \
              rather than a problem with the shell's location; please report it \
              with the app logs.",
             program.display()
@@ -305,7 +305,7 @@ fn spawn_failure(program: &Path, error: &std::io::Error) -> String {
 /// such as Wine); deriving a SID is a pure hash and touches nothing.
 #[cfg(windows)]
 pub fn available() -> bool {
-    win::derive_sid("Jan.Agent.Probe").is_ok()
+    win::derive_sid("Rey30 IDvj.Agent.Probe").is_ok()
 }
 
 #[cfg(not(windows))]
@@ -431,8 +431,8 @@ mod win {
     /// SID does not depend on whether network was allowed.
     fn ensure_profile(moniker: &str) -> Result<ContainerSid, String> {
         let name = wide(OsStr::new(moniker));
-        let display = wide(OsStr::new("Jan agent tools"));
-        let description = wide(OsStr::new("Sandbox for the Jan agent's shell tool"));
+        let display = wide(OsStr::new("Rey30 IDvj agent tools"));
+        let description = wide(OsStr::new("Sandbox for the Rey30 IDvj agent's shell tool"));
         let mut sid: PSID = std::ptr::null_mut();
         let hr = unsafe {
             CreateAppContainerProfile(
@@ -763,7 +763,7 @@ mod tests {
     use super::*;
 
     fn ws() -> PathBuf {
-        PathBuf::from(r"C:\Users\me\.jan\agent-workspace\threads\t1")
+        PathBuf::from(r"C:\Users\me\.rey30-idvj\agent-workspace\threads\t1")
     }
 
     #[test]
@@ -792,7 +792,7 @@ mod tests {
         // names one container SID, so a command for another thread holds a
         // token that ACE does not match.
         let mine = moniker(&ws());
-        let theirs = moniker(Path::new(r"C:\Users\me\.jan\agent-workspace\threads\t2"));
+        let theirs = moniker(Path::new(r"C:\Users\me\.rey30-idvj\agent-workspace\threads\t2"));
         assert_ne!(mine, theirs);
     }
 
@@ -826,7 +826,7 @@ mod tests {
     fn the_helper_round_trips_its_own_argv() {
         let args = helper_args(
             &ws(),
-            Some(Path::new(r"C:\Temp\jan-agent-s1")),
+            Some(Path::new(r"C:\Temp\rey30-idvj-agent-s1")),
             true,
             Path::new(r"C:\Program Files\Git\bin\bash.exe"),
             &["-c".to_string(), "echo hi".to_string()],
@@ -835,7 +835,7 @@ mod tests {
         assert_eq!(req.workspace, ws());
         assert_eq!(
             req.scratch.as_deref(),
-            Some(Path::new(r"C:\Temp\jan-agent-s1"))
+            Some(Path::new(r"C:\Temp\rey30-idvj-agent-s1"))
         );
         assert!(req.allow_network);
         assert_eq!(req.program, Path::new(r"C:\Program Files\Git\bin\bash.exe"));
@@ -1018,7 +1018,7 @@ mod tests {
         // not appear.
         let env_missing = spawn_failure(shell, &std::io::Error::from_raw_os_error(203));
         assert!(!env_missing.contains("system-wide"), "{env_missing}");
-        assert!(env_missing.contains("bug in Jan"), "{env_missing}");
+        assert!(env_missing.contains("bug in Rey30 IDvj"), "{env_missing}");
 
         let other = spawn_failure(shell, &std::io::Error::from_raw_os_error(2));
         assert!(!other.contains("system-wide"), "{other}");
