@@ -4,11 +4,12 @@ import { createOriginalProfiles, getCharacterChatRole, getOriginalProfile, isVoi
 import { parseCharacterProfile, validateCharacterProfile, validateMemoryEntry } from '../validation'
 
 describe('perfiles originales y contexto de personalidad', () => {
-  it('defines ten distinct adults, original examples, separate models and unselected real voices', () => {
+  it('defines eleven distinct adults, original examples, separate models and unselected real voices', () => {
     const profiles = createOriginalProfiles()
-    expect(profiles.map(profile => profile.id)).toEqual(['kairo', 'beto', 'tino', 'milo', 'roco', 'nara', 'centinela', 'verso', 'fullstack', 'literatura'])
+    expect(profiles.map(profile => profile.id)).toEqual(['kairo', 'beto', 'tino', 'milo', 'roco', 'nara', 'centinela', 'verso', 'fullstack', 'literatura', 'coder'])
+    expect(profiles.map(profile => profile.name)).toEqual(['Blaster', 'Don Chispa', 'Tremendo', 'Brújula', 'Coyote', 'Luna', 'Escudo', 'Lírico', 'Nexo', 'Pluma', 'Coder'])
     expect(new Set(profiles.map(profile => profile.examples[1].response)).size).toBe(profiles.length)
-    expect(new Set(profiles.map(profile => getCharacterChatRole(profile).label)).size).toBe(profiles.length)
+    expect(new Set(profiles.map(profile => getCharacterChatRole(profile).name)).size).toBe(profiles.length)
     for (const profile of profiles) {
       expect(validateCharacterProfile(profile)).toEqual(profile)
       expect(profile.voice).toMatchObject({ enabled: false, voiceURI: null, localOnly: true, provider: 'native-local' })
@@ -17,7 +18,7 @@ describe('perfiles originales y contexto de personalidad', () => {
       expect(profile.mannerisms.correct).toBeTruthy()
     }
     profiles[0].name = 'Cambiado'
-    expect(createOriginalProfiles()[0].name).toBe('Atlas')
+    expect(createOriginalProfiles()[0].name).toBe('Blaster')
   })
   it.each([
     ['Háblame en serio', 'serio'], ['Sin bromas, revisa esto', 'serio'], ['No coquetees', 'serio'],
@@ -50,33 +51,37 @@ describe('perfiles originales y contexto de personalidad', () => {
     expect(friendly.system).toContain('Coqueteo desactivado')
     expect(friendly.system).not.toContain('Hoy traigo pantis azules')
   })
-  it('confines Nova’s mischievous style to voice even with playful settings enabled', () => {
-    const nova = getOriginalProfile('nara')
-    const settings = { ...nova.settings, mode: 'charla', flirtation: 3 } as const
-    const text = buildCharacterContext(nova, settings, undefined, 'Vamos a charlar')
-    const voice = buildCharacterContext(nova, settings, undefined, 'Vamos a charlar', 'voice')
-    expect(text.system).toContain('ingeniera de calidad')
-    expect(text.system).not.toContain(nova.instructions)
-    expect(text.system).not.toContain(nova.examples[0].response)
+  it('confines Luna’s mischievous style to voice even with playful settings enabled', () => {
+    const luna = getOriginalProfile('nara')
+    const settings = { ...luna.settings, mode: 'charla', flirtation: 3 } as const
+    const text = buildCharacterContext(luna, settings, undefined, 'Vamos a charlar')
+    const voice = buildCharacterContext(luna, settings, undefined, 'Vamos a charlar', 'voice')
+    expect(text.system).toContain('active la llamada de voz')
+    expect(text.system).not.toContain(luna.instructions)
+    expect(text.system).not.toContain(luna.examples[0].response)
     expect(text.effectiveSettings).toMatchObject({ mode: 'trabajo', humor: 0, flirtation: 0, profanity: 0 })
-    expect(voice.system).toContain(nova.instructions)
-    expect(voice.system).not.toContain('ingeniera de calidad')
+    expect(voice.system).toContain(luna.instructions)
+    expect(voice.system).not.toContain('active la llamada de voz')
     expect(voice.effectiveSettings.flirtation).toBe(3)
   })
-  it('offers Verso’s reciting persona only in voice and leaves text useful', () => {
+  it('keeps every personality assistant in voice and leaves only Pluma and Coder in the written chat', () => {
+    const textAgents = createOriginalProfiles().filter(profile => !isVoiceOnlyCharacter(profile)).map(profile => profile.id)
+    expect(textAgents).toEqual(['literatura', 'coder'])
+  })
+  it('offers Lírico’s reciting persona only in voice and leaves text useful', () => {
     const verso = getOriginalProfile('verso')
     expect(isVoiceOnlyCharacter(verso)).toBe(true)
-    expect(isVoiceOnlyCharacter(getOriginalProfile('centinela'))).toBe(false)
-    expect(buildCharacterContext(verso).system).toContain('puede activar el modo voz')
+    expect(buildCharacterContext(verso).system).toContain('active la llamada de voz')
     expect(buildCharacterContext(verso).system).not.toContain(verso.examples[1].response)
     expect(buildCharacterContext(verso, undefined, undefined, '', 'voice').system).toContain('Escribe poemas originales para recitar en voz alta')
   })
-  it.each(['chat', 'voice'] as const)('provides full-stack work and evidence-based literary guidance in %s', (channel) => {
-    const trama = buildCharacterContext(getOriginalProfile('fullstack'), undefined, undefined, '', channel).system
-    expect(trama).toContain('desde el frontend hasta la API, el backend y la base de datos')
-    expect(trama).toContain('despliegue y reversión según los permisos de la sesión')
-    expect(trama).toContain('Reproduce los fallos y aísla su causa con pruebas')
-
+  it('gives Coder the do-everything brief in chat', () => {
+    const coder = buildCharacterContext(getOriginalProfile('coder')).system
+    expect(coder).toContain('crea aplicaciones')
+    expect(coder).toContain('consulta la web')
+    expect(coder).toContain('Pide autorización antes de borrar datos')
+  })
+  it.each(['chat', 'voice'] as const)('provides evidence-based literary guidance in %s', (channel) => {
     const pluma = getOriginalProfile('literatura')
     expect(isVoiceOnlyCharacter(pluma)).toBe(false)
     const literary = buildCharacterContext(pluma, undefined, undefined, '', channel).system

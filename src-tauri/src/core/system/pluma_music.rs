@@ -32,8 +32,14 @@ const MODEL_FILES: [&str; 4] = [
     "acestep-5Hz-lm-1.7B-Q8_0.gguf",
 ];
 const DEFAULT_CAPTION: &str = "A cappella female voice, no instruments, Spanish folk pop melody";
-/// A full song, like a normal one: about a minute and a half.
+/// A full song, like a normal one: about a minute and a half unless Pluma asks
+/// for another length.
 const SONG_SECONDS: u32 = 90;
+/// Bounds for a requested length; the generator script accepts 18-150 s.
+const MIN_SONG_SECONDS: u32 = 30;
+const MAX_SONG_SECONDS: u32 = 150;
+/// Room for a full song: verses, choruses and a bridge.
+const MAX_LYRICS_CHARS: usize = 2_400;
 /// 150 s of 48 kHz stereo 16-bit audio, the longest song the generator makes.
 const MAX_WAV_BYTES: u64 = 32 * 1024 * 1024;
 const PCM_PACKET_BYTES: usize = 6_000;
@@ -79,10 +85,14 @@ pub(super) async fn sing(
     app: &AppHandle,
     lyrics: &str,
     style: &str,
+    seconds: Option<u32>,
     events: Channel<Value>,
 ) -> Result<(), String> {
     let (lyrics, style) = (lyrics.trim(), style.trim());
-    if lyrics.is_empty() || lyrics.chars().count() > 1200 || style.chars().count() > 240 {
+    let seconds = seconds
+        .unwrap_or(SONG_SECONDS)
+        .clamp(MIN_SONG_SECONDS, MAX_SONG_SECONDS);
+    if lyrics.is_empty() || lyrics.chars().count() > MAX_LYRICS_CHARS || style.chars().count() > 240 {
         return Err("La letra o el estilo de la canción excede el límite.".into());
     }
     let script = runner(app)
@@ -131,7 +141,7 @@ pub(super) async fn sing(
     let request = json!({
         "caption": if style.is_empty() { DEFAULT_CAPTION } else { style },
         "lyrics": lyrics,
-        "seconds": SONG_SECONDS,
+        "seconds": seconds,
         "seed": seed,
     });
     let mut input = child.stdin.take().ok_or("No se pudo enviar la letra.")?;
@@ -223,7 +233,10 @@ fn decode_wav(wav: &[u8]) -> Option<(u32, Vec<u8>)> {
         return None;
     }
     let frames = data.len() / block;
-    if frames < rate as usize || frames > rate as usize * 40 {
+    // A whole song: anything up to the longest the generator makes, plus a
+    // little slack for the decoder tail. (This used to stop at 40 s, which
+    // turned every full-length song into a failure.)
+    if frames < rate as usize || frames > rate as usize * (MAX_SONG_SECONDS as usize + 5) {
         return None;
     }
     let mut pcm = Vec::with_capacity(frames * 4);
@@ -242,4 +255,45 @@ fn decode_wav(wav: &[u8]) -> Option<(u32, Vec<u8>)> {
         pcm.extend_from_slice(&(value / channels as f32).clamp(-1.0, 1.0).to_le_bytes());
     }
     Some((rate, pcm))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_wav;
+
+    /// A 16-bit PCM WAV of `seconds` of silence at `rate` Hz.
+    fn wav(rate: u32, channels: u16, seconds: u32) -> Vec<u8> {
+        let block = channels as u32 * 2;
+        let data_len = rate * seconds * block;
+        let mut out = Vec::with_capacity(44 + data_len as usize);
+        out.extend_from_slice(b"RIFF");
+        out.extend_from_slice(&(36 + data_len).to_le_bytes());
+        out.extend_from_slice(b"WAVEfmt ");
+        out.extend_from_slice(&16u32.to_le_bytes());
+        out.extend_from_slice(&1u16.to_le_bytes());
+        out.extend_from_slice(&channels.to_le_bytes());
+        out.extend_from_slice(&rate.to_le_bytes());
+        out.extend_from_slice(&(rate * block).to_le_bytes());
+        out.extend_from_slice(&(block as u16).to_le_bytes());
+        out.extend_from_slice(&16u16.to_le_bytes());
+        out.extend_from_slice(b"data");
+        out.extend_from_slice(&data_len.to_le_bytes());
+        out.resize(44 + data_len as usize, 0);
+        out
+    }
+
+    #[test]
+    fn a_full_length_song_decodes() {
+        // 90 s at 48 kHz stereo: the default song length used to be rejected
+        // by a 40 s cap.
+        let (rate, pcm) = decode_wav(&wav(48_000, 2, 90)).expect("90 s song decodes");
+        assert_eq!(rate, 48_000);
+        assert_eq!(pcm.len(), 48_000 * 90 * 4);
+        assert!(decode_wav(&wav(48_000, 2, 150)).is_some(), "the longest song decodes");
+    }
+
+    #[test]
+    fn audio_past_the_longest_song_is_refused() {
+        assert!(decode_wav(&wav(8_000, 1, 200)).is_none());
+    }
 }

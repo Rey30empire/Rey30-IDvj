@@ -35,6 +35,7 @@ export type CharacterStore = CharacterData & {
   error: string | null
   load(): Promise<void>
   setEnabled(enabled: boolean): Promise<void>
+  setAgentActive(id: string, active: boolean): Promise<void>
   selectCharacter(id: string): Promise<void>
   updateProfile(profile: CharacterProfile): Promise<void>
   duplicateProfile(id: string): Promise<string>
@@ -59,6 +60,7 @@ function dataOf(state: CharacterStore): CharacterData {
     schema: state.schema,
     enabled: state.enabled,
     activeCharacterId: state.activeCharacterId,
+    activeAgents: state.activeAgents,
     profiles: state.profiles,
     individualMemory: state.individualMemory,
     sharedMemory: state.sharedMemory,
@@ -147,6 +149,15 @@ export function createCharacterStore(
           value: { ...value, enabled },
           result: undefined,
         })),
+      setAgentActive: (id, active) =>
+        mutate((value) => {
+          requireProfile(id)
+          const others = value.activeAgents.filter((item) => item !== id)
+          return {
+            value: { ...value, activeAgents: active ? [...others, id] : others },
+            result: undefined,
+          }
+        }),
       selectCharacter: (id) =>
         mutate((value) => {
           requireProfile(id)
@@ -184,7 +195,7 @@ export function createCharacterStore(
             voice: { ...original.voice, enabled: false },
           })
           return {
-            value: { ...value, profiles: [...value.profiles, copy] },
+            value: { ...value, profiles: [...value.profiles, copy], activeAgents: [...value.activeAgents, copyId] },
             result: copyId,
           }
         }),
@@ -219,7 +230,7 @@ export function createCharacterStore(
             voice: { ...imported.voice, enabled: false },
           }
           return {
-            value: { ...value, profiles: [...value.profiles, profile] },
+            value: { ...value, profiles: [...value.profiles, profile], activeAgents: [...value.activeAgents, id] },
             result: id,
           }
         }),

@@ -37,6 +37,12 @@ export async function loadLiteraryLibraryStatus(refresh = false): Promise<Litera
   return getServiceHub().core().invoke<LiteraryLibraryStatus>('literary_library_status', { refresh })
 }
 
+/** Point Pluma at another library folder; `null` goes back to D:\Libreria General. */
+export async function setLiteraryLibraryRoot(path: string | null): Promise<LiteraryLibraryStatus> {
+  if (!isPlatformTauri()) throw new Error('La biblioteca literaria está disponible en la aplicación de escritorio.')
+  return getServiceHub().core().invoke<LiteraryLibraryStatus>('literary_library_set_root', { path })
+}
+
 export async function literaryLibraryContext(query: string, access: LiteraryLibraryAccess): Promise<string | undefined> {
   if (!query.trim()) return undefined
   if (!isPlatformTauri()) throw new Error('La biblioteca literaria está disponible en la aplicación de escritorio.')

@@ -125,6 +125,7 @@ pub async fn pluma_clone_sing(
     turn_id: u32,
     lyrics: String,
     style: String,
+    seconds: Option<u32>,
     events: Channel<Value>,
 ) -> Result<(), String> {
     require_main(&window)?;
@@ -134,13 +135,13 @@ pub async fn pluma_clone_sing(
         return platform::with_turn(
             &session_id,
             Some(turn_id),
-            super::pluma_music::sing(&app, &lyrics, &style, events),
+            super::pluma_music::sing(&app, &lyrics, &style, seconds, events),
         )
         .await;
     }
     #[cfg(not(windows))]
     {
-        let _ = (app, session_id, turn_id, lyrics, style, events);
+        let _ = (app, session_id, turn_id, lyrics, style, seconds, events);
         Err("Las canciones de Pluma están disponibles en Windows.".into())
     }
 }

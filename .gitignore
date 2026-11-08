@@ -102,3 +102,8 @@ src-tauri/plugins/tauri-plugin-llamacpp/vendor/
 
 # wdio writes per-session driver logs here (e2e/wdio.conf.ts outputDir).
 e2e/logs
+
+# Personal media that ships with a local build but never goes to git:
+# the hologram portraits and any dataset copied into the editor.
+web-app/public/hologram/
+/datasets/

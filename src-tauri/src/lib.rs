@@ -357,6 +357,7 @@ pub fn run() {
         core::updater::commands::is_update_available,
         core::literary_library::literary_library_status,
         core::literary_library::literary_library_search,
+        core::literary_library::literary_library_set_root,
         core::system::pluma_realtime::pluma_realtime_start,
         core::system::pluma_realtime::pluma_realtime_send,
         core::system::pluma_realtime::pluma_realtime_stop,
@@ -422,6 +423,10 @@ pub fn run() {
                     move || get_rey30_data_folder_path(handle.clone()),
                 ));
             }
+            // Pluma's library folder, if one was chosen in an earlier session,
+            // before any tool call can ask whether a path is reserved for it.
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            core::literary_library::load_saved_library_root(app.handle());
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Debug)

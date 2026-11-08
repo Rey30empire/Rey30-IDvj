@@ -22,8 +22,33 @@
 use std::path::{Path, PathBuf};
 
 pub const CONFIG_HOME_ENV: &str = "REY30_CONFIG_HOME";
+/// Where Pluma's library lives unless the user picks another folder.
 pub const PLUMA_LIBRARY_ROOT: &str = r"D:\Libreria General";
+/// Absolute folder that overrides [`PLUMA_LIBRARY_ROOT`] when no folder was
+/// chosen in the app.
+pub const PLUMA_LIBRARY_ENV: &str = "REY30_PLUMA_LIBRARY_DIR";
 pub const PLUMA_LIBRARY_DENIED: &str = "La biblioteca local está reservada a Pluma.";
+
+/// The folder chosen in the app, set at startup and whenever it changes.
+static PLUMA_LIBRARY_CHOSEN: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
+
+/// The folder Pluma's library is read from, and that every other tool is kept
+/// out of: the one chosen in the app, else `REY30_PLUMA_LIBRARY_DIR`, else
+/// [`PLUMA_LIBRARY_ROOT`]. Only absolute paths count.
+pub fn pluma_library_root() -> PathBuf {
+    let chosen = PLUMA_LIBRARY_CHOSEN.read().ok().and_then(|value| value.clone());
+    chosen
+        .or_else(|| std::env::var_os(PLUMA_LIBRARY_ENV).map(PathBuf::from))
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| PathBuf::from(PLUMA_LIBRARY_ROOT))
+}
+
+/// Record the folder chosen in the app (`None` goes back to the default).
+pub fn set_pluma_library_root(path: Option<PathBuf>) {
+    if let Ok(mut value) = PLUMA_LIBRARY_CHOSEN.write() {
+        *value = path.filter(|path| path.is_absolute());
+    }
+}
 
 /// An explicit agent-state directory. Invalid overrides never fall through to
 /// the real user profile, including on Windows where HOME is not authoritative.
@@ -351,7 +376,7 @@ fn pluma_library_path_matches(path: &Path, include_ancestors: bool) -> bool {
         PathBuf::from(raw.strip_prefix(r"\\?\").unwrap_or(&raw))
     }
 
-    let root = canonical_key(Path::new(PLUMA_LIBRARY_ROOT));
+    let root = canonical_key(&pluma_library_root());
     let target = canonical_key(path);
     is_within(&target, &root) || (include_ancestors && is_within(&root, &target))
 }

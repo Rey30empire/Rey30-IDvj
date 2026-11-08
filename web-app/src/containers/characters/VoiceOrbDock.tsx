@@ -15,6 +15,7 @@ import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { toast } from 'sonner'
+import { HologramAvatar, HOLOGRAM_PORTRAITS } from './HologramAvatar'
 import './VoiceOrbDock.css'
 
 let mountedViews = 0
@@ -301,5 +302,10 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
         {!catalogLoaded && audioError && <Button size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Consultar audio local</Button>}
       </PopoverContent>
     </Popover>
+    {session.open && HOLOGRAM_PORTRAITS[profile.baseId] && (
+      <div className="absolute right-0 top-full mt-2">
+        <HologramAvatar portrait={HOLOGRAM_PORTRAITS[profile.baseId]} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} />
+      </div>
+    )}
   </aside>
 }

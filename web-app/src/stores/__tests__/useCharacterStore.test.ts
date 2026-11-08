@@ -12,7 +12,7 @@ describe('persistencia independiente de personajes', () => {
   it('does not opt into characters or memory or write anything when opening a fresh profile', async () => {
     const { store, storage } = fixture()
     await store.getState().load()
-    expect(store.getState()).toMatchObject({ loaded: true, enabled: false, activeCharacterId: 'kairo', individualMemory: {}, sharedMemory: {} })
+    expect(store.getState()).toMatchObject({ loaded: true, enabled: false, activeCharacterId: 'literatura', activeAgents: ['literatura', 'coder'], individualMemory: {}, sharedMemory: {} })
     expect(storage.write).not.toHaveBeenCalled()
     await store.getState().selectCharacter('roco')
     expect(store.getState()).toMatchObject({ enabled: true, activeCharacterId: 'roco' })
@@ -51,11 +51,11 @@ describe('persistencia independiente de personajes', () => {
 
     const { store, storage, read } = fixture(JSON.stringify(data))
     await store.getState().load()
-    expect(store.getState().profiles).toHaveLength(28)
-    expect(store.getState().profiles[0]).toEqual({ ...atlas, name: 'Atlas' })
+    expect(store.getState().profiles).toHaveLength(29)
+    expect(store.getState().profiles[0]).toEqual({ ...atlas, name: 'Blaster' })
     expect(store.getState().profiles[1]).toEqual(forja)
     expect(store.getState().profiles.filter((profile) => profile.id.startsWith('custom-'))).toEqual(data.profiles.slice(6))
-    expect(store.getState().profiles.slice(-4).map((profile) => profile.id)).toEqual(['centinela', 'verso', 'fullstack', 'literatura'])
+    expect(store.getState().profiles.slice(-5).map((profile) => profile.id)).toEqual(['centinela', 'verso', 'fullstack', 'literatura', 'coder'])
     expect(store.getState()).toMatchObject({
       enabled: true,
       activeCharacterId: 'nara',
@@ -68,22 +68,41 @@ describe('persistencia independiente de personajes', () => {
     const restarted = fixture(read()).store
     await restarted.getState().load()
     expect(restarted.getState().profiles[0].name).toBe('Kairo Voltán')
-    expect(restarted.getState().profiles).toHaveLength(28)
+    expect(restarted.getState().profiles).toHaveLength(29)
   })
-  it('adds the two new profiles to a 0.9.6 store without rerunning the old rename', async () => {
-    const data = createDefaultCharacterData()
-    data.profiles = data.profiles.filter(({ id }) => id !== 'fullstack' && id !== 'literatura')
-    data.profiles[0].name = 'Kairo Voltán'
-    data.profiles[0].examples[0].response = 'Mi saludo guardado.'
-    data.profiles[0].modelBinding = { providerId: 'llamacpp', modelId: 'Qwen3.5-9B-Q4_K_M' }
+  it('renames a 0.9.7 store once, adds Coder switched on and keeps the user own names', async () => {
+    const data: Record<string, unknown> & ReturnType<typeof createDefaultCharacterData> = createDefaultCharacterData()
+    data.profiles = data.profiles.filter(({ id }) => id !== 'coder')
+    data.activeCharacterId = 'kairo'
+    delete (data as Partial<typeof data>).activeAgents
+    data.profiles[0].name = 'Atlas'
+    data.profiles[0].examples[0].response = 'Aquí Atlas, listo.'
+    data.profiles[1].name = 'Mi Forja'
     const { store, storage } = fixture(JSON.stringify(data))
     await store.getState().load()
-    expect(store.getState().profiles.slice(0, 8)).toEqual(data.profiles)
-    expect(store.getState().profiles.slice(8).map(({ id, name }) => ({ id, name }))).toEqual([
-      { id: 'fullstack', name: 'Trama' },
-      { id: 'literatura', name: 'Pluma' },
-    ])
+    const state = store.getState()
+    expect(state.profiles[0].name).toBe('Blaster')
+    expect(state.profiles[0].examples[0].response).toBe('Aquí Blaster, listo.')
+    expect(state.profiles[1].name).toBe('Mi Forja')
+    expect(state.profiles.at(-1)?.id).toBe('coder')
+    expect(state.activeAgents).toEqual(['literatura', 'coder'])
     expect(storage.write).not.toHaveBeenCalled()
+
+    // Once migrated, a name the user sets back is never renamed again.
+    await store.getState().updateProfile({ ...state.profiles[0], name: 'Atlas' })
+    const restarted = fixture(storage.write.mock.calls.at(-1)![0]).store
+    await restarted.getState().load()
+    expect(restarted.getState().profiles[0].name).toBe('Atlas')
+  })
+  it('switches agents on and off without touching their profiles', async () => {
+    const { store, read } = fixture()
+    await store.getState().setAgentActive('kairo', true)
+    await store.getState().setAgentActive('coder', false)
+    expect(store.getState().activeAgents).toEqual(['literatura', 'kairo'])
+    const restarted = fixture(read()).store
+    await restarted.getState().load()
+    expect(restarted.getState().activeAgents).toEqual(['literatura', 'kairo'])
+    expect(restarted.getState().profiles.map(({ id }) => id)).toContain('coder')
   })
   it('separates shared project memory, retains it on character switch and clears only the selected entry', async () => {
     const { store } = fixture()
@@ -105,7 +124,7 @@ describe('persistencia independiente de personajes', () => {
     await store.getState().setIndividualMemory('kairo', { enabled: true, notes: 'Nota privada' })
     const copy = await store.getState().duplicateProfile('kairo')
     const imported = await store.getState().importProfile(store.getState().exportProfile('kairo'))
-    expect(new Set(store.getState().profiles.map(profile => profile.id)).size).toBe(12)
+    expect(new Set(store.getState().profiles.map(profile => profile.id)).size).toBe(13)
     expect(store.getState().getMemory(copy).individual.notes).toBe('')
     expect(store.getState().getMemory(imported).individual.notes).toBe('')
     expect(store.getState().exportProfile('kairo')).not.toContain('Nota privada')
@@ -124,7 +143,7 @@ describe('persistencia independiente de personajes', () => {
     storage.write.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     const pending = store.getState().selectCharacter('beto')
     await vi.waitFor(() => expect(store.getState().saving).toBe(true))
-    expect(store.getState().activeCharacterId).toBe('kairo')
+    expect(store.getState().activeCharacterId).toBe('literatura')
     const next = store.getState().setSharedMemory('a', { enabled: true, notes: 'Conservar' })
     finish()
     await Promise.all([pending, next])
@@ -136,7 +155,7 @@ describe('persistencia independiente de personajes', () => {
     await store.getState().load()
     storage.write.mockRejectedValueOnce(new Error('private-provider-token'))
     await expect(store.getState().selectCharacter('milo')).rejects.toThrow('El cambio no se aplicó')
-    expect(store.getState().activeCharacterId).toBe('kairo')
+    expect(store.getState().activeCharacterId).toBe('literatura')
     expect(store.getState().error).not.toContain('private-provider-token')
     const broken = fixture('{')
     await expect(broken.store.getState().selectCharacter('nara')).rejects.toThrow('No se pudo leer')

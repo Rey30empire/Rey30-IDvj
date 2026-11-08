@@ -88,6 +88,7 @@ import { responseGuidance } from '@/lib/responseGuidance'
 import { ensurePrivacyMode, getPrivacyModeSnapshot, privacyAllowsTools } from '@/lib/privacyPolicy'
 import { assertPrivacyTextOnly } from '@/lib/privacyPayload'
 import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId, literaryLibraryContext } from '@/lib/literaryLibrary'
+import { loadPlumaMemory, plumaMemoryPrompt } from '@/lib/characters/pluma-memory'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { buildCharacterContext } from '@/lib/characters/personality'
@@ -1608,6 +1609,10 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       options.abortSignal?.throwIfAborted()
       libraryContext = await literaryLibraryContext(turnUserText, { kind: 'chat', threadId })
       options.abortSignal?.throwIfAborted()
+      // What Pluma learned in her calls (corrections, tastes, preferences)
+      // applies when the person writes to her too.
+      const learned = plumaMemoryPrompt(await loadPlumaMemory(), turnUserText)
+      if (learned) libraryContext = [libraryContext, learned].filter(Boolean).join('\n\n')
     }
 
     // Split assistant turns that place text after tool calls into separate

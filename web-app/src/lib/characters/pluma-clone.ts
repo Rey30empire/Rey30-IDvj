@@ -1,7 +1,7 @@
 import { Channel } from '@tauri-apps/api/core'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { createPlumaTurnDetector, encodePlumaDictation, isVoiceLike, plumaDictationWav } from './pluma-audio'
-import { answerWithGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, plumaMicrophoneMessage, plumaSongStyle, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
+import { answerWithGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, plumaMicrophoneMessage, plumaMusicTasteStyle, plumaSongStyle, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
 import { startPlumaFast } from './pluma-fast'
 import { plumaActions, type PlumaActions } from './pluma-actions'
 import { loadPlumaMemory } from './pluma-memory'
@@ -35,6 +35,9 @@ const echoLead = Math.round(echoRate * 0.01)
 const bargeVoiceMs = 240
 const bargeQuietMs = 120
 const bargeRms = 0.025
+// While a song plays: twice as loud and close to a full second of voice.
+const singingBargeRmsFactor = 2
+const singingBargeVoiceMs = 900
 const repeatRequest = 'No te entendí bien. ¿Puedes repetirlo?'
 const songFailed = 'No pude generar el audio cantado. Seguimos en la llamada.'
 export const plumaReferenceStatus = () => invoke<PlumaReference>('pluma_clone_reference_status')
@@ -344,7 +347,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       if (direct.song?.accompanimentQuote) {
         const transcript = await transcribeTurn(pcmBase64, turn).catch(() => '')
         if (!turnUsable(turn)) return
-        direct.song.style = plumaSongStyle(direct.song.accompanimentQuote, transcript)
+        direct.song.style = plumaSongStyle(direct.song.accompanimentQuote, transcript, plumaMusicTasteStyle(memory))
       }
       if (!isPlumaAudioMisunderstanding(direct.text)) return direct
       directError = new PlumaAudioNotUnderstoodError()
@@ -413,7 +416,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       setPhase('composing')
       let outcome = `Generé una canción con esta letra:\n${result.song.lyrics}`
       try {
-        await playNativeAudio({ lyrics: result.song.lyrics, style: result.song.style }, turn, id)
+        await playNativeAudio({ lyrics: result.song.lyrics, style: result.song.style, seconds: result.song.seconds }, turn, id)
       } catch {
         if (!turnUsable(turn)) return
         discardPlayback(context?.currentTime)
@@ -475,7 +478,12 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     if (echo) { clearBarge(); return }
     const ms = frame.samples.length * 1000 / rate
     const power = frame.samples.reduce((sum, sample) => sum + sample * sample, 0) / frame.samples.length
-    if (power >= bargeRms * bargeRms && isVoiceLike(frame.samples, rate)) {
+    // A song is long, continuous and voice-like, so speaker bleed the echo
+    // check misses would cut it within a second. Singing needs a louder, longer
+    // interruption before it stops.
+    const singing = phase === 'singing'
+    const threshold = singing ? bargeRms * singingBargeRmsFactor : bargeRms
+    if (power >= threshold * threshold && isVoiceLike(frame.samples, rate)) {
       bargeVoiced += ms
       bargeQuiet = 0
     } else {
@@ -488,7 +496,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       if (bargeQuiet >= bargeQuietMs) { clearBarge(); return }
     }
     bargeFrames.push(frame)
-    if (bargeVoiced < bargeVoiceMs) return
+    if (bargeVoiced < (singing ? singingBargeVoiceMs : bargeVoiceMs)) return
     const onset = bargeFrames
     clearBarge()
     clearTimeout(timeout)

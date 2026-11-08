@@ -32,13 +32,13 @@ beforeEach(async () => {
 })
 describe('editor sin selección implícita', () => {
   it('keeps the chat clear until options are opened', async () => {
-    render(<CharacterPanel />, { wrapper }); expect(screen.queryByTestId('character-avatar')).toBeNull(); expect(screen.queryByText('Atlas')).toBeNull()
+    render(<CharacterPanel />, { wrapper }); expect(screen.queryByTestId('character-avatar')).toBeNull(); expect(screen.queryByText('Blaster')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Opciones del asistente' })); expect(await screen.findByTestId('character-options-popover')).toBeVisible(); expect(h.speak).not.toHaveBeenCalled(); expect(h.setPrompt).not.toHaveBeenCalled()
   })
   it('edits another profile without selecting, interrupting or changing model', async () => {
-    editor('beto'); const dialog = await screen.findByTestId('characters-dialog'); expect(within(dialog).getByLabelText('Nombre')).toHaveValue('Forja')
-    fireEvent.click(within(dialog).getByRole('button', { name: /Nova/ })); fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nara personalizada' } }); fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' })); await screen.findByText('Cambios guardados en este equipo.')
-    expect(useCharacterStore.getState()).toMatchObject({ activeCharacterId: 'kairo', enabled: false }); expect(useCharacterStore.getState().profiles.find(p => p.id === 'nara')?.name).toBe('Nara personalizada'); expect(h.stop).not.toHaveBeenCalled(); expect(h.speak).not.toHaveBeenCalled(); expect(h.selectModel).not.toHaveBeenCalled()
+    editor('beto'); const dialog = await screen.findByTestId('characters-dialog'); expect(within(dialog).getByLabelText('Nombre')).toHaveValue('Don Chispa')
+    fireEvent.click(within(dialog).getByRole('button', { name: /Luna/ })); fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nara personalizada' } }); fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' })); await screen.findByText('Cambios guardados en este equipo.')
+    expect(useCharacterStore.getState()).toMatchObject({ activeCharacterId: 'literatura', enabled: false }); expect(useCharacterStore.getState().profiles.find(p => p.id === 'nara')?.name).toBe('Nara personalizada'); expect(h.stop).not.toHaveBeenCalled(); expect(h.speak).not.toHaveBeenCalled(); expect(h.selectModel).not.toHaveBeenCalled()
   })
   it('persists independent voice avatar and animation controls', async () => {
     editor(); fireEvent.click(screen.getByRole('checkbox', { name: 'Mostrar indicador de voz' })); fireEvent.change(screen.getByLabelText('Animación del aro · 1'), { target: { value: '0' } }); fireEvent.click(screen.getByRole('button', { name: 'Voz', exact: true })); fireEvent.change(screen.getByLabelText('Volumen · 0.80'), { target: { value: '0.5' } }); fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' })); await screen.findByText('Cambios guardados en este equipo.')

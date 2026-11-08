@@ -97,7 +97,8 @@ describe('conversación local de Gemma para Pluma', () => {
     expect(messages.at(-1)).toEqual({ role: 'user', content: transcript })
     expect(messages[0].content).toContain('conserva nombres, cifras, rutas y citas')
     expect(messages[0].content).toContain('el canto no está disponible')
-    expect(messages[0].content.length).toBeLessThan(750)
+    // Short on purpose: Gemma reads it on every turn. The learning rule added a line.
+    expect(messages[0].content.length).toBeLessThan(900)
   })
 
   it('devuelve una acción de canto, sin simular una respuesta hablada', async () => {
@@ -133,7 +134,7 @@ describe('conversación local de Gemma para Pluma', () => {
   })
 
   it.each([false, true])('descarta un canto inválido o deshabilitado (disponible=%s)', async canSing => {
-    const invalid = { ...songCall, function: { ...songCall.function, arguments: JSON.stringify({ letra: 'a'.repeat(1201), estilo: 'bolero' }) } }
+    const invalid = { ...songCall, function: { ...songCall.function, arguments: JSON.stringify({ letra: 'a'.repeat(2401), estilo: 'bolero' }) } }
     fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [canSing ? invalid : songCall] }))
     const result = await answerWithGemma({ audioWav, sessionId, canSing })
     expect(result.song).toBeUndefined()
@@ -272,7 +273,7 @@ describe('letra de canciones completas', () => {
     await answerWithGemma({ audioWav, sessionId, canSing: true })
     const tools = fixtures.invoke.mock.calls[0][1].tools as { function: { name: string; parameters: { properties: { letra?: { description: string } } } } }[]
     const song = tools.find(tool => tool.function.name === 'cantar_cancion')
-    expect(song?.function.parameters.properties.letra?.description).toContain('dos estrofas')
+    expect(song?.function.parameters.properties.letra?.description).toContain('[Bridge]')
     expect(fixtures.invoke.mock.calls[0][1].messages[0].content).toContain('canción completa')
   })
 })

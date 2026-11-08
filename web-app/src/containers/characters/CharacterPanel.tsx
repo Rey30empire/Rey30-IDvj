@@ -13,7 +13,8 @@ import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { CharacterProfile, CharacterMode, Intensity } from '@/lib/characters/types'
 import { getCharacterChatRole, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
-import { isLiteraryModelProvider, loadLiteraryLibraryStatus, type LiteraryLibraryStatus } from '@/lib/literaryLibrary'
+import { isLiteraryModelProvider, loadLiteraryLibraryStatus, setLiteraryLibraryRoot, type LiteraryLibraryStatus } from '@/lib/literaryLibrary'
+import { clearPlumaMemory, forgetPlumaNote, loadPlumaMemory, MAX_PLUMA_NOTES } from '@/lib/characters/pluma-memory'
 import { cn } from '@/lib/utils'
 
 const fieldClass = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
@@ -37,25 +38,83 @@ function LiteraryLibrarySettings() {
   const [status, setStatus] = useState<LiteraryLibraryStatus>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  async function refresh() {
+  const [folder, setFolder] = useState('')
+  useEffect(() => {
+    let live = true
+    void loadLiteraryLibraryStatus().then(value => { if (live) { setStatus(value); setFolder(value.root) } }).catch(() => {})
+    return () => { live = false }
+  }, [])
+  async function run(action: () => Promise<LiteraryLibraryStatus>) {
     setBusy(true)
     setError('')
     try {
-      setStatus(await loadLiteraryLibraryStatus(true))
+      const value = await action()
+      setStatus(value)
+      setFolder(value.root)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setBusy(false)
     }
   }
+  const refresh = () => run(() => loadLiteraryLibraryStatus(true))
+  const changed = !!status && folder.trim() !== '' && folder.trim() !== status.root
   return (
     <section className="space-y-2 rounded-md border px-3 py-2 text-sm" aria-label="Biblioteca literaria">
-      <p className="font-medium">Biblioteca local · D:\Libreria General</p>
-      <p className="text-muted-foreground">Pluma consulta fragmentos de esta carpeta en chat y voz con un modelo local.</p>
+      <p className="font-medium">Biblioteca local · {status?.root ?? 'D:\\Libreria General'}</p>
+      <p className="text-muted-foreground">Pluma consulta fragmentos de esta carpeta en chat y voz con un modelo local. Solo ella puede leerla.</p>
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Carpeta de la biblioteca">
+          <Input value={folder} onChange={event => setFolder(event.target.value)} placeholder="D:\Libreria General" spellCheck={false} />
+        </Field>
+        <Button type="button" size="sm" disabled={busy || !changed} onClick={() => void run(() => setLiteraryLibraryRoot(folder))}>Usar esta carpeta</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void run(() => setLiteraryLibraryRoot(null))}>Restablecer</Button>
+      </div>
       <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void refresh()}>{busy ? 'Indexando…' : 'Actualizar índice'}</Button>
       {busy && <p role="status">Leyendo los documentos de la biblioteca.</p>}
       {!busy && status && (
         <p role="status">{status.indexedFiles.toLocaleString('es')} archivos indexados · {status.skippedFiles.toLocaleString('es')} omitidos{status.limitReached ? ' · Se alcanzó el límite de indexación.' : ''}</p>
+      )}
+      {error && <p role="alert" className="text-destructive">{error}</p>}
+    </section>
+  )
+}
+
+/** What Pluma has learned in her conversations, one note per line, each removable. */
+function PlumaLearnedMemory() {
+  const [notes, setNotes] = useState<string[]>()
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let live = true
+    void loadPlumaMemory().then(value => { if (live) setNotes(value) })
+    return () => { live = false }
+  }, [])
+  async function change(action: () => Promise<string[]>) {
+    setError('')
+    try {
+      setNotes(await action())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }
+  return (
+    <section className="space-y-2 rounded-md border px-3 py-2 text-sm" aria-label="Lo que Plumita aprendió">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium">Lo que Plumita aprendió{notes ? ` · ${notes.length}/${MAX_PLUMA_NOTES}` : ''}</p>
+        {!!notes?.length && <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm('¿Borrar todo lo que Plumita aprendió? No se puede deshacer.')) void change(() => clearPlumaMemory()) }}>Borrar todo</Button>}
+      </div>
+      <p className="text-muted-foreground">Correcciones, gustos y temas que guardó al hablar contigo. Los usa en llamadas y en el chat.</p>
+      {notes === undefined && <p role="status">Cargando…</p>}
+      {notes?.length === 0 && <p className="text-muted-foreground">Todavía no ha guardado nada.</p>}
+      {!!notes?.length && (
+        <ul className="max-h-56 space-y-1 overflow-y-auto">
+          {notes.map(note => (
+            <li key={note} className="flex items-start justify-between gap-2 rounded bg-muted/40 px-2 py-1">
+              <span className="min-w-0 break-words">{note}</span>
+              <Button type="button" size="sm" variant="ghost" aria-label={`Olvidar: ${note}`} onClick={() => void change(() => forgetPlumaNote(note))}>Olvidar</Button>
+            </li>
+          ))}
+        </ul>
       )}
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </section>
@@ -221,6 +280,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <Field label="Modelo del personaje"><select className={fieldClass} value={draft.modelBinding ? JSON.stringify(draft.modelBinding) : ''} onChange={(e) => setDraft({ ...draft, modelBinding: e.target.value ? JSON.parse(e.target.value) : null })}><option value="">Asignar automáticamente un modelo local pequeño</option>{!bindingAvailable && draft.modelBinding && <option value={JSON.stringify(draft.modelBinding)}>No disponible: {draft.modelBinding.providerId} · {draft.modelBinding.modelId}</option>}{availableModels.map(model => <option key={`${model.providerId}/${model.modelId}`} value={JSON.stringify({ providerId: model.providerId, modelId: model.modelId })}>{model.label}</option>)}</select></Field>
               {!bindingAvailable && <p className="text-sm text-destructive" role="status">El modelo guardado no está disponible. Elige otro modelo para utilizar este asistente.</p>}
               {isLiterary && open && <LiteraryLibrarySettings />}
+              {isLiterary && open && <PlumaLearnedMemory />}
               <div className="flex flex-wrap gap-3">{(['primary', 'secondary', 'accent'] as const).map((key) => <Field key={key} label={({ primary: 'Esfera', secondary: 'Aro', accent: 'Detalles' })[key]}><input type="color" value={draft.avatar[key]} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, [key]: e.target.value } })} /></Field>)}</div>
               <Field label={`Animación del aro · ${draft.avatar.motion}`}><input type="range" min={0} max={3} step={1} value={draft.avatar.motion} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, motion: Number(e.target.value) as Intensity } })} /></Field>
               <details><summary className="cursor-pointer text-sm">Ejemplos de su estilo</summary>{draft.examples.map((example, index) => <div key={index} className="mt-2 text-xs"><p className="font-medium">{example.situation}</p><p>{example.response}</p></div>)}</details>

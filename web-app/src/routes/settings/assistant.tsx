@@ -15,6 +15,8 @@ import { DeleteAssistantDialog } from '@/containers/dialogs'
 import { AvatarEmoji } from '@/containers/AvatarEmoji'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { toast } from 'sonner'
 import SettingsMenu from '@/containers/SettingsMenu'
 import { cn } from '@/lib/utils'
 import { Card, CardItem } from '@/containers/Card'
@@ -47,6 +49,8 @@ export function AssistantContent() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const availableAssistants = useAvailableAssistants()
   const characterProfiles = useCharacterStore(state => state.profiles)
+  const activeAgents = useCharacterStore(state => state.activeAgents)
+  const setAgentActive = useCharacterStore(state => state.setAgentActive)
   const [editingCharacter, setEditingCharacter] = useState<string | null>(null)
 
   const handleDelete = (id: string) => {
@@ -151,6 +155,12 @@ export function AssistantContent() {
                   <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{getCharacterChatRole(profile).label} · {getCharacterChatRole(profile).description}</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">{profile.modelBinding ? `${profile.modelBinding.providerId} · ${profile.modelBinding.modelId}` : 'Asignación automática de modelo local pequeño'}</p>
                 </div>
+                <Switch
+                  aria-label={`Mostrar ${profile.name}`}
+                  title={activeAgents.includes(profile.id) ? 'Activo: aparece en la lista de asistentes' : 'Apagado: no aparece en la lista de asistentes'}
+                  checked={activeAgents.includes(profile.id)}
+                  onCheckedChange={(active) => void setAgentActive(profile.id, active).catch((cause: unknown) => toast.error(cause instanceof Error ? cause.message : String(cause)))}
+                />
                 <Button variant="ghost" size="icon-xs" aria-label={`Editar ${profile.name}`} onClick={() => setEditingCharacter(profile.id)}><IconPencil className="size-4 text-muted-foreground" /></Button>
               </div>)}
               {sortedAssistants.map((assistant) => (

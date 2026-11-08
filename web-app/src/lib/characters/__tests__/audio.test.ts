@@ -27,11 +27,11 @@ describe('audio local de personajes', () => {
     useCharacterAudio.getState().stop()
     vi.unstubAllGlobals()
   })
-  it('asigna a los diez asistentes variantes de las seis voces locales instaladas', () => {
+  it('asigna a los once asistentes variantes de las seis voces locales instaladas', () => {
     const ids = createDefaultCharacterData().profiles.map(defaultVoiceId)
     expect(new Set(ids).size).toBe(6)
     expect(ids.every((id) => /^espeak:es-419\+(m[1-5]|f3)$/.test(id))).toBe(true)
-    expect(ids).toHaveLength(10)
+    expect(ids).toHaveLength(11)
   })
   it('omite código, enlaces y marcas sin leer contenido de herramientas', () => {
     expect(

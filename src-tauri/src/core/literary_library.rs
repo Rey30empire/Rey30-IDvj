@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Component, Path, PathBuf};
 use tauri_plugin_agent_tools::tools::nofollow::{open_regular_capped, read_regular_capped};
-use tauri_plugin_agent_tools::workspace::PLUMA_LIBRARY_ROOT as LIBRARY_ROOT;
+use tauri_plugin_agent_tools::workspace::{pluma_library_root, set_pluma_library_root};
 use tokio::sync::Mutex;
 use zip::read::{ArchiveOffset, Config};
 use zip::{CompressionMethod, ZipArchive};
@@ -49,7 +49,7 @@ pub struct LibraryStatus {
 impl LibraryStatus {
     fn empty() -> Self {
         Self {
-            root: LIBRARY_ROOT.into(),
+            root: pluma_library_root().display().to_string(),
             indexed: false,
             indexed_files: 0,
             skipped_files: 0,
@@ -99,34 +99,61 @@ struct Chunk {
     terms: Vec<u64>,
 }
 
+/// The drive letter and folder names of a local `X:\a\b` path, or `None` for a
+/// network share, a relative path, `.`/`..`, or a bare drive root (a library
+/// at `D:\` would wall the whole drive off from every other tool).
+#[cfg(windows)]
+fn local_folder_parts(path: &Path) -> Option<(u8, Vec<String>)> {
+    use std::path::Prefix;
+    let mut parts = path.components();
+    let letter = match parts.next()? {
+        Component::Prefix(prefix) => match prefix.kind() {
+            Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => letter.to_ascii_uppercase(),
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if parts.next()? != Component::RootDir {
+        return None;
+    }
+    let names = parts
+        .map(|part| match part {
+            Component::Normal(name) => Some(name.to_string_lossy().to_lowercase()),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (!names.is_empty()).then_some((letter, names))
+}
+
 #[cfg(windows)]
 fn library_root() -> Result<PathBuf, String> {
-    use std::path::{Component, Prefix};
     use windows_sys::Win32::Storage::FileSystem::GetDriveTypeW;
 
-    let drive = [b'D' as u16, b':' as u16, b'\\' as u16, 0];
+    let path = pluma_library_root();
+    let shown = path.display().to_string();
+    let (letter, names) = local_folder_parts(&path)
+        .ok_or("La biblioteca debe ser una carpeta dentro de una unidad local, por ejemplo D:\\Libreria General.")?;
+    let drive = [letter as u16, b':' as u16, b'\\' as u16, 0];
     // SAFETY: the four UTF-16 code units are a terminated drive root.
     let drive_type = unsafe { GetDriveTypeW(drive.as_ptr()) };
     const DRIVE_REMOVABLE: u32 = 2;
     const DRIVE_FIXED: u32 = 3;
     if !matches!(drive_type, DRIVE_REMOVABLE | DRIVE_FIXED) {
-        return Err("La biblioteca necesita que la unidad local D: esté disponible.".into());
+        return Err(format!(
+            "La biblioteca necesita que la unidad local {}: esté disponible.",
+            letter as char
+        ));
     }
-    let path = Path::new(LIBRARY_ROOT);
-    let metadata =
-        fs::symlink_metadata(path).map_err(|_| "No se encuentra D:\\Libreria General.")?;
+    let metadata = fs::symlink_metadata(&path).map_err(|_| format!("No se encuentra {shown}."))?;
     if !metadata.is_dir() || is_link(&metadata) {
         return Err("La biblioteca debe ser una carpeta local sin redirecciones.".into());
     }
     let root = path
         .canonicalize()
         .map_err(|_| "No se pudo abrir la carpeta de la biblioteca.")?;
-    let mut parts = root.components();
-    if !matches!(parts.next(), Some(Component::Prefix(p)) if matches!(p.kind(), Prefix::Disk(b'D') | Prefix::VerbatimDisk(b'D')))
-        || parts.next() != Some(Component::RootDir)
-        || parts.next() != Some(Component::Normal("Libreria General".as_ref()))
-        || parts.next().is_some()
-    {
+    // The resolved folder must be the one named: a junction anywhere on the
+    // way would otherwise point Pluma (and the reservation) somewhere else.
+    if local_folder_parts(&root) != Some((letter, names)) {
         return Err("La ubicación de la biblioteca no coincide con la carpeta autorizada.".into());
     }
     Ok(root)
@@ -134,7 +161,65 @@ fn library_root() -> Result<PathBuf, String> {
 
 #[cfg(not(windows))]
 fn library_root() -> Result<PathBuf, String> {
-    Err("La biblioteca está configurada para D:\\Libreria General en Windows.".into())
+    Err("La biblioteca local de Pluma está disponible en Windows.".into())
+}
+
+/// Where the folder chosen in the app is remembered between launches.
+fn saved_root_file(app: &tauri::AppHandle) -> Option<PathBuf> {
+    use tauri::Manager;
+    app.path().app_config_dir().ok().map(|dir| dir.join("pluma-library-root.txt"))
+}
+
+/// Restore the library folder chosen in an earlier session. Called at startup.
+pub fn load_saved_library_root(app: &tauri::AppHandle) {
+    let saved = saved_root_file(app)
+        .and_then(|file| fs::read_to_string(file).ok())
+        .map(|text| PathBuf::from(text.trim()))
+        .filter(|path| path.is_absolute());
+    set_pluma_library_root(saved);
+}
+
+/// Choose the folder Pluma's library is read from (`None` restores
+/// `D:\Libreria General`). The folder is checked before it is saved, and the
+/// index of the previous folder is dropped.
+#[tauri::command]
+pub async fn literary_library_set_root(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    path: Option<String>,
+) -> Result<LibraryStatus, String> {
+    if window.label() != "main" {
+        return Err(ACCESS_DENIED.into());
+    }
+    let chosen = path
+        .map(|value| PathBuf::from(value.trim()))
+        .filter(|path| !path.as_os_str().is_empty());
+    let mut cache = LIBRARY.lock().await;
+    let previous = pluma_library_root();
+    set_pluma_library_root(chosen.clone());
+    if let Err(error) = tokio::task::spawn_blocking(library_root)
+        .await
+        .map_err(|_| "No se pudo comprobar la carpeta de la biblioteca.".to_string())
+        .and_then(|result| result)
+    {
+        set_pluma_library_root(Some(previous));
+        return Err(error);
+    }
+    let file = saved_root_file(&app).ok_or("No se pudo guardar la ubicación de la biblioteca.")?;
+    let saved = match &chosen {
+        Some(path) => fs::create_dir_all(file.parent().unwrap_or(Path::new(".")))
+            .and_then(|_| fs::write(&file, path.to_string_lossy().as_bytes())),
+        None => match fs::remove_file(&file) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
+            _ => Ok(()),
+        },
+    };
+    if saved.is_err() {
+        set_pluma_library_root(Some(previous));
+        return Err("No se pudo guardar la ubicación de la biblioteca.".into());
+    }
+    *cache = None;
+    Ok(LibraryStatus::empty())
 }
 
 fn is_link(metadata: &fs::Metadata) -> bool {

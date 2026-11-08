@@ -21,7 +21,7 @@ import {
   characterIdFromAssistantId,
   selectIntegratedAssistant,
 } from '@/lib/characters/assistant-integration'
-import { getCharacterChatRole, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
+import { getCharacterChatRole, isCoderCharacter, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 
 export function NavAssistants() {
@@ -104,9 +104,17 @@ export function NavAssistants() {
             </>
           )
           const chat = latestChats.get(assistant.id)
+          // Coder works with the full toolset (files, shell, web, the PC), which lives in Cowork.
+          const coder = profile && isCoderCharacter(profile)
           return (
             <SidebarMenuItem key={assistant.id} data-testid={`sidebar-assistant-${assistant.id}`}>
-              {chat ? (
+              {coder ? (
+                <SidebarMenuButton asChild size="lg" className="h-auto min-h-11 py-1.5" isActive={pathname === route.cowork}>
+                  <Link to={route.cowork} activeProps={{ 'aria-current': 'page' }}>
+                    {content}
+                  </Link>
+                </SidebarMenuButton>
+              ) : chat ? (
                 <SidebarMenuButton asChild size="lg" className="h-auto min-h-11 py-1.5" isActive={pathname === `/threads/${chat.id}`}>
                   <Link to="/threads/$threadId" params={{ threadId: chat.id }} activeProps={{ 'aria-current': 'page' }}>
                     {content}

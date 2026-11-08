@@ -105,20 +105,12 @@ describe('asistentes de personajes integrados', () => {
     useThreads.setState({ threads: {}, currentThreadId: undefined })
   })
 
-  it('proyecta diez asistentes sin duplicar perfiles ni persistir instrucciones personales como snapshot', async () => {
+  it('proyecta solo los agentes activos sin duplicar perfiles ni persistir instrucciones personales como snapshot', async () => {
     const { result } = renderHook(useAvailableAssistants)
     expect(result.current.map((assistant) => assistant.id)).toEqual([
       'rey30',
-      'character:kairo',
-      'character:beto',
-      'character:tino',
-      'character:milo',
-      'character:roco',
-      'character:nara',
-      'character:centinela',
-      'character:verso',
-      'character:fullstack',
       'character:literatura',
+      'character:coder',
     ])
     const profile = useCharacterStore.getState().profiles[0]
     expect(toCharacterAssistant(profile)).toMatchObject({
@@ -133,7 +125,7 @@ describe('asistentes de personajes integrados', () => {
         [defaultAssistant, toCharacterAssistant(profile)],
         useCharacterStore.getState().profiles
       )
-    ).toHaveLength(11)
+    ).toHaveLength(12)
     await expect(
       useAssistant.getState().addAssistant(toCharacterAssistant(profile))
     ).rejects.toThrow('no se duplican')
@@ -174,6 +166,7 @@ describe('asistentes de personajes integrados', () => {
       )
     const { result } = renderHook(useAvailableAssistants)
     await act(async () => {
+      await useCharacterStore.getState().setAgentActive('kairo', true)
       await useCharacterStore.getState().setIndividualMemory('kairo', {
         enabled: true,
         notes: 'MEMORY_OWNED_QA',

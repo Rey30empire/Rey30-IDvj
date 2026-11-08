@@ -8,7 +8,11 @@ import { isPlatformTauri } from '@/lib/platform/utils'
  * this is the memory that makes each conversation build on the previous ones.
  */
 export const PLUMA_MEMORY_KEY = 'rey30-pluma-memory-v1'
-export const MAX_PLUMA_NOTES = 40
+export const MAX_PLUMA_NOTES = 200
+/** How many notes go into one prompt: the relevant ones plus the most recent. */
+export const PLUMA_NOTES_PER_PROMPT = 30
+/** Kinds of note that always reach the prompt, whatever the topic. */
+const ALWAYS_RECALLED = [/^se llama\b/i, /^corrección:/i, /^gusto musical:/i, /^prefiere\b/i]
 export const MAX_PLUMA_NOTE_LENGTH = 200
 
 export type PlumaMemoryStorage = { read(): Promise<string | null>; write(value: string): Promise<void> }
@@ -98,11 +102,35 @@ export const forgetForPluma = (topic: string, storage = plumaMemoryStorage) =>
 
 export const clearPlumaMemory = (storage = plumaMemoryStorage) => update(() => [], storage)
 
-/** The memory as a block for Gemma's system prompt, or '' when empty. */
-export function plumaMemoryPrompt(notes: string[]): string {
-  if (!notes.length) return ''
+/** Removes exactly this note, as shown in settings. */
+export const forgetPlumaNote = (note: string, storage = plumaMemoryStorage) =>
+  update(notes => notes.filter(item => item !== note), storage)
+
+/**
+ * The notes worth putting in front of the model for `query`: the ones that
+ * always matter (name, corrections, preferences, music taste), the ones that
+ * share words with what the person just said, then the most recent, up to
+ * `limit`, kept in the order they were learned.
+ */
+export function selectPlumaMemory(notes: string[], query = '', limit = PLUMA_NOTES_PER_PROMPT): string[] {
+  if (notes.length <= limit) return notes
+  const words = new Set(comparable(query).split(' ').filter(word => word.length > 3))
+  const scored = notes.map((note, index) => {
+    const always = ALWAYS_RECALLED.some(pattern => pattern.test(note))
+    const overlap = comparable(note).split(' ').filter(word => words.has(word)).length
+    // Recency breaks ties, so a fresh note beats an old one on the same topic.
+    return { index, score: (always ? 1_000 : 0) + overlap * 10 + index / notes.length }
+  })
+  const chosen = new Set(scored.sort((a, b) => b.score - a.score).slice(0, limit).map(({ index }) => index))
+  return notes.filter((_, index) => chosen.has(index))
+}
+
+/** The memory as a block for the system prompt, or '' when empty. */
+export function plumaMemoryPrompt(notes: string[], query = ''): string {
+  const selected = selectPlumaMemory(notes, query)
+  if (!selected.length) return ''
   return [
-    'Lo que has aprendido de la persona en llamadas anteriores. Úsalo con naturalidad, sin recitarlo ni decir que lo tienes guardado:',
-    ...notes.map(note => `- ${note}`),
+    'Lo que has aprendido de la persona en conversaciones anteriores. Úsalo con naturalidad, sin recitarlo ni decir que lo tienes guardado. Las correcciones guardadas mandan sobre lo que creías antes:',
+    ...selected.map(note => `- ${note}`),
   ].join('\n')
 }

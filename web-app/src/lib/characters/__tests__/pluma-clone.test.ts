@@ -373,6 +373,12 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       for (let index = 0; index < 3; index++) captureTone(720, 0, 0.12)
       expect(callbacks.onPhase).toHaveBeenLastCalledWith(firstPhase)
       for (let index = 0; index < 3; index++) captureTone(720, 0, 0.12)
+      if (singing) {
+        // A song takes close to a full second of voice before it stops, so a
+        // quarter second of bleed or a stray word does not cut it.
+        expect(mock.invoke).not.toHaveBeenCalledWith('pluma_clone_cancel_turn', expect.anything())
+        for (let index = 0; index < 16; index++) captureTone(720, 0, 0.12)
+      }
       expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_cancel_turn', { sessionId: 'sesión', turnId: 1 })
       expect(source.stop).toHaveBeenCalled()
       expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening')

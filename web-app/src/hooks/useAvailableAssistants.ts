@@ -12,6 +12,7 @@ export function useAvailableAssistants(): Assistant[] {
   const assistants = useAssistant((state) => state.assistants)
   const currentId = useAssistant((state) => state.currentAssistant?.id)
   const profiles = useCharacterStore((state) => state.profiles)
+  const activeAgents = useCharacterStore((state) => state.activeAgents)
   useEffect(() => {
     void useCharacterStore
       .getState()
@@ -26,9 +27,14 @@ export function useAvailableAssistants(): Assistant[] {
         .getState()
         .setCurrentAssistant(toCharacterAssistant(profile), false)
   }, [currentId, profiles])
+  // Only the agents switched on in settings are offered.
   return useMemo(
-    () => mergeAvailableAssistants(assistants, profiles),
-    [assistants, profiles]
+    () =>
+      mergeAvailableAssistants(
+        assistants,
+        profiles.filter((profile) => activeAgents.includes(profile.id))
+      ),
+    [assistants, profiles, activeAgents]
   )
 }
 

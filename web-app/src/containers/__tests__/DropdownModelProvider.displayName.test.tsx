@@ -199,7 +199,7 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     })))
     vi.mocked(selectIntegratedAssistant).mockResolvedValue(undefined)
     render(<DropdownModelProvider />)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar asistentes' }), { target: { value: 'Nova' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar asistentes' }), { target: { value: 'Luna' } })
     expect(screen.getByTestId('assistant-option-character:nara')).toBeInTheDocument()
     expect(screen.queryByTestId('assistant-option-character:kairo')).not.toBeInTheDocument()
     fireEvent.click(screen.getByTestId('assistant-option-model-only'))

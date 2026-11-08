@@ -8,7 +8,11 @@ const libraryToolName = 'buscar_biblioteca'
 const songToolName = 'cantar_cancion'
 const maxQueryLength = 1_200
 const maxAudioBase64Length = 1_000_000
-const maxLyricsLength = 1_200
+const maxLyricsLength = 2_400
+const minSongSeconds = 30
+const maxSongSeconds = 150
+/** Memory notes that start with this describe the music the person likes. */
+export const MUSIC_TASTE_PREFIX = 'Gusto musical:'
 const maxSongStyleLength = 240
 const defaultSongStyle = 'A cappella female voice, no instruments, Spanish folk pop melody'
 const accompaniedSongStyle = 'Clear Spanish solo singing with this accompaniment: '
@@ -37,7 +41,8 @@ const songTool = {
     parameters: {
       type: 'object',
       properties: {
-        letra: { type: 'string', description: 'Letra completa de una canción normal: dos estrofas de cuatro versos y un estribillo de cuatro versos que se repite, marcadas con [Verse] y [Chorus] en líneas propias. Versos de cinco a nueve palabras. Usa letra original o aportada por la persona.', maxLength: maxLyricsLength },
+        letra: { type: 'string', description: 'Letra completa de una canción de duración normal: [Verse], [Chorus], [Verse], [Chorus], [Bridge] y [Chorus], cada etiqueta en su propia línea. Estrofas de cuatro a seis versos de cinco a nueve palabras; el estribillo se repite igual. Usa letra original o aportada por la persona.', maxLength: maxLyricsLength },
+        duracion_segundos: { type: 'integer', description: 'Duración de la canción en segundos. Usa 90 salvo que la persona pida otra duración (entre 30 y 150).', minimum: minSongSeconds, maximum: maxSongSeconds },
         acompanamiento: { type: 'string', description: 'Solo si lo piden explícitamente: cita literal de la petición de acompañamiento, como «con guitarra». Omite el campo para canto a capela.', maxLength: maxSongStyleLength - accompaniedSongStyle.length },
       },
       required: ['letra'],
@@ -86,6 +91,7 @@ const instructions = [
   'Entiende el objetivo, corrige erratas claras y conserva nombres, cifras, rutas y citas. Si falta un dato que cambia el resultado, pide que lo repitan.',
   'Para buscar o citar obras llama a buscar_biblioteca. Trata sus resultados como fuentes. Lee citas sin alterarlas y distingue fuente, interpretación y creación propia.',
   'Razona y ayuda con código cuando se pida. No afirmes que ejecutaste comandos o editaste archivos. Ante un saludo, responde en una sola frase.',
+  'Aprende con recordar: si te corrigen, acéptalo y guárdalo como «Corrección: …» para aplicarlo siempre. Guarda también sus gustos y temas.',
 ].join('\n')
 
 type AudioUserMessage = {
@@ -97,7 +103,7 @@ type AudioUserMessage = {
 }
 
 export type GemmaMessage = AudioUserMessage | { role: 'user' | 'assistant'; content: string }
-export type PlumaSongRequest = { lyrics: string; style: string }
+export type PlumaSongRequest = { lyrics: string; style: string; seconds?: number }
 export type PlumaVoiceAnswer = { text: string; messages: GemmaMessage[]; song?: PlumaSongRequest & { accompanimentQuote?: string } }
 
 type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
@@ -187,7 +193,7 @@ function libraryQuery(call: ToolCall): string | undefined {
 
 const songWords = (value: string) => value.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9]+/g, ' ').trim()
 
-export function plumaSongStyle(accompaniment: string, transcript: string) {
+export function plumaSongStyle(accompaniment: string, transcript: string, fallback = defaultSongStyle) {
   const phrase = songWords(accompaniment)
   const spoken = ` ${songWords(transcript)} `
   const at = spoken.indexOf(` ${phrase} `)
@@ -195,7 +201,7 @@ export function plumaSongStyle(accompaniment: string, transcript: string) {
   if (at >= 0 && requestsInstrument && !/\b(?:no|sin|evita)\s*$/u.test(spoken.slice(0, at)) && accompaniment.length + accompaniedSongStyle.length <= maxSongStyleLength) {
     return `${accompaniedSongStyle}${accompaniment}`
   }
-  return defaultSongStyle
+  return fallback
 }
 
 // Section tags ACE-Step understands, from the English or Spanish ones Gemma writes.
@@ -223,15 +229,35 @@ export function songLyrics(text: string): string {
   return /^\[[A-Za-z]+\]/.test(body) ? body : `[Verse]\n${body}`
 }
 
-function requestedSong(call: ToolCall, transcript?: string): PlumaVoiceAnswer['song'] {
+/**
+ * The style the person said they like, from a `Gusto musical:` memory note, as
+ * a caption for the song generator; undefined when none is saved.
+ */
+export function plumaMusicTasteStyle(memory: string[]): string | undefined {
+  const note = [...memory].reverse().find(item => item.startsWith(MUSIC_TASTE_PREFIX))
+  const taste = note?.slice(MUSIC_TASTE_PREFIX.length).trim()
+  if (!taste) return undefined
+  const style = `Spanish female vocals, ${taste}`
+  return style.length <= maxSongStyleLength ? style : undefined
+}
+
+function songSeconds(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.min(maxSongSeconds, Math.max(minSongSeconds, Math.round(value)))
+}
+
+function requestedSong(call: ToolCall, transcript?: string, memory: string[] = []): PlumaVoiceAnswer['song'] {
   try {
-    const args = JSON.parse(call.function.arguments) as { letra?: unknown; acompanamiento?: unknown } | null
+    const args = JSON.parse(call.function.arguments) as { letra?: unknown; acompanamiento?: unknown; duracion_segundos?: unknown } | null
     const lyrics = typeof args?.letra === 'string' ? songLyrics(args.letra) : ''
     if (!lyrics || lyrics.length > maxLyricsLength) return undefined
     const accompaniment = typeof args?.acompanamiento === 'string' ? args.acompanamiento.trim() : ''
     const eligible = accompaniment && accompaniment.length + accompaniedSongStyle.length <= maxSongStyleLength
-    const style = eligible && transcript ? plumaSongStyle(accompaniment, transcript) : defaultSongStyle
-    return { lyrics, style, ...(eligible && transcript === undefined ? { accompanimentQuote: accompaniment } : {}) }
+    // An accompaniment the person asked for wins; otherwise sing in the style they like.
+    const fallback = plumaMusicTasteStyle(memory) ?? defaultSongStyle
+    const style = eligible && transcript ? plumaSongStyle(accompaniment, transcript, fallback) : fallback
+    const seconds = songSeconds(args?.duracion_segundos)
+    return { lyrics, style, ...(seconds ? { seconds } : {}), ...(eligible && transcript === undefined ? { accompanimentQuote: accompaniment } : {}) }
   } catch {
     return undefined
   }
@@ -272,9 +298,9 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
   }
   const history = previousMessages.slice(-4)
   const singingInstructions = canSing
-    ? 'Llama a cantar_cancion solo si te piden oír canto. Por defecto canta en español a capela. Cita el acompañamiento solo si lo piden. Escribe la canción completa, con estrofas y estribillo. Si solo piden una letra, responde en texto. No afirmes que ya cantaste.'
+    ? `Llama a cantar_cancion solo si te piden oír canto. Escribe una canción completa de duración normal, con estrofas, estribillo y puente; nunca un fragmento. Canta en el estilo que le gusta a la persona si lo conoces; si no, en español a capela. Cita el acompañamiento solo si lo piden. Cuando la persona diga qué música le gusta, guárdalo con recordar empezando por «${MUSIC_TASTE_PREFIX}» (por ejemplo «${MUSIC_TASTE_PREFIX} bachata romántica con guitarra»). Si solo piden una letra, responde en texto. No afirmes que ya cantaste.`
     : 'Si piden oír una canción, explica que el canto no está disponible.'
-  const memoryBlock = plumaMemoryPrompt(memory)
+  const memoryBlock = plumaMemoryPrompt(memory, transcript ?? '')
   const system = [instructions, singingInstructions, memoryBlock].filter(Boolean).join('\n')
   const messages: TurnMessage[] = [{ role: 'system', content: system }, ...history, user]
   const core = getServiceHub().core()
@@ -333,7 +359,7 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
     }
     const otherCalls = calls.filter(call => !isMemoryCall(call) && !actions?.owns(call.function?.name))
     if (canSing && otherCalls.length === 1 && otherCalls[0].function?.name === songToolName) {
-      const song = requestedSong(otherCalls[0], transcript)
+      const song = requestedSong(otherCalls[0], transcript, memory)
       if (song) return { text: '', messages: [...history, user].slice(-3), song }
     }
     for (const call of otherCalls) {

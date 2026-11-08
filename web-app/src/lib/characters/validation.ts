@@ -1,7 +1,7 @@
-import { LEGACY_CHARACTER_IDS, ORIGINAL_CHARACTER_IDS, refreshBuiltInProfiles } from './profiles'
+import { DEFAULT_ACTIVE_AGENTS, LEGACY_CHARACTER_IDS, ORIGINAL_CHARACTER_IDS, refreshBuiltInProfiles } from './profiles'
 import type { CharacterData, CharacterMemory, CharacterProfile, CharacterSettings, MemoryEntry } from './types'
 
-export const CHARACTER_LIMITS = { profiles: 28, projects: 64, memoryNotes: 4_000, profileJson: 64_000, storageJson: 630_000, context: 24_000 } as const
+export const CHARACTER_LIMITS = { profiles: 32, projects: 64, memoryNotes: 4_000, profileJson: 64_000, storageJson: 630_000, context: 24_000 } as const
 const forbiddenText = /(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(?:sk-(?:proj-|ant-)?[a-z\d_-]{20,}|gh[pousr]_[a-z\d]{20,}|github_pat_[a-z\d_]{20,}|AKIA[A-Z\d]{16})\b|\b(?:api[_-]?key|access[_-]?token|authorization|password)\s*[:=]\s*\S+|<script\b|javascript:|data:text\/html|\bon(?:load|error)\s*=)/i
 const gestures = ['blink', 'nod', 'head-tilt', 'wave', 'fist-raise', 'hands', 'eyebrow', 'wink', 'ears', 'tail', 'pigtails', 'bow']
 export class CharacterValidationError extends Error {}
@@ -98,7 +98,11 @@ export function validateCharacterProfile(value: unknown): CharacterProfile {
   return result
 }
 export function validateCharacterData(value: unknown): CharacterData {
-  const v = shape(value, ['schema', 'enabled', 'activeCharacterId', 'profiles', 'individualMemory', 'sharedMemory'], 'archivo guardado')
+  const raw = record(value, 'archivo guardado')
+  const keys = ['schema', 'enabled', 'activeCharacterId', 'profiles', 'individualMemory', 'sharedMemory']
+  // Saves from before the agent switches have no `activeAgents`: they get the default set.
+  if (Object.prototype.hasOwnProperty.call(raw, 'activeAgents')) keys.push('activeAgents')
+  const v = shape(raw, keys, 'archivo guardado')
   if (v.schema !== 1 || !Array.isArray(v.profiles) || v.profiles.length < LEGACY_CHARACTER_IDS.length || v.profiles.length > CHARACTER_LIMITS.profiles) return fail('versión o número de perfiles')
   const profiles = v.profiles.map(validateCharacterProfile)
   const ids = new Set(profiles.map(profile => profile.id))
@@ -108,7 +112,12 @@ export function validateCharacterData(value: unknown): CharacterData {
   const individual = record(v.individualMemory, 'memoria individual')
   const shared = record(v.sharedMemory, 'memoria compartida')
   if (Object.keys(individual).some(id => !ids.has(id)) || Object.keys(shared).length > CHARACTER_LIMITS.projects) return fail('destino de memoria')
-  const result: CharacterData = { schema: 1, enabled: bool(v.enabled, 'personajes activos'), activeCharacterId, profiles,
+  let activeAgents: string[] = [...DEFAULT_ACTIVE_AGENTS]
+  if (keys.includes('activeAgents')) {
+    if (!Array.isArray(v.activeAgents) || v.activeAgents.length > CHARACTER_LIMITS.profiles) return fail('agentes activos')
+    activeAgents = [...new Set(v.activeAgents.map(validateCharacterId))].filter(id => ids.has(id))
+  }
+  const result: CharacterData = { schema: 1, enabled: bool(v.enabled, 'personajes activos'), activeCharacterId, activeAgents, profiles,
     individualMemory: Object.fromEntries(Object.entries(individual).map(([id, entry]) => [id, validateMemoryEntry(entry)])),
     sharedMemory: Object.fromEntries(Object.entries(shared).map(([id, entry]) => [validateProjectId(id), validateMemoryEntry(entry)])),
   }

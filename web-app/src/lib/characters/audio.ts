@@ -51,6 +51,7 @@ const variants: Record<OriginalCharacterId, string> = {
   verso: 'm4',
   fullstack: 'm3',
   literatura: 'f3',
+  coder: 'm1',
 }
 export const defaultVoiceId = (profile: CharacterProfile) =>
   `espeak:es-419+${variants[profile.baseId]}`
