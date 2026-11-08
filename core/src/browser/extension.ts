@@ -108,17 +108,11 @@ export abstract class BaseExtension implements ExtensionType {
   }
 
   /**
-   * Reads the current settings first, retaining the previous scope as a
-   * read-only fallback for profiles created before the distribution rename.
+   * Reads the persisted settings snapshot for this extension.
    */
   protected readPersistedSettings(): string | null {
     if (!this.name) return null
-    const current = localStorage.getItem(this.name)
-    if (current !== null) return current
-    const scope = '@rey30-idvj/'
-    if (!this.name.startsWith(scope)) return null
-    const previousName = '@' + 'janhq/' + this.name.slice(scope.length)
-    return localStorage.getItem(previousName)
+    return localStorage.getItem(this.name)
   }
 
   /**

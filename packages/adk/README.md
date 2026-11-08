@@ -12,7 +12,7 @@ cargo build --locked --manifest-path src-tauri/rey30-idvj-cli/Cargo.toml --no-de
 
 El paquete local se resuelve como `@rey30-idvj/adk`. No hay un paquete propio publicado en npm ni un canal de descarga predeterminado. Pasa la ruta del ejecutable a `Rey30Runtime.start({ bin })`, configura `REY30_BIN` o añade `rey30-idvj` a PATH.
 
-`installRuntime({ manifestUrl })` requiere un manifiesto explícito o `REY30_AGENT_MANIFEST`. Comprueba el SHA-256 y crea generaciones de caché inmutables antes de devolver un ejecutable. No sustituye silenciosamente este runtime por el de otra distribución. La instalación del modelo Jan de escritorio se conserva por separado.
+`installRuntime({ manifestUrl })` requiere un manifiesto explícito o `REY30_AGENT_MANIFEST`. Comprueba el SHA-256 y crea generaciones de caché inmutables antes de devolver un ejecutable. No sustituye silenciosamente este runtime por el de otra distribución. La instalación del modelo de escritorio se conserva por separado.
 
 ## Quickstart
 
@@ -110,7 +110,7 @@ unless the session declares that the gate is the host's own.
 - `permissions: 'host'` - for a session whose host tools this process runs and
   gates itself, which is the usual case for an embedding host. No prompt is
   raised for those tools, so a turn never waits on an answer nobody will give.
-- `permissions: 'jan'` (the default) - the runtime owns the gate. A call to an
+- `permissions: 'rey30'` (the default) - the runtime owns the gate. A call to an
   `actuator` raises `permission_request` on the turn's stream, naming the
   advertised tool (`host__robot_arm_move`) and its `capability`. Answer it with
   `session.respondPermission(requestId, 'allow_once' | 'allow_always' | 'deny')`,

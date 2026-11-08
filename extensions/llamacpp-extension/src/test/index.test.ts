@@ -110,9 +110,8 @@ describe('llamacpp_extension', () => {
     })
   })
 
-  describe('settings migration across the distribution rename', () => {
+  describe('settings migration from localStorage', () => {
     const currentName = '@rey30-idvj/llamacpp-extension'
-    const previousName = '@' + 'janhq/llamacpp-extension'
     const snapshot = (value: number) => JSON.stringify([
       { key: 'n_ctx', controllerProps: { value } },
     ])
@@ -136,46 +135,31 @@ describe('llamacpp_extension', () => {
       vi.mocked(localStorage.removeItem).mockReset()
     })
 
-    it('moves previous-scope values to the file store and retains the original snapshot', async () => {
-      const original = snapshot(4096)
-      entries.set(previousName, original)
-      await extension['migrateLocalStorageToFile']()
-
-      expect(store.writeSettingsFile).toHaveBeenCalledWith(JSON.parse(original))
-      expect(entries.get(previousName)).toBe(original)
-      expect(localStorage.removeItem).not.toHaveBeenCalledWith(previousName)
-    })
-
-    it('prefers the new key and never overwrites or removes the previous key', async () => {
-      const original = snapshot(4096)
-      entries.set(previousName, original)
+    it('moves the stored values to the file store and clears the key', async () => {
       entries.set(currentName, snapshot(8192))
       await extension['migrateLocalStorageToFile']()
 
       expect(store.writeSettingsFile).toHaveBeenCalledWith(JSON.parse(snapshot(8192)))
-      expect(entries.get(previousName)).toBe(original)
       expect(entries.has(currentName)).toBe(false)
     })
 
-    it('leaves the snapshots in place when the file write fails', async () => {
-      entries.set(previousName, snapshot(4096))
+    it('leaves the snapshot in place when the file write fails', async () => {
       entries.set(currentName, snapshot(8192))
       vi.mocked(store.writeSettingsFile).mockRejectedValue(new Error('Disk full'))
       await extension['migrateLocalStorageToFile']()
 
-      expect(entries.get(previousName)).toBe(snapshot(4096))
       expect(entries.get(currentName)).toBe(snapshot(8192))
       expect(localStorage.removeItem).not.toHaveBeenCalled()
     })
 
     it('uses an existing file without importing stale localStorage settings', async () => {
       vi.mocked(store.settingsFileExists).mockResolvedValue(true)
-      entries.set(previousName, snapshot(4096))
+      entries.set(currentName, snapshot(4096))
       await extension['migrateLocalStorageToFile']()
 
       expect(store.writeSettingsFile).not.toHaveBeenCalled()
       expect(localStorage.getItem).not.toHaveBeenCalled()
-      expect(entries.get(previousName)).toBe(snapshot(4096))
+      expect(entries.get(currentName)).toBe(snapshot(4096))
     })
   })
 
@@ -219,12 +203,12 @@ describe('llamacpp_extension', () => {
     it('should return correct provider path', async () => {
       const { getRey30DataFolderPath, joinPath } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
-      vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
+      vi.mocked(joinPath).mockResolvedValue('/path/to/rey30/llamacpp')
 
       const result = await extension.getProviderPath()
 
-      expect(result).toBe('/path/to/jan/llamacpp')
+      expect(result).toBe('/path/to/rey30/llamacpp')
     })
   })
 
@@ -232,8 +216,8 @@ describe('llamacpp_extension', () => {
     it('should return empty array when models directory does not exist', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
-      vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp/models')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
+      vi.mocked(joinPath).mockResolvedValue('/path/to/rey30/llamacpp/models')
       vi.mocked(fs.existsSync)
         .mockResolvedValueOnce(false) // models directory doesn't exist initially
         .mockResolvedValue(false) // no model.yml files exist
@@ -250,11 +234,11 @@ describe('llamacpp_extension', () => {
       const { invoke } = await import('@tauri-apps/api/core')
 
       // Set up providerPath first
-      extension['providerPath'] = '/path/to/jan/llamacpp'
+      extension['providerPath'] = '/path/to/rey30/llamacpp'
 
-      const modelsDir = '/path/to/jan/llamacpp/models'
+      const modelsDir = '/path/to/rey30/llamacpp/models'
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
 
       // Mock joinPath to handle the directory traversal logic
       vi.mocked(joinPath).mockImplementation((paths) => {
@@ -308,8 +292,8 @@ describe('llamacpp_extension', () => {
     it('should throw error if model already exists', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
-      vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp/models/test-model/model.yml')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
+      vi.mocked(joinPath).mockResolvedValue('/path/to/rey30/llamacpp/models/test-model/model.yml')
       vi.mocked(fs.existsSync).mockResolvedValue(true)
 
       await expect(extension.import('test-model', { modelPath: '/path/to/model' }))
@@ -332,7 +316,7 @@ describe('llamacpp_extension', () => {
 
       window.core.extensionManager.getByName = vi.fn().mockReturnValue(mockDownloadManager)
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(false)
       vi.mocked(fs.fileStat).mockResolvedValue({ size: 1000000 })
@@ -404,9 +388,9 @@ describe('llamacpp_extension', () => {
       }
 
       // Set up providerPath
-      extension['providerPath'] = '/path/to/jan/llamacpp'
+      extension['providerPath'] = '/path/to/rey30/llamacpp'
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
 
       const expectedSession = {
@@ -560,7 +544,7 @@ describe('llamacpp_extension', () => {
     it('should throw error if model does not exist', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(false)
 
@@ -570,14 +554,14 @@ describe('llamacpp_extension', () => {
     it('should delete model successfully', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(true)
       vi.mocked(fs.rm).mockResolvedValue(undefined)
 
       await extension.delete('test-model')
 
-      expect(fs.rm).toHaveBeenCalledWith('/path/to/jan/llamacpp/models/test-model')
+      expect(fs.rm).toHaveBeenCalledWith('/path/to/rey30/llamacpp/models/test-model')
     })
   })
 
@@ -724,7 +708,7 @@ describe('llamacpp_extension', () => {
   })
 
   it('reads the architecture-specific context limit without inventing an unknown limit', async () => {
-    vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
+    vi.mocked(getRey30DataFolderPath).mockResolvedValue('/rey30')
     vi.mocked(joinPath).mockImplementation(async (parts) => parts.join('/'))
     vi.mocked(invoke).mockResolvedValue({ model_path: 'model.gguf' })
     vi.mocked(readGgufMetadata).mockResolvedValueOnce({
@@ -761,10 +745,10 @@ describe('llamacpp_extension', () => {
         }))
       })
       vi.mocked(generatePreset).mockResolvedValue({
-        path: '/jan/llamacpp/router.preset.ini',
+        path: '/rey30/llamacpp/router.preset.ini',
         embeddingCount: 0,
       })
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/rey30')
       vi.mocked(joinPath).mockImplementation(async (parts) => parts.join('/'))
       extension['config'] = { ...extension['config'], fit: false }
       extension['backgroundInit'] = Promise.resolve()
@@ -914,8 +898,8 @@ describe('refreshEnginePreset embedding slot reservation', () => {
         embeddingCount: opts.embeddingCount,
       })
       const { getRey30DataFolderPath } = await import('@rey30-idvj/core')
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
-      vi.spyOn(extension, 'getProviderPath').mockResolvedValue('/jan/llamacpp')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/rey30')
+      vi.spyOn(extension, 'getProviderPath').mockResolvedValue('/rey30/llamacpp')
       const startEngine = vi
         .spyOn(extension as never, 'startEngine' as never)
         .mockResolvedValue(undefined as never)

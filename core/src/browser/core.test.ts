@@ -42,15 +42,15 @@ describe('test core apis', () => {
     expect(result).toBe('opened')
   })
 
-  it('should get jan data folder path', async () => {
+  it('should get rey30 data folder path', async () => {
     globalThis.core = {
       api: {
-        getRey30DataFolderPath: vi.fn().mockResolvedValue('/path/to/jan/data'),
+        getRey30DataFolderPath: vi.fn().mockResolvedValue('/path/to/rey30/data'),
       },
     }
     const result = await getRey30DataFolderPath()
     expect(globalThis.core.api.getRey30DataFolderPath).toHaveBeenCalled()
-    expect(result).toBe('/path/to/jan/data')
+    expect(result).toBe('/path/to/rey30/data')
   })
 })
 

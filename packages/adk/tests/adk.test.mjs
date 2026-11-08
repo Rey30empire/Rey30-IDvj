@@ -190,7 +190,7 @@ class Scratch {
   get env() {
     const env = { ...process.env }
     for (const key of Object.keys(env)) {
-      if (key.startsWith('JAN_') || key.startsWith('REY30_')) delete env[key]
+      if (key.startsWith('REY30_')) delete env[key]
     }
     return {
       ...env,

@@ -32,7 +32,7 @@ test('rejects real home and Rey30 IDvj ancestors/descendants without writes', (t
   const sentinel = join(rey30, 'settings.json')
   writeFileSync(sentinel, 'untouched')
   const before = readdirSync(root, { recursive: true })
-  for (const home of [realHome, root, join(realHome, '.local'), rey30, join(rey30, 'new/profile'), join(realHome, '.jan/new')]) {
+  for (const home of [realHome, root, join(realHome, '.local'), rey30, join(rey30, 'new/profile'), join(realHome, '.rey30-idvj/new')]) {
     assert.throws(() => assertSafeE2eHome(home, context), /Unsafe/)
   }
   assert.deepEqual(readdirSync(root, { recursive: true }), before)
@@ -57,7 +57,6 @@ test('protects inherited custom XDG and Windows app-data locations', (t) => {
     const base = join(root, `custom-${key}`)
     const overridden = { ...context, env: { [key]: base } }
     assert.throws(() => assertSafeE2eHome(join(base, 'Rey30-IDvj/new'), overridden), /overlaps/)
-    assert.throws(() => assertSafeE2eHome(join(base, 'Jan/new'), overridden), /overlaps/)
     assert.throws(() => assertSafeE2eHome(base, overridden), /overlaps/)
     assertSafeE2eHome(`${base}-sibling`, overridden)
   }
@@ -67,7 +66,7 @@ test('environment bypasses fail before any profile creation', (t) => {
   const { root, context } = fixture(t)
   const before = readdirSync(root, { recursive: true })
   for (const platform of ['linux', 'darwin', 'win32'] as const) {
-    for (const env of [{ CI: 'e2e' }, { REY30_DATA_FOLDER: join(root, 'outside') }, { JAN_DATA_FOLDER: join(root, 'outside') }, { REY30_CONFIG_HOME: join(root, 'outside') }, { APP_NAME: '../elsewhere' }, { APP_NAME: '' }]) {
+    for (const env of [{ CI: 'e2e' }, { REY30_DATA_FOLDER: join(root, 'outside') }, { REY30_CONFIG_HOME: join(root, 'outside') }, { APP_NAME: '../elsewhere' }, { APP_NAME: '' }]) {
       assert.throws(() => assertSafeLaunchEnvironment({ ...context, platform, env }))
     }
     for (const value of ['', undefined]) {
@@ -96,7 +95,7 @@ test('canonicalizes symlink prefixes and rejects redirected seed paths', (t) => 
     throw error
   }
   assert.throws(() => assertSafeE2eHome(alias, context), /Unsafe/)
-  assert.throws(() => assertSafeE2eHome(join(alias, '.jan/not-created'), context), /Unsafe/)
+  assert.throws(() => assertSafeE2eHome(join(alias, '.rey30-idvj/not-created'), context), /Unsafe/)
   const profile = join(root, 'profile')
   mkdirSync(profile)
   symlinkSync(realHome, join(profile, '.local'), process.platform === 'win32' ? 'junction' : 'dir')

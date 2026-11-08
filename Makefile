@@ -106,7 +106,7 @@ dev-android: install-and-build install-android-rust-targets
 		yarn tauri android init; \
 	fi
 	@echo "Sourcing Android environment setup..."
-	@bash autoqa/scripts/setup-android-env.sh echo "Android environment ready"
+	@bash scripts/setup-android-env.sh echo "Android environment ready"
 	@echo "Starting Android development server..."
 	yarn dev:android
 

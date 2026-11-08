@@ -97,7 +97,7 @@ import { join } from 'node:path'
  *   FOLDERID_Profile (dirs-6.0.0 src/win.rs -> dirs_sys::known_folder_profile),
  *   which comes from the user's token rather than from a `%USERPROFILE%`
  *   template, so USERPROFILE does not move it the way it moves the AppData
- *   pair. The two readers under `~/.jan` -- `config.toml`
+ *   pair. The two readers under `~/.rey30-idvj` -- `config.toml`
  *   (core/agent/global_config.rs) and `agent/subagents/`
  *   (core/agent/subagent.rs user_subagents_dir) -- therefore read the real user
  *   profile on Windows where HOME redirects them on macOS and Linux. Both are

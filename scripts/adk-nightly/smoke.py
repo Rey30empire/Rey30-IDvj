@@ -90,7 +90,7 @@ def main():
         for thread in threads:
             thread.start()
         try:
-            env = {k: v for k, v in os.environ.items() if not k.startswith(("REY30_", "JAN_", "PYTHON"))}
+            env = {k: v for k, v in os.environ.items() if not k.startswith(("REY30_", "PYTHON"))}
             home = root / "home"
             home.mkdir()
             directories = {

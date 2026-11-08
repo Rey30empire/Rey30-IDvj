@@ -114,7 +114,7 @@
         },
         "permissions": {
           "$ref": "#/$defs/PermissionOwner",
-          "default": "jan"
+          "default": "rey30"
         }
       },
       "additionalProperties": false,
@@ -178,7 +178,7 @@
           "description": "Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the\nway any opaque tool is prompted; `host` means the host's own callback is\nthe gate, so Rey30 IDvj never asks about a host tool.",
           "type": "string",
           "enum": [
-            "jan",
+            "rey30",
             "host"
           ]
         }

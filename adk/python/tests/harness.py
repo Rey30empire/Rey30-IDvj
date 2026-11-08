@@ -277,7 +277,7 @@ class Scratch:
     @property
     def env(self) -> Dict[str, str]:
         # HOME alone does not redirect dirs::home_dir() on Windows.
-        env = {key: value for key, value in os.environ.items() if not key.startswith(("JAN_", "REY30_"))}
+        env = {key: value for key, value in os.environ.items() if not key.startswith("REY30_")}
         env.update({
             "HOME": str(self.home),
             "USERPROFILE": str(self.home),

@@ -157,7 +157,7 @@ class PendingSubagent(TypedDict):
     phase: int
 
 # Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Rey30 IDvj never asks about a host tool.
-PermissionOwner = Literal["jan", "host"]
+PermissionOwner = Literal["rey30", "host"]
 
 # One image in an outbound request, as [`StreamEvent::RequestProvenance`] reports it: identity, not content.
 class ProvenanceImage(TypedDict):

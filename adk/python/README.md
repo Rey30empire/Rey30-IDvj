@@ -11,9 +11,9 @@ python -m pip install -e ./adk/python
 cargo build --locked --manifest-path src-tauri/rey30-idvj-cli/Cargo.toml --no-default-features --features cli --bin rey30-idvj
 ```
 
-No hay paquete propio publicado en PyPI ni canal de descarga predeterminado. Pasa el ejecutable compilado a `Rey30Runtime.start(bin=...)`, pon `rey30-idvj` en PATH o configura `REY30_BIN`. El alias `JAN_BIN` se admite para compatibilidad.
+No hay paquete propio publicado en PyPI ni canal de descarga predeterminado. Pasa el ejecutable compilado a `Rey30Runtime.start(bin=...)`, pon `rey30-idvj` en PATH o configura `REY30_BIN`.
 
-`install_runtime(manifest_url=...)` acepta un manifiesto explícito o `REY30_AGENT_MANIFEST`. Verifica el SHA-256, extrae de forma segura y conserva generaciones inmutables en `REY30_AGENT_HOME` o en la caché de usuario. Sin canal configurado falla con un error claro. No descarga el ejecutable del proyecto base por defecto; esto es independiente de la instalación del modelo Jan 4B de escritorio.
+`install_runtime(manifest_url=...)` acepta un manifiesto explícito o `REY30_AGENT_MANIFEST`. Verifica el SHA-256, extrae de forma segura y conserva generaciones inmutables en `REY30_AGENT_HOME` o en la caché de usuario. Sin canal configurado falla con un error claro. No descarga el ejecutable del proyecto base por defecto; esto es independiente de la instalación del modelo de escritorio.
 
 ## Quickstart
 
@@ -113,7 +113,7 @@ unless the session declares that the gate is the host's own.
 - `permissions="host"` - for a session whose host tools this process runs and
   gates itself, which is the usual case for an embedding host. No prompt is
   raised for those tools, so a turn never waits on an answer nobody will give.
-- `permissions="jan"` (the default) - the runtime owns the gate. A call to an
+- `permissions="rey30"` (the default) - the runtime owns the gate. A call to an
   `actuator` raises `permission_request` on the turn's stream, naming the
   advertised tool (`host__robot_arm_move`) and its `capability`. Answer it with
   `session.respond_permission(request_id, "allow_once" | "allow_always" | "deny")`,

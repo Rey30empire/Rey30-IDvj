@@ -2,7 +2,7 @@
 
 El resto del documento conserva notas históricas del arnés base; no son resultados de esta migración.
 
-El arnés usa `REY30_CONFIG_HOME` dentro del perfil temporal para aislar también la configuración del agente en Windows. `HOME` y `USERPROFILE` por sí solos no redirigen todos los known folders nativos. Los aliases `JAN_*` se validan y las rutas de datos antiguas se protegen durante la migración.
+El arnés usa `REY30_CONFIG_HOME` dentro del perfil temporal para aislar también la configuración del agente en Windows. `HOME` y `USERPROFILE` por sí solos no redirigen todos los known folders nativos.
 
 Este proyecto de pruebas requiere Node.js 22.12 o superior. La dependencia de descarga de navegadores se fija en `@puppeteer/browsers` 3.2.6 para retirar `extract-zip`; se verifican los contratos usados por WebdriverIO 9. Esta corrección no requiere ejecutar modelos.
 
@@ -201,8 +201,7 @@ override depends on the platform.
 ### Known macOS WebKit gap — follow-up
 
 HOME redirection does **not** isolate WKWebView localStorage. In native macOS
-arm64 validation on [#9457](https://github.com/janhq/jan/pull/9457) and
-[#9464](https://github.com/janhq/jan/pull/9464), thinhlpg observed writes under the
+arm64 validation, writes were observed under the
 real `~/Library/WebKit/<bundle id>/WebsiteData/Default/.../LocalStorage/`
 (`com.rey30.idvj.app`), shared with an installed Rey30 IDvj. The redirected profile contained
 no `Library/WebKit`; `Library/Caches/com.rey30.idvj.app` did redirect. Therefore both
@@ -210,8 +209,7 @@ normal and migration launches may read or modify installed-Rey30 IDvj browser st
 a passing migration smoke does not prove browser-storage isolation or migration.
 Use a disposable macOS account/VM for separation, not merely `REY30_E2E_HOME`.
 
-**Follow-up ([upstream browser-profile isolation follow-up](https://github.com/janhq/jan-internal/issues/496),
-not fixed here):** isolate macOS e2e WebKit storage, evaluating a
+**Follow-up (not fixed here):** isolate macOS e2e WebKit storage, evaluating a
 distinct e2e bundle identifier, and verify with real installed-Rey30 IDvj storage that
 launches do not touch it. The possible connection to a missing setup wizard on
 an already-used Mac is unproven. This PR changes neither bundle IDs nor WebKit
@@ -321,7 +319,7 @@ in `isolation.ts` next to `XDG_RUNTIME_DIR`:
 
 - `dirs::home_dir()` resolves `FOLDERID_Profile` from the user's token rather
   than from a `%USERPROFILE%` template, so `USERPROFILE` does not move it the way
-  it moves the AppData pair. The readers under `~/.jan` — `config.toml` and the
+  it moves the AppData pair. The readers under `~/.rey30-idvj` — `config.toml` and the
   subagent directory — therefore read the real user profile where `HOME`
   redirects them on macOS and Linux. The reachable desktop callers are reads, so
   this is a read leak rather than a destructive one.
@@ -332,7 +330,7 @@ in `isolation.ts` next to `XDG_RUNTIME_DIR`:
 These are known desktop-suite residue or reads, not a full isolation guarantee.
 Windows CLI/global-config callers and explicit saves are not covered; this
 harness does not fix their known-folder escapes. The one Windows escape that was destructive —
-deep-link registration, which rewrites the `HKCU` `jan://` handler to point at
+deep-link registration, which rewrites the app's `HKCU` deep-link protocol handler to point at
 whichever binary is running — is compiled out under the `e2e` feature instead of
 being documented, since no environment variable reaches the registry.
 

@@ -81,7 +81,7 @@ class Rey30Runtime:
         max_buffered_events: int = 100_000,
         on_stderr: Optional[Callable[[str], None]] = None,
     ) -> None:
-        self.binary = bin or os.environ.get("REY30_BIN") or os.environ.get("JAN_BIN") or "rey30-idvj"
+        self.binary = bin or os.environ.get("REY30_BIN") or "rey30-idvj"
         self.cwd = str(cwd) if cwd is not None else None
         self.max_buffered_events = max_buffered_events
         self._client_info = client_info or {"name": CLIENT_NAME, "version": CLIENT_VERSION}
@@ -221,7 +221,7 @@ class Rey30Runtime:
 
         ``permissions`` says who gates a host tool call: ``"host"`` when this
         process runs and gates its own tools, so the runtime never prompts for
-        them, and ``"jan"`` (the default) to leave the gate with the runtime -
+        them, and ``"rey30"`` (the default) to leave the gate with the runtime -
         an actuator call then raises ``permission_request`` and the turn waits
         until ``session.respond_permission`` answers it.
         """
@@ -236,7 +236,7 @@ class Rey30Runtime:
             params["subagents"] = subagents
         if system_prompt is not None:
             params["systemPrompt"] = system_prompt
-        if permissions is not None and permissions != "jan":
+        if permissions is not None and permissions != "rey30":
             params["permissions"] = permissions
         if tools:
             params["tools"] = [tool.declaration() for tool in tools]

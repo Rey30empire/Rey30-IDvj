@@ -70,7 +70,7 @@ describe('getAssistants', () => {
     const ext = makeExt()
     const result = await ext.getAssistants()
     expect(result).toHaveLength(1)
-    expect(result[0].id).toBe('jan')
+    expect(result[0].id).toBe('rey30')
     expect(result[0].name).toBe('Rey30 IDvj')
   })
 
@@ -79,7 +79,7 @@ describe('getAssistants', () => {
     const ext = makeExt()
     const result = await ext.getAssistants()
     expect(result).toHaveLength(1)
-    expect(result[0].id).toBe('jan')
+    expect(result[0].id).toBe('rey30')
   })
 
   it('reads and parses stored assistants', async () => {
@@ -156,12 +156,6 @@ describe('onLoad', () => {
     expect(dirs.has(ROOT)).toBe(true)
   })
 
-  it('records the current migration version', async () => {
-    const ext = makeExt()
-    await ext.onLoad()
-    expect(files.get(`${ROOT}/.migration_version`)).toBe('4')
-  })
-
   it('seeds the default assistant with parameters when none are persisted', async () => {
     const ext = makeExt()
     await ext.onLoad()
@@ -176,110 +170,9 @@ describe('onLoad', () => {
   })
 
   it('does not overwrite an existing persisted assistant on load', async () => {
-    seedAssistant('jan', { id: 'jan', name: 'Custom', instructions: 'mine' })
+    seedAssistant('rey30', { id: 'rey30', name: 'Custom', instructions: 'mine' })
     const ext = makeExt()
     await ext.onLoad()
-    expect(readAssistant('jan').name).toBe('Custom')
-  })
-})
-
-describe('migrations', () => {
-  const getVersion = () => files.get(`${ROOT}/.migration_version`)
-
-  it('migration v1 rewrites the legacy instruction prefix in isolation, preserving the tail', async () => {
-    seedAssistant('a', {
-      id: 'a',
-      instructions: 'You are a helpful AI assistant. Be concise.',
-    })
-    const ext = makeExt()
-    await (ext as any).migrateAssistantInstructions()
-    expect(readAssistant('a').instructions).toBe(
-      'You are Jan, a helpful AI assistant. Be concise.'
-    )
-  })
-
-  it('migration v2 adds default parameters; v3 then strips the identity preamble it added', async () => {
-    seedAssistant('b', {
-      id: 'b',
-      instructions: 'You are Jan, a helpful AI assistant. old body',
-    })
-    const ext = makeExt()
-    await ext.onLoad()
-    const migrated = readAssistant('b')
-    // v2 rewrites to the Menlo instructions (identity line + default body) and
-    // adds parameters; v3 recognizes the verbatim v2 default and removes the
-    // identity preamble, leaving the plain default instructions.
-    expect(migrated.instructions).toBe((ext as any).defaultAssistant.instructions)
-    expect(migrated.instructions).not.toContain('Menlo Research')
-    expect(migrated.parameters).toEqual({
-      temperature: 0.7,
-      top_k: 20,
-      top_p: 0.8,
-      repeat_penalty: 1.12,
-    })
-  })
-
-  it('migration v3 strips the identity preamble when instructions match the verbatim v2 default', async () => {
-    const ext = makeExt()
-    const identityLine =
-      'You are Jan, a helpful AI assistant who assists users with their requests. Jan is trained by Menlo Research (https://www.menlo.ai).'
-    const defaultInstructions = (ext as any).defaultAssistant.instructions
-    seedAssistant('c', {
-      id: 'c',
-      instructions: `${identityLine}\n\n${defaultInstructions}`,
-    })
-    await ext.onLoad()
-    expect(readAssistant('c').instructions).toBe(defaultInstructions)
-  })
-
-  it('leaves user-customized instructions untouched across all migrations', async () => {
-    const custom = 'My totally custom system prompt.'
-    seedAssistant('d', { id: 'd', instructions: custom })
-    const ext = makeExt()
-    await ext.onLoad()
-    expect(readAssistant('d').instructions).toBe(custom)
-  })
-
-  it('renames only the inherited default assistant and preserves its model and ID', async () => {
-    dirs.add(ROOT)
-    files.set(`${ROOT}/.migration_version`, '3')
-    seedAssistant('jan', {
-      id: 'jan', name: 'Jan', model: 'Jan-v3.5-4B-Q4_K_XL', instructions: 'My prompt',
-    })
-    await makeExt().onLoad()
-    expect(readAssistant('jan')).toMatchObject({
-      id: 'jan', name: 'Rey30 IDvj', model: 'Jan-v3.5-4B-Q4_K_XL', instructions: 'My prompt',
-    })
-    expect(getVersion()).toBe('4')
-  })
-
-  it('keeps a user-renamed default assistant during the branding migration', async () => {
-    dirs.add(ROOT)
-    files.set(`${ROOT}/.migration_version`, '3')
-    seedAssistant('jan', { id: 'jan', name: 'Mi asistente', instructions: 'Personal' })
-    await makeExt().onLoad()
-    expect(readAssistant('jan').name).toBe('Mi asistente')
-  })
-
-  it('does not re-run migrations when already at the current version', async () => {
-    dirs.add(ROOT)
-    files.set(`${ROOT}/.migration_version`, '4')
-    seedAssistant('e', {
-      id: 'e',
-      instructions: 'You are a helpful AI assistant. legacy',
-    })
-    const ext = makeExt()
-    await ext.onLoad()
-    expect(readAssistant('e').instructions).toBe(
-      'You are a helpful AI assistant. legacy'
-    )
-  })
-
-  it('treats an unparseable migration version file as version 0 and runs migrations', async () => {
-    dirs.add(ROOT)
-    files.set(`${ROOT}/.migration_version`, 'garbage')
-    const ext = makeExt()
-    await ext.onLoad()
-    expect(getVersion()).toBe('4')
+    expect(readAssistant('rey30').name).toBe('Custom')
   })
 })

@@ -182,8 +182,8 @@ Ensure that the following section information show up for hardware
 - [ ] [0.6.9] Make sure that you can send an image to a Local API Server and it also works (can set up Local API Server as a Custom Provider in Rey30 IDvj to test)
 - [ ] [0.6.10] Make sure you are still able to see API key when server local status is running
 - [ ] [0.7.0] Users can see the Rey30 IDvj API Server Swagger UI by opening the following path in their browser `http://<ip>:<port>`
-- [ ] [0.8.5] Rey30 IDvj CLI commands work: `jan serve`, `jan models list`, `jan acp` (experimental, gated by REY30_EXPERIMENTAL_ACP=1)
-- [ ] [0.8.8] `jan --version` on the CLI built for this release prints the release tag's version (e.g. `jan 0.8.8` for `v0.8.8`), not an older one
+- [ ] [0.8.5] Rey30 IDvj CLI commands work: `rey30-idvj serve`, `rey30-idvj models list`, `rey30-idvj acp` (experimental, gated by REY30_EXPERIMENTAL_ACP=1)
+- [ ] [0.8.8] `rey30-idvj --version` on the CLI built for this release prints the release tag's version (e.g. `rey30-idvj 0.8.8` for `v0.8.8`), not an older one
 - [ ] [0.7.0] Users can set the trusted host to * in the server configuration to accept requests from all host or without host
 #### In `HTTPS Proxy`:
 - [ ] Model download request goes through proxy endpoint
@@ -281,15 +281,15 @@ In `Settings -> General`:
 ## G. New App Installation
 - [ ] Clean up by deleting all the left over folder created by Rey30 IDvj
 	- [ ] On MacOS
-		- [ ] `~/Library/Application Support/Rey30 IDvj`
-		- [ ] `~/Library/Caches/jan.ai.app`
+		- [ ] `~/Library/Application Support/Rey30-IDvj`
+		- [ ] `~/Library/Caches/com.rey30.idvj.app`
 	- [ ] On Windows
-		- [ ] `C:\Users\\<Username>\\AppData\Roaming\Rey30 IDvj\`
-		- [ ] `C:\Users\\<Username>\\AppData\Local\jan.ai.app`
-		- [ ] `~/.cache/Rey30 IDvj`
-		- [ ] `~/.cache/jan.ai.app`
-		- [ ] `~/.local/share/Rey30 IDvj`
-		- [ ] `~/.local/share/jan.ai.app`
+		- [ ] `C:\Users\\<Username>\\AppData\Roaming\Rey30-IDvj\`
+		- [ ] `C:\Users\\<Username>\\AppData\Local\com.rey30.idvj.app`
+		- [ ] `~/.cache/Rey30-IDvj`
+		- [ ] `~/.cache/com.rey30.idvj.app`
+		- [ ] `~/.local/share/Rey30-IDvj`
+		- [ ] `~/.local/share/com.rey30.idvj.app`
 - [ ] Ensure that the fresh install of Rey30 IDvj launch
 - [ ] Do some basic check to see that all function still behaved as expected. To be extra careful, you can go through the whole list again. However, it is more advisable to just check to make sure that all the core functionality like `Thread` and `Model Providers` work as intended.
 

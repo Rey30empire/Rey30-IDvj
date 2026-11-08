@@ -85,7 +85,7 @@ const receipt = { preparedAt: new Date().toISOString(), windowsX64: true, localO
   assistantModelTests: 0,
 }
 fs.writeFileSync(path.join(output, 'SOURCE.json'), JSON.stringify(receipt, null, 2)+'\n')
-fs.writeFileSync(path.join(output, 'NOTICE.txt'), 'Audio local de Rey30 IDvj\n\nVoz sintética española: eSpeak NG, GPL-3.0-or-later. Sus fuentes se incluyen en sources/.\nDictado español: Vosk 0.3.45 y vosk-model-small-es-0.42, Apache-2.0.\nSe conservan nombres, licencias y atribuciones. Las variantes no son voces clonadas de actores.\nEste paquete no utiliza el modelo Jan ni envía audio a la nube.\n')
+fs.writeFileSync(path.join(output, 'NOTICE.txt'), 'Audio local de Rey30 IDvj\n\nVoz sintética española: eSpeak NG, GPL-3.0-or-later. Sus fuentes se incluyen en sources/.\nDictado español: Vosk 0.3.45 y vosk-model-small-es-0.42, Apache-2.0.\nSe conservan nombres, licencias y atribuciones. Las variantes no son voces clonadas de actores.\nEste paquete no utiliza modelos de lenguaje ni envía audio a la nube.\n')
 const files = []
 function collect(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

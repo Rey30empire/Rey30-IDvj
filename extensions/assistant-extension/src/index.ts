@@ -1,16 +1,10 @@
 import { Assistant, AssistantExtension, fs, joinPath, logger } from '@rey30-idvj/core'
 
-const V2_IDENTITY_LINE =
-  'You are Jan, a helpful AI assistant who assists users with their requests. Jan is trained by Menlo Research (https://www.menlo.ai).'
-
 /**
  * Rey30AssistantExtension is an AssistantExtension implementation that provides
  * functionality for managing assistants.
  */
 export default class Rey30AssistantExtension extends AssistantExtension {
-  private readonly CURRENT_MIGRATION_VERSION = 4
-  private readonly MIGRATION_FILE = 'file://assistants/.migration_version'
-
   /**
    * Called when the extension is loaded.
    */
@@ -18,9 +12,6 @@ export default class Rey30AssistantExtension extends AssistantExtension {
     if (!(await fs.existsSync('file://assistants'))) {
       await fs.mkdir('file://assistants')
     }
-
-    // Run migrations if needed
-    await this.runMigrations()
 
     const assistants = await this.readAssistantsFromDisk()
     if (assistants.length === 0) {
@@ -35,223 +26,6 @@ export default class Rey30AssistantExtension extends AssistantExtension {
         },
       }
       await this.createAssistant(assistantWithParams as Assistant)
-    }
-  }
-
-  /**
-   * Gets the current migration version from storage
-   */
-  private async getCurrentMigrationVersion(): Promise<number> {
-    try {
-      if (await fs.existsSync(this.MIGRATION_FILE)) {
-        const versionStr = await fs.readFileSync(this.MIGRATION_FILE)
-        const version = parseInt(versionStr.trim(), 10)
-        return isNaN(version) ? 0 : version
-      }
-    } catch (error) {
-      logger.error('Failed to read migration version:', error)
-    }
-    return 0
-  }
-
-  /**
-   * Saves the migration version to storage
-   */
-  private async saveMigrationVersion(version: number): Promise<void> {
-    try {
-      await fs.writeFileSync(this.MIGRATION_FILE, version.toString())
-    } catch (error) {
-      logger.error('Failed to save migration version:', error)
-    }
-  }
-
-  /**
-   * Runs all pending migrations
-   */
-  private async runMigrations(): Promise<void> {
-    const currentVersion = await this.getCurrentMigrationVersion()
-
-    if (currentVersion < 1) {
-      logger.info('Running migration v1: Update assistant instructions')
-      await this.migrateAssistantInstructions()
-      await this.saveMigrationVersion(1)
-    }
-
-    if (currentVersion < 2) {
-      logger.info('Running migration v2: Update legacy assistant instructions')
-      await this.migrateLegacyInstructions()
-      await this.saveMigrationVersion(2)
-    }
-
-    if (currentVersion < 3) {
-      logger.info('Running migration v3: Strip identity preamble from default assistant')
-      await this.migrateStripIdentityPreamble()
-      await this.saveMigrationVersion(3)
-    }
-
-    if (currentVersion < 4) {
-      const assistants = await this.readAssistantsFromDisk()
-      for (const assistant of assistants) {
-        // Keep saved IDs and customized names so existing threads still resolve.
-        if (assistant.id === 'jan' && assistant.name === 'Jan') {
-          assistant.name = this.defaultAssistant.name
-          if (assistant.description === 'Jan is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user’s behalf.') {
-            assistant.description = this.defaultAssistant.description
-          }
-          await this.createAssistant(assistant)
-        }
-      }
-      await this.saveMigrationVersion(4)
-    }
-
-    logger.info(
-      `Migrations complete. Current version: ${this.CURRENT_MIGRATION_VERSION}`
-    )
-  }
-
-  /**
-   * Migration v1: Update assistant instructions from old format to new format
-   */
-  private async migrateAssistantInstructions(): Promise<void> {
-    const OLD_INSTRUCTION = 'You are a helpful AI assistant.'
-    const NEW_INSTRUCTION = 'You are Jan, a helpful AI assistant.' // Historical v1 value, retained for migration compatibility.
-
-    if (!(await fs.existsSync('file://assistants'))) {
-      return
-    }
-
-    const assistants = await this.getAssistants()
-
-    for (const assistant of assistants) {
-      // Check if this assistant has the old instruction format
-      if (assistant.instructions?.startsWith(OLD_INSTRUCTION)) {
-        // Replace old instruction with new one, preserving the rest of the content
-        const restOfInstructions = assistant.instructions.substring(
-          OLD_INSTRUCTION.length
-        )
-        assistant.instructions = NEW_INSTRUCTION + restOfInstructions
-
-        // Save the updated assistant
-        const assistantPath = await joinPath([
-          'file://assistants',
-          assistant.id,
-          'assistant.json',
-        ])
-
-        try {
-          await fs.writeFileSync(
-            assistantPath,
-            JSON.stringify(assistant, null, 2)
-          )
-          logger.info(`Migrated instructions for assistant: ${assistant.id}`)
-        } catch (error) {
-          logger.error(`Failed to migrate assistant ${assistant.id}:`, error)
-        }
-      }
-    }
-  }
-
-  /**
-   * Migration v2: Update legacy assistant instruction format and set default parameters
-   */
-  private async migrateLegacyInstructions(): Promise<void> {
-    const OLD_INSTRUCTION_PREFIX = 'You are Jan, a helpful AI assistant.'
-    const NEW_INSTRUCTION = `${V2_IDENTITY_LINE}
-
-You must output your response in the exact language used in the latest user message. Do not provide translations or switch languages unless explicitly instructed to do so. If the input is mostly English, respond in English.
-
-When handling user queries:
-
-1. Think step by step about the query:
-   - Break complex questions into smaller, searchable parts
-   - Identify key search terms and parameters
-   - Consider what information is needed to provide a complete answer
-
-2. Mandatory logical analysis:
-   - Before engaging any tools, articulate your complete thought process in natural language. You must act as a "professional tool caller," demonstrating rigorous logic.
-   - Analyze the information gap: explicitly state what data is missing.
-   - Derive the strategy: explain why a specific tool is the logical next step.
-   - Justify parameters: explain why you chose those specific search keywords or that specific URL.
-
-You have tools to search for and access real-time, up-to-date data. Use them. Search before stating that you can't or don't know.
-
-Current date: {{current_date}}`
-
-    const DEFAULT_PARAMETERS = {
-      temperature: 0.7,
-      top_k: 20,
-      top_p: 0.8,
-      repeat_penalty: 1.12,
-    }
-
-    if (!(await fs.existsSync('file://assistants'))) {
-      return
-    }
-
-    const assistants = await this.getAssistants()
-
-    for (const assistant of assistants) {
-      // Check if this assistant has the old instruction format
-      if (assistant.instructions?.startsWith(OLD_INSTRUCTION_PREFIX)) {
-        assistant.instructions = NEW_INSTRUCTION
-
-        // Add default parameters to the assistant
-        const assistantWithParams = {
-          ...assistant,
-          parameters: DEFAULT_PARAMETERS,
-        }
-
-        // Save the updated assistant
-        const assistantPath = await joinPath([
-          'file://assistants',
-          assistant.id,
-          'assistant.json',
-        ])
-
-        try {
-          await fs.writeFileSync(
-            assistantPath,
-            JSON.stringify(assistantWithParams, null, 2)
-          )
-          logger.info(
-            `Migrated legacy instructions for assistant: ${assistant.id}`
-          )
-        } catch (error) {
-          logger.error(`Failed to migrate assistant ${assistant.id}:`, error)
-        }
-      }
-    }
-  }
-
-  /**
-   * Migration v3: Strip the identity preamble from assistants whose instructions
-   * are still the verbatim v2 default. Leaves user-customized prompts untouched.
-   */
-  private async migrateStripIdentityPreamble(): Promise<void> {
-    if (!(await fs.existsSync('file://assistants'))) {
-      return
-    }
-
-    const expectedOldInstructions = `${V2_IDENTITY_LINE}\n\n${this.defaultAssistant.instructions}`
-    const assistants = await this.getAssistants()
-
-    for (const assistant of assistants) {
-      if (assistant.instructions !== expectedOldInstructions) continue
-
-      assistant.instructions = this.defaultAssistant.instructions
-
-      const assistantPath = await joinPath([
-        'file://assistants',
-        assistant.id,
-        'assistant.json',
-      ])
-
-      try {
-        await fs.writeFileSync(assistantPath, JSON.stringify(assistant, null, 2))
-        logger.info(`Stripped identity preamble for assistant: ${assistant.id}`)
-      } catch (error) {
-        logger.error(`Failed to migrate assistant ${assistant.id}:`, error)
-      }
     }
   }
 
@@ -320,7 +94,7 @@ Current date: {{current_date}}`
   private defaultAssistant: Assistant = {
     avatar: '👋',
     thread_location: undefined,
-    id: 'jan',
+    id: 'rey30',
     object: 'assistant',
     created_at: Date.now() / 1000,
     name: 'Rey30 IDvj',

@@ -16,7 +16,7 @@ describe('migrateLegacyModels', () => {
       main: 'index.js',
     })
     // Set up provider path to avoid issues with getProviderPath() calls
-    extension['providerPath'] = '/path/to/jan/llamacpp'
+    extension['providerPath'] = '/path/to/rey30/llamacpp'
   })
 
   afterEach(() => {
@@ -27,14 +27,14 @@ describe('migrateLegacyModels', () => {
     it('should return early if legacy models directory does not exist', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
-      vi.mocked(joinPath).mockResolvedValue('/path/to/jan/models')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
+      vi.mocked(joinPath).mockResolvedValue('/path/to/rey30/models')
       vi.mocked(fs.existsSync).mockResolvedValue(false)
 
       // Call the private method via reflection
       await extension['migrateLegacyModels']()
 
-      expect(fs.existsSync).toHaveBeenCalledWith('/path/to/jan/models')
+      expect(fs.existsSync).toHaveBeenCalledWith('/path/to/rey30/models')
       expect(fs.readdirSync).not.toHaveBeenCalled()
     })
 
@@ -42,10 +42,10 @@ describe('migrateLegacyModels', () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/test-file.txt') // childPath
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/test-file.txt') // childPath
 
       vi.mocked(fs.existsSync).mockResolvedValue(true)
       vi.mocked(fs.readdirSync).mockResolvedValue(['test-file.txt'])
@@ -64,11 +64,11 @@ describe('migrateLegacyModels', () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/model.yml') // childPath for model.yml
-        .mockResolvedValueOnce('/path/to/jan/models/legacy-model.yml') // childPath for legacy-model.yml
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/model.yml') // childPath for model.yml
+        .mockResolvedValueOnce('/path/to/rey30/models/legacy-model.yml') // childPath for legacy-model.yml
 
       vi.mocked(fs.existsSync).mockResolvedValue(true)
       vi.mocked(fs.readdirSync).mockResolvedValue([
@@ -103,13 +103,13 @@ describe('migrateLegacyModels', () => {
       const { invoke } = await import('@tauri-apps/api/core')
       const { basename } = await import('@tauri-apps/api/path')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
 
       // Mock specific joinPath calls in the order they will be made
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/test') // childPath
-        .mockResolvedValueOnce('/path/to/jan/models/test/model.yml') // legacy model file
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/test') // childPath
+        .mockResolvedValueOnce('/path/to/rey30/models/test/model.yml') // legacy model file
 
       vi.mocked(fs.existsSync).mockResolvedValue(true)
 
@@ -130,7 +130,7 @@ describe('migrateLegacyModels', () => {
       // Mock reading legacy config
       vi.mocked(invoke)
         .mockResolvedValueOnce({
-          files: ['/path/to/jan/models/test/path.gguf'],
+          files: ['/path/to/rey30/models/test/path.gguf'],
           model: 'Legacy Test Model',
         })
         .mockResolvedValueOnce(undefined) // write_yaml call
@@ -148,10 +148,10 @@ describe('migrateLegacyModels', () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/legacy-model.yml') // childPath
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/legacy-model.yml') // childPath
 
       vi.mocked(fs.existsSync)
         .mockResolvedValueOnce(true) // models dir exists
@@ -181,13 +181,13 @@ describe('migrateLegacyModels', () => {
       const { invoke } = await import('@tauri-apps/api/core')
       const { basename } = await import('@tauri-apps/api/path')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/legacy-model.yml') // childPath
-        .mockResolvedValueOnce('/path/to/jan/legacy/model/path.gguf') // legacy model file path
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/legacy-model.yml') // childPath
+        .mockResolvedValueOnce('/path/to/rey30/legacy/model/path.gguf') // legacy model file path
         .mockResolvedValueOnce(
-          '/path/to/jan/llamacpp/models/legacy-model/model.yml'
+          '/path/to/rey30/llamacpp/models/legacy-model/model.yml'
         ) // config path
 
       vi.mocked(fs.existsSync)
@@ -218,10 +218,10 @@ describe('migrateLegacyModels', () => {
     it('should explore subdirectories when no yml files found in current directory', async () => {
       const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath)
-        .mockResolvedValueOnce('/path/to/jan/models') // initial modelsDir
-        .mockResolvedValueOnce('/path/to/jan/models/subdir') // child directory
+        .mockResolvedValueOnce('/path/to/rey30/models') // initial modelsDir
+        .mockResolvedValueOnce('/path/to/rey30/models/subdir') // child directory
 
       vi.mocked(fs.existsSync).mockResolvedValue(true)
       vi.mocked(fs.readdirSync)
@@ -235,10 +235,10 @@ describe('migrateLegacyModels', () => {
       await extension['migrateLegacyModels']()
 
       expect(fs.readdirSync).toHaveBeenCalledTimes(2)
-      expect(fs.readdirSync).toHaveBeenCalledWith('/path/to/jan/models')
+      expect(fs.readdirSync).toHaveBeenCalledWith('/path/to/rey30/models')
       // Note: The original code has a bug where it pushes just 'child' instead of the full path
       // so it would call fs.readdirSync('subdir') instead of the full path
-      expect(fs.readdirSync).toHaveBeenCalledWith('/path/to/jan/models')
+      expect(fs.readdirSync).toHaveBeenCalledWith('/path/to/rey30/models')
     })
   })
 
@@ -252,7 +252,7 @@ describe('migrateLegacyModels', () => {
         .spyOn(extension as any, 'migrateLegacyModels')
         .mockResolvedValue(undefined)
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
       vi.mocked(joinPath).mockImplementation((paths) =>
         Promise.resolve(paths.join('/'))
       )
@@ -282,15 +282,15 @@ describe('migrateLegacyModels', () => {
         .spyOn(extension as any, 'migrateLegacyModels')
         .mockResolvedValue(undefined)
 
-      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
-      vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp/models')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/rey30')
+      vi.mocked(joinPath).mockResolvedValue('/path/to/rey30/llamacpp/models')
       vi.mocked(fs.existsSync).mockResolvedValue(false) // models dir doesn't exist
       vi.mocked(fs.mkdir).mockResolvedValue(undefined)
       vi.mocked(fs.readdirSync).mockResolvedValue([])
 
       await extension.list()
 
-      expect(fs.mkdir).toHaveBeenCalledWith('/path/to/jan/llamacpp/models')
+      expect(fs.mkdir).toHaveBeenCalledWith('/path/to/rey30/llamacpp/models')
       expect(migrateSpy).toHaveBeenCalledOnce()
     })
   })

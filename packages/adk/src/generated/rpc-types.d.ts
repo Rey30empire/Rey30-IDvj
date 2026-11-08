@@ -108,7 +108,7 @@ export interface PendingSubagent {
 }
 
 /** Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Rey30 IDvj never asks about a host tool. */
-export type PermissionOwner = "jan" | "host"
+export type PermissionOwner = "rey30" | "host"
 
 /** One image in an outbound request, as [`StreamEvent::RequestProvenance`] reports it: identity, not content. */
 export interface ProvenanceImage {

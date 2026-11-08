@@ -129,7 +129,7 @@ describe('native local character audio IPC without playback, microphone or LLM',
       catalog: catalog ? { localOnly: catalog.localOnly, dictation: catalog.dictation, dictationLanguage: catalog.dictationLanguage, voices: catalog.voices } : null,
       synthesis: { text: TEXT, voiceId: VOICE, parameters: PARAMETERS, successfulRequests: successfulSynthesisRequests, validRequestsAttempted: validSynthesisRequests, invalidRequestsAttempted: invalidSynthesisRequests, invalidRejected, wav: wave ?? null },
       fixtureRequests: fixture?.requests,
-      janModelRequests: 0, cloudRequestsBySpec: 0, microphoneRequests: 0, playbackRequests: 0, asrTranscriptionRequests: 0, asrModelLoadsRequested: 0, llmInferenceRequests: 0,
+      defaultModelRequests: 0, cloudRequestsBySpec: 0, microphoneRequests: 0, playbackRequests: 0, asrTranscriptionRequests: 0, asrModelLoadsRequested: 0, llmInferenceRequests: 0,
       humanListeningAccepted: false,
       limits: ['WAV bytes are synthesized and inspected but never played', 'Installed ASR availability is checked without loading an ASR model or transcribing', 'No physical microphone, perceived voice quality, prosody or conversational-model acceptance', 'Network observations are limited to the owned metadata fixture; this is not a system-wide packet capture'],
     }, null, 2))

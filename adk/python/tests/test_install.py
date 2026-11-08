@@ -41,7 +41,7 @@ VERSION = "0.0.0-test"
 
 
 def make_archive(directory: Path, *, member: Optional[str] = None, content: str = VERSION) -> Path:
-    """A tarball holding a ``jan`` that is executable and does nothing.
+    """A tarball holding a ``rey30-idvj`` that is executable and does nothing.
 
     The installer only has to put a binary there; whether it runs is the
     runtime's business. ``member`` overrides the name inside the archive, which

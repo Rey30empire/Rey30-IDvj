@@ -9,53 +9,6 @@ class TestBaseExtension extends BaseExtension {
   onUnload(): void {}
 }
 
-describe('extension settings across the distribution rename', () => {
-  const currentName = '@rey30-idvj/download-extension'
-  const previousName = '@' + 'janhq/download-extension'
-  const setting = (value: number): SettingComponentProps => ({
-    key: 'download-limit', controllerProps: { value },
-  } as SettingComponentProps)
-  let extension: TestBaseExtension
-
-  beforeEach(() => {
-    localStorage.clear()
-    extension = new TestBaseExtension('', currentName)
-  })
-
-  afterEach(() => localStorage.clear())
-
-  it('reads old settings, writes the new key and retains the original snapshot', async () => {
-    const original = JSON.stringify([setting(2)])
-    localStorage.setItem(previousName, original)
-    expect(await extension.getSetting('download-limit', 8)).toBe(2)
-
-    await extension.registerSettings([setting(8)])
-
-    expect(await extension.getSetting('download-limit', 8)).toBe(2)
-    expect(JSON.parse(localStorage.getItem(currentName)!)[0].controllerProps.value).toBe(2)
-    expect(localStorage.getItem(previousName)).toBe(original)
-  })
-
-  it('prefers a current setting over the previous-scope snapshot', async () => {
-    const original = JSON.stringify([setting(2)])
-    localStorage.setItem(previousName, original)
-    localStorage.setItem(currentName, JSON.stringify([setting(5)]))
-    await extension.registerSettings([setting(8)])
-
-    expect(await extension.getSetting('download-limit', 8)).toBe(5)
-    expect(localStorage.getItem(previousName)).toBe(original)
-  })
-
-  it('updates inherited settings without rewriting the previous-scope snapshot', async () => {
-    const original = JSON.stringify([setting(2)])
-    localStorage.setItem(previousName, original)
-    await extension.updateSettings([setting(4)])
-
-    expect(await extension.getSetting('download-limit', 8)).toBe(4)
-    expect(localStorage.getItem(previousName)).toBe(original)
-  })
-})
-
 describe('BaseExtension', () => {
   let baseExtension: TestBaseExtension
 

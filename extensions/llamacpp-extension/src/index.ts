@@ -852,8 +852,6 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    logger.warn('Failed to migrate localStorage settings to file:', e)
    return
   }
-  // A previous-scope snapshot belongs to the existing profile and is retained.
-  if (this.name.startsWith('@' + 'janhq/')) return
   try {
    localStorage.removeItem(this.name) // localstorage-migration-allowed
   } catch (e) {

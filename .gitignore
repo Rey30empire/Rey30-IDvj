@@ -4,7 +4,7 @@
 REY30.md
 error.log
 # Runtime agent workspace scaffolded by ensure_project (not source)
-.jan/
+.rey30-idvj/
 node_modules
 *.tgz
 dist
@@ -40,11 +40,7 @@ OpenCode.md
 Claude.md
 archive/
 .cache/
-.jan/
 
-# auto qa
-autoqa/trajectories
-autoqa/recordings
 
 # python bytecode
 __pycache__/
@@ -99,10 +95,6 @@ llm-docs
 .claude/agents
 .claude
 CLAUDE.md
-JAN.md
-
-## agent
-.jan
 
 # Vendored llama.cpp: a shallow clone of the pinned tag, fetched by
 # `make engine-source`. Never committed -- the pin lives in build.rs.

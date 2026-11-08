@@ -25,7 +25,7 @@ beforeEach(() => {
 })
 
 describe('getProviderPath', () => {
-  it('joins the jan data folder with the mlx dir and caches it', async () => {
+  it('joins the rey30 data folder with the mlx dir and caches it', async () => {
     const ext = new mlx_extension() as any
     const path = await ext.getProviderPath()
     expect(path).toBe('/data/mlx')

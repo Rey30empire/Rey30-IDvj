@@ -71,13 +71,13 @@ export function assertSafeLaunchEnvironment({ env, platform }: LaunchContext): v
   if (env.CI === 'e2e') {
     throw new Error('Unsafe CI=e2e: bypasses native Rey30 IDvj configuration with ./data')
   }
-  if (env.REY30_DATA_FOLDER || env.JAN_DATA_FOLDER) {
+  if (env.REY30_DATA_FOLDER) {
     throw new Error('Unset REY30_DATA_FOLDER for e2e: it bypasses the test profile')
   }
   if (env.REY30_CONFIG_HOME) {
     throw new Error('Unset REY30_CONFIG_HOME for e2e: the harness supplies an isolated agent config')
   }
-  if (platform !== 'win32' && (env.REY30_DATA_ROOT || env.JAN_DATA_ROOT)) {
+  if (platform !== 'win32' && env.REY30_DATA_ROOT) {
     throw new Error('Unset REY30_DATA_ROOT for e2e on Unix: it overrides native HOME/XDG resolution')
   }
 }
@@ -92,14 +92,14 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
     throw new Error(`Unsafe REY30_E2E_HOME ${home}: must be strictly inside temp root ${tempRoot}`)
   }
   const protectedPaths: string[] = []
-  const bundleIds = ['com.rey30.idvj.app', 'com.rey30.idvj.nightly.app', 'com.rey30.idvj.beta.app', 'jan.ai.app', 'jan-nightly.ai.app', 'jan-beta.ai.app']
+  const bundleIds = ['com.rey30.idvj.app', 'com.rey30.idvj.nightly.app', 'com.rey30.idvj.beta.app']
   const addRoot = (root: string) => {
-    for (const name of ['Rey30-IDvj', 'Jan', ...bundleIds]) protectedPaths.push(join(root, name))
+    for (const name of ['Rey30-IDvj', ...bundleIds]) protectedPaths.push(join(root, name))
   }
   for (const realHome of realHomes) {
     const canonicalHome = canonicalPath(realHome)
     if (candidate === canonicalHome) throw new Error(`Unsafe REY30_E2E_HOME: real home ${home}`)
-    protectedPaths.push(join(realHome, '.rey30-idvj'), join(realHome, '.jan'))
+    protectedPaths.push(join(realHome, '.rey30-idvj'))
     for (const root of [
       '.local/share', '.local/state', '.config', '.cache',
       'Library/Application Support', 'Library/Caches', 'Library/Logs',
@@ -108,7 +108,7 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
   }
   for (const key of [
     'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_STATE_HOME', 'XDG_CACHE_HOME',
-    'APPDATA', 'LOCALAPPDATA', 'REY30_DATA_ROOT', 'JAN_DATA_ROOT',
+    'APPDATA', 'LOCALAPPDATA', 'REY30_DATA_ROOT',
   ]) {
     if (env[key] && isAbsolute(env[key]!)) addRoot(env[key]!)
   }
@@ -122,15 +122,12 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
   // Existing subdirectories (or the settings file itself) may be symlinks too.
   // Check all redirected roots and seed destinations before mkdir/writeFile.
   for (const suffix of [
-    'tmp', 'agent-config', '.rey30-idvj', '.jan', '.local/share', '.local/state', '.config', '.cache',
+    'tmp', 'agent-config', '.rey30-idvj', '.local/share', '.local/state', '.config', '.cache',
     'Library/Application Support', 'Library/Caches', 'Library/Logs',
     'AppData/Roaming', 'AppData/Local',
     '.local/share/Rey30-IDvj/data/settings.json',
     'Library/Application Support/Rey30-IDvj/data/settings.json',
     'AppData/Roaming/Rey30-IDvj/data/settings.json',
-    '.local/share/Jan/data/settings.json',
-    'Library/Application Support/Jan/data/settings.json',
-    'AppData/Roaming/Jan/data/settings.json',
   ]) {
     if (!containsPath(candidate, canonicalPath(join(candidate, suffix)))) {
       throw new Error(`Unsafe REY30_E2E_HOME ${home}: ${suffix} escapes profile`)
@@ -148,10 +145,8 @@ export function assertSafeE2eHome(home: string, context: LaunchContext): string 
   // conservatively, although a build may never consult those candidates.
   const configFiles = [
     join(candidate, dataRoot, 'settings.json'),
-    join(candidate, dirname(dataRoot), 'Jan', 'settings.json'),
     ...bundleIds.map(id => join(candidate, dirname(dataRoot), id, 'settings.json')),
     ...(context.platform === 'linux' ? [join(candidate, '.config/Rey30-IDvj/settings.json')] : []),
-    ...(context.platform === 'linux' ? [join(candidate, '.config/Jan/settings.json')] : []),
   ]
   for (const configFile of configFiles) {
     if (!containsPath(candidate, canonicalPath(configFile))) {

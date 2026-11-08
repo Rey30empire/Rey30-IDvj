@@ -142,12 +142,12 @@ export interface CreateSessionOptions {
   systemPrompt?: string
   /**
    * Who gates a host tool call. `'host'` when this process runs and gates its
-   * own tools, so the runtime never prompts for them. `'jan'` (the default)
+   * own tools, so the runtime never prompts for them. `'rey30'` (the default)
    * leaves the gate with the runtime: an `actuator` call raises
    * `permission_request` and the turn waits until `respondPermission` answers
    * it.
    */
-  permissions?: 'jan' | 'host'
+  permissions?: 'rey30' | 'host'
   tools?: HostTool[]
 }
 

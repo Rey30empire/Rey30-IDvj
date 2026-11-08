@@ -322,7 +322,7 @@ describe('native characters, scoped preference recovery and catalog UI without i
     await expect($('[data-testid="voice-orb-dock"]')).toHaveAttribute('data-state', 'idle')
     captures.push(await capture(join(artifacts!, 'sidebar-specialists-1200.png'), [SELECTOR, verse]))
     await openAssistantSelector()
-    await expect($('[data-testid="assistant-option-jan"]')).toHaveText(expect.stringContaining('Rey30 IDvj'))
+    await expect($('[data-testid="assistant-option-rey30"]')).toHaveText(expect.stringContaining('Rey30 IDvj'))
     for (const [id, name] of people) await expect($(`[data-testid="assistant-option-character:${id}"]`)).toHaveText(expect.stringContaining(name))
     await expect($('[data-testid="assistant-option-character:literatura"]')).toHaveText(expect.stringContaining('Pluma'))
     captures.push(await capture(join(artifacts!, 'upper-assistant-selector-1200.png'), [SELECTOR, '[data-testid="assistant-selector-tab"]']))
@@ -336,9 +336,9 @@ describe('native characters, scoped preference recovery and catalog UI without i
       assert.equal(selection.selectedProvider, fixture!.providerName)
       assert.equal(object(selection.selectedModel).id, fixture!.modelId)
     }
-    await selectAssistant('jan', 'Rey30 IDvj')
+    await selectAssistant('rey30', 'Rey30 IDvj')
     await openAssistantSelector()
-    await expect($('[data-testid="assistant-option-jan"]')).toHaveAttribute('aria-pressed', 'true')
+    await expect($('[data-testid="assistant-option-rey30"]')).toHaveAttribute('aria-pressed', 'true')
     await browser.keys('Escape')
     await selectAssistant('model-only')
     await openAssistantSelector()
@@ -438,7 +438,7 @@ describe('native characters, scoped preference recovery and catalog UI without i
   it('persists the selected character and model in one empty native thread and separates normal assistant and model-only', async () => {
     const created = object(await qaIpc('create_thread', { thread: {
       object: 'thread', title: 'QA EMPTY — ASSISTANT BINDING, NO MESSAGES', created: Date.now() / 1000, updated: Date.now() / 1000,
-      assistants: [{ id: 'jan', name: 'Rey30 IDvj', instructions: '', parameters: {}, model: { id: fixture!.modelId, engine: fixture!.providerName } }],
+      assistants: [{ id: 'rey30', name: 'Rey30 IDvj', instructions: '', parameters: {}, model: { id: fixture!.modelId, engine: fixture!.providerName } }],
       metadata: { qaMetadataOnly: true },
     } }))
     const id = created.id
@@ -481,9 +481,9 @@ describe('native characters, scoped preference recovery and catalog UI without i
     const persisted = await assertAssistant('character:kairo')
     const disk = object(JSON.parse(readFileSync(join(fixture!.data, 'threads', id as string, 'thread.json'), 'utf8')))
     assert.deepEqual(disk.assistants, persisted.assistants, 'The character/model combination must reach native storage')
-    await selectAssistant('jan', 'Rey30 IDvj')
-    await browser.waitUntil(async () => ((await thread()).assistants as { id: string }[] | undefined)?.[0]?.id === 'jan', { timeout: 10_000 })
-    await assertAssistant('jan')
+    await selectAssistant('rey30', 'Rey30 IDvj')
+    await browser.waitUntil(async () => ((await thread()).assistants as { id: string }[] | undefined)?.[0]?.id === 'rey30', { timeout: 10_000 })
+    await assertAssistant('rey30')
     await selectAssistant('model-only')
     await browser.waitUntil(async () => {
       const assistants = (await thread()).assistants as { id: string }[] | undefined
@@ -504,7 +504,7 @@ describe('native characters, scoped preference recovery and catalog UI without i
     const renamed = await thread()
     assert.equal(renamed.title, 'QA STALE RENAME')
     assert.equal(object(renamed.metadata).literaryLibrary, true, 'Native thread storage must retain the library privacy marker')
-    observations.push({ scope: 'native-empty-thread-assistant-model-persistence', threadId: id, messages: 0, persistedCharacter: 'character:kairo', independentHomeSelection: 'character:nara', resumedFromSidebar: true, normalAssistant: 'jan', finalSelection: 'model-only' })
+    observations.push({ scope: 'native-empty-thread-assistant-model-persistence', threadId: id, messages: 0, persistedCharacter: 'character:kairo', independentHomeSelection: 'character:nara', resumedFromSidebar: true, normalAssistant: 'rey30', finalSelection: 'model-only' })
     await goto('/')
     completed += 1
   })
