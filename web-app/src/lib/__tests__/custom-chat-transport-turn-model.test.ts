@@ -387,7 +387,7 @@ describe('CustomChatTransport: turn model and character context', () => {
     providers.openai.models = [h.selection.selectedModel]
     providers.llamacpp.models = hasLocalModel
       ? [{ id: 'Qwen3.5-9B-Q4_K_M', capabilities: ['tools'] }]
-      : [{ id: 'Jan-v3.5-4B-Q4_K_XL', capabilities: [] }]
+      : [{ id: 'Llama-3.2-1B-Q4_K_M', capabilities: [] }]
 
     const request = send(new CustomChatTransport(undefined, 'thread-a'), [
       user('automatic-character-turn', 'Revisa el plan.'),
@@ -408,12 +408,12 @@ describe('CustomChatTransport: turn model and character context', () => {
     }
   })
 
-  it('sends a user-created assistant through the Rey30 local model instead of a restored Jan model', async () => {
+  it('sends a user-created assistant through the Rey30 local model instead of the selected model', async () => {
     h.threads = { 'thread-a': { assistants: [{ id: 'owned-assistant' }] } }
-    const jan = { id: 'Jan-v3.5-4B-Q4_K_XL', capabilities: [] }
+    const other = { id: 'Llama-3.2-1B-Q4_K_M', capabilities: [] }
     const qwen = { id: 'Qwen3.5-9B-Q4_K_M', capabilities: ['tools'] }
-    providers.llamacpp.models = [jan, qwen]
-    h.selection.selectedModel = jan
+    providers.llamacpp.models = [other, qwen]
+    h.selection.selectedModel = other
     await send(new CustomChatTransport(undefined, 'thread-a'), [user('owned-turn', 'Revisa este código.')])
     expect(h.createModelMock).toHaveBeenCalledExactlyOnceWith(qwen.id, providers.llamacpp, expect.anything())
   })
@@ -595,7 +595,7 @@ describe('CustomChatTransport: turn model and character context', () => {
     ).toBe('charla')
   })
 
-  it.each(['jan', 'model-only', undefined])(
+  it.each(['rey30', 'model-only', undefined])(
     'never adds a global character to a thread assigned %s',
     async (id) => {
       h.currentAssistant = { id: 'character:nara' }

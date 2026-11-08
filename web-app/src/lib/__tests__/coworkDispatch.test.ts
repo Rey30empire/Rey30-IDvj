@@ -243,10 +243,10 @@ describe('web tools', () => {
   it('routes a web call to the websearch plugin', async () => {
     executeWebTool.mockResolvedValue({ content: { kind: 'web', results: [] } })
     const out = await dispatchCoworkTool(
-      call('web_search', { query: 'jan' }),
+      call('web_search', { query: 'rey30' }),
       ctx({ webSearch: true })
     )
-    expect(executeWebTool).toHaveBeenCalledWith('web_search', { query: 'jan' })
+    expect(executeWebTool).toHaveBeenCalledWith('web_search', { query: 'rey30' })
     // Serialized, not passed through: the model gets a string, and the citation
     // parser re-parses it for the source chips.
     expect(JSON.parse(out.output)).toMatchObject({ kind: 'web' })

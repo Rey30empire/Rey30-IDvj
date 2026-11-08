@@ -140,11 +140,11 @@ vi.mock('@/components/ui/button', () => ({
 import SetupScreen from '../SetupScreen'
 
 const sampleModel = {
-  model_name: 'jan-model',
-  display_name: 'Jan Model',
+  model_name: 'qwen-model',
+  display_name: 'Qwen Model',
   quants: [
-    { model_id: 'jan-q4_k_m', path: '/models/q4', file_size: '2 GB' },
-    { model_id: 'jan-q8_0', path: '/models/q8', file_size: '4 GB' },
+    { model_id: 'qwen-q4_k_m', path: '/models/q4', file_size: '2 GB' },
+    { model_id: 'qwen-q8_0', path: '/models/q8', file_size: '4 GB' },
   ],
   mmproj_models: [{ model_id: 'mmproj-f16', path: '/mmproj' }],
 }
@@ -593,7 +593,7 @@ describe('SetupScreen', () => {
 
       await waitFor(() =>
         expect(hoisted.pullModelWithMetadataMock).toHaveBeenCalledWith(
-          'jan-q4_k_m',
+          'qwen-q4_k_m',
           '/models/q4',
           '/mmproj',
           'hf-token',
@@ -606,8 +606,8 @@ describe('SetupScreen', () => {
     // sitting there looking pressable.
     it('replaces the action with progress while downloading', async () => {
       hoisted.downloadStore.downloads = {
-        'jan-q4_k_m': {
-          name: 'jan-q4_k_m',
+        'qwen-q4_k_m': {
+          name: 'qwen-q4_k_m',
           progress: 0.25,
           current: 500_000_000,
           total: 2_000_000_000,
@@ -641,7 +641,7 @@ describe('SetupScreen', () => {
 
       await waitFor(() =>
         expect(hoisted.pullModelWithMetadataMock).toHaveBeenCalledWith(
-          'jan-q4_k_m',
+          'qwen-q4_k_m',
           '/models/q4',
           '/mmproj',
           'hf-token',
@@ -712,13 +712,13 @@ describe('SetupScreen', () => {
   describe('leaving setup', () => {
     it('completes once the model is imported', async () => {
       hoisted.providersMock.selectModelProvider.mockReturnValue({
-        id: 'jan-q4_k_m',
+        id: 'qwen-q4_k_m',
       })
 
       await renderPastSetup()
       await act(async () => {
         await hoisted.eventHandlers['onModelImported']({
-          modelId: 'jan-q4_k_m',
+          modelId: 'qwen-q4_k_m',
         })
       })
 
@@ -740,7 +740,7 @@ describe('SetupScreen', () => {
     // A model already on disk leaves no import event to wait for.
     it('completes without an import event when the model is already installed', async () => {
       hoisted.providersMock.getProviderByName.mockReturnValue({
-        models: [{ id: 'jan-q4_k_m' }],
+        models: [{ id: 'qwen-q4_k_m' }],
       })
 
       await renderPastSetup()
@@ -765,7 +765,7 @@ describe('SetupScreen', () => {
 
       await act(async () => {
         await hoisted.eventHandlers['onModelImported']({
-          modelId: 'jan-q4_k_m',
+          modelId: 'qwen-q4_k_m',
         })
       })
 

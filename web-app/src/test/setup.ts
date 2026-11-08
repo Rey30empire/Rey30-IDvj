@@ -39,7 +39,7 @@ const mockServiceHub = {
     updateAppSettings: vi.fn().mockResolvedValue(undefined),
     getSystemInfo: vi.fn().mockResolvedValue({}),
     relocateRey30DataFolder: vi.fn().mockResolvedValue(undefined),
-    getRey30DataFolder: vi.fn().mockResolvedValue('/mock/jan/data'),
+    getRey30DataFolder: vi.fn().mockResolvedValue('/mock/rey30/data'),
   }),
   analytic: () => ({
     track: vi.fn(),
@@ -205,7 +205,7 @@ Object.defineProperty(window, 'matchMedia', {
 // Mock globalThis.core.api for @rey30-idvj/core functions // cspell: disable-line
 ;(globalThis as Record<string, unknown>).core = {
   api: {
-    getRey30DataFolderPath: vi.fn().mockResolvedValue('/mock/jan/data'),
+    getRey30DataFolderPath: vi.fn().mockResolvedValue('/mock/rey30/data'),
     openFileExplorer: vi.fn().mockResolvedValue(undefined),
     joinPath: vi.fn((...paths: string[]) => paths.join('/')),
   }

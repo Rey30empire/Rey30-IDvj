@@ -302,7 +302,7 @@ describe('useReleaseNotes', () => {
           draft: false,
           body: 'Release notes',
           published_at: '2024-01-01T00:00:00Z',
-          html_url: 'https://github.com/janhq/jan/releases/tag/v1.5.0',
+          html_url: 'https://example.com/releases/tag/v1.5.0',
           assets: [],
         },
       ]

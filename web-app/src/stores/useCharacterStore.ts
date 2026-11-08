@@ -45,7 +45,7 @@ export type CharacterStore = CharacterData & {
     userText: string,
     characterId?: string
   ): Promise<CharacterMode | null>
-  fillMissingModelBindings(binding: CharacterModelBinding, replaceModel?: (modelId: string) => boolean): Promise<number>
+  fillMissingModelBindings(binding: CharacterModelBinding): Promise<number>
   setIndividualMemory(id: string, entry: MemoryEntry): Promise<void>
   setSharedMemory(projectId: string, entry: MemoryEntry): Promise<void>
   clearIndividualMemory(id: string): Promise<void>
@@ -233,11 +233,11 @@ export function createCharacterStore(
           null,
           2
         ),
-      fillMissingModelBindings: (binding, replaceModel) =>
+      fillMissingModelBindings: (binding) =>
         mutate((value) => {
           let count = 0
           const profiles = value.profiles.map((profile) => {
-            if (profile.modelBinding && !replaceModel?.(profile.modelBinding.modelId)) return profile
+            if (profile.modelBinding) return profile
             count += 1
             return { ...profile, modelBinding: { ...binding } }
           })

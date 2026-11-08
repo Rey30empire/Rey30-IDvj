@@ -1,6 +1,6 @@
 {
   "keyRetryConditions": ". Rey30 IDvj retries the next key only on",
-  "browserExtensionRequired": "Requires Jan Browser Extension to be installed in your Chrome-based browser.",
+  "browserExtensionRequired": "Requires the Rey30 IDvj Browser Extension to be installed in your Chrome-based browser.",
   "installExtension": "Install Extension →",
   "accentColorDescription": "Customize the accent color of the application.",
   "loadingHardware": "Loading hardware information...",

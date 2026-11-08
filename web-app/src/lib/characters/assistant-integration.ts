@@ -6,17 +6,13 @@ import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId } from '
 
 const PREFIX = 'character:'
 const REY30_MODEL_ID = 'Qwen3.5-9B-Q4_K_M'
+const DEFAULT_ASSISTANT_ID = 'rey30'
 export type CharacterAssistant = Assistant & { model?: ThreadModel }
 
 export function assistantDisplayName(id: string, name: string): string {
-  // The default assistant keeps its stored id `jan`; a saved legacy name shows as the new one.
-  if (id === 'jan') return name.trim() && name !== 'Jan' ? name : 'Rey30 IDvj'
+  if (id === DEFAULT_ASSISTANT_ID) return name.trim() ? name : 'Rey30 IDvj'
   const label = name.replace(/^Rey30[- ]IDvj\s*(?:[·:–-]\s*)?/i, '').trim()
   return label ? `Rey30-IDvj ${label}` : 'Rey30-IDvj'
-}
-
-export function isJanModelId(id: string): boolean {
-  return /(?:^|[/\s])jan(?:[\s_.-]|$)/i.test(id)
 }
 
 export function characterAssistantId(id: string): string {
@@ -86,7 +82,6 @@ export function characterBindingModel(
     !provider ||
     provider.active === false ||
     !model ||
-    isJanModelId(binding.modelId) ||
     model.capabilities?.includes('embeddings')
   ) {
     throw new Error(
@@ -110,7 +105,6 @@ export function preferredCharacterModel(
       provider.models
         .filter(
           (model) =>
-            !isJanModelId(model.id) &&
             !model.capabilities?.includes('embeddings') &&
             !/embed|sentence[-_]transformer/i.test(model.id)
         )
@@ -130,9 +124,9 @@ export function preferredCharacterModel(
 }
 
 export function assistantModelBinding(id: string, providers: ModelProvider[]): CharacterModelBinding | null {
-  if (id !== 'jan') return preferredCharacterModel(providers)
+  if (id !== DEFAULT_ASSISTANT_ID) return preferredCharacterModel(providers)
   const provider = providers.find((item) => item.provider === 'llamacpp' && item.active !== false)
-  const model = provider?.models.find((item) => item.id === 'Jan-v3.5-4B-Q4_K_XL')
+  const model = provider?.models.find((item) => item.id === REY30_MODEL_ID)
   return model && provider ? { providerId: provider.provider, modelId: model.id } : null
 }
 
@@ -144,12 +138,8 @@ export async function ensureCharacterModelBindings(
   if (!binding) return null
   const { useCharacterStore } = await import('@/stores/useCharacterStore')
   await useCharacterStore.getState().load()
-  if (
-    useCharacterStore
-      .getState()
-      .profiles.some((profile) => !profile.modelBinding || isJanModelId(profile.modelBinding.modelId))
-  ) {
-    await useCharacterStore.getState().fillMissingModelBindings(binding, isJanModelId)
+  if (useCharacterStore.getState().profiles.some((profile) => !profile.modelBinding)) {
+    await useCharacterStore.getState().fillMissingModelBindings(binding)
   }
   return binding
 }
@@ -216,7 +206,7 @@ export function selectIntegratedAssistant(
       assistant = { ...assistant, name: assistantDisplayName(assistant.id, assistant.name) }
       const binding = assistantModelBinding(assistant.id, useModelProvider.getState().providers)
       if (binding) model = { provider: binding.providerId, id: binding.modelId }
-      else if (assistant.id !== 'jan') throw new Error('Instala Qwen3.5-9B para usar este asistente.')
+      else if (assistant.id !== DEFAULT_ASSISTANT_ID) throw new Error('Instala Qwen3.5-9B para usar este asistente.')
     }
     if (threadId)
       await useThreads

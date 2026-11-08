@@ -112,20 +112,20 @@ describe('TauriAppService', () => {
   })
 
   describe('getRey30DataFolder', () => {
-    it('should get jan data folder path', async () => {
-      const mockConfig = { data_folder: '/path/to/jan/data' }
+    it('should get the data folder path', async () => {
+      const mockConfig = { data_folder: '/path/to/rey30/data' }
       mockWindow.core.api.getAppConfigurations.mockResolvedValue(mockConfig)
 
       const result = await appService.getRey30DataFolder()
 
       expect(mockWindow.core.api.getAppConfigurations).toHaveBeenCalled()
-      expect(result).toBe('/path/to/jan/data')
+      expect(result).toBe('/path/to/rey30/data')
     })
   })
 
   describe('relocateRey30DataFolder', () => {
-    it('should relocate jan data folder', async () => {
-      const newPath = '/new/path/to/jan/data'
+    it('should relocate the data folder', async () => {
+      const newPath = '/new/path/to/rey30/data'
       mockWindow.core.api.changeAppDataFolder.mockResolvedValue(undefined)
 
       await appService.relocateRey30DataFolder(newPath)

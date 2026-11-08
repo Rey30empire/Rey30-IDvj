@@ -1696,7 +1696,7 @@ describe('ThreadDetail route', () => {
       }
     }
     const webCall = (id: string, toolName = 'web_search'): WebCall => ({
-      toolCall: { toolCallId: id, toolName, input: { query: 'jan' } },
+      toolCall: { toolCallId: id, toolName, input: { query: 'rey30' } },
     })
     const finish = () =>
       (h as any).capturedOnFinish({

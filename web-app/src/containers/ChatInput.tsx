@@ -135,6 +135,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useElementWidth } from '@/hooks/useElementWidth'
+import { BROWSER_MCP_NAME } from '@/constants/browserMcp'
 
 type ChatInputProps = {
   className?: string
@@ -509,7 +510,7 @@ const ChatInput = memo(function ChatInput({
     setSelectedAssistantId(projectAssistantId || currentAssistant?.id || '')
   },[loading, projectAssistantId, currentAssistant?.id])
 
-  // Jan Browser Extension hook
+  // Browser extension hook
   const {
     hasConfig: hasBrowserMCPConfig,
     isActive: browserMCPActive,
@@ -635,7 +636,7 @@ const ChatInput = memo(function ChatInput({
 
   // Check if there are active MCP servers
   const hasActiveMCPServers =
-    tools.filter((tool) => tool.server !== 'Jan Browser MCP').length > 0
+    tools.filter((tool) => tool.server !== BROWSER_MCP_NAME).length > 0
 
   // Get MCP extension and its custom component
   const extensionManager = ExtensionManager.getInstance()

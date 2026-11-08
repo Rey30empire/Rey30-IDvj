@@ -15,7 +15,7 @@ type ProviderLike = {
 }
 
 /** Local engines are usable on models alone; they need no credential. */
-const KEYLESS_PREDEFINED_PROVIDERS = ['llamacpp', 'jan']
+const KEYLESS_PREDEFINED_PROVIDERS = ['llamacpp']
 
 /**
  * An embedding model cannot answer a message. Rey30 IDvj installs one on its own during

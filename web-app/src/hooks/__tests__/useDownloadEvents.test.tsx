@@ -98,14 +98,14 @@ describe('useDownloadEvents', () => {
   it('feeds progress into the store keyed by model id', () => {
     mount()
     hoisted.eventHandlers['fdu']({
-      modelId: 'jan-q4',
+      modelId: 'qwen-q4',
       percent: 0.5,
       size: { transferred: 100, total: 200 },
     })
     expect(hoisted.downloadStore.updateProgress).toHaveBeenCalledWith(
-      'jan-q4',
+      'qwen-q4',
       0.5,
-      'jan-q4',
+      'qwen-q4',
       100,
       200
     )
@@ -113,11 +113,11 @@ describe('useDownloadEvents', () => {
 
   it('tolerates a progress event with no size', () => {
     mount()
-    hoisted.eventHandlers['fdu']({ modelId: 'jan-q4', percent: 0 })
+    hoisted.eventHandlers['fdu']({ modelId: 'qwen-q4', percent: 0 })
     expect(hoisted.downloadStore.updateProgress).toHaveBeenCalledWith(
-      'jan-q4',
+      'qwen-q4',
       0,
-      'jan-q4',
+      'qwen-q4',
       undefined,
       undefined
     )

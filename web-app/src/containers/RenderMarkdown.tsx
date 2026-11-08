@@ -401,7 +401,6 @@ function StreamdownViewComponent({
   components,
   className,
   isStreaming,
-  isAnimating,
   messageId,
 }: StreamdownViewProps) {
   const mermaidOptions = useMemo(
@@ -433,8 +432,6 @@ function StreamdownViewComponent({
     <Streamdown
       mode={isStreaming ? 'streaming' : 'static'}
       parseIncompleteMarkdown={isStreaming ?? false}
-      animate={isStreaming ? false : (isAnimating ?? true)}
-      animationDuration={500}
       linkSafety={LINK_SAFETY}
       className={mergedClassName}
       remarkPlugins={REMARK_PLUGINS}

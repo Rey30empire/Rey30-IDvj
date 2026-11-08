@@ -248,7 +248,7 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
   })
 
   it('sends a byte-identical prefix (system + tools + prior turns) on the next turn', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
 
     const turn1 = [user('u1', 'hello')]
     await drain(await send(transport, turn1))
@@ -291,7 +291,7 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
     ]
     selectedModel.id = 'llama-local'
 
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     await drain(
       await send(transport, [
         user('u1', `old-user ${'context '.repeat(1_200)}`),
@@ -309,7 +309,7 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
   })
 
   it('keeps the prefix stable when the third turn extends the second', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
 
     const turn2 = [
       user('u1', 'hello'),
@@ -340,7 +340,7 @@ describe('CustomChatTransport prompt-prefix stability across turns', () => {
     provider.provider = 'llamacpp'
     selectedModel.id = 'llama-local'
 
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     await drain(
       await send(transport, [
         user('u1', `first-user ${'context '.repeat(1_200)}`),
@@ -380,7 +380,7 @@ describe('CustomChatTransport assistant completion (continuation prefill)', () =
   ]
 
   it('appends the partial content as a trailing assistant prefill message', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     transport.setContinueFromContent('Roses are red,')
     await drain(await send(transport, history))
 
@@ -395,7 +395,7 @@ describe('CustomChatTransport assistant completion (continuation prefill)', () =
   })
 
   it('prefills reasoning so a turn stopped mid-thinking resumes inside <think>', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     transport.setContinueFromContent({ reasoning: 'let me think', text: '' })
     await drain(await send(transport, history))
 
@@ -409,7 +409,7 @@ describe('CustomChatTransport assistant completion (continuation prefill)', () =
   })
 
   it('leaves the cached prefix byte-identical (prefill only appends)', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
 
     // Normal send seeds the cache prefix.
     await drain(await send(transport, history))
@@ -431,7 +431,7 @@ describe('CustomChatTransport assistant completion (continuation prefill)', () =
   })
 
   it('consumes the prefill once (next send appends nothing)', async () => {
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
 
     transport.setContinueFromContent('Roses are red,')
     await drain(await send(transport, history))
@@ -451,7 +451,7 @@ describe('CustomChatTransport assistant completion (continuation prefill)', () =
 })
 
 // Anthropic falls back to the model's maximum max_tokens when no cap reaches
-// the SDK, and counts it against the context window (janhq/jan#9227).
+// the SDK, and counts it against the context window.
 describe('CustomChatTransport output-token cap', () => {
   beforeEach(() => {
     streamTextCalls.length = 0
@@ -466,7 +466,7 @@ describe('CustomChatTransport output-token cap', () => {
 
   it('passes the assistant cap to streamText as maxOutputTokens for a predefined remote provider', async () => {
     h.assistantParameters = { max_output_tokens: '4096' }
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     await drain(await send(transport, [user('u1', 'hello')]))
 
     expect(streamTextCalls[0].maxOutputTokens).toBe(4096)
@@ -475,7 +475,7 @@ describe('CustomChatTransport output-token cap', () => {
 
   it('omits maxOutputTokens when the cap is 0 ("no cap") so the SDK does not reject it', async () => {
     h.assistantParameters = { max_output_tokens: 0 }
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     await drain(await send(transport, [user('u1', 'hello')]))
 
     expect(streamTextCalls[0]).not.toHaveProperty('maxOutputTokens')
@@ -534,7 +534,7 @@ it('sends an MCP image result to an OpenAI-compatible provider as a sentinel', a
   h.providerId = 'groq'
   selectedModel.id = 'gpt'
   selectedModel.capabilities = ['tools', 'vision']
-  const transport = new CustomChatTransport('you are jan', 'thread-1')
+  const transport = new CustomChatTransport('you are rey30', 'thread-1')
   await drain(await send(transport, mcpImageTurn()))
   const sent = JSON.stringify(streamTextCalls[0].messages)
   expect(sent).toContain('__REY30_TOOL_IMAGE__data:image/png;base64,iVBORw0KGgo=')
@@ -551,7 +551,7 @@ it.each(['anthropic', 'google', 'openai'])(
     h.providerId = name
     selectedModel.id = 'gpt'
     selectedModel.capabilities = ['tools', 'vision']
-    const transport = new CustomChatTransport('you are jan', 'thread-1')
+    const transport = new CustomChatTransport('you are rey30', 'thread-1')
     await drain(await send(transport, mcpImageTurn()))
     const sent = JSON.stringify(streamTextCalls[0].messages)
     expect(sent).toContain(

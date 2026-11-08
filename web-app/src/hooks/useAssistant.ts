@@ -34,7 +34,7 @@ const setLastUsedAssistantId = (assistantId: string) => {
 }
 
 export const defaultAssistant: Assistant = {
-  id: 'jan',
+  id: 'rey30',
   name: 'Rey30 IDvj',
   created_at: 1747029866.542,
   parameters: {},
@@ -118,10 +118,6 @@ const getInitialAssistantState = () => {
 }
 
 const pendingAssistantIds = new Set<string>()
-const legacyDescriptions = ['Jan', 'Rey30 IDvj'].map(
-  (name) =>
-    `${name} is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user's behalf.`
-)
 let selectionVersion = 0
 const availableAssistants = (assistants: Assistant[]) =>
   mergeAvailableAssistants(assistants, useCharacterStore.getState().profiles)
@@ -248,25 +244,6 @@ export const useAssistant = create<AssistantState>((set, get) => ({
           (assistant) => !assistant.id?.toString().startsWith('character:')
         )
         .map((assistant) => ({ ...assistant, id: assistant.id?.toString() }))
-        .map((assistant) =>
-          assistant.id === defaultAssistant.id
-            ? {
-                ...assistant,
-                ...(assistant.name === 'Jan'
-                  ? { name: defaultAssistant.name }
-                  : {}),
-                ...(assistant.avatar === '👋'
-                  ? { avatar: defaultAssistant.avatar }
-                  : {}),
-                ...(assistant.description &&
-                legacyDescriptions.includes(
-                  assistant.description.replace(/\u2019/g, "'")
-                )
-                  ? { description: defaultAssistant.description }
-                  : {}),
-              }
-            : assistant
-        )
       const available = availableAssistants(assistants)
       const lastUsedId = getLastUsedAssistantId(available)
       const lastUsedAssist = available.find((a) => a.id === lastUsedId)

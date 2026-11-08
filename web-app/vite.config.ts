@@ -121,10 +121,10 @@ export default defineConfig(({ mode }) => {
       POSTHOG_HOST: JSON.stringify(env.POSTHOG_HOST),
       GA_MEASUREMENT_ID: JSON.stringify(env.GA_MEASUREMENT_ID),
       MODEL_CATALOG_URL: JSON.stringify(
-        'https://raw.githubusercontent.com/janhq/model-catalog/main/model_catalog_v2.json'
+        '/model-catalog.json'
       ),
       LATEST_DEFAULT_MODEL_URL: JSON.stringify(
-        'https://raw.githubusercontent.com/janhq/model-catalog/main/latest_jan_model.json'
+        '/latest-default-model.json'
       ),
       AUTO_UPDATER_DISABLED: JSON.stringify(
         true

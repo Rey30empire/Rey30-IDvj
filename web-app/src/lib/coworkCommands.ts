@@ -5,7 +5,7 @@ import { useCoworkRun } from '@/hooks/useCoworkRun'
 /**
  * Canned onboarding prompt for `/init`. Sent as a normal user turn so the agent
  * runs it with the regular toolset; unlike the TUI's version it writes no
- * JAN.md — this surface loads no project instructions file, so durable output
+ * REY30.md — this surface loads no project instructions file, so durable output
  * goes to skills and memory, which every later run does read.
  */
 export const INIT_PROMPT = `Onboard yourself to this project so future sessions start informed.

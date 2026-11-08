@@ -3,8 +3,7 @@ import { useServiceHub } from '@/hooks/useServiceHub'
 import { useMCPServers } from '@/hooks/useMCPServers'
 import { toast } from 'sonner'
 import type { BrowserExtensionDialogState } from '@/containers/dialogs/BrowserExtensionDialog'
-
-const BROWSER_MCP_NAME = 'Jan Browser MCP'
+import { BROWSER_MCP_NAME } from '@/constants/browserMcp'
 
 // Timeout and polling configuration
 const PING_TIMEOUT_MS = 6000 // Backend ping takes up to 3s
@@ -67,7 +66,7 @@ export function useBrowserExtension() {
   const handleConnectionSuccess = useCallback(() => {
     setDialogOpen(false)
     setDialogState('closed')
-    toast.success('Jan Browser MCP enabled')
+    toast.success('Rey30 IDvj Browser MCP enabled')
   }, [])
 
   /**
@@ -93,7 +92,7 @@ export function useBrowserExtension() {
       ])
         .then(() => {})
         .catch((error) => {
-          console.error('Error deactivating Jan Browser MCP on cancel:', error)
+          console.error('Error deactivating Rey30 IDvj Browser MCP on cancel:', error)
         })
         .finally(() => {
           cancelDeactivationPromiseRef.current = null
@@ -105,7 +104,7 @@ export function useBrowserExtension() {
   }, [browserConfig, serviceHub, editServer, syncServers])
 
   /**
-   * Deactivate the Jan Browser MCP because the selected model lacks required capabilities.
+   * Deactivate the Rey30 IDvj Browser MCP because the selected model lacks required capabilities.
    * Shows a descriptive toast instead of the generic "disabled" message.
    */
   const disableDueToIncompatibleModel = useCallback(async () => {
@@ -123,7 +122,7 @@ export function useBrowserExtension() {
       setIsLoading(true)
 
       await serviceHub.mcp().deactivateMCPServer(BROWSER_MCP_NAME)
-      toast.warning('Jan Browser MCP disabled — model doesn\'t support vision.')
+      toast.warning('Rey30 IDvj Browser MCP disabled — model doesn\'t support vision.')
 
       editServer(BROWSER_MCP_NAME, {
         ...browserConfig,
@@ -131,7 +130,7 @@ export function useBrowserExtension() {
       })
       await syncServers()
     } catch (error) {
-      console.error('Error auto-disabling Jan Browser MCP:', error)
+      console.error('Error auto-disabling Rey30 IDvj Browser MCP:', error)
     } finally {
       setIsLoading(false)
       operationInProgressRef.current = false
@@ -139,7 +138,7 @@ export function useBrowserExtension() {
   }, [browserConfig, isActive, serviceHub, editServer, syncServers])
 
   /**
-   * Toggle the Jan Browser MCP (called when clicking the browser icon)
+   * Toggle the Rey30 IDvj Browser MCP (called when clicking the browser icon)
    */
   const toggleBrowser = useCallback(async () => {
     // Atomic check - refs update synchronously, prevents race conditions
@@ -148,7 +147,7 @@ export function useBrowserExtension() {
 
     try {
       if (!browserConfig) {
-        toast.error('Jan Browser MCP not found', {
+        toast.error('Rey30 IDvj Browser MCP not found', {
           description: 'Please check your MCP server configuration',
         })
         return
@@ -199,7 +198,7 @@ export function useBrowserExtension() {
       } else {
         // Deactivate the server
         await serviceHub.mcp().deactivateMCPServer(BROWSER_MCP_NAME)
-        toast.success('Jan Browser MCP disabled')
+        toast.success('Rey30 IDvj Browser MCP disabled')
 
         editServer(BROWSER_MCP_NAME, {
           ...browserConfig,
@@ -210,7 +209,7 @@ export function useBrowserExtension() {
     } catch (error) {
       // Don't show error if cancelled
       if (cancelledRef.current) return
-      console.error('Error toggling Jan Browser MCP:', error)
+      console.error('Error toggling Rey30 IDvj Browser MCP:', error)
       setDialogOpen(false)
       setDialogState('closed')
     } finally {

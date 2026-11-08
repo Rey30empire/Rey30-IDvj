@@ -45,9 +45,9 @@ describe('useBrowserExtension', () => {
     expect(typeof result.current.setDialogOpen).toBe('function')
   })
 
-  it('should detect config when Jan Browser MCP exists', async () => {
+  it('should detect config when Rey30 IDvj Browser MCP exists', async () => {
     mockMcpServers = {
-      'Jan Browser MCP': { command: 'node', args: [], env: {}, active: false },
+      'Rey30 IDvj Browser MCP': { command: 'node', args: [], env: {}, active: false },
     }
 
     const { useBrowserExtension } = await import('../useBrowserExtension')
@@ -59,7 +59,7 @@ describe('useBrowserExtension', () => {
 
   it('should detect active state', async () => {
     mockMcpServers = {
-      'Jan Browser MCP': { command: 'node', args: [], env: {}, active: true },
+      'Rey30 IDvj Browser MCP': { command: 'node', args: [], env: {}, active: true },
     }
 
     const { useBrowserExtension } = await import('../useBrowserExtension')
@@ -77,12 +77,12 @@ describe('useBrowserExtension', () => {
       await result.current.toggleBrowser()
     })
 
-    expect(toast.error).toHaveBeenCalledWith('Jan Browser MCP not found', expect.any(Object))
+    expect(toast.error).toHaveBeenCalledWith('Rey30 IDvj Browser MCP not found', expect.any(Object))
   })
 
   it('should handle cancel', async () => {
     mockMcpServers = {
-      'Jan Browser MCP': { command: 'node', args: [], env: {}, active: true },
+      'Rey30 IDvj Browser MCP': { command: 'node', args: [], env: {}, active: true },
     }
 
     const { useBrowserExtension } = await import('../useBrowserExtension')
@@ -94,7 +94,7 @@ describe('useBrowserExtension', () => {
 
     expect(result.current.dialogOpen).toBe(false)
     expect(result.current.dialogState).toBe('closed')
-    expect(mockEditServer).toHaveBeenCalledWith('Jan Browser MCP', expect.objectContaining({ active: false }))
+    expect(mockEditServer).toHaveBeenCalledWith('Rey30 IDvj Browser MCP', expect.objectContaining({ active: false }))
   })
 
   it('should allow setting dialog open state', async () => {

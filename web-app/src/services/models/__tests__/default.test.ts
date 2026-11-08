@@ -71,8 +71,8 @@ describe('DefaultModelsService - additional coverage', () => {
 
   describe('fetchLatestDefaultModel', () => {
     it.each([
-      ['object response', { model_name: 'jan-nano' }, { model_name: 'jan-nano' }],
-      ['array response', [{ model_name: 'jan-nano' }, { model_name: 'jan-micro' }], { model_name: 'jan-nano' }],
+      ['object response', { model_name: 'qwen-nano' }, { model_name: 'qwen-nano' }],
+      ['array response', [{ model_name: 'qwen-nano' }, { model_name: 'qwen-micro' }], { model_name: 'qwen-nano' }],
       ['empty array', [], null],
     ])('handles %s', async (_label, response, expected) => {
       ;(fetch as any).mockResolvedValue({ ok: true, json: vi.fn().mockResolvedValue(response) })

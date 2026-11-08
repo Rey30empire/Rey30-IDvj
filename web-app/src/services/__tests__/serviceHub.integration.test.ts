@@ -11,11 +11,6 @@ vi.mock('@/lib/platform/utils', () => ({
   isAndroid: vi.fn().mockReturnValue(false)
 }))
 
-// Mock @jan/extensions-web to return empty extensions for testing
-vi.mock('@jan/extensions-web', () => ({
-  WEB_EXTENSIONS: {}
-}))
-
 // Mock @rey30-idvj/core EngineManager to prevent initialization issues
 vi.mock('@rey30-idvj/core', () => ({
   EngineManager: {

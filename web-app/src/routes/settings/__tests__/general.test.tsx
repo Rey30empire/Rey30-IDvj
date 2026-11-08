@@ -465,7 +465,7 @@ describe('General Settings Route', () => {
     expect(screen.queryAllByRole('link')).toHaveLength(0)
     fireEvent.click(screen.getByRole('button', { name: 'LICENSE' }))
     expect(screen.getByText('Rey30 IDvj · LICENSE')).toBeInTheDocument()
-    expect(screen.getByText(/Copyright 2025 Menlo Research/)).toBeInTheDocument()
+    expect(screen.getByText(/Copyright 2025/)).toBeInTheDocument()
   })
 
   it('should handle logs window opening', async () => {

@@ -240,12 +240,12 @@ describe('ReasoningContent links', () => {
 
   it('opens a web link outside the app', () => {
     openExternalUrl.mockClear()
-    const link = renderLink('https://jan.ai/docs')
-    expect(link).toHaveAttribute('href', 'https://jan.ai/docs')
+    const link = renderLink('https://example.com/docs')
+    expect(link).toHaveAttribute('href', 'https://example.com/docs')
     expect(link).not.toHaveAttribute('target')
     act(() => link.click())
     expect(openExternalUrl).toHaveBeenCalledTimes(1)
-    expect(openExternalUrl).toHaveBeenCalledWith('https://jan.ai/docs')
+    expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/docs')
   })
 
   it('renders any other link as inert text', () => {

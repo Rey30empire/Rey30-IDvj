@@ -2,7 +2,7 @@
  * Model-related constants
  */
 
-export const DEFAULT_CODE_HF_REPO = 'janhq/Jan-Code-4b-Gguf'
+export const DEFAULT_CODE_HF_REPO = 'Qwen/Qwen2.5-Coder-7B-Instruct-GGUF'
 export const DEFAULT_MODEL_QUANTIZATIONS = ['iq4_xs', 'q4_k_m']
 
 /**
@@ -10,9 +10,6 @@ export const DEFAULT_MODEL_QUANTIZATIONS = ['iq4_xs', 'q4_k_m']
  * Includes Q8 for higher quality on capable systems
  */
 export const SETUP_SCREEN_QUANTIZATIONS = ['q4_k_xl']
-
-export const DEFAULT_VISION_HF_REPO = 'janhq/Jan-v2-VL-high-gguf'
-export const DEFAULT_VISION_QUANTIZATIONS = ['q4_k_m', 'q4_k_s', 'q4_0', 'q3_k_m']
 
 /**
  * Provider model capabilities - copied from token.js package

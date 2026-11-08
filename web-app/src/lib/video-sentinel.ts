@@ -8,14 +8,14 @@
 const PREFIX = ' __REY30_VIDEO__'
 const SUFFIX = ' '
 
-const SENTINEL_REGEX = / __(?:REY30|JAN)_VIDEO__([A-Za-z0-9+/=]+) /g
+const SENTINEL_REGEX = / __REY30_VIDEO__([A-Za-z0-9+/=]+) /g
 
 export function encodeVideoSentinel(base64: string): string {
   return `${PREFIX}${base64}${SUFFIX}`
 }
 
 export function hasVideoSentinel(text: string): boolean {
-  return text.includes(PREFIX) || text.includes(PREFIX.replace('REY30', 'JAN'))
+  return text.includes(PREFIX)
 }
 
 export type VideoPart = { type: 'input_video'; input_video: { data: string } }

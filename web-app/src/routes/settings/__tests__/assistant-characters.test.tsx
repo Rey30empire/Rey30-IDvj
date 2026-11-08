@@ -4,11 +4,11 @@ import { createDefaultCharacterData } from '@/lib/characters/profiles'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
 const h = vi.hoisted(() => ({ setDefault: vi.fn(), add: vi.fn(), update: vi.fn(), remove: vi.fn(), defaultId: 'character:nara' }))
-vi.mock('@/hooks/useAssistant', () => ({ useAssistant: () => ({ assistants: [{ id: 'jan', name: 'Rey30 IDvj', description: 'Asistente habitual', created_at: 1, instructions: '', parameters: {} }], defaultAssistantId: h.defaultId, setDefaultAssistant: h.setDefault, addAssistant: h.add, updateAssistant: h.update, deleteAssistant: h.remove }) }))
+vi.mock('@/hooks/useAssistant', () => ({ useAssistant: () => ({ assistants: [{ id: 'rey30', name: 'Rey30 IDvj', description: 'Asistente habitual', created_at: 1, instructions: '', parameters: {} }], defaultAssistantId: h.defaultId, setDefaultAssistant: h.setDefault, addAssistant: h.add, updateAssistant: h.update, deleteAssistant: h.remove }) }))
 vi.mock('@/hooks/useAvailableAssistants', async () => {
   const { useCharacterStore } = await import('@/stores/useCharacterStore')
   const { mergeAvailableAssistants } = await import('@/lib/characters/assistant-integration')
-  return { useAvailableAssistants: () => mergeAvailableAssistants([{ id: 'jan', name: 'Rey30 IDvj', created_at: 1, instructions: '', parameters: {} }], useCharacterStore(state => state.profiles)) }
+  return { useAvailableAssistants: () => mergeAvailableAssistants([{ id: 'rey30', name: 'Rey30 IDvj', created_at: 1, instructions: '', parameters: {} }], useCharacterStore(state => state.profiles)) }
 })
 vi.mock('@/containers/HeaderPage', () => ({ default: ({ children }: { children: React.ReactNode }) => <header>{children}</header> }))
 vi.mock('@/containers/SettingsMenu', () => ({ default: () => <nav aria-label="Ajustes" /> }))

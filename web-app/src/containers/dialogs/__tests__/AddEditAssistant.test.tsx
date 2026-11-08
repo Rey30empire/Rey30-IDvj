@@ -183,14 +183,14 @@ describe('local assistant file review', () => {
   it('loads a file for review without saving or reusing its ID', async () => {
     const props = baseProps()
     render(<AddEditAssistant {...props} />)
-    const fixture = { name: 'assistant.json', size: 200, text: async () => JSON.stringify({ id: 'jan', name: 'Copia local', instructions: 'Texto de revisión', parameters: { temperature: 0.4 } }) }
+    const fixture = { name: 'assistant.json', size: 200, text: async () => JSON.stringify({ id: 'rey30', name: 'Copia local', instructions: 'Texto de revisión', parameters: { temperature: 0.4 } }) }
     fireEvent.change(screen.getByLabelText('Archivo de asistente'), { target: { files: [fixture] } })
     await screen.findByText(/Archivo preparado: assistant.json/)
     expect(props.onSave).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'assistants:save' }))
     await waitFor(() => expect(props.onSave).toHaveBeenCalledTimes(1))
     expect(props.onSave.mock.calls[0][0]).toMatchObject({ name: 'Copia local', instructions: 'Texto de revisión' })
-    expect(props.onSave.mock.calls[0][0].id).not.toBe('jan')
+    expect(props.onSave.mock.calls[0][0].id).not.toBe('rey30')
   })
   it('retains the review form and shows a persistence error instead of closing', async () => {
     const props = baseProps()

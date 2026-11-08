@@ -13,8 +13,9 @@ import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useCallback } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { isPlatformTauri } from '@/lib/platform/utils'
+import { BROWSER_MCP_STORE_URL } from '@/constants/browserMcp'
 
-const CHROME_STORE_URL = 'https://chromewebstore.google.com/detail/jan-browser-mcp/mkciifcjehgnpaigoiaakdgabbpfppal'
+const CHROME_STORE_URL = BROWSER_MCP_STORE_URL
 
 export type BrowserExtensionDialogState =
   | 'closed'

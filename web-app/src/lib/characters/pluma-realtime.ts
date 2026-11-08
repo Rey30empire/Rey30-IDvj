@@ -191,7 +191,7 @@ export function startPlumaCall(callbacks: PlumaCallCallbacks) {
 
   async function consult() {
     setPhase('consulting')
-    armTimeout(120000, 'Jan 4B tardó demasiado en consultar la biblioteca. Vuelve a iniciar la llamada.')
+    armTimeout(120000, 'Qwen3.5-9B tardó demasiado en consultar la biblioteca. Vuelve a iniciar la llamada.')
     for (const [callId, call] of toolCalls) {
       let output: string
       try {

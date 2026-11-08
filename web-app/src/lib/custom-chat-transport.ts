@@ -96,7 +96,6 @@ import {
   characterBindingModel,
   characterIdFromAssistantId,
   ensureCharacterModelBindings,
-  isJanModelId,
 } from '@/lib/characters/assistant-integration'
 
 export type TokenUsageCallback = (
@@ -1446,7 +1445,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       await useCharacterStore.getState().load()
       const profile = useCharacterStore.getState().profiles.find((item) => item.id === characterId)
       if (!profile) throw new Error('No se encontró el personaje asignado a este chat. Selecciona otro asistente.')
-      if (!profile.modelBinding || isJanModelId(profile.modelBinding.modelId)) {
+      if (!profile.modelBinding) {
         const { providers, selectedModel } = useModelProvider.getState()
         await ensureCharacterModelBindings(providers, selectedModel)
       }
@@ -1481,7 +1480,7 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       if (!boundProvider || !boundModel) throw new Error('El modelo asignado al personaje ya no está disponible. Elige otro modelo en su configuración.')
       turnModelSelection = { selectedProvider: binding.providerId, selectedModel: boundModel }
       this.turnModelSelection = turnModelSelection
-    } else if (!this.streamRoutesToCowork && assignedAssistant && assignedAssistant.id !== 'jan' && assignedAssistant.id !== 'model-only') {
+    } else if (!this.streamRoutesToCowork && assignedAssistant && assignedAssistant.id !== 'rey30' && assignedAssistant.id !== 'model-only') {
       const state = useModelProvider.getState()
       const binding = assistantModelBinding(assignedAssistant.id, state.providers)
       const model = binding && state.getProviderByName(binding.providerId)?.models.find((item) => item.id === binding.modelId)

@@ -97,7 +97,7 @@ describe('TauriWindowService', () => {
 
     it('sets dark theme from localStorage', async () => {
       localStorage.setItem(
-        'jan-theme',
+        'theme',
         JSON.stringify({ state: { activeTheme: 'dark', isDark: true } })
       )
       await svc.createWebviewWindow(baseConfig)
@@ -109,7 +109,7 @@ describe('TauriWindowService', () => {
 
     it('sets light theme from localStorage', async () => {
       localStorage.setItem(
-        'jan-theme',
+        'theme',
         JSON.stringify({ state: { activeTheme: 'light', isDark: false } })
       )
       await svc.createWebviewWindow(baseConfig)
@@ -121,7 +121,7 @@ describe('TauriWindowService', () => {
 
     it('sets undefined theme when activeTheme is auto', async () => {
       localStorage.setItem(
-        'jan-theme',
+        'theme',
         JSON.stringify({ state: { activeTheme: 'auto', isDark: false } })
       )
       await svc.createWebviewWindow(baseConfig)
@@ -133,7 +133,7 @@ describe('TauriWindowService', () => {
 
     it('handles invalid JSON in localStorage gracefully', async () => {
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      localStorage.setItem('jan-theme', 'not-json')
+      localStorage.setItem('theme', 'not-json')
       await svc.createWebviewWindow(baseConfig)
       expect(spy).toHaveBeenCalled()
       expect(mockConstructor).toHaveBeenCalledWith(

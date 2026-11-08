@@ -559,7 +559,7 @@ describe('useSetupChecklist', () => {
       const { result } = renderHook(() => useSetupChecklist())
       await waitFor(() => expect(result.current.isRunning).toBe(false))
 
-      await emit('onModelImported', { modelId: 'jan-v3', embedding: false })
+      await emit('onModelImported', { modelId: 'qwen-v3', embedding: false })
 
       expect(mockVerifyEmbeddingModel).toHaveBeenCalledTimes(1)
     })

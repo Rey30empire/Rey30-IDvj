@@ -8,12 +8,6 @@ import {
 import { decodeAudioSentinelsInBody } from '../model-factory'
 
 describe('audio-sentinel', () => {
-  it('decodes attachments serialized before the application rename', () => {
-    expect(splitAudioSentinels('\u0000__JAN_AUDIO__\u0001mp3\u0001QUFB\u0000')).toEqual([
-      { type: 'input_audio', input_audio: { data: 'QUFB', format: 'mp3' } },
-    ])
-    expect(encodeAudioSentinel('mp3', 'QUFB')).toContain('__REY30_AUDIO__')
-  })
   it('round-trips a single sentinel back to an input_audio part', () => {
     const encoded = encodeAudioSentinel('mp3', 'QUFB')
     expect(hasAudioSentinel(encoded)).toBe(true)

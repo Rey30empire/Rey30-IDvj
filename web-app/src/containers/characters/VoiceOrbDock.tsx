@@ -26,7 +26,7 @@ const plumaStatus: Record<PlumaCallPhase, string> = {
   listening: 'Te escucho. Habla y haz una pausa al terminar.',
   transcribing: 'Reconociendo tu frase en este equipo…',
   thinking: 'Preparando respuesta…',
-  consulting: 'Consultando la biblioteca local con Jan 4B…',
+  consulting: 'Consultando la biblioteca local con Qwen3.5-9B…',
   speaking: 'Hablando',
   composing: 'Generando canción…',
   singing: 'Cantando',
@@ -263,7 +263,7 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
       <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-2">
         <p className="text-sm font-medium">{profile.name}</p>
         <p data-testid="voice-orb-status" role="status" className="text-sm">{status}</p>
-        <p className="text-xs text-muted-foreground">{cloneCall ? 'Gemma 4 escucha tu frase. Qwen reproduce la respuesta con tu muestra de voz.' : directCall ? 'LFM3 escucha y responde en este equipo. Pluma consulta Jan 4B y la biblioteca local cuando la petición lo necesita.' : 'Iniciar voz autoriza el micrófono durante esta sesión. Dictado y voz locales; el mensaje usa el modelo y los permisos del chat.'}</p>
+        <p className="text-xs text-muted-foreground">{cloneCall ? 'Gemma 4 escucha tu frase. Qwen reproduce la respuesta con tu muestra de voz.' : directCall ? 'LFM3 escucha y responde en este equipo. Pluma consulta Qwen3.5-9B y la biblioteca local cuando la petición lo necesita.' : 'Iniciar voz autoriza el micrófono durante esta sesión. Dictado y voz locales; el mensaje usa el modelo y los permisos del chat.'}</p>
         {cloneCall && session.active && canSing && <p className="text-xs text-muted-foreground">Prueba «canta una canción sobre la lluvia». El canto usa la voz del motor musical.</p>}
         {plumaSelector && <>
           <label className="flex flex-col gap-1.5 text-sm font-medium">

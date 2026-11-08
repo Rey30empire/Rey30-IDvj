@@ -198,3 +198,34 @@
 [data-tool-call-block] + [data-tool-call-block] {
   margin-top: 16px;
 }
+
+/* Fade-in for blocks rendered by streaming Streamdown views (reasoning,
+   chain of thought). */
+@keyframes streamdownFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.streamdown-animate > * {
+  animation: streamdownFadeIn 500ms ease-out both;
+}
+.streamdown-animate > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.streamdown-animate > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.streamdown-animate > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.streamdown-animate > *:nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .streamdown-animate > * {
+    animation: none;
+  }
+}

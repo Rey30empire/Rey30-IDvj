@@ -5,6 +5,7 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 import type { WindowConfig, WebviewWindowInstance } from './types'
 import { DefaultWindowService } from './default'
+import { localStorageKey } from '@/constants/localStorage'
 
 export class TauriWindowService extends DefaultWindowService {
   async createWebviewWindow(
@@ -12,7 +13,7 @@ export class TauriWindowService extends DefaultWindowService {
   ): Promise<WebviewWindowInstance> {
     try {
       // Get current theme from localStorage
-      const storedTheme = localStorage.getItem('jan-theme')
+      const storedTheme = localStorage.getItem(localStorageKey.theme)
       let theme: 'light' | 'dark' | undefined = undefined
 
       if (storedTheme) {

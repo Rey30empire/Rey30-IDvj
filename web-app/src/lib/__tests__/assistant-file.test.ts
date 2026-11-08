@@ -3,7 +3,7 @@ import { MAX_ASSISTANT_FILE_BYTES, parseAssistantFile } from '../assistant-file'
 
 describe('local assistant files are inspected as data', () => {
   it('reads the exported JSON shape and never carries over its ID', () => {
-    const draft = parseAssistantFile('assistant.json', JSON.stringify({ id: 'jan', name: 'Mi copia', instructions: 'Instrucciones locales', parameters: { temperature: 0.5, stop: ['fin'] } }))
+    const draft = parseAssistantFile('assistant.json', JSON.stringify({ id: 'rey30', name: 'Mi copia', instructions: 'Instrucciones locales', parameters: { temperature: 0.5, stop: ['fin'] } }))
     expect(draft.name).toBe('Mi copia')
     expect(draft).not.toHaveProperty('id')
     expect(draft.warnings.join(' ')).toContain('identificador nuevo')

@@ -28,22 +28,6 @@ describe('useAssistant', () => {
     expect(result.current.currentAssistant).toEqual(defaultAssistant)
   })
 
-  it('renames only the legacy default assistant and retains its model and custom instructions', () => {
-    const legacy = {
-      ...defaultAssistant,
-      name: 'Jan',
-      model: { id: 'Jan-v3.5-4B-Q4_K_XL', engine: 'llamacpp' },
-      instructions: 'Keep my custom instructions.',
-      description: 'My saved description.',
-    }
-    const custom = { ...defaultAssistant, id: 'custom', name: 'My assistant' }
-    act(() => useAssistant.getState().setAssistants([legacy, custom]))
-
-    const restored = useAssistant.getState().assistants
-    expect(restored[0]).toEqual({ ...legacy, name: 'Rey30 IDvj' })
-    expect(restored[1]).toEqual(custom)
-  })
-
   it('should add assistant', async () => {
     const { result } = renderHook(() => useAssistant())
 
@@ -63,50 +47,6 @@ describe('useAssistant', () => {
 
     expect(result.current.assistants).toHaveLength(2)
     expect(result.current.assistants).toContain(newAssistant)
-  })
-
-  it.each(
-    ['Jan', 'Rey30 IDvj'].flatMap((legacyName) =>
-      ["'", '\u2019'].map((apostrophe) => ({ legacyName, apostrophe }))
-    )
-  )(
-    'migrates only the exact $legacyName default description with apostrophe $apostrophe while keeping custom instructions and parameters',
-    ({ legacyName, apostrophe }) => {
-      const legacy = {
-        ...defaultAssistant,
-        name: legacyName,
-        avatar: '👋',
-        description: `${legacyName} is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user${apostrophe}s behalf.`,
-        instructions: 'Instrucciones propias que deben conservarse.',
-        parameters: { temperature: 0.37 },
-        model: { id: 'owned-model', engine: 'llamacpp' },
-      }
-      act(() => useAssistant.getState().setAssistants([legacy]))
-      expect(useAssistant.getState().assistants[0]).toEqual({
-        ...legacy,
-        name: defaultAssistant.name,
-        avatar: '/images/rey30-idvj.svg',
-        description: defaultAssistant.description,
-      })
-    }
-  )
-
-  it('preserves a customized Jan avatar/description and leaves other assistants unchanged', () => {
-    const custom = {
-      ...defaultAssistant,
-      name: 'Mi asistente',
-      avatar: '/images/owned.svg',
-      description:
-        'Rey30 IDvj is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user\u2019s behalf. Mi descripción personalizada.',
-    }
-    const other = {
-      ...custom,
-      id: 'owned-assistant',
-      name: 'Jan',
-      avatar: '👋',
-    }
-    act(() => useAssistant.getState().setAssistants([custom, other]))
-    expect(useAssistant.getState().assistants).toEqual([custom, other])
   })
 
   it('should update assistant', async () => {
@@ -150,7 +90,7 @@ describe('useAssistant', () => {
     })
 
     expect(result.current.assistants).toHaveLength(1)
-    expect(result.current.assistants[0].id).toBe('jan')
+    expect(result.current.assistants[0].id).toBe('rey30')
   })
 
   it('should set current assistant', () => {
@@ -212,7 +152,7 @@ describe('useAssistant', () => {
   it('should maintain assistant structure', () => {
     const { result } = renderHook(() => useAssistant())
 
-    expect(result.current.currentAssistant.id).toBe('jan')
+    expect(result.current.currentAssistant.id).toBe('rey30')
     expect(result.current.currentAssistant.name).toBe('Rey30 IDvj')
     expect(result.current.currentAssistant.avatar).toBe(
       '/images/rey30-idvj.svg'

@@ -21,6 +21,7 @@ import React from 'react'
 import { useAppState } from '@/hooks/useAppState'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { cn } from '@/lib/utils'
+import { BROWSER_MCP_NAME } from '@/constants/browserMcp'
 
 interface DropdownToolsAvailableProps {
   children: (isOpen: boolean, toolsCount: number) => React.ReactNode
@@ -32,8 +33,8 @@ export default memo(function DropdownToolsAvailable({
   onOpenChange,
 }: DropdownToolsAvailableProps) {
   const allTools = useAppState((state) => state.tools)
-  // Filter out Jan Browser MCP tools
-  const tools = allTools.filter((tool) => tool.server !== 'Jan Browser MCP')
+  // Filter out browser MCP tools
+  const tools = allTools.filter((tool) => tool.server !== BROWSER_MCP_NAME)
   const [isOpen, setIsOpen] = useState(false)
   const { t } = useTranslation()
 

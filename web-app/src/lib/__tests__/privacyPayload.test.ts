@@ -16,7 +16,7 @@ describe('privacy payload', () => {
     const { payload } = redactPrivacyPayload({ prompt: [], headers: { Authorization: 'fixture-header' }, abortSignal: new AbortController().signal, providerOptions: { custom: { apiKey: 'fixture-key', token: 'fixture-token', thoughtBudget: 10 } } })
     expect(payload).toEqual({ prompt: [], providerOptions: { custom: { thoughtBudget: 10 } } })
   })
-  it.each([{ type: 'file', data: 'opaque' }, { type: 'image-url', url: 'https://example.test/image' }, { type: 'input_audio' }, new Uint8Array([1]), new URL('https://example.test/file'), 'data:image/png;base64,AAAA', ' __REY30_VIDEO__AAAA ', ' __JAN_TOOL_IMAGE__data:image/png;base64,AAAA '])('rejects an opaque attachment without silently omitting it (%j)', value => {
+  it.each([{ type: 'file', data: 'opaque' }, { type: 'image-url', url: 'https://example.test/image' }, { type: 'input_audio' }, new Uint8Array([1]), new URL('https://example.test/file'), 'data:image/png;base64,AAAA', ' __REY30_VIDEO__AAAA ', ' __REY30_TOOL_IMAGE__data:image/png;base64,AAAA '])('rejects an opaque attachment without silently omitting it (%j)', value => {
     expect(() => assertPrivacyTextOnly({ content: value })).toThrow('adjuntos')
   })
   it('keeps visible text URLs and masks manually in values, never in structural keys', () => {

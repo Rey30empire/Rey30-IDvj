@@ -28,7 +28,7 @@ import { ChevronsUpDown } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useAssistant } from '@/hooks/useAssistant'
 import { useAvailableAssistants, useActiveCharacter } from '@/hooks/useAvailableAssistants'
-import { assistantModelBinding, characterIdFromAssistantId, isJanModelId, preferredCharacterModel, selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
+import { assistantModelBinding, characterIdFromAssistantId, preferredCharacterModel, selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
 import { getCharacterChatRole } from '@/lib/characters/profiles'
 import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
 import { useCharacterStore } from '@/stores/useCharacterStore'
@@ -96,13 +96,11 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     : undefined
   const activeAssistant = assistants.find((item) => item.id === assignedAssistant?.id) ?? assignedAssistant
   const privateLibraryChat = allowAssistants && (activeAssistant?.id === literaryAssistantId || isLiteraryThread(currentThreadId ? threads?.[currentThreadId] : undefined))
-  const fixedAssistantId = !character && activeAssistant?.id && !['jan', 'model-only'].includes(activeAssistant.id) && !characterIdFromAssistantId(activeAssistant.id)
+  const fixedAssistantId = !character && activeAssistant?.id && !['rey30', 'model-only'].includes(activeAssistant.id) && !characterIdFromAssistantId(activeAssistant.id)
     ? activeAssistant.id
     : undefined
   const binding = allowAssistants && character
-    ? character.modelBinding && !isJanModelId(character.modelBinding.modelId)
-      ? character.modelBinding
-      : preferredCharacterModel(providers, selectedModel)
+    ? character.modelBinding ?? preferredCharacterModel(providers, selectedModel)
     : fixedAssistantId ? assistantModelBinding(fixedAssistantId, providers) : undefined
   const bindingProvider = providers.find((item) => item.provider === binding?.providerId && item.active !== false && (!privateLibraryChat || isLiteraryModelProvider(item)))
   const boundModel = bindingProvider?.models.find((item) => item.id === binding?.modelId && !item.capabilities?.includes('embeddings'))
@@ -346,7 +344,6 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
       provider.models.forEach((modelItem) => {
         // Skip embedding models - they can't be used for chat
         if (modelItem.embedding) return
-        if ((character || fixedAssistantId) && isJanModelId(modelItem.id)) return
         if (fixedAssistantId && (provider.provider !== binding?.providerId || modelItem.id !== binding.modelId)) return
 
         // Skip models that require API key but don't have one (except llamacpp)
@@ -380,7 +377,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     })
 
     return items
-  }, [providers, privateLibraryChat, character, fixedAssistantId, binding?.providerId, binding?.modelId])
+  }, [providers, privateLibraryChat, fixedAssistantId, binding?.providerId, binding?.modelId])
 
   // Create Fzf instance for fuzzy search
   const fzfInstance = useMemo(() => {

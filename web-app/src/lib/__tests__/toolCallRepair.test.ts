@@ -62,8 +62,8 @@ describe('sanitizeInvalidJsonEscapes', () => {
 
 describe('repairToolArgs', () => {
   it('parses a broken Windows path', () => {
-    expect(repairToolArgs('{"path":"D:\\repos\\jan\\file"}')).toEqual({
-      path: 'D:\\repos\\jan\\file',
+    expect(repairToolArgs('{"path":"D:\\repos\\idvj\\file"}')).toEqual({
+      path: 'D:\\repos\\idvj\\file',
     })
   })
 

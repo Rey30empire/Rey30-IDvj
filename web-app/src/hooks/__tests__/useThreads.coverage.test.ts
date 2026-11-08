@@ -155,7 +155,7 @@ describe('useThreads - coverage', () => {
     mockCreateThread.mockResolvedValue(thread)
 
     const { result } = renderHook(() => useThreads())
-    const assistant = { id: 'jan', name: 'Rey30 IDvj' } as any
+    const assistant = { id: 'rey30', name: 'Rey30 IDvj' } as any
 
     await act(async () => {
       await result.current.createThread({ id: 'm1', provider: 'openai' } as any, 'Title', assistant)

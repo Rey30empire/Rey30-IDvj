@@ -28,15 +28,15 @@ describe('CoworkEmptyState', () => {
   // folder you just attached is a task you might actually run.
   it('names the attached folder in every example', () => {
     render(
-      <CoworkEmptyState folder="/home/u/Projects/jan-app" onPick={vi.fn()} />
+      <CoworkEmptyState folder="/home/u/Projects/rey30-app" onPick={vi.fn()} />
     )
 
     expect(
-      screen.getByText('common:coworkEmpty.subtitleFolder[jan-app]')
+      screen.getByText('common:coworkEmpty.subtitleFolder[rey30-app]')
     ).toBeInTheDocument()
     for (const key of ['first', 'second', 'third']) {
       expect(
-        screen.getByText(`common:coworkEmpty.folder.${key}[jan-app]`)
+        screen.getByText(`common:coworkEmpty.folder.${key}[rey30-app]`)
       ).toBeInTheDocument()
     }
   })

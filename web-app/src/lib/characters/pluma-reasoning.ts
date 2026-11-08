@@ -7,7 +7,7 @@ import { responseGuidance } from '@/lib/responseGuidance'
 import { getOriginalProfile } from './profiles'
 
 const maxQueryLength = 4000
-const jan4b = 'Jan-v3.5-4B-Q4_K_XL'
+const plumaModelId = 'Qwen3.5-9B-Q4_K_M'
 
 export const plumaRealtimeInstructions = [
   responseGuidance,
@@ -22,7 +22,7 @@ export const plumaRealtimeInstructions = [
 export const plumaReasoningTool = {
   type: 'function',
   name: 'consultar_pluma',
-  description: 'Consulta la biblioteca local y pide a Jan 4B un análisis o una respuesta literaria. Úsala para obras, citas, escritura, revisión y razonamiento.',
+  description: 'Consulta la biblioteca local y pide a Qwen3.5-9B un análisis o una respuesta literaria. Úsala para obras, citas, escritura, revisión y razonamiento.',
   parameters: {
     type: 'object',
     properties: {
@@ -43,9 +43,9 @@ export async function answerWithPluma(query: string, sessionId: string, signal?:
     throw new Error('Activa llama.cpp en Rey30 para consultar la biblioteca de Pluma.')
   }
   const models = provider.models.filter(model => !model.embedding && !model.capabilities?.includes('embeddings'))
-  const modelId = models.find(model => model.id === jan4b)?.id ??
-    models.find(model => /^Jan-v3\.5-4B(?:$|-)/i.test(model.id))?.id
-  if (!modelId) throw new Error('Instala Jan-v3.5-4B en Rey30 para consultar la biblioteca de Pluma.')
+  const modelId = models.find(model => model.id === plumaModelId)?.id ??
+    models.find(model => /^Qwen3\.5-9B(?:$|-)/i.test(model.id))?.id
+  if (!modelId) throw new Error('Instala Qwen3.5-9B en Rey30 para consultar la biblioteca de Pluma.')
 
   const context = await literaryLibraryContext(text, { kind: 'realtime', sessionId })
   signal?.throwIfAborted()
@@ -70,6 +70,6 @@ export async function answerWithPluma(query: string, sessionId: string, signal?:
   })
   signal?.throwIfAborted()
   const answer = result.text.trim()
-  if (!answer) throw new Error('Jan 4B no devolvió una respuesta para esta consulta.')
+  if (!answer) throw new Error('Qwen3.5-9B no devolvió una respuesta para esta consulta.')
   return answer
 }

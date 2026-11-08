@@ -42,7 +42,7 @@ export function assertPrivacyTextOnly(
   if (typeof value === 'string') {
     if (
       /data:(?:image|audio|video|application)\//i.test(value) ||
-      /__(?:REY30|JAN)_(?:AUDIO|VIDEO|TOOL_IMAGE)__/.test(value)
+      /__REY30_(?:AUDIO|VIDEO|TOOL_IMAGE)__/.test(value)
     )
       throw new Error(OPAQUE_PRIVACY_ERROR)
     return

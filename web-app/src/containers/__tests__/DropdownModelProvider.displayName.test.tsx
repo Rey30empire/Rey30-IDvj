@@ -53,7 +53,6 @@ vi.mock('@/hooks/useAvailableAssistants', () => ({
 vi.mock('@/lib/characters/assistant-integration', () => ({
   assistantModelBinding: () => null,
   characterIdFromAssistantId: (id?: string) => id?.startsWith('character:') ? id.slice(10) : undefined,
-  isJanModelId: (id: string) => /^jan-/i.test(id),
   preferredCharacterModel: () => null,
   selectIntegratedAssistant: vi.fn(),
 }))

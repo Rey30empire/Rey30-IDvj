@@ -12,12 +12,6 @@ import {
 } from '../model-factory'
 
 describe('video-sentinel', () => {
-  it('decodes attachments serialized before the application rename', () => {
-    expect(splitVideoSentinels(' __JAN_VIDEO__QUFB ')).toEqual([
-      { type: 'input_video', input_video: { data: 'QUFB' } },
-    ])
-    expect(encodeVideoSentinel('QUFB')).toContain('__REY30_VIDEO__')
-  })
   it('round-trips a single sentinel back to an input_video part', () => {
     const encoded = encodeVideoSentinel('QUFB')
     expect(hasVideoSentinel(encoded)).toBe(true)

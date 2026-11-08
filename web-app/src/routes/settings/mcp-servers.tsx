@@ -33,6 +33,7 @@ import { McpServerAuth } from '@/containers/McpServerAuth'
 import { useMcpAuth, needsAuthDetail } from '@/hooks/useMcpAuth'
 import ImportResourcesDialog from '@/containers/dialogs/ImportResourcesDialog'
 import McpCatalogDialog from '@/containers/dialogs/McpCatalogDialog'
+import { BROWSER_MCP_STORE_URL } from '@/constants/browserMcp'
 import {
   validateMCPConfigJson,
   type MCPConfigJson,
@@ -801,7 +802,7 @@ function MCPServersDesktop() {
                                         )}
                                       </p>
                                       <a
-                                        href="https://chromewebstore.google.com/detail/jan-browser-mcp/mkciifcjehgnpaigoiaakdgabbpfppal"
+                                        href={BROWSER_MCP_STORE_URL}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-blue-500 hover:underline"

@@ -73,7 +73,6 @@ const provider = (id: string, models: string[], active = true): ModelProvider =>
     settings: [],
   }) as unknown as ModelProvider
 const binding = { providerId: 'llamacpp', modelId: 'Qwen3.5-9B-Q4_K_M' }
-const janBinding = { providerId: 'llamacpp', modelId: 'Jan-v3.5-4B-Q4_K_XL' }
 
 describe('asistentes de personajes integrados', () => {
   beforeEach(() => {
@@ -109,7 +108,7 @@ describe('asistentes de personajes integrados', () => {
   it('proyecta diez asistentes sin duplicar perfiles ni persistir instrucciones personales como snapshot', async () => {
     const { result } = renderHook(useAvailableAssistants)
     expect(result.current.map((assistant) => assistant.id)).toEqual([
-      'jan',
+      'rey30',
       'character:kairo',
       'character:beto',
       'character:tino',
@@ -141,11 +140,11 @@ describe('asistentes de personajes integrados', () => {
     expect(h.createAssistant).not.toHaveBeenCalled()
     expect(h.saveCharacter).not.toHaveBeenCalled()
     expect(characterIdFromAssistantId('character:../bad')).toBeUndefined()
-    expect(characterIdFromAssistantId('jan')).toBeUndefined()
+    expect(characterIdFromAssistantId('rey30')).toBeUndefined()
     expect(characterAssistantId('nara')).toBe('character:nara')
   })
 
-  it('restaura predeterminado y último usado por id virtual manteniendo el id jan y la lista persistida separados', async () => {
+  it('restaura predeterminado y último usado por id virtual manteniendo el id rey30 y la lista persistida separados', async () => {
     localStorage.setItem(localStorageKey.lastUsedAssistant, 'character:beto')
     act(() => useAssistant.getState().setAssistants([defaultAssistant]))
     await waitFor(() =>
@@ -195,11 +194,10 @@ describe('asistentes de personajes integrados', () => {
     expect(useAssistant.getState().assistants).toEqual([defaultAssistant])
   })
 
-  it('reserva Jan 4B para Jan y elige Qwen 9B para los asistentes Rey30-IDvj', () => {
+  it('elige Qwen 9B para el asistente predeterminado y los asistentes Rey30-IDvj', () => {
     const local = provider('llamacpp', [
       'sentence-transformer-mini',
       'Phi-3.8B',
-      janBinding.modelId,
       binding.modelId,
     ])
     expect(
@@ -207,10 +205,10 @@ describe('asistentes de personajes integrados', () => {
     ).toEqual(binding)
     expect(
       preferredCharacterModel([
-        provider('llamacpp', ['sentence-transformer-mini', janBinding.modelId]),
+        provider('llamacpp', ['sentence-transformer-mini']),
       ])
     ).toBeNull()
-    expect(assistantModelBinding('jan', [local])).toEqual(janBinding)
+    expect(assistantModelBinding('rey30', [local])).toEqual(binding)
     expect(assistantModelBinding('owned-assistant', [local])).toEqual(binding)
     expect(
       preferredCharacterModel([provider('llamacpp', [binding.modelId], false)])
@@ -223,9 +221,9 @@ describe('asistentes de personajes integrados', () => {
     ).toBeNull()
   })
 
-  it('migra bindings Jan y ausentes una vez, preservando otros modelos y memoria', async () => {
+  it('completa bindings ausentes una vez, preservando otros modelos y memoria', async () => {
     const data = createDefaultCharacterData()
-    data.profiles[0].modelBinding = janBinding
+    data.profiles[0].modelBinding = null
     data.profiles[4].modelBinding = {
       providerId: 'openai',
       modelId: 'chosen-owned',
@@ -273,7 +271,7 @@ describe('asistentes de personajes integrados', () => {
       'owned-thread'
     )
     await waitFor(() => expect(h.updateThread).toHaveBeenCalledOnce())
-    expect(useAssistant.getState().currentAssistant?.id).toBe('jan')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
     expect(useThreads.getState().threads['owned-thread']).toEqual(old)
     finish()
     await selecting
@@ -310,7 +308,7 @@ describe('asistentes de personajes integrados', () => {
       selectIntegratedAssistant('character:roco', 'owned-thread')
     ).rejects.toThrow('owned-disk-full')
     expect(useThreads.getState().threads['owned-thread']).toEqual(old)
-    expect(useAssistant.getState().currentAssistant?.id).toBe('jan')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
     expect(h.selectModel).not.toHaveBeenCalled()
     const profile = structuredClone(useCharacterStore.getState().profiles[4])
     profile.modelBinding = { providerId: 'openai', modelId: 'missing-owned' }
@@ -321,7 +319,7 @@ describe('asistentes de personajes integrados', () => {
     expect(useCharacterStore.getState().profiles[4].modelBinding).toEqual(
       profile.modelBinding
     )
-    expect(useAssistant.getState().currentAssistant?.id).toBe('jan')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
   })
 
   it('cancela voz y un envío pendiente sincrónicamente al cambiar de asistente, antes de resolver la nueva selección', async () => {
@@ -343,14 +341,14 @@ describe('asistentes de personajes integrados', () => {
       active: false,
     })
     expect(h.stopAudio).toHaveBeenCalledWith(`avatar:${generation}`)
-    expect(useAssistant.getState().currentAssistant?.id).toBe('jan')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
     await pending
     await selecting
     expect(send).not.toHaveBeenCalled()
     expect(useAssistant.getState().currentAssistant?.id).toBe('character:nara')
   })
 
-  it('deriva el personaje del hilo y no hereda el global al cargar, al elegir Jan ni en model-only', () => {
+  it('deriva el personaje del hilo y no hereda el global al cargar, al elegir el predeterminado ni en model-only', () => {
     useAssistant
       .getState()
       .setCurrentAssistant(
@@ -372,7 +370,7 @@ describe('asistentes de personajes integrados', () => {
       })
     )
     expect(result.current?.id).toBe('nara')
-    for (const id of ['jan', 'model-only']) {
+    for (const id of ['rey30', 'model-only']) {
       act(() =>
         useThreads.setState({
           threads: {

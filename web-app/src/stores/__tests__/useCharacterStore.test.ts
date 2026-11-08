@@ -22,7 +22,7 @@ describe('persistencia independiente de personajes', () => {
     await store.getState().selectCharacter('nara')
     const profile = structuredClone(store.getState().profiles[5])
     profile.settings.flirtation = 0
-    profile.modelBinding = { providerId: 'llamacpp', modelId: 'Jan-v3.5-4B-Q4_K_XL' }
+    profile.modelBinding = { providerId: 'llamacpp', modelId: 'Qwen3.5-9B-Q4_K_M' }
     await store.getState().updateProfile(profile)
     await store.getState().setIndividualMemory('nara', { enabled: true, notes: 'Prefiero explicaciones cortas.' })
     const restarted = fixture(read()).store
@@ -75,7 +75,7 @@ describe('persistencia independiente de personajes', () => {
     data.profiles = data.profiles.filter(({ id }) => id !== 'fullstack' && id !== 'literatura')
     data.profiles[0].name = 'Kairo Voltán'
     data.profiles[0].examples[0].response = 'Mi saludo guardado.'
-    data.profiles[0].modelBinding = { providerId: 'llamacpp', modelId: 'Jan-v3.5-4B-Q4_K_XL' }
+    data.profiles[0].modelBinding = { providerId: 'llamacpp', modelId: 'Qwen3.5-9B-Q4_K_M' }
     const { store, storage } = fixture(JSON.stringify(data))
     await store.getState().load()
     expect(store.getState().profiles.slice(0, 8)).toEqual(data.profiles)

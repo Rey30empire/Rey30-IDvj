@@ -6,7 +6,6 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useTranslation } from '@/i18n'
 import {
-  extractModelName,
   extractQuantLabel,
   selectDefaultQuant,
 } from '@/lib/models'
@@ -14,7 +13,7 @@ import { toast } from 'sonner'
 import { cn, sanitizeModelId } from '@/lib/utils'
 import { pickSpecSibling } from '@/lib/specDraft'
 import { CatalogModel } from '@/services/models/types'
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useShallow } from 'zustand/shallow'
 import { DEFAULT_MODEL_QUANTIZATIONS } from '@/constants/models'
 
@@ -80,11 +79,6 @@ export function DownloadButtonPlaceholder({
         m.id === `${model.developer}/${sanitizeModelId(modelId)}`
   ))
 
-  const isRecommendedModel = useCallback((modelId: string) => {
-    return (extractModelName(modelId)?.toLowerCase() ===
-      'jan-nano-gguf') as boolean
-  }, [])
-
   if ((model.quants?.length ?? 0) === 0) {
     return (
       <div className="flex items-center gap-2">
@@ -106,8 +100,6 @@ export function DownloadButtonPlaceholder({
 
   const downloadProgress =
     downloadProcesses.find((e) => e.id === modelId)?.progress || 0
-
-  const isRecommended = isRecommendedModel(model.model_name)
 
   const handleDownload = async () => {
     addLocalDownloadingModel(modelId)
@@ -147,12 +139,7 @@ export function DownloadButtonPlaceholder({
   }
 
   return (
-    <div
-      className={cn(
-        'flex items-center',
-        isRecommended && 'hub-download-button-step'
-      )}
-    >
+    <div className="flex items-center">
       {isDownloading && !isDownloaded && (
         <div className={cn('flex items-center gap-2 w-20')}>
           <Progress className='border' value={downloadProgress * 100} />

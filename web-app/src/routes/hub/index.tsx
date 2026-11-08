@@ -366,11 +366,6 @@ function HubContent() {
 
   const navigate = useNavigate()
 
-  const isRecommendedModel = useCallback((modelId: string) => {
-    return (extractModelName(modelId)?.toLowerCase() ===
-      'jan-nano-gguf') as boolean
-  }, [])
-
   const handleUseModel = useCallback(
     (modelId: string) => {
       navigate({
@@ -580,15 +575,7 @@ function HubContent() {
                               }}
                             >
                               <h1
-                                className={cn(
-                                  'text-foreground font-medium text-base capitalize sm:max-w-none',
-                                  isRecommendedModel(
-                                    filteredModels[virtualItem.index]
-                                      .model_name
-                                  )
-                                    ? 'hub-model-card-step'
-                                    : ''
-                                )}
+                                className="text-foreground font-medium text-base capitalize sm:max-w-none"
                                 title={
                                   extractModelName(
                                     filteredModels[virtualItem.index]

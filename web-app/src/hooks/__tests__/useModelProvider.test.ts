@@ -14,7 +14,7 @@ vi.mock('@/hooks/useServiceHub', () => ({
 // Mock the localStorage key constants
 vi.mock('@/constants/localStorage', () => ({
   localStorageKey: {
-    modelProvider: 'jan-model-provider',
+    modelProvider: 'rey30-model-provider',
   },
 }))
 

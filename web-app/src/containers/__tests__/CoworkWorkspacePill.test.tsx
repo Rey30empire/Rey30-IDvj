@@ -50,7 +50,7 @@ describe('CoworkWorkspacePill', () => {
   it('names the folder and marks it read & write', async () => {
     render(
       <CoworkWorkspacePill
-        folder="/home/u/Projects/jan-app"
+        folder="/home/u/Projects/rey30-app"
         gitBranch="dev"
         onAttach={vi.fn()}
         onDetach={vi.fn()}
@@ -70,7 +70,7 @@ describe('CoworkWorkspacePill', () => {
   it('opens the folder and reveals it through the right opener calls', async () => {
     render(
       <CoworkWorkspacePill
-        folder="/home/u/Projects/jan-app"
+        folder="/home/u/Projects/rey30-app"
         onAttach={vi.fn()}
         onDetach={vi.fn()}
       />
@@ -78,10 +78,10 @@ describe('CoworkWorkspacePill', () => {
     await userEvent.click(screen.getByRole('button', { name: /a11yWithFolder/ }))
 
     await userEvent.click(screen.getAllByText('common:workspace.open')[0])
-    expect(openPath).toHaveBeenCalledWith('/home/u/Projects/jan-app')
+    expect(openPath).toHaveBeenCalledWith('/home/u/Projects/rey30-app')
 
     await userEvent.click(screen.getByText('common:workspace.reveal'))
-    expect(revealItemInDir).toHaveBeenCalledWith('/home/u/Projects/jan-app')
+    expect(revealItemInDir).toHaveBeenCalledWith('/home/u/Projects/rey30-app')
   })
 
   it('notifies and offers a replacement when the folder cannot be opened', async () => {
@@ -89,7 +89,7 @@ describe('CoworkWorkspacePill', () => {
     const onAttach = vi.fn()
     render(
       <CoworkWorkspacePill
-        folder="/home/u/Projects/jan-app"
+        folder="/home/u/Projects/rey30-app"
         onAttach={onAttach}
         onDetach={vi.fn()}
       />
@@ -101,7 +101,7 @@ describe('CoworkWorkspacePill', () => {
       expect(toastError).toHaveBeenCalledWith(
         'common:workspace.unavailable',
         expect.objectContaining({
-          description: 'common:workspace.missing jan-app',
+          description: 'common:workspace.missing rey30-app',
           action: expect.objectContaining({
             label: 'common:workspace.change',
             onClick: onAttach,
@@ -119,7 +119,7 @@ describe('CoworkWorkspacePill', () => {
     const onAttach = vi.fn()
     render(
       <CoworkWorkspacePill
-        folder="/home/u/Projects/jan-app"
+        folder="/home/u/Projects/rey30-app"
         onAttach={onAttach}
         onDetach={vi.fn()}
       />
@@ -131,7 +131,7 @@ describe('CoworkWorkspacePill', () => {
       expect(toastError).toHaveBeenCalledWith(
         'common:workspace.unavailable',
         expect.objectContaining({
-          description: 'common:workspace.missing jan-app',
+          description: 'common:workspace.missing rey30-app',
           action: expect.objectContaining({
             label: 'common:workspace.change',
             onClick: onAttach,
@@ -145,7 +145,7 @@ describe('CoworkWorkspacePill', () => {
     const onDetach = vi.fn()
     render(
       <CoworkWorkspacePill
-        folder="/home/u/Projects/jan-app"
+        folder="/home/u/Projects/rey30-app"
         onAttach={vi.fn()}
         onDetach={onDetach}
       />

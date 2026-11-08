@@ -26,16 +26,6 @@ Object.defineProperty(window, 'core', {
 })
 
 describe('extension.ts', () => {
-  it('resolves an extension saved with the previous package scope without duplicate registration', () => {
-    const manager = new ExtensionManager()
-    const extension = { onLoad: vi.fn() } as never
-    const previousScope = '@' + 'janhq/'
-    manager.register('@rey30-idvj/llamacpp-extension', extension)
-
-    expect(manager.getByName(previousScope + 'llamacpp-extension')).toBe(extension)
-    expect(manager.getByName('@rey30-idvj/llamacpp-extension')).toBe(extension)
-    expect(manager.getAll()).toHaveLength(1)
-  })
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset the singleton for each test

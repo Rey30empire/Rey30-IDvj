@@ -13,7 +13,6 @@ const h = vi.hoisted(() => ({
   predefinedProviders: [
     { provider: 'openai' },
     { provider: 'llamacpp' },
-    { provider: 'jan' },
   ],
 }))
 
@@ -129,12 +128,6 @@ describe('Index route', () => {
   it('renders chat UI when llamacpp provider has models', () => {
     h.providers = [{ provider: 'llamacpp', models: [{ id: 'x' }] }]
     h.providerHasRemoteApiKeys.mockReturnValue(false)
-    renderComponent()
-    expect(screen.getByTestId('chat-input')).toBeInTheDocument()
-  })
-
-  it('renders chat UI when jan provider has models', () => {
-    h.providers = [{ provider: 'jan', models: [{ id: 'j' }] }]
     renderComponent()
     expect(screen.getByTestId('chat-input')).toBeInTheDocument()
   })

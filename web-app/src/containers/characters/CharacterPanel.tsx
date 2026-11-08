@@ -13,7 +13,6 @@ import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { CharacterProfile, CharacterMode, Intensity } from '@/lib/characters/types'
 import { getCharacterChatRole, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
-import { isJanModelId } from '@/lib/characters/assistant-integration'
 import { isLiteraryModelProvider, loadLiteraryLibraryStatus, type LiteraryLibraryStatus } from '@/lib/literaryLibrary'
 import { cn } from '@/lib/utils'
 
@@ -145,7 +144,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
   const availableModels = providers
     .filter(provider => provider.active !== false && (!isLiterary || isLiteraryModelProvider(provider)))
     .flatMap(provider => provider.models
-      .filter(model => !isJanModelId(model.id) && !model.capabilities?.includes('embeddings'))
+      .filter(model => !model.capabilities?.includes('embeddings'))
       .map(model => ({ providerId: provider.provider, modelId: model.id, label: `${provider.provider} · ${model.name ?? model.id}` })))
   const bindingAvailable = !draft.modelBinding || availableModels.some(model => model.providerId === draft.modelBinding?.providerId && model.modelId === draft.modelBinding.modelId)
   return <>

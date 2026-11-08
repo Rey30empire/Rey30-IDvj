@@ -5,7 +5,6 @@ vi.mock('@/constants/providers', () => ({
     { provider: 'openai' },
     { provider: 'anthropic' },
     { provider: 'llamacpp' },
-    { provider: 'jan' },
   ],
 }))
 
@@ -39,19 +38,13 @@ describe('isProviderUsable', () => {
   it('accepts llamacpp once it has a model, with no key', () => {
     expect(
       isProviderUsable(
-        provider({ provider: 'llamacpp', models: [{ id: 'jan-v2' }] })
+        provider({ provider: 'llamacpp', models: [{ id: 'qwen-v2' }] })
       )
     ).toBe(true)
   })
 
   it('rejects llamacpp with no models', () => {
     expect(isProviderUsable(provider({ provider: 'llamacpp' }))).toBe(false)
-  })
-
-  it('accepts jan once it has a model', () => {
-    expect(
-      isProviderUsable(provider({ provider: 'jan', models: [{ id: 'm' }] }))
-    ).toBe(true)
   })
 
   // Custom providers are user-configured endpoints, so models alone qualify.
@@ -109,7 +102,7 @@ describe('isProviderUsable', () => {
         provider: 'llamacpp',
         models: [
           { id: 'sentence-transformer-mini', embedding: true },
-          { id: 'jan-v3-q4_k_xl' },
+          { id: 'qwen-v3-q4_k_xl' },
         ],
       } as never)
     ).toBe(true)

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { UIMessage } from '@ai-sdk/react'
 import type * as ProviderCaps from '@/lib/providerCaps'
 
-// Regression test for https://github.com/janhq/jan/issues/8432 (Stop-during-load):
+// Regression test (Stop-during-load):
 // aborting a request while ModelFactory.createModel() is still awaiting
 // llama-server's "Loading model..." phase must (1) reject the in-flight
 // sendMessages() call and (2) unload the (possibly still-loading) model via
