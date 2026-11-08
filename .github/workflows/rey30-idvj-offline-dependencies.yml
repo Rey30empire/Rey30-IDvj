@@ -1,4 +1,4 @@
-name: Manual release dependency tarballs (flatpak)
+name: Rey30 IDvj offline dependency artifacts
 
 # Builds offline dependency tarballs for reproducible/offline Flatpak builds:
 #   - cargo-vendor: vendored Rust crates + .cargo/config.toml, covering both
@@ -6,13 +6,13 @@ name: Manual release dependency tarballs (flatpak)
 #     engine worker is built from the plugin crate on its own)
 #   - yarn-cache: populated Yarn caches for both yarn projects (repo root and
 #     src-tauri/plugins), enabling offline `yarn install` in the Flatpak sandbox
-# Both are attached to the given release tag as downloadable assets.
+# The files remain workflow artifacts; this job does not publish a release.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to attach the tarballs to (e.g. v0.8.4)'
+        description: 'Source tag to prepare dependencies from (e.g. v0.8.4)'
         required: true
       ref:
         description: 'Git ref to build the tarballs from (defaults to the tag)'
@@ -23,18 +23,14 @@ jobs:
   dependency-tarballs:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
+      contents: read
     env:
       TAG: ${{ inputs.tag }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ inputs.ref != '' && inputs.ref || inputs.tag }}
-
-      - name: Verify release exists
-        run: gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -65,11 +61,11 @@ jobs:
 
       - name: Pack cargo-vendor tarball
         run: |
-          tar -czf "jan-cargo-vendor-${TAG}.tar.gz" \
+          tar -czf "rey30-idvj-cargo-vendor-${TAG}.tar.gz" \
             -C src-tauri \
             .cargo/config.toml \
             vendor
-          ls -lh "jan-cargo-vendor-${TAG}.tar.gz"
+          ls -lh "rey30-idvj-cargo-vendor-${TAG}.tar.gz"
 
       # Populate each yarn project's local cache. ENABLE_GLOBAL_CACHE=false
       # forces the package zips into <project>/.yarn/cache so they can be
@@ -84,18 +80,19 @@ jobs:
 
       - name: Pack yarn-cache tarball
         run: |
-          tar -czf "jan-yarn-cache-${TAG}.tar.gz" \
+          tar -czf "rey30-idvj-yarn-cache-${TAG}.tar.gz" \
             .yarn/cache \
             src-tauri/plugins/.yarn/cache
-          ls -lh "jan-yarn-cache-${TAG}.tar.gz"
+          ls -lh "rey30-idvj-yarn-cache-${TAG}.tar.gz"
 
       - name: Generate checksums
-        run: sha256sum jan-cargo-vendor-*.tar.gz jan-yarn-cache-*.tar.gz > jan-dependency-tarballs-${TAG}.sha256
+        run: sha256sum rey30-idvj-cargo-vendor-*.tar.gz rey30-idvj-yarn-cache-*.tar.gz > rey30-idvj-dependency-tarballs-${TAG}.sha256
 
-      - name: Upload tarballs to release
-        run: |
-          gh release upload "$TAG" \
-            "jan-cargo-vendor-${TAG}.tar.gz" \
-            "jan-yarn-cache-${TAG}.tar.gz" \
-            "jan-dependency-tarballs-${TAG}.sha256" \
-            --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Keep prepared dependency artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rey30-idvj-offline-dependencies
+          path: |
+            rey30-idvj-cargo-vendor-*.tar.gz
+            rey30-idvj-yarn-cache-*.tar.gz
+            rey30-idvj-dependency-tarballs-*.sha256

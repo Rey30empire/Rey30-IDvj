@@ -1,76 +1,34 @@
-#!/bin/bash
-
-# Check if the correct number of arguments is provided
+#!/usr/bin/env bash
+set -euo pipefail
 if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <path_to_json_input_file> <channel>"
-    exit 1
+  printf '%s\n' "Usage: $0 <tauri.conf.json> <channel>" >&2
+  exit 1
 fi
-
-INPUT_JSON_FILE="$1"
-
-CHANNEL="$2"
-
-if [ "$CHANNEL" == "nightly" ]; then
-    UPDATER="latest"
-else
-    UPDATER="beta"
-fi
-
-# Check if the input file exists
-if [ ! -f "$INPUT_JSON_FILE" ]; then
-    echo "Input file not found: $INPUT_JSON_FILE"
-    exit 1
-fi
-
-# Use jq to transform the content
-jq --arg channel "$CHANNEL" --arg updater "$UPDATER" '
-    .productName = "Jan-\($channel)" |
-    .identifier = "jan-\($channel).ai.app" |
-    .mainBinaryName = "Jan-Desktop-\($channel)"
-' "$INPUT_JSON_FILE" > ./tauri.conf.json.tmp
-
-cat ./tauri.conf.json.tmp
-
-rm $INPUT_JSON_FILE
-mv ./tauri.conf.json.tmp $INPUT_JSON_FILE
-
-# mainBinaryName has to name a real Cargo bin target, and `default-run` has to
-# name the same one, so all three move together or the manifest stops parsing.
-CARGO_TOML_PATH="$(dirname "$INPUT_JSON_FILE")/Cargo.toml"
-if [ -f "$CARGO_TOML_PATH" ]; then
-    echo "Renaming the desktop bin target in $CARGO_TOML_PATH..."
-    sed -e "s|^name = \"Jan-Desktop\"$|name = \"Jan-Desktop-${CHANNEL}\"|" \
-        -e "s|^default-run = \"Jan-Desktop\"$|default-run = \"Jan-Desktop-${CHANNEL}\"|" \
-        "$CARGO_TOML_PATH" > ./Cargo.toml.tmp
-    mv ./Cargo.toml.tmp "$CARGO_TOML_PATH"
-    grep -c "Jan-Desktop-${CHANNEL}" "$CARGO_TOML_PATH"
-fi
-
-# Update Info.plist if it exists
-INFO_PLIST_PATH="./src-tauri/Info.plist"
-if [ -f "$INFO_PLIST_PATH" ]; then
-    echo "Updating Info.plist..."
-    
-    # Replace jan.ai.app with jan-{channel}.ai.app
-    sed -i '' "s|jan\.ai\.app|jan-${CHANNEL}.ai.app|g" "$INFO_PLIST_PATH"
-    
-    # Replace <string>jan</string> with <string>jan-{channel}</string>
-    sed -i '' "s|<string>jan</string>|<string>jan-${CHANNEL}</string>|g" "$INFO_PLIST_PATH"
-
-    echo "Info.plist updated"
-
-    cat ./src-tauri/Info.plist
-fi
-# Update the layout file
-# LAYOUT_FILE_PATH="web/app/layout.tsx"
-
-# if [ ! -f "$LAYOUT_FILE_PATH" ]; then
-#     echo "File does not exist: $LAYOUT_FILE_PATH"
-#     exit 1
-# fi
-
-# Perform the replacements
-# sed -i -e "s#Jan#Jan-$CHANNEL#g" "$LAYOUT_FILE_PATH"
-
-# Notify completion
-# echo "File has been updated: $LAYOUT_FILE_PATH"
+input="$1"
+channel="$2"
+case "$channel" in nightly|beta) ;; *) printf '%s\n' 'Channel must be nightly or beta' >&2; exit 1 ;; esac
+[ -f "$input" ] || { printf 'Missing config: %s\n' "$input" >&2; exit 1; }
+# Local channel builds keep the updater disabled until a separately owned signing channel exists.
+node --input-type=module - "$input" "$channel" <<'NODE'
+import fs from 'node:fs'
+import path from 'node:path'
+const [, , file, channel] = process.argv
+const config = JSON.parse(fs.readFileSync(file, 'utf8'))
+config.productName = 'Rey30 IDvj ' + channel
+config.identifier = 'com.rey30.idvj.' + channel + '.app'
+config.mainBinaryName = 'Rey30-IDvj-' + channel
+if (config.plugins?.updater) config.plugins.updater.endpoints = []
+fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n')
+const manifest = path.join(path.dirname(file), 'Cargo.toml')
+if (fs.existsSync(manifest)) {
+  let cargo = fs.readFileSync(manifest, 'utf8')
+  cargo = cargo.replace(/^default-run = "Rey30-IDvj"$/m, 'default-run = "Rey30-IDvj-' + channel + '"')
+  cargo = cargo.replace(/(\[\[bin\]\]\s*\r?\n)name = "Rey30-IDvj"/m, '$1name = "Rey30-IDvj-' + channel + '"')
+  fs.writeFileSync(manifest, cargo)
+}
+const plist = path.join(path.dirname(file), 'Info.plist')
+if (fs.existsSync(plist)) {
+  const text = fs.readFileSync(plist, 'utf8').replaceAll('com.rey30.idvj.app', config.identifier).replaceAll('<string>rey30-idvj</string>', '<string>rey30-idvj-' + channel + '</string>')
+  fs.writeFileSync(plist, text)
+}
+NODE

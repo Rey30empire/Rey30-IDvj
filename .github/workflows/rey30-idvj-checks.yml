@@ -1,0 +1,33 @@
+name: Rey30 IDvj checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Enable Yarn
+        run: corepack enable
+      - name: Install and build local packages
+        run: |
+          yarn install --immutable
+          yarn build:tauri:plugin:api
+          yarn build:core
+          yarn build:extensions
+      - name: Lint and test
+        run: |
+          yarn lint
+          yarn test
+      - name: Build frontend
+        run: yarn build:web

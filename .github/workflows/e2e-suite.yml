@@ -1,4 +1,4 @@
-# Runs the desktop e2e suite against a real Jan build on all four supported
+# Runs the desktop e2e suite against a real Rey30 IDvj build on all four supported
 # platforms. e2e-check.yml is the per-PR gate and only type-checks the harness;
 # this is the one that launches the app and drives it.
 #
@@ -7,15 +7,14 @@
 # to pull_request once we have a run history is a one-line change; doing it
 # before we know the flake rate would block merges on an unmeasured job.
 #
-# Deliberately not folded into jan-tauri-build-nightly.yaml: that pipeline
+# Deliberately not folded into the retired publication pipeline: that pipeline
 # publishes to S3, and its artifacts are release bundles built without the `e2e`
 # cargo feature, so they have no embedded WebDriver and this suite cannot use
 # them. There is nothing to share but the cron.
 name: e2e suite
 
 on:
-  # Two hours after jan-tauri-build-nightly, so a broken build is already
-  # visible and this is not the first thing anyone has to triage.
+  # Periodic desktop coverage, independent from release publishing.
   schedule:
     - cron: '0 22 * * 1,2,3'
   workflow_dispatch:
@@ -85,7 +84,7 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 20
+          node-version: 22
 
       # Use Node's temp root, which need not equal runner.temp. An inherited
       # profile is validated but never deleted, so artifacts can retain it.
@@ -96,8 +95,8 @@ jobs:
           import { appendFileSync, mkdtempSync, realpathSync } from 'node:fs'
           import { tmpdir } from 'node:os'
           import { join } from 'node:path'
-          const home = mkdtempSync(join(realpathSync(tmpdir()), 'jan-e2e-'))
-          appendFileSync(process.env.GITHUB_ENV, `JAN_E2E_HOME=${home}\n`)
+          const home = mkdtempSync(join(realpathSync(tmpdir()), 'rey30-idvj-e2e-'))
+          appendFileSync(process.env.GITHUB_ENV, `REY30_E2E_HOME=${home}\n`)
           NODE
 
       - uses: dtolnay/rust-toolchain@stable
@@ -146,7 +145,7 @@ jobs:
         run: yarn install
 
       # Produces the debug binary the harness expects at
-      # src-tauri/target/debug/Jan-Desktop[.exe].
+      # src-tauri/target/debug/Rey30-IDvj[.exe].
       - name: Build the app with --features e2e
         run: yarn build:e2e:app
 
@@ -183,7 +182,7 @@ jobs:
           name: e2e-logs-${{ matrix.name }}
           path: |
             e2e/logs
-            ${{ env.JAN_E2E_HOME }}
-            !${{ env.JAN_E2E_HOME }}/AppData/Local/*/EBWebView
+            ${{ env.REY30_E2E_HOME }}
+            !${{ env.REY30_E2E_HOME }}/AppData/Local/*/EBWebView
           retention-days: 7
           if-no-files-found: warn

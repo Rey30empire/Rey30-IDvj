@@ -1,6 +1,6 @@
 name: Setup engine toolchain
 description: >
-  Selects a JAN_ENGINE_VARIANT and asserts the runner can build it. Every step
+  Selects a REY30_ENGINE_VARIANT and asserts the runner can build it. Every step
   is guarded on the tool, not the runner label: what the image already carries
   is left alone, the Vulkan SDK and the CUDA toolkit are fetched when absent,
   and a runner that cannot produce the variant it was handed fails fast.
@@ -8,7 +8,7 @@ description: >
 inputs:
   variant:
     description: >
-      JAN_ENGINE_VARIANT to build: a `-` joined backend list, e.g. vulkan,
+      REY30_ENGINE_VARIANT to build: a `-` joined backend list, e.g. vulkan,
       cuda13-vulkan, rocm-vulkan, metal or cpu.
     required: true
   ccache-max:
@@ -25,7 +25,7 @@ runs:
   steps:
     - name: Select the engine variant
       shell: bash
-      run: echo "JAN_ENGINE_VARIANT=${{ inputs.variant }}" >> "$GITHUB_ENV"
+      run: echo "REY30_ENGINE_VARIANT=${{ inputs.variant }}" >> "$GITHUB_ENV"
 
     # Outside the workspace, which is re-cloned per run. NOHASHDIR because cmake
     # runs under cargo's hashed OUT_DIR, which would otherwise key every object.

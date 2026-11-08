@@ -1,0 +1,26 @@
+name: Rey30 IDvj docs build
+on:
+  pull_request:
+    paths: ['docs/**', '.github/workflows/rey30-idvj-docs.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Build local documentation
+        working-directory: docs
+        run: |
+          corepack enable
+          yarn install --immutable
+          yarn build
+          yarn postbuild
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rey30-idvj-docs
+          path: docs/out

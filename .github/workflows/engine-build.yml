@@ -1,9 +1,6 @@
-name: Engine Build
+name: Rey30 IDvj Engine Build
 on:
   workflow_dispatch:
-  # On main, only what engine-prebuilt.sh hashes into its key or what
-  # provisions the toolchain it reads, so the prebuilt is re-saved as soon as
-  # its key moves. Paths are not evaluated for tags, which still always run.
   push:
     branches:
       - main
@@ -37,6 +34,9 @@ concurrency:
   group: engine-build-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -46,12 +46,9 @@ jobs:
   # would first surface in a nightly desktop build. A PR gets the one cheapest
   # variant that still links the shim; the full per-vendor matrix is for a tag or
   # a manual run, where the wall clock of a CUDA plus HIP build is affordable.
-  # A push to main builds only the variants the desktop builds restore from
-  # engine-prebuilt.sh, and only if that prebuilt is missing (see `prebuilt`).
   variants:
     name: Select variants
     # A fork's main has no S3 credentials, so it could only compile, never save
-    if: github.event_name != 'push' || github.ref != 'refs/heads/main' || !github.event.repository.fork
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.select.outputs.include }}
@@ -65,8 +62,8 @@ jobs:
           # The desktop templates' runner and variant, which the key depends on;
           # windows-arm64 has its own toolchain and job below.
           main='[
-            {"name":"linux-x64-cuda13","variant":"cuda13-vulkan","runs-on":"ubuntu-22.04","prebuilt":true},
-            {"name":"windows-x64-cuda13","variant":"cuda13-vulkan","runs-on":"windows-2025","prebuilt":true}
+            {"name":"linux-x64-cuda13","variant":"cuda13-vulkan","runs-on":"ubuntu-22.04"},
+            {"name":"windows-x64-cuda13","variant":"cuda13-vulkan","runs-on":"windows-2025"}
           ]'
           full='[
             {"name":"linux-x64-cuda13","variant":"cuda13-vulkan","runs-on":"ubuntu-22.04"},
@@ -79,7 +76,7 @@ jobs:
           #   linux-arm64-cuda13   ubuntu-*-arm exists; the sbsa redist and the
           #                        aarch64 Vulkan SDK are untried here
           #   linux-arm64-vulkan   same, untried rather than blocked
-          #   windows-arm64-vulkan see jan-tauri-build-windows-arm64.yml
+          #   windows-arm64-vulkan see the ARM64 build recipe
           #   windows-x64-cuda12   windows-2025 is the VS 2026 image, and no CUDA 12
           #                        host_config.h accepts its _MSC_VER; nothing ships
           #                        it either -- Windows bundles are cuda13-vulkan.
@@ -95,13 +92,13 @@ jobs:
           fi
 
   worker:
-    name: jan-llama-worker (${{ matrix.name }})
+    name: rey30-idvj-llama-worker (${{ matrix.name }})
     needs: variants
     # No label here is self-hosted any more, so this guard is belt and braces:
     # the job compiles `build.rs`, `shim/**` and `engine/**` from the PR tip and
     # then runs `sudo apt-get install`, which is arbitrary code execution by
     # construction, but now only ever on an ephemeral image. Drop the `if` to
-    # give fork PRs engine coverage. Same guard as jan-tauri-build-nightly.yaml;
+    # give fork PRs engine coverage. Same guard as the release pipeline;
     # `workflow_dispatch` and tag pushes are unaffected.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ matrix.runs-on }}
@@ -161,7 +158,7 @@ jobs:
 
       # No image carries ROCm, so the one HIP job provisions it -- guarded so an
       # image that does carry it skips the apt work entirely. Mirrors llama.cpp's
-      # own menlo-build.yml, which installs it the same way on this same image.
+      # upstream engine build recipe, which installs it the same way on this same image.
       - name: Provision ROCm
         if: matrix.rocm && runner.os == 'Linux'
         run: |
@@ -192,49 +189,12 @@ jobs:
       # Main only. A hit means PR and release builds already link this key, so
       # the job ends here; a miss falls through to the full build and the save
       # below. Same steps and S3 layout as the desktop templates.
-      - name: Restore the prebuilt llama.cpp engine
-        id: engine_prebuilt
-        if: matrix.prebuilt
-        continue-on-error: true
-        shell: bash
-        run: bash src-tauri/build-utils/engine-prebuilt.sh restore
-        env:
-          BUCKET: ${{ secrets.DELTA_AWS_S3_BUCKET_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DELTA_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DELTA_AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.DELTA_AWS_REGION }}
-          AWS_EC2_METADATA_DISABLED: 'true'
-
       - name: Build and stage the engine
-        if: steps.engine_prebuilt.outputs.hit != 'true'
         run: make build-engine
 
       # Before the checks below, so a failing test suite does not throw away
       # two hours of CUDA; the script refuses unless every output is present.
-      - name: Save the prebuilt llama.cpp engine
-        if: ${{ !cancelled() && matrix.prebuilt && github.ref == 'refs/heads/main' && steps.engine_prebuilt.outputs.key != '' && steps.engine_prebuilt.outputs.hit != 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: bash src-tauri/build-utils/engine-prebuilt.sh save
-        env:
-          KEY: ${{ steps.engine_prebuilt.outputs.key }}
-          BUCKET: ${{ secrets.DELTA_AWS_S3_BUCKET_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DELTA_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DELTA_AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.DELTA_AWS_REGION }}
-          AWS_EC2_METADATA_DISABLED: 'true'
-
-      # The only place the engine-gated code is type-checked at all. Every
-      # suite under tests/ is `#![cfg(feature = "engine")]`, and both
-      # rust-check.yml and `cargo test --lib` run with the feature off, so all
-      # three currently report "0 passed; ok" -- three green suites that assert
-      # nothing, over the whole FFI boundary in sys.rs. `--no-run` compiles
-      # them without needing a model: the runtime half still wants
-      # JAN_TEST_GGUF, but a suite that no longer builds now fails here instead
-      # of passing vacuously. Cheap because `make build-engine` above already
-      # built llama.cpp into the same target dir with the same features.
       - name: Compile the engine-gated test suites
-        if: steps.engine_prebuilt.outputs.hit != 'true'
         run: make check-engine-tests
 
       - name: Report ccache statistics
@@ -248,10 +208,9 @@ jobs:
       # llama.cpp assert. Device enumeration is best-effort because a headless
       # runner has no ICD to report, and a CUDA runner may have no GPU at all.
       - name: Smoke-test the worker
-        if: steps.engine_prebuilt.outputs.hit != 'true'
         shell: bash
         run: |
-          bin=src-tauri/resources/bin/jan-llama-worker
+          bin=src-tauri/resources/bin/rey30-idvj-llama-worker
           if [ "$RUNNER_OS" = "Windows" ]; then
             bin="$bin.exe"
           fi
@@ -265,20 +224,19 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          archs=$(lipo -archs src-tauri/resources/bin/jan-llama-worker)
-          echo "jan-llama-worker: $archs"
+          archs=$(lipo -archs src-tauri/resources/bin/rey30-idvj-llama-worker)
+          echo "rey30-idvj-llama-worker: $archs"
           for want in x86_64 arm64; do
             case " $archs " in
               *" $want "*) ;;
-              *) echo "::warning::jan-llama-worker has no $want slice, so local inference will not start on $want Macs" ;;
+              *) echo "::warning::rey30-idvj-llama-worker has no $want slice, so local inference will not start on $want Macs" ;;
             esac
           done
 
       - name: Upload the engine
-        if: steps.engine_prebuilt.outputs.hit != 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: jan-llama-worker-${{ matrix.name }}
+          name: rey30-idvj-llama-worker-${{ matrix.name }}
           path: src-tauri/resources/bin
           if-no-files-found: error
 
@@ -290,20 +248,15 @@ jobs:
           path: src-tauri/target/engine-build.log
           if-no-files-found: ignore
 
-  # The windows-arm64 desktop build provisions its own toolchain rather than
-  # setup-engine-toolchain, whose msvc-dev-cmd and linker pin are x64-only, so
-  # its prebuilt gets its own job. The provisioning steps are copied from
-  # template-tauri-build-windows-arm64.yml and must stay in step with it: a
-  # drifted copy computes a key the desktop build never asks for, and the
-  # ARM64 leg of PR builds goes back to compiling the engine.
-  prebuilt-windows-arm64:
-    name: jan-llama-worker prebuilt (windows-arm64-cuda13)
+  # ARM64 retains its dedicated toolchain and hosted runner.
+  windows-arm64:
+    name: rey30-idvj-llama-worker (windows-arm64-cuda13)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.fork
     runs-on: windows-11-arm
     timeout-minutes: 180
     env:
-      JAN_ENGINE_VARIANT: cuda13-vulkan
-      JAN_ENGINE_VULKAN_FALLBACK: '1'
+      REY30_ENGINE_VARIANT: cuda13-vulkan
+      REY30_ENGINE_VULKAN_FALLBACK: '1'
       CUDA_SHORT: '13.4'
       CUDA_POOL: 'https://packages.nvidia.com/bin-archive/pool/windows-arm64/5B515474-7E78-11F1-8656-C51E4F4B317F'
     steps:
@@ -437,7 +390,7 @@ jobs:
       # Pinned because glslc's version is in the engine-prebuilt.sh key; bump it
       # with the x64 one in setup-engine-toolchain and the template's.
       - name: Provision the Vulkan SDK
-        if: contains(format('-{0}-', env.JAN_ENGINE_VARIANT), '-vulkan-') || env.JAN_ENGINE_VULKAN_FALLBACK == '1'
+        if: contains(format('-{0}-', env.REY30_ENGINE_VARIANT), '-vulkan-') || env.REY30_ENGINE_VULKAN_FALLBACK == '1'
         shell: bash
         run: |
           curl -fL --retry 5 --retry-all-errors --retry-delay 5 \
@@ -449,35 +402,9 @@ jobs:
           echo 'VULKAN_SDK=C:\VulkanSDK' >> "$GITHUB_ENV"
           echo 'C:\VulkanSDK\Bin' >> "$GITHUB_PATH"
 
-      - name: Restore the prebuilt llama.cpp engine
-        id: engine_prebuilt
-        continue-on-error: true
-        shell: bash
-        run: bash src-tauri/build-utils/engine-prebuilt.sh restore
-        env:
-          BUCKET: ${{ secrets.DELTA_AWS_S3_BUCKET_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DELTA_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DELTA_AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.DELTA_AWS_REGION }}
-          AWS_EC2_METADATA_DISABLED: 'true'
-
       - name: Build and stage the engine
-        if: steps.engine_prebuilt.outputs.hit != 'true'
         shell: bash
         run: make build-engine
-
-      - name: Save the prebuilt llama.cpp engine
-        if: ${{ !cancelled() && steps.engine_prebuilt.outputs.key != '' && steps.engine_prebuilt.outputs.hit != 'true' }}
-        continue-on-error: true
-        shell: bash
-        run: bash src-tauri/build-utils/engine-prebuilt.sh save
-        env:
-          KEY: ${{ steps.engine_prebuilt.outputs.key }}
-          BUCKET: ${{ secrets.DELTA_AWS_S3_BUCKET_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.DELTA_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DELTA_AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.DELTA_AWS_REGION }}
-          AWS_EC2_METADATA_DISABLED: 'true'
 
       - name: Upload the engine build log
         if: failure()

@@ -4,7 +4,7 @@
 #   stamp-version.sh VERSION   write VERSION into every manifest a release
 #                              build reads it from, then verify the result
 #   stamp-version.sh --check   fail if the committed manifests the app and the
-#                              `jan` CLI report their version from disagree;
+#                              `rey30-idvj` CLI report their version from disagree;
 #                              warn if they are older than the latest release
 #                              tag
 #   stamp-version.sh --check --base REV
@@ -15,8 +15,8 @@
 # Every desktop build template calls this instead of carrying its own list.
 #
 # A release stamp only lives in that build's workspace and is never committed,
-# so a `jan` built from a v0.8.6+ tag or release branch reported the last
-# committed version, 0.8.5 (janhq/jan-internal#454). --check keeps the
+# so a `rey30-idvj` built from a v0.8.6+ tag or release branch reported the last
+# committed version, 0.8.5 (a release-version mismatch). --check keeps the
 # committed manifests in step with each other and with the latest release;
 # bumping them is still a commit (see `chore(release): bump app version to
 # 0.8.5`).
@@ -37,13 +37,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-# `jan --version` falls back to env!("CARGO_PKG_VERSION") inside app_lib, which
-# is src-tauri/Cargo.toml's version, not jan-cli's; the CLI crate's own version
+# `rey30-idvj --version` falls back to env!("CARGO_PKG_VERSION") inside app_lib, which
+# is src-tauri/Cargo.toml's version, not rey30-idvj-cli's; the CLI crate's own version
 # only reaches Cargo.lock and `cargo install`. Both, plus the desktop's
 # tauri.conf.json, must agree, so these are the files --check compares. The
 # plugin manifests and web-app/package.json are stamped too but carry their
 # own versions between releases, so they are not part of the check.
-CHECKED_TOML="src-tauri/Cargo.toml src-tauri/jan-cli/Cargo.toml"
+CHECKED_TOML="src-tauri/Cargo.toml src-tauri/rey30-idvj-cli/Cargo.toml"
 CHECKED_JSON="src-tauri/tauri.conf.json"
 STAMPED_TOML="$CHECKED_TOML
   src-tauri/plugins/tauri-plugin-hardware/Cargo.toml
