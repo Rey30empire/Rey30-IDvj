@@ -1,7 +1,7 @@
 ---
 title: Run Modes
 description: Default, safe, and plan - how much freedom the agent has in a session.
-keywords: [Jan, Jan Agent, plan mode, safe mode, read-only, sandbox, run modes]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, plan mode, safe mode, read-only, sandbox, run modes]
 ---
 
 import { Callout } from 'nextra/components'
@@ -13,9 +13,9 @@ without you.
 
 | Mode | Reads | Writes and commands | Start with |
 | --- | --- | --- | --- |
-| Default | Free | Auto-approved | `jan` |
-| Safe | Free | Prompt for approval | `jan --safe` |
-| Plan | Free | Blocked | `jan --plan` |
+| Default | Free | Auto-approved | `rey30-idvj` |
+| Safe | Free | Prompt for approval | `rey30-idvj --safe` |
+| Plan | Free | Blocked | `rey30-idvj --plan` |
 
 ## Default
 
@@ -40,7 +40,7 @@ recreate, start with `--safe`.
 ## Safe mode
 
 ```bash
-jan --safe
+rey30-idvj --safe
 ```
 
 The agent reads freely and stops to ask before anything that changes your machine:
@@ -64,7 +64,7 @@ the prompt, so it is denied and the run stalls on its first write.
 Read-only. The agent investigates and proposes, but every write and command is blocked.
 
 ```bash
-jan --plan
+rey30-idvj --plan
 ```
 
 ```

@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 import { Computer, Rocket, Bot, type LucideIcon } from 'lucide-react'
-import LogoJanSVG from '@/assets/icons/logo-jan.svg'
 import DocSearch from './DocSearch'
 
 type Section = {
@@ -16,7 +15,7 @@ type Section = {
 const SECTIONS: Section[] = [
   {
     icon: Computer,
-    title: 'Jan Desktop',
+    title: 'Rey30 IDvj Desktop',
     description:
       'The cowork-style desktop app — chat, models, MCP connectors, and local API server.',
     tags: 'Quickstart · Models · CLI',
@@ -25,7 +24,7 @@ const SECTIONS: Section[] = [
   },
   {
     icon: Bot,
-    title: 'Jan Agent',
+    title: 'Rey30 IDvj Agent',
     description:
       'The standalone agent, distributed separately — launch autonomous coding agents against a local model.',
     tags: 'Quickstart · Skills · Memory',
@@ -43,7 +42,7 @@ type CommonPath = {
 
 const COMMON_PATHS: CommonPath[] = [
   { icon: Rocket, title: 'Desktop Quickstart', href: '/docs/desktop/quickstart' },
-  { icon: Bot, title: 'Jan Agent Quickstart', href: '/docs/agent/quickstart' },
+  { icon: Bot, title: 'Rey30 IDvj Agent Quickstart', href: '/docs/agent/quickstart' },
 ]
 
 const DocsHome = () => {
@@ -51,15 +50,10 @@ const DocsHome = () => {
     <div className="nextra-wrap-container py-16 lg:py-24">
       <div className="text-center max-w-2xl mx-auto px-4">
         <h1 className="flex items-center justify-center gap-3 lg:gap-4 text-5xl lg:text-6xl !font-semibold leading-none font-serif">
-          <img
-            src={LogoJanSVG.src}
-            alt=""
-            className="size-11 lg:size-14 animate-wave"
-          />
-          Jan Docs
+          Guías de Rey30 IDvj
         </h1>
         <p className="text-lg mt-5 leading-relaxed text-black/60 dark:text-white/60">
-          References for Jan Desktop and Jan Agent.
+          References for Rey30 IDvj Desktop and Rey30 IDvj Agent.
         </p>
 
         <DocSearch variant="hero" className="mt-8 max-w-xl mx-auto" />

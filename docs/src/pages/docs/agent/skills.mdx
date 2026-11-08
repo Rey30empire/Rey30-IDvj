@@ -1,7 +1,7 @@
 ---
 title: Skills
 description: Reusable procedures the agent loads when a task calls for them.
-keywords: [Jan, Jan Agent, skills, SKILL.md, procedures, reusable, skill hub]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, skills, SKILL.md, procedures, reusable, skill hub]
 ---
 
 import { Callout } from 'nextra/components'
@@ -19,24 +19,24 @@ task calls for it, so a large library of skills doesn't crowd the context window
 Skills come from three places. On a name collision the earlier one wins:
 
 ```
-1. ~/.jan/projects/<slug>/skills/        project: this project only
+1. ~/.rey30-idvj/projects/<slug>/skills/        project: this project only
    ├── release/
    │   └── SKILL.md                       # folder form, can bundle scripts alongside
    └── add-migration.md                   # flat form
-2. ~/.jan/projects/<slug>/plugins/<P>/    plugin skills, always named <P>:<name>
-3. ~/.jan/skills/                         user: every project on this machine
-4. jan                                    built-in onboarding skill
+2. ~/.rey30-idvj/projects/<slug>/plugins/<P>/    plugin skills, always named <P>:<name>
+3. ~/.rey30-idvj/skills/                         user: every project on this machine
+4. rey30-idvj                                    built-in onboarding skill
 ```
 
-Put a skill in `~/.jan/skills/` to use it from every project. A project skill with the same name
+Put a skill in `~/.rey30-idvj/skills/` to use it from every project. A project skill with the same name
 **shadows** the user one in that project. Plugin skills never collide, because they're always
-qualified as `<plugin>:<name>`. A project or user skill named `jan` replaces the built-in one.
+qualified as `<plugin>:<name>`. A project or user skill named `rey30-idvj` replaces the built-in one.
 
 Run `/skills` in the console to see every skill with its scope. A skill hidden by a
 higher-precedence one is marked `shadowed by project`.
 
 Skill folders can be symlinks in either scope, for example
-`~/.jan/skills/review -> ~/my-skills/review`. Jan follows them. If the same folder is reached twice,
+`~/.rey30-idvj/skills/review -> ~/my-skills/review`. Rey30 IDvj follows them. If the same folder is reached twice,
 it's listed once. Dangling links and symlink loops are skipped.
 
 The folder form is what new and imported skills are written as, and it lets a skill ship helper
@@ -76,7 +76,7 @@ Write a skill for how we cut releases, based on what you see in CHANGELOG.md and
 ```
 
 `skill_write` writes to the project by default. Ask for a user skill ("save this as a user skill")
-and the agent passes `scope: "user"`, which writes to `~/.jan/skills/<name>/SKILL.md`.
+and the agent passes `scope: "user"`, which writes to `~/.rey30-idvj/skills/<name>/SKILL.md`.
 
 ## Who can invoke a skill
 
@@ -117,14 +117,14 @@ enabled = []        # empty means all skills are enabled
 name and purpose goes into the system prompt, and the body loads on demand.
 
 <Callout type="info">
-Older scaffolds had an `inject = "always" | "relevance"` key. It was never read, and Jan removes
+Older scaffolds had an `inject = "always" | "relevance"` key. It was never read, and Rey30 IDvj removes
 it from your `agent.toml` the next time the agent starts.
 </Callout>
 
 <Callout type="info">
-[Jan Desktop's Cowork surface](/docs/desktop/cowork) (`nightly` channel only) keeps its own skill
+[Rey30 IDvj Desktop's Cowork surface](/docs/desktop/cowork) (`nightly` channel only) keeps its own skill
 store under `<data folder>/agent-workspace/skills`. It layers the attached folder's project skills on
-top of that store. It doesn't read `~/.jan/skills` yet.
+top of that store. It doesn't read `~/.rey30-idvj/skills` yet.
 </Callout>
 
 ## Skills, AGENTS.md, and memory

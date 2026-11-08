@@ -1,7 +1,7 @@
 {
   "index": {
     "type": "page",
-    "title": "Jan Docs",
+    "title": "Rey30 IDvj Docs",
     "display": "hidden",
     "theme": {
       "layout": "raw"
@@ -9,10 +9,10 @@
   },
   "desktop": {
     "type": "page",
-    "title": "Jan Desktop"
+    "title": "Rey30 IDvj Desktop"
   },
   "agent": {
     "type": "page",
-    "title": "Jan Agent"
+    "title": "Rey30 IDvj Agent"
   }
 }

@@ -1,15 +1,15 @@
 ---
 title: Contributing a Provider
-description: How to add a new model provider to Jan Agent - from a plain OpenAI-compatible endpoint to a custom wire API.
-keywords: [Jan, Jan Agent, providers, contribute, API key, wire API, converter, OAuth]
+description: How to add a new model provider to Rey30 IDvj Agent - from a plain OpenAI-compatible endpoint to a custom wire API.
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, providers, contribute, API key, wire API, converter, OAuth]
 ---
 
 import { Callout } from 'nextra/components'
 
 # Contributing a Provider
 
-Jan Agent ships no inference engine, so every model runs through a provider. Most providers are OpenAI-compatible
-endpoints and need **no code at all** - the user configures them with `jan config set`. This guide covers the three
+Rey30 IDvj Agent ships no inference engine, so every model runs through a provider. Most providers are OpenAI-compatible
+endpoints and need **no code at all** - the user configures them with `rey30-idvj config set`. This guide covers the three
 levels of integration, from least to most code:
 
 1. A plain OpenAI-compatible endpoint - no Rust changes.
@@ -21,7 +21,7 @@ levels of integration, from least to most code:
 If the provider exposes an OpenAI- or Anthropic-compatible `chat/completions` endpoint, users configure it directly:
 
 ```bash
-jan config set \
+rey30-idvj config set \
   --provider myprovider \
   --api-key sk-... \
   --base-url https://api.myprovider.com/v1 \
@@ -33,14 +33,14 @@ That is the entire change - `--api-type openai` (the default) and `anthropic` ar
 provider appears in `/model` and `/settings`, and the agent resolves it like any other.
 
 <Callout type="info">
-The config-file path is `~/.jan/config.toml`. Read the [Providers](/docs/agent/providers) page for the full
+The config-file path is `~/.rey30-idvj/config.toml`. Read the [Providers](/docs/agent/providers) page for the full
 config surface, including per-project overrides and environment variables.
 </Callout>
 
 ## 2. Adding it to the `/login` picker (one catalog entry)
 
 To let users sign in from `/login` (key entry + automatic `GET /models` discovery) instead of hand-writing config,
-add a `ProviderDefinition` to the catalog. One entry covers `jan /login`, model discovery on sign-in, and the
+add a `ProviderDefinition` to the catalog. One entry covers `rey30-idvj /login`, model discovery on sign-in, and the
 provider appearing in `/model`.
 
 Where: `src-tauri/src/core/cli/auth/mod.rs`, in `provider_catalog()`.
@@ -66,7 +66,7 @@ Notes:
   converter - see step 3.
 - `oauth` metadata alone does not turn on account login. Account login is driven separately by
   `account::AccountProvider` (`core/cli/auth/account.rs`); add supporting code there only if you are wiring a
-  Jan-owned OAuth flow.
+  Rey30 IDvj-owned OAuth flow.
 - Sign-in validates the key against `GET {base_url}/models` and persists the discovered ids, so a fresh entry
   becomes selectable immediately.
 
@@ -94,7 +94,7 @@ match api_type {
 3. Users then set the provider with that wire type:
 
 ```bash
-jan config set \
+rey30-idvj config set \
   --provider myprovider \
   --api-key sk-... \
   --base-url https://api.myprovider.com/v1 \

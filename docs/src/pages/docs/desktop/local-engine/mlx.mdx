@@ -3,7 +3,7 @@ title: MLX
 description: Run AI models with MLX on Apple Silicon
 keywords:
   [
-    Jan,
+    Rey30 IDvj,
     MLX,
     Apple Silicon,
     local AI,
@@ -19,7 +19,7 @@ import { Callout } from 'nextra/components'
 MLX is an inference engine for Apple Silicon (M1 and later). It uses Metal GPU acceleration for fast, efficient local inference — available on macOS 14+.
 
 <Callout type="warning">
-MLX support in Jan is **experimental** and will improve over time. Current limitations:
+MLX support in Rey30 IDvj is **experimental** and will improve over time. Current limitations:
 - **Embeddings are unavailable** — use llama.cpp for embedding/RAG workflows.
 - **Reasoning is not yet wired** — reasoning-style output isn't surfaced separately.
 - **Some newer model architectures fail to load** — if a model won't start, try its llama.cpp (GGUF) version instead.
@@ -41,7 +41,6 @@ MLX is macOS-only. On Windows and Linux it isn't shown — use [llama.cpp](/docs
 
 Find MLX settings at **Settings** > **MLX** under Model Providers:
 
-![MLX Settings](../_assets/mlx-settings.png)
 
 ### Backend and Version
 
@@ -51,7 +50,7 @@ model that won't load.
 
 ## Model Management
 
-MLX supports models in MLX-Swift format. Jan ships with MLX-compatible versions of its foundation models.
+MLX supports models in MLX-Swift format. Rey30 IDvj ships with MLX-compatible versions of its foundation models.
 
 ### Download from Hub
 
@@ -59,7 +58,7 @@ Browse and download MLX-compatible models directly from the [Hub](/docs/desktop/
 
 ### Import Local Files
 
-Click **Import** to link an MLX model file already on your computer. This is useful for models downloaded via your browser from Hugging Face, or models shared with other apps — Jan links to the file in place without copying it.
+Click **Import** to link an MLX model file already on your computer. This is useful for models downloaded via your browser from Hugging Face, or models shared with other apps — Rey30 IDvj links to the file in place without copying it.
 
 ### Delete a Model
 
@@ -92,4 +91,4 @@ that's available in MLX format.
 
 ## How It Works
 
-Jan integrates MLX via [mlx-swift-lm](https://github.com/ml-explore/mlx-swift-lm), running a local inference server on top of it. The server is spawned and managed by Jan's MLX plugin, which handles model loading, lifecycle, and communication with the rest of the app.
+Rey30 IDvj integrates MLX via [mlx-swift-lm](https://github.com/ml-explore/mlx-swift-lm), running a local inference server on top of it. The server is spawned and managed by Rey30 IDvj's MLX plugin, which handles model loading, lifecycle, and communication with the rest of the app.

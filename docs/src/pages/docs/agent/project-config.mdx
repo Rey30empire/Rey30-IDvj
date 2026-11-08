@@ -1,21 +1,21 @@
 ---
 title: Project Config
 description: AGENTS.md and agent.toml - per-project instructions, model, budget, and tool policy.
-keywords: [Jan, Jan Agent, agent.toml, AGENTS.md, JAN.md, project config, instructions, budget]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, agent.toml, AGENTS.md, JAN.md, project config, instructions, budget]
 ---
 
 import { Callout } from 'nextra/components'
 
 # Project Config
 
-Each project gets a store under `~/.jan/projects/` holding how the agent should behave there. The
+Each project gets a store under `~/.rey30-idvj/projects/` holding how the agent should behave there. The
 project directory itself holds only `AGENTS.md`.
 
 ```
 your-project/
 `-- AGENTS.md              # instructions for the agent
 
-~/.jan/projects/<name>-<hash>/
+~/.rey30-idvj/projects/<name>-<hash>/
 |-- project.json           # which directory this store belongs to
 |-- agent.toml             # model, budget, tool policy
 |-- threads/               # saved sessions
@@ -26,7 +26,7 @@ your-project/
 `-- subagents/             # reusable subagent definitions
 ```
 
-User-wide skills live beside the projects in `~/.jan/skills/`, and a same-named project skill
+User-wide skills live beside the projects in `~/.rey30-idvj/skills/`, and a same-named project skill
 shadows them. See [Skills](/docs/agent/skills#where-they-live).
 
 The store name (the `<slug>` in these docs) is the project directory's name plus a short hash of
@@ -36,21 +36,22 @@ worktree maps to its main checkout, so both share one store.
 It's created on first use. To scaffold it up front without starting a session:
 
 ```bash
-jan cli agent status --project .
+rey30-idvj cli agent status --project .
 ```
 
 <Callout type="tip">
-Commit `AGENTS.md` so the whole team gets the same instructions. It is the only file Jan keeps in the
+Commit `AGENTS.md` so the whole team gets the same instructions. It is the only file Rey30 IDvj keeps in the
 project; everything in the store is per user and stays out of your repository.
 </Callout>
 
 ## Where state lives / migration
 
-Older versions kept this state inside the project, in `<project>/.jan/agent/`. When Jan starts in a
+Older versions kept this state inside the project, in `<project>/.jan/agent/`. When Rey30 IDvj starts in a
 workspace that still has one, it moves `.jan/agent` into the project's store automatically and says
 so. It never merges: if the store already has content, the old folder is left alone with a warning,
-for you to merge or delete by hand. Any other files in `.jan/` are left in place and listed. A
-workspace that is your home directory is skipped, since its `.jan` is the user-wide `~/.jan`.
+for you to merge or delete by hand. Any other files in `.jan/` are left in place and listed.
+Do not confuse the legacy `.jan/` directory with the current `~/.rey30-idvj` profile. Check the
+source and destination paths reported by the agent before moving any remaining data.
 
 ## AGENTS.md
 
@@ -70,15 +71,15 @@ This is a Rust workspace. `cargo test` must pass before you call anything done.
 Write it as rules, not prose. Things that are true every time belong here; a procedure for one kind
 of task belongs in a [skill](/docs/agent/skills).
 
-Jan reads it from the project root and each of its ancestors; the nearest file wins. Write one by
+Rey30 IDvj reads it from the project root and each of its ancestors; the nearest file wins. Write one by
 hand or with `/init`, which writes `AGENTS.md`. Other coding agents read `AGENTS.md` too, so one file
 serves them all.
 
 ### JAN.md and CLAUDE.md
 
-Jan reads one file per directory on that same walk:
+Rey30 IDvj reads one file per directory on that same walk:
 
-1. `JAN.md`, if it is there and not empty. This is Jan's legacy name. It still wins, so a project
+1. `JAN.md`, if it is there and not empty. This is Rey30 IDvj's legacy name. It still wins, so a project
    that already has one loads exactly what it did before, and `/init` keeps editing it. Rename it to
    `AGENTS.md` whenever you like.
 2. Otherwise `AGENTS.md`.
@@ -90,7 +91,7 @@ Each file keeps its path in the prompt, so the model can see which one it got. W
 **Project instructions**. In a project with only `CLAUDE.md`, `/init` uses it as the starting point
 for `AGENTS.md`.
 
-Configure it in `agent.toml`, or in `~/.jan/config.toml` for every project (the project wins):
+Configure it in `agent.toml`, or in `~/.rey30-idvj/config.toml` for every project (the project wins):
 
 ```toml
 [context]
@@ -103,7 +104,7 @@ Only `AGENTS.md` and `CLAUDE.md` are recognised. The files are re-read at the st
 `/reload system-prompt` lists what the next run will load, with fallbacks marked.
 
 <Callout type="warning">
-A file written for another agent can mention that agent's own tools or commands. If Jan follows
+A file written for another agent can mention that agent's own tools or commands. If Rey30 IDvj follows
 something meant for another tool, edit the file, write a `JAN.md` (it shadows the other file), or
 set `fallback_files = []`.
 </Callout>
@@ -112,7 +113,7 @@ set `fallback_files = []`.
 
 ```toml
 [agent]
-# model = "Jan-V4"
+# model = "Rey30 IDvj-V4"
 # context_window = 128000
 # compaction_ratio = 0.8  # share of the window a prompt may fill before compacting
 # compaction_reserve_tokens = 16384  # absolute headroom instead, in tokens; wins over compaction_ratio
@@ -165,14 +166,14 @@ The running agent reads this file at startup. After editing `context_window`, `c
 | `compaction_reserve_tokens` | unset | Absolute headroom instead of the ratio, in tokens. Wins over `compaction_ratio` when set |
 | `max_tokens` | unset | Cap on tokens generated per response. Omitted from the request when unset |
 | `max_parallel_subagents` | `10` | Subagents that may run at once (min 1); extra dispatches queue FIFO |
-| `thread_retention_days` | `90` | Saved threads untouched for this many days are deleted at session start, once `prune_threads = true` in `~/.jan/config.toml` turns pruning on (it is off by default); `0` disables. The newest few, the resumed thread, a fork's parent, worktree-owning threads and threads with no timestamp are always kept |
+| `thread_retention_days` | `90` | Saved threads untouched for this many days are deleted at session start, once `prune_threads = true` in `~/.rey30-idvj/config.toml` turns pruning on (it is off by default); `0` disables. The newest few, the resumed thread, a fork's parent, worktree-owning threads and threads with no timestamp are always kept |
 | `max_threads` | `500` | Most saved threads a project keeps; with pruning on, the oldest past it are deleted at session start, with the same exemptions. `0` disables |
 | `show_reasoning` | `false` | Unfold model reasoning (`<thinking>`) blocks in the transcript instead of folding them to a summary row. <kbd>Ctrl</kbd>+<kbd>O</kbd> still toggles a folded block |
 | `send_reasoning` | `true` | Resend a prior turn's reasoning to the model with the conversation. Set `false` for an upstream that rejects the field (e.g. Groq), or to keep chains of thought out of the context budget |
-| `worktree` | `false` | Run each session in its own git worktree under `~/.jan/worktrees`, on a `jan/agent/` branch, instead of editing this checkout. Overridden by `--worktree` / `--no-worktree`. See [Sessions](/docs/agent/sessions) |
+| `worktree` | `false` | Run each session in its own git worktree under `~/.rey30-idvj/worktrees`, on a `rey30-idvj/agent/` branch, instead of editing this checkout. Overridden by `--worktree` / `--no-worktree`. See [Sessions](/docs/agent/sessions) |
 
 Thread pruning is off by default, so no saved thread is ever deleted. To turn it on for every
-project, add this to `~/.jan/config.toml`:
+project, add this to `~/.rey30-idvj/config.toml`:
 
 ```toml
 prune_threads = true
@@ -182,7 +183,7 @@ The TUI then prunes at startup under that project's `thread_retention_days` and 
 
 ### `[provider]`
 
-A project-local provider override, winning over `~/.jan/config.toml` and anything inherited from Jan
+A project-local provider override, winning over `~/.rey30-idvj/config.toml` and anything inherited from Rey30 IDvj
 Desktop. Most projects don't need it. See [Providers](/docs/agent/providers#per-project-override).
 
 | Key | Default | Description |
@@ -214,14 +215,14 @@ by default on the CLI.
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `env_passthrough` | `[]` | Host environment variables the shell may inherit beyond the minimal base (exact names or a `*` wildcard). Merged with `~/.jan/config.toml`. A secret-looking name is never copied by a wildcard - see [The shell environment](/docs/agent/permissions#the-shell-environment) |
+| `env_passthrough` | `[]` | Host environment variables the shell may inherit beyond the minimal base (exact names or a `*` wildcard). Merged with `~/.rey30-idvj/config.toml`. A secret-looking name is never copied by a wildcard - see [The shell environment](/docs/agent/permissions#the-shell-environment) |
 | `env_set` | `{}` | Explicit `key = "value"` pairs for the shell env, as a `[tools.env_set]` table. Wins over `env_passthrough` and the global value; the way to inject a secret-named variable on purpose |
 
 ### `[context]`
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `fallback_files` | `["AGENTS.md"]` | Instructions files read, in order, from a directory with no `JAN.md`. Only `AGENTS.md` and `CLAUDE.md` are recognised; `[]` reads `JAN.md` only. Falls back to `~/.jan/config.toml`'s `[context]`. See [AGENTS.md and CLAUDE.md](#agentsmd-and-claudemd) |
+| `fallback_files` | `["AGENTS.md"]` | Instructions files read, in order, from a directory with no `JAN.md`. Only `AGENTS.md` and `CLAUDE.md` are recognised; `[]` reads `JAN.md` only. Falls back to `~/.rey30-idvj/config.toml`'s `[context]`. See [AGENTS.md and CLAUDE.md](#janmd-and-claudemd) |
 
 ### `[prompt]`
 
@@ -256,7 +257,7 @@ no effect today. Use `prefix_allow` to narrow the current prefix. The tool schem
 field rather than a prompt block and always remain above the cache line, even with an empty list.
 
 ```bash
-jan cli agent status   # the resolved placement of every contributor, and why
+rey30-idvj cli agent status   # the resolved placement of every contributor, and why
 ```
 
 Contributor ids: `assistant_instructions`, `guidelines`, `working_directory`, `runtime_environment`,
@@ -273,7 +274,7 @@ See [Skills](/docs/agent/skills#controlling-which-are-active).
 ### `[subagents.<name>]`
 
 Per-project model for a subagent, replacing the one its definition names. `model` is a model id,
-`"smol"` (`smol_model` in `~/.jan/config.toml`) or `"inherit"` (the session's model). Works for
+`"smol"` (`smol_model` in `~/.rey30-idvj/config.toml`) or `"inherit"` (the session's model). Works for
 built-in, plugin, user and project subagents alike, and is what `/settings > subagents` writes.
 
 ```toml
@@ -285,15 +286,6 @@ See [Subagents](/docs/agent/subagents#choosing-a-subagents-model).
 
 ## Updating
 
-```bash
-jan update           # latest build on this channel
-jan update --check   # report without installing
-jan update --force   # reinstall even if current
-```
+El canal de actualización automática heredado está desactivado. `rey30-idvj update` informa que no hay un canal firmado propio configurado. Para cambiar de compilación se debe reconstruir desde el código o ejecutar el instalador local con `--source`.
 
-Or `/update` in the console, which takes effect on restart.
-
-<Callout type="info">
-Builds compiled from source have no update channel embedded, so `jan update` reports that rather
-than doing anything. Re-run the installer with `--source` to rebuild.
-</Callout>
+El perfil nuevo del agente usa `~/.rey30-idvj`. `REY30_CONFIG_HOME` permite fijar un directorio absoluto exacto para pruebas; una ruta relativa falla sin recurrir al perfil real. `REY30_AGENT_HOME` se reserva para la caché de runtimes del ADK.

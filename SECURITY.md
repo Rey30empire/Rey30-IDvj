@@ -1,32 +1,9 @@
-# Security Policy
+# Seguridad de Rey30 IDvj
 
-## Supported Versions
+Esta distribución es mantenida por Reinier Tamayo. El repositorio todavía no configura un canal privado público de recepción de vulnerabilidades ni un compromiso de tiempos de respuesta.
 
-| Version        | Supported          |
-| -------------- | ------------------ |
-| latest release | :white_check_mark: |
+Antes de compartir un fallo, registra versión, sistema operativo, pasos mínimos de reproducción e impacto. Retira claves, tokens, conversaciones y datos personales de los adjuntos. Si el fallo permite acceso a datos o ejecución de código, entrega el informe al propietario por un canal privado acordado y evita publicarlo en un issue abierto.
 
-Only the latest release receives security fixes, so please confirm the issue reproduces on it before reporting.
+Un fallo reproducible en una dependencia debe reportarse también a sus mantenedores por el canal oficial de esa dependencia. El canal del proyecto original no sustituye el soporte de esta distribución.
 
-## Reporting a Vulnerability
-
-**Do not** open a public issue, discussion, or pull request for a security vulnerability.
-
-Report it privately through [GitHub Security Advisories](https://github.com/janhq/jan/security/advisories/new) (the **Report a vulnerability** button on the [Security tab](https://github.com/janhq/jan/security)). This keeps the report, the discussion, and the fix in one private place, and lets us request a CVE and credit you when the advisory is published.
-
-If you can't use GitHub, email [security@jan.ai](mailto:security@jan.ai) instead. We will open the advisory for you, so you are still credited; include your GitHub username if you want the credit linked to it.
-
-Please include:
-
-- The affected version and platform
-- Steps to reproduce, or a proof of concept
-- The impact as you understand it
-
-Allow us reasonable time to fix the issue before any public disclosure.
-
-## What to Expect
-
-- We will acknowledge your report within 3 business days
-- We will give you an estimated timeline for a fix
-- We will notify you when the vulnerability is fixed
-- We credit researchers who report valid vulnerabilities, unless you prefer to stay anonymous
+La disponibilidad de una actualización del proyecto base no implica que haya sido integrada ni validada en Rey30 IDvj. El canal automático heredado permanece desactivado.

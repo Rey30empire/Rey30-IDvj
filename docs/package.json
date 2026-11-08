@@ -5,9 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx serve@latest out",
+    "start": "serve out",
     "lint": "next lint",
-    "create:blogpost": "plop create-blogpost",
     "postbuild": "next-sitemap"
   },
   "dependencies": {
@@ -22,6 +21,7 @@
     "autoprefixer": "^10.0.1",
     "axios": "^1.6.8",
     "class-variance-authority": "^0.7.1",
+    "clsx": "2.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-auto-height": "^8.0.0",
     "embla-carousel-auto-scroll": "^8.0.0",
@@ -35,11 +35,9 @@
     "next": "^15.5.28",
     "next-seo": "^6.5.0",
     "next-sitemap": "^4.2.3",
-    "nextra": "^2.13.4",
-    "nextra-theme-docs": "^2.13.4",
+    "nextra": "patch:nextra@npm%3A2.13.4#~/.yarn/patches/nextra-npm-2.13.4-f23661e7e1.patch",
+    "nextra-theme-docs": "patch:nextra-theme-docs@npm%3A2.13.4#~/.yarn/patches/nextra-theme-docs-npm-2.13.4-0f6be66962.patch",
     "path": "^0.12.7",
-    "plop": "^4.0.1",
-    "plop-helper-date": "^1.0.0",
     "posthog-js": "^1.194.6",
     "react": "^18",
     "react-dom": "^18",
@@ -61,13 +59,16 @@
     "eslint-config-next": "15.5.28",
     "postcss": "^8",
     "prettier": "^3.2.5",
+    "serve": "14.2.6",
     "typescript": "^5"
   },
   "resolutions": {
     "handlebars": "^4.7.10",
     "next/postcss": "^8.5.23",
-    "**/@scalar/openapi-parser/vite": "^6.4.4",
-    "**/execa/cross-spawn": "^6.0.6"
+    "serve/compression": "1.8.2",
+    "nextra/zod": "4.6.7",
+    "nextra-theme-docs/zod": "4.6.7",
+    "nextra/next-mdx-remote": "6.0.0"
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "yarn@4.5.3"
 }

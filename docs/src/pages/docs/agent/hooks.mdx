@@ -1,14 +1,14 @@
 ---
 title: Hooks
 description: Shell commands the agent runs at fixed points of a run, to enforce a policy the model cannot ignore.
-keywords: [Jan, Jan Agent, hooks, lifecycle, PreToolUse, PostToolUse, policy, audit, plugin tools]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, hooks, lifecycle, PreToolUse, PostToolUse, policy, audit, plugin tools]
 ---
 
 import { Callout } from 'nextra/components'
 
 # Hooks
 
-A hook is a shell command Jan runs at a fixed point of a run: before a tool call, after it, when a
+A hook is a shell command Rey30 IDvj runs at a fixed point of a run: before a tool call, after it, when a
 prompt is submitted, when a session starts or ends, and before a compaction. The payload arrives on
 stdin as JSON and the command's stdout is its answer.
 
@@ -22,7 +22,7 @@ so nothing here is a new execution primitive.
 
 ## A first hook
 
-The project's `agent.toml` (in `~/.jan/projects/<slug>/`):
+The project's `agent.toml` (in `~/.rey30-idvj/projects/<slug>/`):
 
 ```toml
 [[hooks]]
@@ -61,8 +61,8 @@ is meant to stop.
 Three sources, merged least specific first:
 
 1. an installed plugin's `<plugin>/hooks/hooks.json` - shipped by a third party
-2. `~/.jan/config.toml` `[[hooks]]` - this user, every project
-3. `~/.jan/projects/<slug>/agent.toml` `[[hooks]]` - this project
+2. `~/.rey30-idvj/config.toml` `[[hooks]]` - this user, every project
+3. `~/.rey30-idvj/projects/<slug>/agent.toml` `[[hooks]]` - this project
 
 They all run. Merge order is run order, so the project's hook runs last and its `context` answer
 lands nearest the call. The set is resolved once per run, so a hook file edited mid-run cannot
@@ -89,12 +89,12 @@ shared config does not take the other hooks down with it - it is dropped, with a
 
 ### Global hooks
 
-`~/.jan/config.toml` takes the same `[[hooks]]` array and applies it to every project you work on:
+`~/.rey30-idvj/config.toml` takes the same `[[hooks]]` array and applies it to every project you work on:
 
 ```toml
 [[hooks]]
 event = "SessionEnd"
-command = "logger -t jan 'agent session finished'"
+command = "logger -t rey30-idvj 'agent session finished'"
 ```
 
 ## Fields
@@ -138,7 +138,7 @@ event has them:
 | `message_count` | `SessionStart`, `UserPromptSubmit`, `PreCompact` |
 
 The shell tool is named `shell` (formerly `bash`). A `matcher` or a script that tests `tool_name`
-for `bash` no longer matches it; change it to `shell`. A `bash` matcher is reported: by the `jan`
+for `bash` no longer matches it; change it to `shell`. A `bash` matcher is reported: by the `rey30-idvj`
 CLI when a run starts, and by the desktop app under each shell call. A script's `tool_name` check
 cannot be detected, so search your hooks for it.
 
@@ -222,16 +222,16 @@ the same minimal one, so a hook does not see your secrets unless `[tools] env_pa
 
 ## Which surfaces fire hooks
 
-All of them. The `jan` CLI and the interactive TUI, the OpenAI-compatible API server, subagent runs,
+All of them. The `rey30-idvj` CLI and the interactive TUI, the OpenAI-compatible API server, subagent runs,
 and the desktop app share one resolution path, so a hook you configure cannot silently be live on one
 surface and dead on another.
 
-- `jan` CLI and TUI: the project's three layers, resolved from the project root
+- `rey30-idvj` CLI and TUI: the project's three layers, resolved from the project root
 - API server: the same, for the project a request runs against
 - [Subagents](/docs/agent/subagents): a subagent run resolves the same hooks as its parent, so a
   `PreToolUse` veto cannot be escaped by delegating the call
 - Desktop app: the app installs the resolver at startup, so tool calls driven from the webview fire
-  hooks too. A desktop chat thread has no project root, so it gets the `~/.jan/config.toml` layer -
+  hooks too. A desktop chat thread has no project root, so it gets the `~/.rey30-idvj/config.toml` layer -
   the one that is about the user rather than the checkout
 
 ## Plugin-declared tools
@@ -300,10 +300,10 @@ set `hooks = false` and `tools = false` and keep only its skills.
 
 ## Debugging
 
-`jan cli agent status` lists every resolved hook, in merge order, with the file it came from:
+`rey30-idvj cli agent status` lists every resolved hook, in merge order, with the file it came from:
 
 ```bash
-jan cli agent status --project ~/code/app
+rey30-idvj cli agent status --project ~/code/app
 ```
 
 ```json
@@ -313,14 +313,14 @@ jan cli agent status --project ~/code/app
     "matcher": "shell",
     "command": "./hooks/audit.sh",
     "timeout_secs": 10,
-    "source": "/home/you/.jan/projects/app-1a2b3c4d/plugins/auditor/hooks/hooks.json"
+    "source": "/home/you/.rey30-idvj/projects/app-1a2b3c4d/plugins/auditor/hooks/hooks.json"
   },
   {
     "event": "PostToolUse",
     "matcher": "edit",
     "command": "cargo fmt --quiet",
     "timeout_secs": 60,
-    "source": "/home/you/.jan/projects/app-1a2b3c4d/agent.toml"
+    "source": "/home/you/.rey30-idvj/projects/app-1a2b3c4d/agent.toml"
   }
 ],
 "plugin_tools": [
@@ -329,7 +329,7 @@ jan cli agent status --project ~/code/app
     "plugin": "release-tools",
     "description": "Render the changelog between two tags",
     "command": "./bin/changelog.sh",
-    "source": "/home/you/.jan/projects/app-1a2b3c4d/plugins/release-tools"
+    "source": "/home/you/.rey30-idvj/projects/app-1a2b3c4d/plugins/release-tools"
   }
 ]
 ```

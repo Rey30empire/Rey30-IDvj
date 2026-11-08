@@ -1,41 +1,16 @@
 ---
-title: "Jan - Open-Source ChatGPT Replacement"
-description: "Jan is an open-source alternative to ChatGPT. Run open-source AI models locally or connect to cloud models like GPT, Claude and others."
-keywords:
-  [
-    Jan,
-    Customizable Intelligence, LLM,
-    local AI,
-    privacy focus,
-    free and open source,
-    private and offline,
-    conversational AI,
-    no-subscription fee,
-    large language models,
-    architecture,
-  ]
+title: Rey30 IDvj
+description: Documentación local de la distribución mantenida por Reinier Tamayo.
 ---
 
-import Home from "@/components/Home"
+# Rey30 IDvj
 
-export const getStaticProps = async() => {
-  const resReleaseLatest = await fetch('https://api.github.com/repos/janhq/jan/releases/latest')  
-  const resRelease = await fetch('https://api.github.com/repos/janhq/jan/releases?per_page=500')  
-  const resRepo = await fetch('https://api.github.com/repos/janhq/jan')
-  const repo = await resRepo.json()
-  const latestRelease = await resReleaseLatest.json()
-  const release = await resRelease.json()
+Aplicación de escritorio para usar modelos locales, asistentes y herramientas. Esta distribución conserva la navegación y la organización del proyecto base.
 
-  return {
-    props: {
-      ssg: {
-        stars: repo.stargazers_count || 44000, // placeholder before the client-side useGitHubStars fetch resolves
-        lastRelease: latestRelease,
-        release: release,
-        lastVersion: latestRelease.tag_name || 'v.0.0.1'
-      },
-    },
-  }
-}
+- [Preparar el escritorio](/docs/desktop/quickstart).
+- [Consultar las guías](/docs).
+- [Configurar el runtime de agentes](/docs/agent/quickstart).
+- [Construir esta distribución](/download).
+- [Soporte y procedencia](/support).
 
-<Home />
+El modelo Jan de 4B mantiene su fuente e identificadores reales. La distribución no cambia la autoría del modelo ni de las dependencias.

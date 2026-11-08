@@ -1,34 +1,21 @@
 ---
-title: Download
-description: Jan is a ChatGPT-alternative that runs on your own computer, with a local API server.
-keywords:
-  [
-    Jan,
-    Customizable Intelligence, LLM,
-    local AI,
-    privacy focus,
-    free and open source,
-    private and offline,
-    conversational AI,
-    no-subscription fee,
-    large language models,
-    architecture,
-  ]
+title: Instalación de Rey30 IDvj
 ---
 
-import Download from "@/components/Download"
+# Instalación de Rey30 IDvj
 
-export const getStaticProps = async() => {
-  const resRelease = await fetch('https://api.github.com/repos/janhq/jan/releases/latest')  
-  const release = await resRelease.json()
+La distribución se construye desde este repositorio. No hay una tienda, descarga pública ni canal de actualización propio configurado. Los instaladores del proyecto base pertenecen a otra distribución.
 
-  return {
-    props: {
-      ssg: {
-        lastRelease: release,
-      },
-    },
-  }
-}
+Desde la raíz del repositorio, sigue los requisitos del README y ejecuta:
 
-<Download />
+```powershell
+corepack yarn install
+corepack yarn build:tauri:plugin:api
+corepack yarn build:core
+corepack yarn build:extensions
+corepack yarn dev
+```
+
+Para preparar el instalador se utiliza `corepack yarn build`. El nombre del ejecutable es `Rey30-IDvj`. La compilación requiere las herramientas nativas de Tauri y del motor elegido.
+
+El catálogo conserva la instalación del modelo Jan predeterminado; descargar sus pesos requiere conexión y espacio suficiente. Consulta [las guías del escritorio](/docs/desktop/quickstart).

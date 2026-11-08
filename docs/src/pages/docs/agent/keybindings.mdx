@@ -1,7 +1,7 @@
 ---
 title: Keybindings
-description: Keyboard shortcuts for the Jan Agent console.
-keywords: [Jan, Jan Agent, keybindings, keyboard shortcuts, TUI, console, readline]
+description: Keyboard shortcuts for the Rey30 IDvj Agent console.
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, keybindings, keyboard shortcuts, TUI, console, readline]
 ---
 
 import { Callout } from 'nextra/components'
@@ -53,12 +53,12 @@ just `rs`.
 
 ## Shift+Enter and the Option key
 
-Two keystrokes depend on the terminal rather than on Jan, because the terminal decides what
+Two keystrokes depend on the terminal rather than on Rey30 IDvj, because the terminal decides what
 reaches the application at all:
 
 - **<kbd>Shift</kbd>+<kbd>Enter</kbd>** has no representation in the classic terminal encoding -
   it sends a bare carriage return, identical to a plain <kbd>Enter</kbd>. It only arrives when the
-  terminal implements the kitty keyboard protocol, which Jan asks for at startup. kitty, Ghostty,
+  terminal implements the kitty keyboard protocol, which Rey30 IDvj asks for at startup. kitty, Ghostty,
   WezTerm, foot, Rio, Konsole 24+, Alacritty 0.14+, iTerm2 3.5+ and Windows Terminal all deliver
   it. Terminal.app and VTE terminals (gnome-terminal, Tilix) cannot.
 - **<kbd>Option</kbd>+<kbd>Delete</kbd> on macOS** needs the terminal to send `Option` as `Alt`.
@@ -72,7 +72,7 @@ Ghostty, `extended-keys` for tmux) and prints the exact manual step where it can
 idempotent and never overwrites a binding you already set.
 
 The console offers it once at startup when a config file shows a key is being dropped. Set
-`terminal_hint = false` in `~/.jan/config.toml` to silence that note.
+`terminal_hint = false` in `~/.rey30-idvj/config.toml` to silence that note.
 
 <Callout type="tip">
 <kbd>Alt</kbd>+<kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>J</kbd> and <kbd>Ctrl</kbd>+<kbd>W</kbd> need
@@ -102,9 +102,9 @@ Cancelling stops the turn, not the session. See [rewinding](/docs/agent/sessions
 | Click | Expand or collapse the row under the pointer |
 
 <Callout type="tip">
-Mouse tracking is on by default, which means Jan owns selection rather than the terminal - dragging
-selects and copies through Jan, and clicking a folded row expands it. Set `mouse = false` in
-`~/.jan/config.toml` to hand both back to the terminal. There is no hotkey for this.
+Mouse tracking is on by default, which means Rey30 IDvj owns selection rather than the terminal - dragging
+selects and copies through Rey30 IDvj, and clicking a folded row expands it. Set `mouse = false` in
+`~/.rey30-idvj/config.toml` to hand both back to the terminal. There is no hotkey for this.
 </Callout>
 
 ## Approval prompts
@@ -124,4 +124,4 @@ See [Tool permissions](/docs/agent/permissions).
 | Key | Action |
 | --- | --- |
 | <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>D</kbd> | Quit (press twice) |
-| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Suspend to the shell; resume with `fg`. Unix only. Refused (with a note) when no job-control shell sits above `jan`, such as `ssh -t host jan` or `docker exec -it`, because nothing could resume it |
+| <kbd>Ctrl</kbd>+<kbd>Z</kbd> | Suspend to the shell; resume with `fg`. Unix only. Refused (with a note) when no job-control shell sits above `rey30-idvj`, such as `ssh -t host rey30-idvj` or `docker exec -it`, because nothing could resume it |

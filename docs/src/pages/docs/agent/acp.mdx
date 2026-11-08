@@ -1,77 +1,77 @@
 ---
 title: Editors (ACP)
-description: Drive Jan Agent from Zed, JetBrains and other editors over the Agent Client Protocol with the experimental `jan acp` server.
-keywords: [Jan, Jan Agent, ACP, Agent Client Protocol, Zed, JetBrains, editor, IDE, external agent]
+description: Drive Rey30 IDvj Agent from Zed, JetBrains and other editors over the Agent Client Protocol with the experimental `rey30-idvj acp` server.
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, ACP, Agent Client Protocol, Zed, JetBrains, editor, IDE, external agent]
 ---
 
 import { Callout } from 'nextra/components'
 
 # Editors (ACP)
 
-`jan acp` serves Jan Agent over the [Agent Client Protocol](https://agentclientprotocol.com)
+`rey30-idvj acp` serves Rey30 IDvj Agent over the [Agent Client Protocol](https://agentclientprotocol.com)
 (ACP), a JSON-RPC protocol that editors use to run coding agents. Once an editor is pointed at
-`jan acp`, you can pick Jan in its agent panel, send prompts, and watch the answer, reasoning,
-tool calls and plan stream in. The agent still uses Jan's own providers, tools and permissions.
+`rey30-idvj acp`, you can pick Rey30 IDvj in its agent panel, send prompts, and watch the answer, reasoning,
+tool calls and plan stream in. The agent still uses Rey30 IDvj's own providers, tools and permissions.
 
 <Callout type="warning">
-`jan acp` is **experimental**. It's off by default, hidden from `jan --help`, and may change
+`rey30-idvj acp` is **experimental**. It's off by default, hidden from `rey30-idvj --help`, and may change
 between releases.
 </Callout>
 
 ## Turn it on
 
 Pick one of these. The environment variable takes precedence over the config file, so
-`JAN_EXPERIMENTAL_ACP=0` turns it off again:
+`REY30_EXPERIMENTAL_ACP=0` turns it off again:
 
 ```bash
-export JAN_EXPERIMENTAL_ACP=1          # per process
+export REY30_EXPERIMENTAL_ACP=1          # per process
 ```
 
 ```toml
-# ~/.jan/config.toml                    # every process
+# ~/.rey30-idvj/config.toml                    # every process
 [experimental]
 acp = true
 ```
 
-If you run `jan acp` without turning it on, it prints how to enable it and exits with status 2.
+If you run `rey30-idvj acp` without turning it on, it prints how to enable it and exits with status 2.
 It writes nothing to stdout.
 
-Jan needs a working provider before any editor can use it. Run `jan login`, or
-`jan config set --provider <name> --api-key <key> --base-url <url> --model <id>`. The model is
-resolved the same way as in the TUI: `agent.toml`, then `default_model` in `~/.jan/config.toml`.
+Rey30 IDvj needs a working provider before any editor can use it. Run `rey30-idvj login`, or
+`rey30-idvj config set --provider <name> --api-key <key> --base-url <url> --model <id>`. The model is
+resolved the same way as in the TUI: `agent.toml`, then `default_model` in `~/.rey30-idvj/config.toml`.
 
 ## Zed
 
-Add Jan under `agent_servers` in Zed's `settings.json`:
+Add Rey30 IDvj under `agent_servers` in Zed's `settings.json`:
 
 ```json
 {
   "agent_servers": {
-    "Jan": {
+    "Rey30-IDvj": {
       "type": "custom",
-      "command": "jan",
+      "command": "rey30-idvj",
       "args": ["acp"],
-      "env": { "JAN_EXPERIMENTAL_ACP": "1" }
+      "env": { "REY30_EXPERIMENTAL_ACP": "1" }
     }
   }
 }
 ```
 
-Open the agent panel, start a new thread and choose **Jan**. To see the raw traffic, run
+Open the agent panel, start a new thread and choose **Rey30 IDvj**. To see the raw traffic, run
 `dev: open acp logs`.
 
 ## JetBrains
 
 In **AI Chat**, open the menu and choose **Add Custom Agent**. This opens `~/.jetbrains/acp.json`.
-Add Jan there. Use the absolute path to the binary:
+Add Rey30 IDvj there. Use the absolute path to the binary:
 
 ```json
 {
   "agent_servers": {
-    "Jan": {
-      "command": "/absolute/path/to/jan",
+    "Rey30-IDvj": {
+      "command": "/absolute/path/to/rey30-idvj",
       "args": ["acp"],
-      "env": { "JAN_EXPERIMENTAL_ACP": "1" }
+      "env": { "REY30_EXPERIMENTAL_ACP": "1" }
     }
   }
 }
@@ -79,24 +79,24 @@ Add Jan there. Use the absolute path to the binary:
 
 ## What is supported
 
-Jan speaks stable ACP protocol version **1**. It doesn't enable any draft or unstable features.
+Rey30 IDvj speaks stable ACP protocol version **1**. It doesn't enable any draft or unstable features.
 
-| ACP | Jan |
+| ACP | Rey30 IDvj |
 | --- | --- |
 | `initialize` | Advertises `loadSession`, image and embedded-context prompts. Nothing else is advertised. |
-| `authenticate` | Checks that a provider is configured. Clients that can run a terminal get a sign-in method that runs `jan acp --login`. |
-| `session/new` | Opens a session in `cwd`, which must be absolute. The session id is a Jan thread id. MCP servers the editor passes over stdio are connected as well as the project's own. |
-| `session/load` | Replays a saved thread, including ones started in the TUI or with `jan cli agent run`, then replies. Refused while that session has a prompt running. |
+| `authenticate` | Checks that a provider is configured. Clients that can run a terminal get a sign-in method that runs `rey30-idvj acp --login`. |
+| `session/new` | Opens a session in `cwd`, which must be absolute. The session id is a Rey30 IDvj thread id. MCP servers the editor passes over stdio are connected as well as the project's own. |
+| `session/load` | Replays a saved thread, including ones started in the TUI or with `rey30-idvj cli agent run`, then replies. Refused while that session has a prompt running. |
 | `session/prompt` | Runs one turn. The reply's `stopReason` is `end_turn`, `max_tokens`, `max_turn_requests` (the session's cost ceiling was reached), `refusal` or `cancelled`. If the run fails, the error is shown in the reply text and the turn ends with `end_turn`. |
 | `session/cancel` | Stops the turn. A tool call waiting for your permission never runs. The work done before the cancel is kept, so the next prompt continues from it. |
-| `session/request_permission` | Sent for every gated tool call. You get **Allow**, **Always allow** where Jan offers it, and **Reject**. |
+| `session/request_permission` | Sent for every gated tool call. You get **Allow**, **Always allow** where Rey30 IDvj offers it, and **Reject**. |
 
-The session id is the thread id, so `jan --resume <id>` in the terminal opens a conversation that
+The session id is the thread id, so `rey30-idvj --resume <id>` in the terminal opens a conversation that
 you started in the editor.
 
-How Jan's events appear in the editor:
+How Rey30 IDvj's events appear in the editor:
 
-| Jan | ACP `session/update` |
+| Rey30 IDvj | ACP `session/update` |
 | --- | --- |
 | Answer text / reasoning | `agent_message_chunk` / `agent_thought_chunk` |
 | Tool call starts, runs, streams output, ends | `tool_call` then `tool_call_update` (`pending`, `in_progress`, `completed`, `failed`) |
@@ -117,7 +117,7 @@ If you reject a call, or cancel the prompt, the call is refused just as it would
 
 ## Not yet supported
 
-- Jan uses its own filesystem and shell tools. It doesn't read the editor's unsaved buffers or run
+- Rey30 IDvj uses its own filesystem and shell tools. It doesn't read the editor's unsaved buffers or run
   commands in the editor's terminal, so `fs/*` and `terminal/*` are never requested.
 - Editor MCP servers over HTTP or SSE are skipped. Only stdio servers are connected, alongside the
   servers set up for the project (see [MCP](/docs/agent/mcp)).

@@ -1,7 +1,7 @@
 ---
 title: Host Tools
 description: Give the agent a function in your app. Declare what it does, run the callback, and return a result.
-keywords: [Jan, Jan Agent, ADK, host tools, function calling, JavaScript, Python]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, ADK, host tools, function calling, JavaScript, Python]
 ---
 
 import { Tabs } from 'nextra/components'
@@ -28,9 +28,9 @@ Save the example in your quickstart directory and run it with `node clock.mjs` o
 <Tabs items={['JavaScript', 'Python']}>
   <Tabs.Tab>
 ```js filename="clock.mjs"
-import { JanRuntime } from '@janhq/adk'
+import { Rey30Runtime } from '@rey30-idvj/adk'
 
-const runtime = await JanRuntime.start()
+const runtime = await Rey30Runtime.start()
 try {
   const session = await runtime.createSession({
     ephemeral: true,
@@ -59,14 +59,14 @@ try {
   <Tabs.Tab>
 ```python filename="clock.py"
 from datetime import datetime, timezone
-from jan_adk import HostTool, JanRuntime
+from rey30_idvj_adk import HostTool, Rey30Runtime
 
 
 def get_time(args, call):
     return datetime.now(timezone.utc).isoformat()
 
 
-with JanRuntime.start() as runtime:
+with Rey30Runtime.start() as runtime:
     session = runtime.create_session(
         ephemeral=True,
         builtins=False,
@@ -98,9 +98,9 @@ It asks to call the tool; the ADK runs the handler in your process. No manual JS
 
 | Field | Purpose |
 | --- | --- |
-| `name` | A short identifier, such as `get_time`. Jan advertises it as `host__get_time` to avoid collisions. |
+| `name` | A short identifier, such as `get_time`. Rey30 IDvj advertises it as `host__get_time` to avoid collisions. |
 | `description` | Tell the model when to use the tool and what it returns. |
-| `parameters` | A JSON Schema for the arguments. Jan validates supported constraints before calling you. |
+| `parameters` | A JSON Schema for the arguments. Rey30 IDvj validates supported constraints before calling you. |
 | `capability` | Use `read` for observation, or `actuator` for actions with side effects. |
 | `handler` | Your function, receiving the arguments and call context. |
 
@@ -132,17 +132,17 @@ For image tools, use a vision-capable model and check `runtime.limits`. See
 
 A `read` tool such as the clock is not prompted. For an `actuator`:
 
-- **Jan owns approval by default.** Your app must handle `permission_request` events and answer
+- **Rey30 IDvj owns approval by default.** Your app must handle `permission_request` events and answer
   them. Otherwise the turn waits. See [permission prompts](/docs/agent/adk-runtime#answer-permission-prompts).
 - **Your app can own approval** with `permissions: 'host'` in JavaScript or `permissions="host"`
-  in Python. Jan will not ask for approval of host tools; your handler must enforce the policy.
+  in Python. Rey30 IDvj will not ask for approval of host tools; your handler must enforce the policy.
 
 `builtins: false` / `builtins=False` keeps this example limited to your declared tools. It is not
 an operating-system sandbox for your callback: that function still has your process's access.
 
 ## Delegate and bring your own prompt
 
-Two more session options suit an app that drives Jan with only its own tools:
+Two more session options suit an app that drives Rey30 IDvj with only its own tools:
 
 - **`subagents: true` / `subagents=True`** lets the model delegate with `dispatch_subagent` and
   `list_subagents`, and steer or stop a running child with `message_subagent` and
@@ -150,8 +150,8 @@ Two more session options suit an app that drives Jan with only its own tools:
   host tools (no shell, files or web), and its calls reach your handlers like the parent's,
   with the subagent's `run_id` on the request. Subagents are off by default when `builtins` is
   off.
-- **`systemPrompt` / `system_prompt=`** replaces Jan's whole system prompt with yours, byte for
-  byte. Jan adds no identity, guides, environment, date or recalled memory, though it may still
+- **`systemPrompt` / `system_prompt=`** replaces Rey30 IDvj's whole system prompt with yours, byte for
+  byte. Rey30 IDvj adds no identity, guides, environment, date or recalled memory, though it may still
   append runtime notices (such as a finished subagent) to the conversation. Subagents keep their
   own prompts. The session's answers are still saved to project memory for later sessions;
   only `ephemeral` turns that off, and it also stops the thread being saved.
@@ -170,7 +170,7 @@ See [`session/start`](/docs/agent/protocol) for the exact rules.
 ## Change tools or stop a callback
 
 Between turns, use `session.setTools(...)` / `session.set_tools(...)` to replace the host tool set.
-The session's `tools` and `toolSpecs` / `tool_specs` report what Jan actually advertises.
+The session's `tools` and `toolSpecs` / `tool_specs` report what Rey30 IDvj actually advertises.
 
 When a request is cancelled, JavaScript receives an aborted `call.signal`; Python receives a set
 `call.aborted` threading event. Make long-running handlers cooperate with cancellation. An action

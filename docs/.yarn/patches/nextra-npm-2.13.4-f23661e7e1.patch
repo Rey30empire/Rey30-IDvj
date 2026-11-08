@@ -1,0 +1,249 @@
+diff --git a/dist/normalize-pages.d.mts b/dist/normalize-pages.d.mts
+index 9af84f61b1a77986a79131d1ba7f5c013367d68f..6da719ec8a6bc3e9c64f3d49f38291bbb176cb66 100644
+--- a/dist/normalize-pages.d.mts
++++ b/dist/normalize-pages.d.mts
+@@ -3,29 +3,7 @@ import { M as MdxFile, P as PageMapItem, F as Folder } from './types-2e9b0ab5.js
+ import 'gray-matter';
+ import 'mdast';
+ 
+-declare const pageThemeSchema: z.ZodObject<{
+-    breadcrumb: z.ZodBoolean;
+-    collapsed: z.ZodBoolean;
+-    footer: z.ZodBoolean;
+-    layout: z.ZodEnum<["default", "full", "raw"]>;
+-    navbar: z.ZodBoolean;
+-    pagination: z.ZodBoolean;
+-    sidebar: z.ZodBoolean;
+-    timestamp: z.ZodBoolean;
+-    toc: z.ZodBoolean;
+-    typesetting: z.ZodEnum<["default", "article"]>;
+-}, "strict", z.ZodTypeAny, {
+-    breadcrumb: boolean;
+-    collapsed: boolean;
+-    footer: boolean;
+-    layout: "default" | "full" | "raw";
+-    navbar: boolean;
+-    pagination: boolean;
+-    sidebar: boolean;
+-    timestamp: boolean;
+-    toc: boolean;
+-    typesetting: "default" | "article";
+-}, {
++declare const pageThemeSchema: z.ZodType<{
+     breadcrumb: boolean;
+     collapsed: boolean;
+     footer: boolean;
+@@ -44,34 +22,8 @@ type PageTheme = z.infer<typeof pageThemeSchema>;
+  * - `hidden`: the item will not be displayed in the sidebar entirely
+  * - `children`: if the item is a folder, itself will be hidden but all its children will still be processed
+  */
+-declare const displaySchema: z.ZodEnum<["normal", "hidden", "children"]>;
+-declare const menuItemSchema: z.ZodObject<{
+-    display: z.ZodOptional<z.ZodEnum<["normal", "hidden", "children"]>>;
+-    items: z.ZodRecord<z.ZodString, z.ZodObject<{
+-        href: z.ZodOptional<z.ZodString>;
+-        newWindow: z.ZodOptional<z.ZodBoolean>;
+-        title: z.ZodString;
+-    }, "strict", z.ZodTypeAny, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }>>;
+-    title: z.ZodString;
+-    type: z.ZodLiteral<"menu">;
+-}, "strict", z.ZodTypeAny, {
+-    type: "menu";
+-    title: string;
+-    items: Record<string, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }>;
+-    display?: "normal" | "hidden" | "children" | undefined;
+-}, {
++declare const displaySchema: z.ZodType<"normal" | "hidden" | "children">;
++declare const menuItemSchema: z.ZodType<{
+     type: "menu";
+     title: string;
+     items: Record<string, {
+@@ -83,24 +35,7 @@ declare const menuItemSchema: z.ZodObject<{
+ }>;
+ type Display = z.infer<typeof displaySchema>;
+ type IMenuItem = z.infer<typeof menuItemSchema>;
+-declare const metaSchema: z.ZodUnion<[z.ZodUnion<[z.ZodUnion<[z.ZodString, z.ZodObject<{
+-    display: z.ZodOptional<z.ZodEnum<["normal", "hidden", "children"]>>;
+-    items: z.ZodRecord<z.ZodString, z.ZodObject<{
+-        href: z.ZodOptional<z.ZodString>;
+-        newWindow: z.ZodOptional<z.ZodBoolean>;
+-        title: z.ZodString;
+-    }, "strict", z.ZodTypeAny, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }>>;
+-    title: z.ZodString;
+-    type: z.ZodLiteral<"menu">;
+-}, "strict", z.ZodTypeAny, {
++declare const metaSchema: z.ZodType<(((string) | ({
+     type: "menu";
+     title: string;
+     items: Record<string, {
+@@ -109,83 +44,10 @@ declare const metaSchema: z.ZodUnion<[z.ZodUnion<[z.ZodUnion<[z.ZodString, z.Zod
+         newWindow?: boolean | undefined;
+     }>;
+     display?: "normal" | "hidden" | "children" | undefined;
+-}, {
+-    type: "menu";
+-    title: string;
+-    items: Record<string, {
+-        title: string;
+-        href?: string | undefined;
+-        newWindow?: boolean | undefined;
+-    }>;
+-    display?: "normal" | "hidden" | "children" | undefined;
+-}>]>, z.ZodObject<{
+-    title: z.ZodOptional<z.ZodString>;
+-    type: z.ZodLiteral<"separator">;
+-}, "strict", z.ZodTypeAny, {
++})) | ({
+     type: "separator";
+     title?: string | undefined;
+-}, {
+-    type: "separator";
+-    title?: string | undefined;
+-}>]>, z.ZodObject<{
+-    href: z.ZodOptional<z.ZodString>;
+-    newWindow: z.ZodOptional<z.ZodBoolean>;
+-    display: z.ZodOptional<z.ZodEnum<["normal", "hidden", "children"]>>;
+-    theme: z.ZodOptional<z.ZodObject<{
+-        breadcrumb: z.ZodOptional<z.ZodBoolean>;
+-        collapsed: z.ZodOptional<z.ZodBoolean>;
+-        footer: z.ZodOptional<z.ZodBoolean>;
+-        layout: z.ZodOptional<z.ZodEnum<["default", "full", "raw"]>>;
+-        navbar: z.ZodOptional<z.ZodBoolean>;
+-        pagination: z.ZodOptional<z.ZodBoolean>;
+-        sidebar: z.ZodOptional<z.ZodBoolean>;
+-        timestamp: z.ZodOptional<z.ZodBoolean>;
+-        toc: z.ZodOptional<z.ZodBoolean>;
+-        typesetting: z.ZodOptional<z.ZodEnum<["default", "article"]>>;
+-    }, "strict", z.ZodTypeAny, {
+-        breadcrumb?: boolean | undefined;
+-        collapsed?: boolean | undefined;
+-        footer?: boolean | undefined;
+-        layout?: "default" | "full" | "raw" | undefined;
+-        navbar?: boolean | undefined;
+-        pagination?: boolean | undefined;
+-        sidebar?: boolean | undefined;
+-        timestamp?: boolean | undefined;
+-        toc?: boolean | undefined;
+-        typesetting?: "default" | "article" | undefined;
+-    }, {
+-        breadcrumb?: boolean | undefined;
+-        collapsed?: boolean | undefined;
+-        footer?: boolean | undefined;
+-        layout?: "default" | "full" | "raw" | undefined;
+-        navbar?: boolean | undefined;
+-        pagination?: boolean | undefined;
+-        sidebar?: boolean | undefined;
+-        timestamp?: boolean | undefined;
+-        toc?: boolean | undefined;
+-        typesetting?: "default" | "article" | undefined;
+-    }>>;
+-    title: z.ZodOptional<z.ZodString>;
+-    type: z.ZodOptional<z.ZodEnum<["page", "doc"]>>;
+-}, "strict", z.ZodTypeAny, {
+-    href?: string | undefined;
+-    newWindow?: boolean | undefined;
+-    display?: "normal" | "hidden" | "children" | undefined;
+-    theme?: {
+-        breadcrumb?: boolean | undefined;
+-        collapsed?: boolean | undefined;
+-        footer?: boolean | undefined;
+-        layout?: "default" | "full" | "raw" | undefined;
+-        navbar?: boolean | undefined;
+-        pagination?: boolean | undefined;
+-        sidebar?: boolean | undefined;
+-        timestamp?: boolean | undefined;
+-        toc?: boolean | undefined;
+-        typesetting?: "default" | "article" | undefined;
+-    } | undefined;
+-    title?: string | undefined;
+-    type?: "page" | "doc" | undefined;
+-}, {
++})) | ({
+     href?: string | undefined;
+     newWindow?: boolean | undefined;
+     display?: "normal" | "hidden" | "children" | undefined;
+@@ -203,7 +65,7 @@ declare const metaSchema: z.ZodUnion<[z.ZodUnion<[z.ZodUnion<[z.ZodString, z.Zod
+     } | undefined;
+     title?: string | undefined;
+     type?: "page" | "doc" | undefined;
+-}>]>;
++})>;
+ type FolderWithoutChildren = Omit<Folder, 'children'>;
+ type Item = (MdxFile | FolderWithoutChildren) & {
+     title: string;
+diff --git a/dist/normalize-pages.js b/dist/normalize-pages.js
+index 4dd29a2926df24e50d9f6f0e38645481acea56ea..0bd80f75d6fd716607f910b3eb54436056e503cf 100644
+--- a/dist/normalize-pages.js
++++ b/dist/normalize-pages.js
+@@ -1,5 +1,6 @@
+ // src/normalize-pages.ts
+ import { z } from "zod";
++import { partialConfig } from "./zod4-compat.js";
+ import { ERROR_ROUTES } from "./constants.mjs";
+ var DEFAULT_PAGE_THEME = {
+   breadcrumb: true,
+@@ -34,7 +35,7 @@ var linkItemSchema = z.strictObject({
+ });
+ var menuItemSchema = z.strictObject({
+   display: displaySchema.optional(),
+-  items: z.record(linkItemSchema.partial({ href: true, newWindow: true })),
++  items: z.record(z.string(), linkItemSchema.partial({ href: true, newWindow: true })),
+   title: titleSchema,
+   type: z.literal("menu")
+ });
+@@ -42,12 +43,12 @@ var separatorItemSchema = z.strictObject({
+   title: titleSchema.optional(),
+   type: z.literal("separator")
+ });
+-var itemSchema = linkItemSchema.extend({
++var itemSchema = partialConfig(linkItemSchema.extend({
+   display: displaySchema,
+   theme: pageThemeSchema,
+   title: titleSchema,
+   type: z.enum(["page", "doc"])
+-}).deepPartial();
++}));
+ var metaSchema = z.string().or(menuItemSchema).or(separatorItemSchema).or(itemSchema);
+ function extendMeta(meta = {}, fallback) {
+   if (typeof meta === "string") {
+diff --git a/dist/zod4-compat.js b/dist/zod4-compat.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..e670a0455d489c215ab68e9d37b7a1ee63f9b428
+--- /dev/null
++++ b/dist/zod4-compat.js
+@@ -0,0 +1,15 @@
++import { z } from "zod";
++
++// The legacy configuration schemas use objects, arrays and optional/nullable fields.
++// Unions remain unchanged, matching the original deepPartial behavior.
++export function partialConfig(schema) {
++  if (schema instanceof z.ZodObject) {
++    return schema.extend(Object.fromEntries(Object.entries(schema.shape).map(
++      ([key, value]) => [key, partialConfig(value).optional()]
++    )));
++  }
++  if (schema instanceof z.ZodArray) return z.array(partialConfig(schema.element));
++  if (schema instanceof z.ZodOptional) return partialConfig(schema.unwrap()).optional();
++  if (schema instanceof z.ZodNullable) return partialConfig(schema.unwrap()).nullable();
++  return schema;
++}

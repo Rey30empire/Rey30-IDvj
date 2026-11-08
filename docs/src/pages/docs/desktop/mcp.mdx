@@ -3,7 +3,7 @@ title: Model Context Protocol
 description: Manage your interaction with AI locally.
 keywords:
   [
-    Jan,
+    Rey30 IDvj,
     Customizable Intelligence, LLM,
     local AI,
     privacy focus,
@@ -19,39 +19,39 @@ keywords:
 ---
 import { Callout, Steps } from 'nextra/components'
 
-# Using the Model Context Protocol (MCP) in Jan
+# Using the Model Context Protocol (MCP) in Rey30 IDvj
 
 ```mermaid
 graph TD
     subgraph "What is MCP?"
-        You[You using Jan Desktop]
-        Claude[Jan AI Assistant]
-        
+        You[You using Rey30 IDvj Desktop]
+        Claude[Rey30 IDvj AI Assistant]
+
         subgraph "Your Connected Tools"
             Files[📁 Your Files<br/>Documents, folders,<br/>text files]
             Database[📊 Your Data<br/>Spreadsheets,<br/>databases]
             WebServices[🌐 Online Services<br/>GitHub, Slack,<br/>Google Drive]
             Custom[🔧 Custom Tools<br/>Special programs<br/>you've added]
         end
-        
-        subgraph "What Jan Can Do"
+
+        subgraph "What Rey30 IDvj Can Do"
             Read[Read & Understand<br/>- View your files<br/>- Check your data<br/>- See updates]
             Action[Take Actions<br/>- Search for info<br/>- Create content<br/>- Run commands]
             Templates[Use Templates<br/>- Common tasks<br/>- Saved prompts<br/>- Workflows]
         end
     end
-    
+
     You --> Claude
     Claude -->|"Can I see this file?"| Files
     Claude -->|"What's in my database?"| Database
     Claude -->|"Check my GitHub"| WebServices
     Claude -->|"Run this tool"| Custom
-    
+
     Files --> Read
     Database --> Read
     WebServices --> Action
     Custom --> Templates
-    
+
     style You fill:transparent
     style Claude fill:transparent
     style Files fill:transparent
@@ -64,7 +64,7 @@ graph TD
 ```
 
 
-Jan now supports the **Model Context Protocol (MCP)**, an open standard designed to allow language models to
+Rey30 IDvj now supports the **Model Context Protocol (MCP)**, an open standard designed to allow language models to
 interact with external tools and data sources.
 
 MCPs act as a common interface, standardizing the way an AI model can interact with external tools and data
@@ -75,13 +75,13 @@ to different data sources to accomplish a task, for example, notion, google shee
 applications will be connected to a server with prompts, tools, and data sources which will be used to complete
 the task.
 
-Jan is an MCP host that allows you to download different clients and servers and use them to accomplish a task.
+Rey30 IDvj is an MCP host that allows you to download different clients and servers and use them to accomplish a task.
 
-This document outlines the benefits, risks, and implementation of MCPs within Jan.
+This document outlines the benefits, risks, and implementation of MCPs within Rey30 IDvj.
 
 ## Core Benefits of MCP
 
-Integrating MCP provides a structured way to extend the capabilities of the models you use in Jan. Here are the three
+Integrating MCP provides a structured way to extend the capabilities of the models you use in Rey30 IDvj. Here are the three
 
 * **Standardization:** MCP aims to solve the "M x N" integration problem, where every model (M) needs a
 unique connector for every tool (N). By adapting to a single standard, any compliant model can interface with any compliant tool.
@@ -91,7 +91,7 @@ access to search your local codebase, query a database, or interact with web API
 making your workflows more modular and adaptable over time.
 
 <Callout type="warning">
-  Please note that not all models that you can download and use, whether in Jan or other tools, may be good at
+  Please note that not all models that you can download and use, whether in Rey30 IDvj or other tools, may be good at
   tool calling or compatible with MCP. Make sure that the model you choose is MCP-compliant before integrating
   it into your workflows. This might be available in the model card or you may need to implement it yourself to
   test the capabilities of the model.
@@ -99,8 +99,8 @@ making your workflows more modular and adaptable over time.
 
 <Callout type="info">
   To use MCP effectively, ensure your AI model supports tool calling capabilities:
-  - For cloud models (like Claude or GPT-4): Choose a model in Jan that includes **tools** capability. For built-in providers like Anthropic, Jan reads the provider's model capabilities automatically after you add your API key.
-  - For local models: Enable tool calling in the model parameters [click the edit button in Model Capabilities](/docs/desktop/model-parameters#model-capabilities-edit-button)
+  - For cloud models (like Claude or GPT-4): Choose a model in Rey30 IDvj that includes **tools** capability. For built-in providers like Anthropic, Rey30 IDvj reads the provider's model capabilities automatically after you add your API key.
+  - For local models: Enable tool calling in the model parameters [click the edit button in Model Capabilities](/docs/desktop/model-parameters#settings-reference)
   - Check the model's documentation to confirm MCP compatibility
 </Callout>
 
@@ -109,7 +109,7 @@ making your workflows more modular and adaptable over time.
 While powerful, MCP is an evolving standard, and its use requires careful consideration of the following points:
 
 * **Security:** Granting a model access to external tools is a significant security consideration. A compromised
-tool or a malicious prompt could potentially lead to unintended actions or data exposure. Jan's implementation
+tool or a malicious prompt could potentially lead to unintended actions or data exposure. Rey30 IDvj's implementation
 focuses on user-managed permissions to mitigate this risk — you must approve each tool call individually. Approval
 panels appear **inline inside the tool card** in the chat, showing the exact arguments the model wants to pass
 before you accept or deny. You can also enable **Allow All MCP Tool Permission** in Settings to pre-approve all
@@ -122,13 +122,12 @@ affect performance (i.e., the more tools the model and the larger the context of
 you will need to wait for a response). Efficient management of tools and their outputs is important.
 
 
-## Configure and Use MCPs within Jan
+## Configure and Use MCPs within Rey30 IDvj
 
-To illustrate how MCPs can be used within Jan, we will walk through an example using the [Browser MCP](https://browsermcp.io/).
+To illustrate how MCPs can be used within Rey30 IDvj, we will walk through an example using the [Browser MCP](https://browsermcp.io/).
 
 Before we begin, go to `Settings` > `MCP Servers` and toggle the `Allow All MCP Tool Permissions` switch ON if you want to pre-approve tool calls.
 
-![Turn on the MCP Host](./_assets/mcp-on.png)
 
 Please note that you will also need to have **NodeJS** and/or **Python** installed on your machine. In case you don't
 have either, you can download them from the official websites at the links below:
@@ -140,7 +139,6 @@ have either, you can download them from the official websites at the links below
 
 - Click on the `+` sign on the upper right-hand corner of the MCP box.
 
-![Add New Server](./_assets/mcp-setup-1.png)
 
 - Enter the following details to configure the BrowserMCP:
   - **Server Name**: `browsermcp`
@@ -148,33 +146,26 @@ have either, you can download them from the official websites at the links below
   - **Arguments**: `@browsermcp/mcp`
   - **Environment Variables**: You can leave this field empty.
 
-![Configure BrowserMCP](./_assets/mcp-setup-2.png)
 
 - Check that the server has been activated successfully.
 
-![Server Confirmation](./_assets/mcp-setup-3.png)
 
 - Open your favorite chrome-based browser (e.g., Google Chrome, Brave, Vivaldi, Microsoft Edge, etc...) and navigate to the
 [Browser MCP Extension Page](https://chromewebstore.google.com/detail/browser-mcp-automate-your/bjfgambnhccakkhmkepdoekmckoijdlc).
 
-![Browser MCP Extension](./_assets/mcp-setup-6.png)
 
 - Make sure to enable the extension to run on private windows. Since Browser Use will have access to all sites you've
 already logged into in your regular browser session, it is best to give it a clean slate to start from.
 
-![Browser MCP Extension](./_assets/mcp-setup-7.png)
 
 - Enable the extension to run on private windows by clicking on it and Connecting to the Browser MCP server.
 
-![Browser MCP Extension](./_assets/mcp-setup-8.png)
 
-- Go back to Jan and pick a model with strong tool-use capabilities, such as a Claude Sonnet or Opus model. After you enter your API key in **Model Providers > Anthropic**, Jan will list the available Anthropic models automatically. Choose one that shows **tools** capability in the model picker. No separate Anthropic tool toggle is required.
+- Go back to Rey30 IDvj and pick a model with strong tool-use capabilities, such as a Claude Sonnet or Opus model. After you enter your API key in **Model Providers > Anthropic**, Rey30 IDvj will list the available Anthropic models automatically. Choose one that shows **tools** capability in the model picker. No separate Anthropic tool toggle is required.
 
-![Browser MCP Extension](./_assets/mcp-setup-9.png)
 
 You can check and see if this was accurate below.
 
-![Browser MCP Extension](./_assets/mcp-setup-10.png)
 
 
 ## Troubleshooting
@@ -183,7 +174,7 @@ You can check and see if this was accurate below.
   - Make sure you have NodeJS and Python installed
   - Make sure you typed the commands correctly in the MCP Server form
   - Make sure the model you are using has tools enabled
-  - Restart Jan
+  - Restart Rey30 IDvj
 - The open source model I picked won't use the MCPs I enabled.
   - Make sure the model you are using has tools enabled
   - Lots of open source models are not designed to use tools or simply don't work well with them, so you may need to try a different model
@@ -191,10 +182,10 @@ You can check and see if this was accurate below.
 
 ## Future Potential
 
-This integration is the foundation for creating more capable and context-aware AI assistants within Jan. The
+This integration is the foundation for creating more capable and context-aware AI assistants within Rey30 IDvj. The
 long-term goal is to enable more sophisticated workflows that make use of your local environment securely as
 well as your favorite tools.
 
 For example, an AI could cross-reference information between a local document and a remote API, or use a
-local script to analyze data and then summarize the findings, all orchestrated through Jan's interface. As
-the MCP ecosystem grows, so will the potential applications within Jan.
+local script to analyze data and then summarize the findings, all orchestrated through Rey30 IDvj's interface. As
+the MCP ecosystem grows, so will the potential applications within Rey30 IDvj.

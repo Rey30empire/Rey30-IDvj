@@ -1,14 +1,14 @@
 ---
 title: Process & Failures
-description: "Keep control of an embedded Jan runtime: close it, interrupt work, answer permissions, and handle failures without repeating side effects."
-keywords: [Jan, Jan Agent, ADK, process, permissions, errors, cancellation]
+description: "Keep control of an embedded Rey30 IDvj runtime: close it, interrupt work, answer permissions, and handle failures without repeating side effects."
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, ADK, process, permissions, errors, cancellation]
 ---
 
 import { Tabs } from 'nextra/components'
 
 # Process & Failures
 
-**Your app owns the Jan process. Close it when you are done, and check how each turn ended.**
+**Your app owns the Rey30 IDvj process. Close it when you are done, and check how each turn ended.**
 
 The quickstarts already do both. This page explains what to change when your app needs multiple
 conversations, a Stop button, tool approval, or recovery from a failure.
@@ -24,7 +24,7 @@ conversations, a Stop button, tool approval, or recovery from a failure.
   other sessions are still listed in its prompt.
 
 Always arrange cleanup, including on errors. In JavaScript, put `await runtime.close()` in a
-`finally` block. In Python, use `with JanRuntime.start() as runtime:`. The
+`finally` block. In Python, use `with Rey30Runtime.start() as runtime:`. The
 [JavaScript](/docs/agent/adk-ts) and [Python](/docs/agent/adk-python) quickstarts show both patterns.
 
 The ADK closes the channel and reaps its child process, escalating when the process does not exit.
@@ -46,11 +46,11 @@ These are **RPC ADK** statuses: JavaScript uses `result.stopReason`; Python uses
 
 Closing the runtime ends all work owned by that process. Use forced close only when necessary:
 `await runtime.close({ force: true })` or `runtime.close(force=True)`.
-A handler that has already changed an external system cannot be rolled back by killing Jan.
+A handler that has already changed an external system cannot be rolled back by killing Rey30 IDvj.
 
 ## Answer permission prompts
 
-If you leave `permissions` at its default, `jan`, a host actuator waits for your app's approval.
+If you leave `permissions` at its default, `jan` (serialized compatibility value), a host actuator waits for your app's approval.
 Handle that event while consuming the turn. The example below **denies** requests until you add
 your own approval UI or policy:
 
@@ -81,20 +81,20 @@ Answer with `allow_once`, `allow_always` where offered, or `deny`. Denying a too
 model continue without that action. A `read` tool is not prompted.
 
 If your application already gates every host action, set `permissions` to `host` instead. That
-removes Jan's approval step for host tools; it does not provide a replacement safety policy.
+removes Rey30 IDvj's approval step for host tools; it does not provide a replacement safety policy.
 
 ## Handle the right kind of failure
 
 | Failure | How it appears | What your app should do |
 | --- | --- | --- |
-| Runtime cannot be installed | `JanInstallError` | Check the manifest, platform and checksum error. Do not bypass verification. |
-| Runtime cannot start, crashes, or speaks another protocol | `JanRuntimeError` | Close it, fix the binary/configuration issue, and start a new runtime. |
-| An RPC operation is refused | `JanRpcError` | Read its code and message. A busy-session error is retryable after the active turn ends. |
+| Runtime cannot be installed | `Rey30InstallError` | Check the manifest, platform and checksum error. Do not bypass verification. |
+| Runtime cannot start, crashes, or speaks another protocol | `Rey30RuntimeError` | Close it, fix the binary/configuration issue, and start a new runtime. |
+| An RPC operation is refused | `Rey30RpcError` | Read its code and message. A busy-session error is retryable after the active turn ends. |
 | Provider authentication, model or request failure | Turn result with `error` status | Show the message. Fix the provider or model configuration before trying again. |
 | Your tool handler fails | Failed tool result sent to the model | Let the agent handle that result; do not assume the whole turn failed. |
 
 A completed stream is not proof of success: inspect the terminal result, as the quickstarts do.
-Do not discard `JanRuntimeError` diagnostics; stderr can explain why startup or the process failed.
+Do not discard `Rey30RuntimeError` diagnostics; stderr can explain why startup or the process failed.
 
 ### Retry only after checking side effects
 
@@ -104,15 +104,15 @@ answer does not prove an action never ran.
 
 ## Download a runtime from code
 
-For deployments that do not put `jan` on PATH, the ADK can install the nightly runtime itself:
+For deployments that do not put `rey30-idvj` on PATH, the ADK can install a runtime from an explicitly trusted manifest:
 
 <Tabs items={['JavaScript', 'Python']}>
   <Tabs.Tab>
 ```js
-import { installRuntime, JanRuntime } from '@janhq/adk'
+import { installRuntime, Rey30Runtime } from '@rey30-idvj/adk'
 
-const installed = await installRuntime()
-const runtime = await JanRuntime.start({ bin: installed.bin })
+const installed = await installRuntime({ manifestUrl: process.env.REY30_AGENT_MANIFEST })
+const runtime = await Rey30Runtime.start({ bin: installed.bin })
 try {
   console.log(runtime.serverInfo)
 } finally {
@@ -122,10 +122,11 @@ try {
   </Tabs.Tab>
   <Tabs.Tab>
 ```python
-from jan_adk import install_runtime, JanRuntime
+import os
+from rey30_idvj_adk import install_runtime, Rey30Runtime
 
-installed = install_runtime()
-with JanRuntime.start(bin=installed.bin) as runtime:
+installed = install_runtime(manifest_url=os.environ["REY30_AGENT_MANIFEST"])
+with Rey30Runtime.start(bin=installed.bin) as runtime:
     print(runtime.server_info)
 ```
   </Tabs.Tab>
@@ -133,18 +134,18 @@ with JanRuntime.start(bin=installed.bin) as runtime:
 
 Installation downloads a prebuilt executable, verifies its published SHA-256, and caches it.
 It does not configure a model provider. Use the binary's `login` or `config set` command for that.
-`JAN_AGENT_HOME` selects the cache root. Previously returned binary paths remain valid across
+`REY30_AGENT_HOME` selects the cache root. Previously returned binary paths remain valid across
 concurrent installs; remove old cache generations only when no runtime is using them.
 
-For reproducible deployments, pass both `version` and `sha256` from the
-[nightly manifest](https://delta.jan.ai/agent-nightly/manifest.json) to the installer. They must
+For reproducible deployments, pass both `version` and `sha256` from
+an explicitly configured runtime manifest to the installer. They must
 match that manifest when a download is needed; an arbitrary historical version is not a download
 service. A matching pinned cache entry can be reused without network access.
 
 ## Working directly with the CLI?
 
-The ADK uses a long-lived `jan cli agent rpc` process. A direct
-`jan cli agent run --output-format stream-json` integration is different: one run ends with a
+The ADK uses a long-lived `rey30-idvj cli agent rpc` process. A direct
+`rey30-idvj cli agent run --output-format stream-json` integration is different: one run ends with a
 `result` record and a process exit. Do not mix its messages or status names with RPC.
 
 Use [Protocol records](/docs/agent/protocol) and the [CLI reference](/docs/agent/cli#run)

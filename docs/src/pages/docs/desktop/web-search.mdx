@@ -1,10 +1,10 @@
 ---
 title: Web Search
-description: Let models search and read the web using Jan's built-in web_search and web_fetch tools
+description: Let models search and read the web using Rey30 IDvj's built-in web_search and web_fetch tools
 keywords:
   [
-    Jan,
-    Jan AI,
+    Rey30 IDvj,
+    Rey30 IDvj AI,
     web search,
     web_search,
     web_fetch,
@@ -21,7 +21,7 @@ import { Callout } from 'nextra/components'
 
 # Web Search
 
-Jan has **built-in web search**. When enabled, Jan advertises two tools - `web_search` and
+Rey30 IDvj has **built-in web search**. When enabled, Rey30 IDvj advertises two tools - `web_search` and
 `web_fetch` - to any model that supports tool use, so the model can look up current information and
 read web pages on its own. It works out of the box with **no API key** and **no MCP server** required.
 
@@ -32,7 +32,6 @@ start asking about current events right away - no setup needed.
 
 You can toggle web search for a chat from the input toolbar - the globe icon shows **Web Search (Active)** when it's on.
 
-![Web Search toggle in the chat input](./_assets/web-search-toggle.png)
 
 ## The two tools
 
@@ -59,7 +58,6 @@ web tools won't be available.
 
 Open **Settings > Web Search**.
 
-![Web Search settings](./_assets/web-search-settings.png)
 
 ### Enable Web Search
 
@@ -74,7 +72,7 @@ Choose the backend that answers `web_search` and `web_fetch`. Four providers are
 |----------|---------|-------|
 | **Exa** (default) | Optional | Uses a free, keyless endpoint out of the box. Add a key for higher rate limits and structured results. |
 | **Tavily** | Required | Needs a [Tavily](https://tavily.com) API key to return results. |
-| **SearXNG** | Optional | Self-hosted. Point Jan at your own [SearXNG](https://searxng.org) instance URL (with the JSON API enabled). |
+| **SearXNG** | Optional | Self-hosted. Point Rey30 IDvj at your own [SearXNG](https://searxng.org) instance URL (with the JSON API enabled). |
 | **You.com** | Optional | Keyless search works out of the box, subject to a daily request cap. A [You.com](https://you.com/platform) API key lifts the cap and gives `web_fetch` extracted page content instead of raw HTML. |
 
 ### Exa API Key (optional)
@@ -90,6 +88,6 @@ of a key. The settings panel shows the right field for whichever provider you pi
 ## How it relates to MCP search
 
 This built-in web search is **native** - it does not use the [Model Context Protocol](/docs/desktop/mcp).
-Earlier versions of Jan relied on an Exa (or Serper) MCP server for web search; that's no longer
+Earlier versions of Rey30 IDvj relied on an Exa (or Serper) MCP server for web search; that's no longer
 necessary. You can still connect an MCP-based search server if you want a specific provider or extra
 control, but for most users the built-in Web Search is all you need.

@@ -1,27 +1,27 @@
 ---
-title: Using Jan Agent
+title: Using Rey30 IDvj Agent
 description: A tour of the console - the screen, approving work, and what to reach for next.
-keywords: [Jan, Jan Agent, TUI, console, terminal UI, using]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, TUI, console, terminal UI, using]
 ---
 
 import { Callout } from 'nextra/components'
 import { DocCard, DocCards } from '@/components/DocCard'
 import { Command, Keyboard, GitBranch, Layers } from 'lucide-react'
 
-# Using Jan Agent
+# Using Rey30 IDvj Agent
 
-Running `jan` with no subcommand opens the console. This is the main way to use Jan Agent.
+Running `rey30-idvj` with no subcommand opens the console. This is the main way to use Rey30 IDvj Agent.
 
 ```bash
-jan                 # the current directory
-jan --project ~/app # somewhere else
-jan --task "..."    # with a first message already sent
+rey30-idvj                 # the current directory
+rey30-idvj --project ~/app # somewhere else
+rey30-idvj --task "..."    # with a first message already sent
 ```
 
 ## The screen
 
 ```
- jan agent   tokamak-1-preview  effort medium   10:40:49   turn 1/400   ctx 6K/128K   30.1/s   [ready]
+ rey30-idvj agent   tokamak-1-preview  effort medium   10:40:49   turn 1/400   ctx 6K/128K   30.1/s   [ready]
 ─────────────────────────────────────────────────────────────────────────────────────
  MCP ready: sequential-thinking, serper
 
@@ -59,7 +59,7 @@ answer: `Worked for 12s • 14:02 • ↑ 43K ↓ 1.1K • 45.6/s` - the duratio
 (with the date when it was not today, `Oct 7 14:02`), context sent, tokens produced, and
 throughput when there was output to measure.
 
-Notes from Jan itself carry a glyph in the left column: `•` for information, a yellow `⚠` for a
+Notes from Rey30 IDvj itself carry a glyph in the left column: `•` for information, a yellow `⚠` for a
 warning, and a red `■` for an error, so a failure stands out even without colour.
 
 Tool rows fold to one line each: a `•` bullet, then the verb and what it acted on (`Ran cargo
@@ -154,7 +154,7 @@ The working row and the `[thinking]` badge animate: a brightness sweep crosses t
 running tool row pulses its bullet the same way. The sweep changes colour only, never width, so
 nothing beside it moves. It is skipped on a 16-colour terminal, which has no shades in between to sweep through.
 
-To hold everything still, set this in `~/.jan/config.toml`:
+To hold everything still, set this in `~/.rey30-idvj/config.toml`:
 
 ```toml
 [tui]
@@ -162,9 +162,9 @@ animations = false
 ```
 
 Throbbers then show a static `•`, a running tool's bullet stays dim, and every label keeps its
-resting colour. Jan also turns animations off at launch when the OS asks for reduced motion: on macOS
+resting colour. Rey30 IDvj also turns animations off at launch when the OS asks for reduced motion: on macOS
 (System Settings > Accessibility > Display > Reduce motion) and on GNOME-family Linux desktops
-(animations off). Windows is not detected yet, so use the key there. Restart Jan after changing
+(animations off). Windows is not detected yet, so use the key there. Restart Rey30 IDvj after changing
 either.
 
 ### The prompt-cache hit rate
@@ -173,7 +173,7 @@ Providers cache the front of a request, so a turn that reuses it costs a fractio
 header carries the share of this session's prompt tokens that came from the cache:
 
 ```
- jan agent   tokamak-1-preview  effort medium   10:40:49   turn 1/400   ctx 6K/128K   cache 75%   [ready]
+ rey30-idvj agent   tokamak-1-preview  effort medium   10:40:49   turn 1/400   ctx 6K/128K   cache 75%   [ready]
 ```
 
 The segment appears only once a route has reported a cache field: a route that reports nothing shows
@@ -195,15 +195,15 @@ so you can watch the thought form without pushing the answer off the screen.
 <kbd>Ctrl</kbd>+<kbd>O</kbd> expands every folded reasoning block, or click a row to expand just
 that one.
 
-Two knobs in `agent.toml` and two in `~/.jan/config.toml` tune this:
+Two knobs in `agent.toml` and two in `~/.rey30-idvj/config.toml` tune this:
 
 | Key | Where | Default | What it does |
 | --- | --- | --- | --- |
 | `[agent].show_reasoning` | `agent.toml` | `false` | Unfold every reasoning block in the transcript by default. Still folds when off; <kbd>Ctrl</kbd>+<kbd>O</kbd> or a click expands a block either way |
 | `[agent].send_reasoning` | `agent.toml` | `true` | Resend a prior turn's reasoning to the model with the conversation. Turn off for an upstream that rejects the field (Groq), or to keep chains of thought out of the context budget |
-| `think_tags` | `~/.jan/config.toml` | per provider | Treat `<think>` tags in model content as reasoning (folded and resendable), for every provider. Unset, it is on for a custom OpenAI-compatible provider and off for `openai`, `anthropic` and `tokamak` on their own endpoints (`api.openai.com`, `api.anthropic.com`, `api.tokamak.sh`), which send reasoning in its own field; an entry with one of those names but another `base_url` (vLLM, OpenRouter, a local server) is treated as custom and stays on. Also off for the Anthropic, Google and Responses wire APIs. Off renders tags as ordinary prose |
-| `parse_think_tags` | `[providers.<name>]` in `~/.jan/config.toml` | inherits `think_tags` | The same switch for one provider; it beats `think_tags`. It applies to whichever run that provider serves, so a subagent whose definition names a model on another provider follows that provider's setting, not the main model's |
-| `stream_reasoning` | `~/.jan/config.toml` | `true` | Stream an open reasoning block's last lines into the live tail. Off shows only the `[thinking]` badge |
+| `think_tags` | `~/.rey30-idvj/config.toml` | per provider | Treat `<think>` tags in model content as reasoning (folded and resendable), for every provider. Unset, it is on for a custom OpenAI-compatible provider and off for `openai`, `anthropic` and `tokamak` on their own endpoints (`api.openai.com`, `api.anthropic.com`, `api.tokamak.sh`), which send reasoning in its own field; an entry with one of those names but another `base_url` (vLLM, OpenRouter, a local server) is treated as custom and stays on. Also off for the Anthropic, Google and Responses wire APIs. Off renders tags as ordinary prose |
+| `parse_think_tags` | `[providers.<name>]` in `~/.rey30-idvj/config.toml` | inherits `think_tags` | The same switch for one provider; it beats `think_tags`. It applies to whichever run that provider serves, so a subagent whose definition names a model on another provider follows that provider's setting, not the main model's |
+| `stream_reasoning` | `~/.rey30-idvj/config.toml` | `true` | Stream an open reasoning block's last lines into the live tail. Off shows only the `[thinking]` badge |
 
 See [Project config](/docs/agent/project-config) for the `agent.toml` keys.
 
@@ -213,14 +213,14 @@ The agent can use the `ask` tool when it needs your choice before it keeps worki
 stops the run and shows a question with options; one option may be marked as recommended.
 
 By default a question waits forever for your answer. To keep unattended or long-running runs from
-stalling when nobody is at the terminal, set `ask_timeout_secs` in `~/.jan/config.toml`, or edit
+stalling when nobody is at the terminal, set `ask_timeout_secs` in `~/.rey30-idvj/config.toml`, or edit
 the same row in `/settings`:
 
 ```toml
 ask_timeout_secs = 60
 ```
 
-When the value is `N`, an unanswered question auto-resolves after `N` seconds. Jan chooses the
+When the value is `N`, an unanswered question auto-resolves after `N` seconds. Rey30 IDvj chooses the
 recommended option when the question has one, otherwise the first option. The auto choice is always
 one of the listed options, not the UI-only custom answer. `0` or an unset key means wait forever,
 which is the default.
@@ -228,12 +228,12 @@ which is the default.
 Timed-out answers are marked in the tool result with `NOTE [ask_timeout]`, so the agent can tell
 they were auto-selected instead of typed by you.
 
-This does not apply to the tool-permission prompts from `jan --safe`; those never auto-approve. See
+This does not apply to the tool-permission prompts from `rey30-idvj --safe`; those never auto-approve. See
 [Approving work](#approving-work) and [Tool permissions](/docs/agent/permissions).
 
 ## Approving work
 
-Writes and shell commands are auto-approved. Start the console with `jan --safe` and they stop to
+Writes and shell commands are auto-approved. Start the console with `rey30-idvj --safe` and they stop to
 ask instead:
 
 ```

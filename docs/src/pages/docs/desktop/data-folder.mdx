@@ -1,10 +1,10 @@
 ---
-title: Jan Data Folder
-description: A guide to Jan's data structure.
+title: Rey30 IDvj Data Folder
+description: A guide to Rey30 IDvj's data structure.
 sidebar_position: 2
 keywords:
   [
-    Jan,
+    Rey30 IDvj,
     Customizable Intelligence, LLM,
     local AI,
     privacy focus,
@@ -24,32 +24,31 @@ import { Callout, Steps } from 'nextra/components'
 import { Settings, FolderOpen } from 'lucide-react'
 
 
-# Jan Data Folder
-Jan stores your data locally in JSON format. Your data is yours alone.
+# Rey30 IDvj Data Folder
+Rey30 IDvj stores your data locally in JSON format. Your data is yours alone.
 
-## Open Jan Data Folder
+## Open Rey30 IDvj Data Folder
 
-Via Jan:
+Via Rey30 IDvj:
 1. Settings (<Settings width={16} height={16} style={{display:"inline"}}/>) > General > App Logs
 2. Click **Open Logs**
 
-![Open Jan Data Folder](./_assets/server-troubleshooting.png)
 
 Via Terminal:
 
 ```bash
 # Windows
-cd %APPDATA%/Jan/data
+cd %APPDATA%/Rey30-IDvj/data
 
 # Mac
-cd ~/Library/Application\ Support/Jan/data
+cd ~/Library/Application\ Support/Rey30-IDvj/data
 
 # Linux (default — resolves via XDG_DATA_HOME)
-cd ~/.local/share/Jan/data
+cd ~/.local/share/Rey30-IDvj/data
 ```
 
 <Callout type="info">
-The data folder location can be customised from **Settings > General > Jan Data Folder**. Once changed, the path above no longer applies — check the Settings page for the active location.
+The data folder location can be customised from **Settings > General > Rey30 IDvj Data Folder**. Once changed, the path above no longer applies — check the Settings page for the active location.
 </Callout>
 
 ## Directory Structure
@@ -68,7 +67,7 @@ Inside the data folder you will typically find:
     assistant.json
 /extensions/
   extensions.json
-  /@janhq/
+  /@rey30-idvj/
     /assistant-extension/
     /conversational-extension/
     /download-extension/
@@ -97,7 +96,7 @@ Inside the data folder you will typically find:
 
 ### `agent-workspace/`
 The agent workspace, shared by the [Cowork](/docs/desktop/cowork) surface
-(`nightly` channel only) and the [Jan Agent](/docs/agent). Memories (`memory/`),
+(`nightly` channel only) and the [Rey30 IDvj Agent](/docs/agent). Memories (`memory/`),
 skills (`skills/`), and saved subagent definitions (`subagents/`) live here
 permanently. Each Cowork session gets an ephemeral sandbox under
 `sessions/<session_id>/`, and chat threads that use agent tools get one under
@@ -112,8 +111,8 @@ Where AI personalities live. The default one (`/assistants/jan/`):
   "id": "jan",
   "object": "assistant",
   "created_at": 1750945742.536,
-  "name": "Jan",
-  "description": "Jan is a helpful AI assistant that can use tools and help complete tasks for its users.",
+  "name": "Rey30 IDvj",
+  "description": "Rey30 IDvj is a helpful AI assistant that can use tools and help complete tasks for its users.",
   "model": "*",
   "instructions": "You have access to a set of tools to help you answer the user’s question. You can use only one tool per message, and you’ll receive the result of that tool in the user’s next response. To complete a task, use tools step by step—each step should be guided by the outcome of the previous one.\nTool Usage Rules:\n1. Always provide the correct values as arguments when using tools. Do not pass variable names—use actual values instead.\n2. You may perform multiple tool steps to complete a task.\n3. Avoid repeating a tool call with exactly the same parameters to prevent infinite loops.",
   "tools": [
@@ -141,7 +140,7 @@ Parameters:
 | avatar                 | Assistant image                                              | string  | None    |
 | object                 | OpenAI API compatibility marker                              | string  | None    |
 | created_at             | Creation timestamp                                          | string  | None    |
-| name                   | Display name                                                | string  | Jan     |
+| name                   | Display name                                                | string  | Rey30 IDvj     |
 | description            | Role description                                            | string  | Default |
 | model                  | Allowed models (* = all)                                    | string  | *       |
 | instructions           | Default thread instructions                                 | string  | None    |
@@ -157,7 +156,7 @@ Parameters:
 | retrieval_template    | Response format template                                    | string  | None    |
 
 ### `extensions/`
-Add-on central. Organization extensions live in `@janhq/`, solo ones in root.
+Add-on central. Organization extensions live in `@rey30-idvj/`, solo ones in root.
 
 ### `logs/`
 Debugging headquarters (`/logs/app.log`):
@@ -181,7 +180,7 @@ Full parameters: [here](/docs/desktop/model-parameters)
 </Callout>
 
 ### `threads/`
-Chat archive. Each thread (`/threads/jan_unixstamp/`) contains:
+Chat archive. Each thread (`/threads/rey30_unixstamp/`) contains:
 
 - `messages.jsonl`:
 ```json
@@ -203,7 +202,7 @@ Chat archive. Each thread (`/threads/jan_unixstamp/`) contains:
         "avatar": "👋",
         "id": "jan",
         "instructions": "You have access to a set of tools to help you answer the user's question. You can use only one tool per message, and you'll receive the result of that tool in the user's next response. To complete a task, use tools step by step—each step should be guided by the outcome of the previous one.\nTool Usage Rules:\n1. Always provide the correct values as arguments when using tools. Do not pass variable names—use actual values instead.\n2. You may perform multiple tool steps to complete a task.\n3. Avoid repeating a tool call with exactly the same parameters to prevent infinite loops.",
-        "name": "Jan",
+        "name": "Rey30 IDvj",
         "parameters": ""
       },
       "tokenSpeed": {
@@ -237,6 +236,6 @@ Chat archive. Each thread (`/threads/jan_unixstamp/`) contains:
 
 
 
-## Delete Jan Data
-Uninstall guides: [Mac](/docs/desktop/install/mac#step-2-clean-up-data-optional),
-[Windows](/docs/desktop/install/windows#step-2-handle-jan-data), or [Linux](docs/desktop/install/linux#uninstall-jan).
+## Conservar o retirar datos
+
+Comprueba la carpeta activa en los ajustes y guarda una copia antes de retirar una instalación. Desinstalar la aplicación y borrar modelos o conversaciones son operaciones distintas. La migración conserva acceso a los datos anteriores; no los elimines hasta verificar su contenido.

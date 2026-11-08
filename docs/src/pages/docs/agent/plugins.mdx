@@ -1,7 +1,7 @@
 ---
 title: Plugins
 description: Install skills from git repos or a marketplace as plugins.
-keywords: [Jan, Jan Agent, plugins, skills, marketplace, git, install]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, plugins, skills, marketplace, git, install]
 ---
 
 import { Callout } from 'nextra/components'
@@ -19,7 +19,7 @@ that declares [tools or hooks](/docs/agent/hooks) runs commands later, once a se
 ## Where they live
 
 ```
-~/.jan/projects/<slug>/plugins/
+~/.rey30-idvj/projects/<slug>/plugins/
 └── release-tools/
     ├── plugin.toml              # optional TOML metadata
     ├── .claude-plugin/
@@ -42,7 +42,7 @@ A plugin's payload is discovered conventionally, so a repo needs no manifest to 
   and `repo`. The directory name is the plugin's identity; the manifest's `name` is what
   `plugin list` shows when present.
 
-Jan discovers these conventional directories in Claude Code-style plugin repositories,
+Rey30 IDvj discovers these conventional directories in Claude Code-style plugin repositories,
 including `anthropics/claude-plugins-official`. Installation does not guarantee runtime
 compatibility: external commands, credentials, and provider approval may still be required.
 
@@ -51,13 +51,13 @@ compatibility: external commands, credentials, and provider approval may still b
 From the command line:
 
 ```bash
-jan plugin install <git-url>
-jan plugin install <git-url>#<ref>        # install a specific branch or tag
-jan plugin install <github-tree-url>      # install a plugin from a repo subdirectory
-jan plugin install <marketplace-name>     # resolve a name through your marketplace
-jan plugin list
-jan plugin remove <name>
-jan plugin search [query]
+rey30-idvj plugin install <git-url>
+rey30-idvj plugin install <git-url>#<ref>        # install a specific branch or tag
+rey30-idvj plugin install <github-tree-url>      # install a plugin from a repo subdirectory
+rey30-idvj plugin install <marketplace-name>     # resolve a name through your marketplace
+rey30-idvj plugin list
+rey30-idvj plugin remove <name>
+rey30-idvj plugin search [query]
 ```
 
 Inside the interactive agent, the equivalent commands are:
@@ -78,10 +78,10 @@ The plugin is cloned (`--depth 1`), validated to contain a plugin manifest, `ski
 Reinstalling an existing plugin is refused (remove it first). Specs with shell metacharacters are
 rejected outright - a plugin name is a name, not a command.
 
-In the TUI, installation continues directly into setup. Jan reads the plugin's
+In the TUI, installation continues directly into setup. Rey30 IDvj reads the plugin's
 `.mcp.json` or inline `mcpServers` declarations, collects required keys in a masked
 field, and offers **Enable and connect** for each server. Nothing is enabled or
-executed until you confirm. For providers that accept Jan's OAuth client registration,
+executed until you confirm. For providers that accept Rey30 IDvj's OAuth client registration,
 setup offers browser sign-in and reconnects after successful authorization.
 
 Choose **Not now** or press Esc to keep the plugin installed without completing
@@ -90,7 +90,7 @@ choose one installed plugin. Type or paste to filter by name and description
 (case-insensitive); Backspace edits the search, Up/Down selects, Enter opens setup,
 and Esc cancels. Rows identify the installation directory and also show the manifest
 name when it differs. Opening the picker does not run setup for every plugin or enable
-any servers. No separate terminal command or Jan restart is needed. Plugins without
+any servers. No separate terminal command or Rey30 IDvj restart is needed. Plugins without
 keys or MCP servers need no connection setup.
 
 Imported MCP servers use names such as `figma:figma` to avoid collisions. Existing
@@ -102,14 +102,14 @@ Shell credential injection is scoped to the project that registered the keys;
 starting a run in another project does not replace that project's shell credentials.
 
 OAuth browser sign-in requires successful client registration. If the provider
-rejects registration, Jan shows the endpoint, HTTP status, and rejection detail
+rejects registration, Rey30 IDvj shows the endpoint, HTTP status, and rejection detail
 in the TUI instead of opening a consent page with a placeholder client ID.
 [Figma restricts its remote MCP server to approved clients](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/).
-**Remote Figma sign-in is currently blocked for Jan:** registration returns HTTP 403.
+**Remote Figma sign-in is currently blocked for Rey30 IDvj:** registration returns HTTP 403.
 Installing the Figma plugin does not grant approval, and retrying setup does not remove
-that restriction. Jan does not currently accept pre-registered OAuth client credentials.
+that restriction. Rey30 IDvj does not currently accept pre-registered OAuth client credentials.
 
-MCP connections already enabled in Jan remain in its user-owned configuration.
+MCP connections already enabled in Rey30 IDvj remain in its user-owned configuration.
 Skipping setup does not disable them, and removing a plugin does not remove its imported
 MCP entries. Use `/mcp`, select the server, then **Disable** or **Remove server**.
 This also applies to placeholder servers declared by example plugins.
@@ -160,14 +160,16 @@ A plugin's `agents/` directory is discovered as dispatchable subagents: the mark
 a plugin can fan work out to specialized agents exactly as it does in Claude Code. Claude-runtime
 metadata is handled honestly:
 
-- `model` and `color` are ignored - the agent always runs on the session's model
-- `tools` is mapped onto Jan's tool names (`Read` -> `read`, `Glob` -> `glob`, `Grep` -> `grep`,
+- `model: haiku` selects the `smol` role; other model tiers inherit the session's model. `color` is ignored.
+- `tools` accepts a YAML list or comma-separated names and maps onto Rey30 IDvj's tool names (`Read` -> `read`, `Glob` -> `find`, `Grep` -> `grep`,
   `WebSearch` -> `web_search`, `WebFetch` -> `web_fetch`, `TodoWrite` -> `todo`, and so on);
-  names with no Jan equivalent are dropped, and an agent listing only unknown tools inherits the
-  parent's full tool policy
-- `skill_list` and `skill_read` stay available even when `tools` maps to a narrow set - a plugin
-  agent can always load the skills its procedure references, matching Claude Code (see
-  [Subagents](/docs/agent/subagents#tool-permissions))
+  names with no Rey30 IDvj equivalent are dropped. An explicit empty list or a list with no equivalents
+  permits no tools; an absent restriction inherits the parent's policy.
+- Untranslated permission, sandbox, approval or deny-tool policies also permit no tools. They must
+  be reviewed rather than silently replaced by the parent's permissions.
+- `skill_list` and `skill_read` are added to a non-empty narrowed set, subject to the parent's
+  policy. An explicit empty definition remains empty (see
+  [Subagents](/docs/agent/subagents#tool-permissions)).
 
 Plugin agents are read-only: `create_subagent` refuses the plugin scope, and a subagent defined in
 the project's `subagents/` shadows a plugin agent of the same name.
@@ -191,20 +193,20 @@ Descriptions and artifact names are shown only when a plugin name is requested. 
 The headless CLI uses the same compact table by default:
 
 ```bash
-jan plugin list --project ~/code/app
+rey30-idvj plugin list --project ~/code/app
 ```
 
 Use `--json` when complete plugin metadata or machine-readable output is needed:
 
 ```bash
-jan plugin list --project ~/code/app --json
+rey30-idvj plugin list --project ~/code/app --json
 ```
 
 Install and search continue to print JSON results:
 
 ```bash
-jan plugin install https://github.com/acme/release-tools --project ~/code/app
-jan plugin search prepare --project ~/code/app
+rey30-idvj plugin install https://github.com/acme/release-tools --project ~/code/app
+rey30-idvj plugin search prepare --project ~/code/app
 ```
 
 Removal is a directory delete under the same name guard as everything else in the agent: a name
@@ -257,7 +259,7 @@ marketplace = "https://example.com/jan-plugins/index.json"
 `install <name>` and `search` report the missing config - direct git URLs always work.
 
 <Callout type="info">
-Plugins are shared with Jan Desktop - the same project files, through the same directory. The
+Plugins are shared with Rey30 IDvj Desktop - the same project files, through the same directory. The
 desktop agent exposes `agent_plugin_list`, `agent_plugin_install`, `agent_plugin_remove`, and
 `agent_plugin_search` for UI integration.
 </Callout>

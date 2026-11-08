@@ -1,14 +1,14 @@
 ---
 title: Context and Compaction
-description: How Jan Agent manages a conversation that outgrows the model's context window.
-keywords: [Jan, Jan Agent, context window, compaction, tokens, compact, summarize]
+description: How Rey30 IDvj Agent manages a conversation that outgrows the model's context window.
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, context window, compaction, tokens, compact, summarize]
 ---
 
 import { Callout } from 'nextra/components'
 
 # Context and Compaction
 
-Every model has a fixed context window. A long session will reach it. Jan Agent handles that by
+Every model has a fixed context window. A long session will reach it. Rey30 IDvj Agent handles that by
 summarizing the older part of the conversation rather than failing.
 
 ## Watching it fill
@@ -16,7 +16,7 @@ summarizing the older part of the conversation rather than failing.
 The header carries live usage:
 
 ```
- jan agent   tokamak-1-preview   10:40:49   turn 1/400   ctx 6K/128K fallback   30.1/s   [ready]
+ rey30-idvj agent   tokamak-1-preview   10:40:49   turn 1/400   ctx 6K/128K fallback   30.1/s   [ready]
 ```
 
 `ctx 6K/128K` is context used against the window, and the word after it says where the window size
@@ -84,7 +84,7 @@ the second is silence.
 One provider-layer caveat: on a `chat/completions` route the upstream client collapses a `0` cache
 counter into "field absent" while parsing, so a provider that honestly reports `cached_tokens: 0`
 reads as `not reported` there - the zero never reaches the readout. Anthropic and Responses
-providers, whose usage Jan translates itself, keep the zero and do render the `0%` alarm.
+providers, whose usage Rey30 IDvj translates itself, keep the zero and do render the `0%` alarm.
 
 ## Where the window size comes from
 
@@ -98,7 +98,7 @@ In order of precedence:
 4. A conservative 128K fallback for a model nothing recognizes.
 
 The header names which one is in force (`ctx 6K/1000K provider`). Refreshing the model list with
-<kbd>Ctrl</kbd>+<kbd>R</kbd> in `/model` (or `jan cli models refresh`) is what populates step 2.
+<kbd>Ctrl</kbd>+<kbd>R</kbd> in `/model` (or `rey30-idvj cli models refresh`) is what populates step 2.
 
 ## Usage and cost
 
@@ -125,7 +125,7 @@ than counted as free. `/new` starts a new session, and a new count.
 ## Cache-friendly layout
 
 Providers cache a request by prefix: the reusable part is the leading run of bytes identical to the
-previous request. Jan Agent keeps that run intact, because the system prompt and the tool schemas
+previous request. Rey30 IDvj Agent keeps that run intact, because the system prompt and the tool schemas
 sit at the front of every request.
 
 - The stable part of the system prompt (identity, guidelines, working directory, skills, memory
@@ -172,7 +172,7 @@ name = "small-window"
 compaction_ratio = 0.6
 ```
 
-The summary is written by `smol_model` from `~/.jan/config.toml` when one is set, so the session's
+The summary is written by `smol_model` from `~/.rey30-idvj/config.toml` when one is set, so the session's
 own model is not spent on condensing its history. If the smol model fails (its smaller window
 overflows, it is unreachable, or it returns nothing), the session's model writes the summary
 instead. A run under a `[budget]` money limit always summarizes on its own model, so every request

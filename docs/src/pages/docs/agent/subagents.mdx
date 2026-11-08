@@ -3,8 +3,8 @@ title: Subagents
 description: Delegate parts of a task to isolated agents that run in parallel, each with its own context and tool allowlist.
 keywords:
   [
-    Jan,
-    Jan Agent,
+    Rey30 IDvj,
+    Rey30 IDvj Agent,
     subagents,
     parallel agents,
     delegation,
@@ -163,7 +163,7 @@ costs you only its final answer.
 
 ## Built-in subagents
 
-Jan ships five subagents, ready to dispatch with no setup:
+Rey30 IDvj ships five subagents, ready to dispatch with no setup:
 
 | Name | Model | What it does |
 | --- | --- | --- |
@@ -202,7 +202,7 @@ can be changed per project.
 
 A subagent definition's `model` is one of:
 
-- `smol`: the cheap model set as `smol_model` in `~/.jan/config.toml`. When `smol_model` is unset,
+- `smol`: the cheap model set as `smol_model` in `~/.rey30-idvj/config.toml`. When `smol_model` is unset,
   the session's model is used.
 - `inherit` (or no `model`): the session's model.
 - A model id, such as `gpt-5-mini`. This ties the definition to one provider's naming, so prefer a
@@ -236,8 +236,8 @@ definition (to change its prompt, say), the model you set on it is kept.
 Definitions are TOML files, merged from two scopes:
 
 ```
-~/.jan/agent/subagents/<name>.toml            # user scope, available everywhere
-~/.jan/projects/<slug>/subagents/<name>.toml  # project scope, this project only
+~/.rey30-idvj/agent/subagents/<name>.toml            # user scope, available everywhere
+~/.rey30-idvj/projects/<slug>/subagents/<name>.toml  # project scope, this project only
 ```
 
 The two are merged, and the project scope shadows the user scope by name - so a project can
@@ -252,10 +252,13 @@ Claude Code convention). They load as a third, read-only scope:
 - Plugin agents cannot be created or edited through `create_subagent` - they are managed by
   installing or removing the plugin.
 - Claude-runtime frontmatter is translated: `model: haiku` runs the agent on the `smol` role and any
-  other `model` on the session's model, `color` is ignored, and `tools` is mapped onto Jan's tool names (`Read` -> `read`, `Glob` -> `glob`,
+  other `model` on the session's model, `color` is ignored, and `tools` is mapped onto Rey30 IDvj's tool names (`Read` -> `read`, `Glob` -> `find`,
   `Grep` -> `grep`, `WebSearch` -> `web_search`, `WebFetch` -> `web_fetch`, `TodoWrite` -> `todo`).
-  Names with no Jan equivalent are dropped; an agent listing only unknown tools inherits the
-  parent's full tool policy.
+  `tools` accepts a YAML list or comma-separated names. Names with no Rey30 IDvj equivalent are dropped;
+  an explicit empty list or a list with no equivalents permits no tools. Only an absent restriction
+  inherits the parent's policy. A `Glob, Grep` agent receives read-only search tools, never a shell.
+  Editor-specific permission, sandbox, approval or deny-tool restrictions that cannot be translated
+  also produce an empty definition. Review and configure them before using that agent.
 
 See [Plugins](/docs/agent/plugins#plugin-agents) for how plugin agents are discovered.
 
@@ -284,10 +287,10 @@ A subagent gets the session's full toolset unless something narrows it, and it i
 Either way it can only ever reach a subset of what the parent could reach, so delegation cannot be
 used to escape your project's [tool policy](/docs/agent/permissions#project-policy).
 
-One exception: `skill_list` and `skill_read` are always available to a subagent, whatever its
-allowlist says. Skills are how a subagent executes its procedure, and plugin `agents/*.md` files
-never list them, so a narrowed toolset keeps the read side - a subagent can always load the skills
-it was told to follow. A policy that explicitly denies a skill tool still wins.
+`skill_list` and `skill_read` are added to a non-empty narrowed toolset so a subagent can load its
+procedures. An explicit empty definition remains empty, including these helper tools. A parent's
+deny policy and tool ceiling still apply. An empty optional `allowed_tools` array in a dispatch
+request is treated as omitted; it cannot widen an empty definition.
 
 ## When not to delegate
 

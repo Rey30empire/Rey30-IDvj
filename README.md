@@ -1,204 +1,70 @@
-# Jan - Open-source ChatGPT replacement
+# Rey30 IDvj
 
-<img width="2048" height="280" alt="github jan banner" src="https://github.com/user-attachments/assets/f3f87889-c133-433b-b250-236218150d3f" />
+Distribución de escritorio mantenida por **Reinier Tamayo** para conversar con modelos locales, administrar asistentes, trabajar con herramientas y conectar proveedores externos. Conserva la estructura y la navegación del proyecto base.
 
-<p align="center">
-  <strong>English</strong> ·
-  <a href="README.zh.md">中文</a> ·
-  <a href="README.ja.md">日本語</a>
-</p>
+El código deriva de Jan y se distribuye bajo Apache 2.0. Los avisos originales se conservan en [LICENSE](LICENSE) y [NOTICE](NOTICE); las modificaciones de esta distribución se identifican en el historial y en la documentación de migración. La identidad Rey30 IDvj no cambia la autoría de los componentes heredados ni de los modelos.
 
-<p align="center">
-  <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/m/janhq/jan"/>
-  <img alt="Github Last Commit" src="https://img.shields.io/github/last-commit/janhq/jan"/>
-  <img alt="Github Contributors" src="https://img.shields.io/github/contributors/janhq/jan"/>
-  <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed/janhq/jan"/>
-  <img alt="Discord" src="https://img.shields.io/discord/1107178041848909847?label=discord"/>
-</p>
+## Inicio en Windows
 
-<p align="center">
-  <a href="https://jan.ai/docs/desktop">Getting Started</a>
-  - <a href="https://discord.gg/Exe46xPMbK">Community</a>
-  - <a href="https://jan.ai/changelog">Changelog</a>
-  - <a href="https://github.com/janhq/jan/issues">Bug reports</a>
-</p>
+En este checkout, abre [Iniciar-Rey30-IDvj.bat](Iniciar-Rey30-IDvj.bat). El lanzador usa la aplicación compilada disponible; si falta, prepara el modo de desarrollo con las dependencias y herramientas necesarias. Para elegir ese modo explícitamente:
 
-Jan is bringing the best of open-source AI in an easy-to-use product. Download and run LLMs with **full control** and **privacy**.
-
-## Installation
-
-<p align="center">
-  <table>
-    <tr>
-      <!-- Microsoft Store Badge -->
-      <td align="center" valign="middle">
-        <a href="https://apps.microsoft.com/detail/xpdcnfn5cpzlqb">
-          <img height="60"
-            width="200"
-               alt="Get it from Microsoft Store"
-               src="https://get.microsoft.com/images/en-us%20dark.svg"/>
-        </a>
-      </td>
-      <!-- Spacer -->
-      <td width="20"></td>
-      <!-- Flathub Official Badge -->
-      <td align="center" valign="middle">
-        <a href="https://flathub.org/apps/ai.jan.Jan">
-          <img height="60"
-            width="200"
-               alt="Get it on Flathub"
-               src="https://flathub.org/assets/badges/flathub-badge-en.svg"/>
-        </a>
-      </td>
-    </tr>
-  </table>
-</p>
-
-The easiest way to get started is by downloading one of the following versions for your respective operating system:
-
-<table>
-  <tr>
-    <td><b>Platform</b></td>
-    <td><b>Download</b></td>
-  </tr>
-  <tr>
-    <td><b>Windows</b></td>
-    <td><a href='https://app.jan.ai/download/latest/win-x64'>jan.exe</a></td>
-  </tr>
-  <tr>
-    <td><b>macOS</b></td>
-    <td><a href='https://app.jan.ai/download/latest/mac-universal'>jan.dmg</a></td>
-  </tr>
-  <tr>
-    <td><b>Linux (deb)</b></td>
-    <td><a href='https://app.jan.ai/download/latest/linux-amd64-deb'>jan.deb</a></td>
-  </tr>
-  <tr>
-    <td><b>Linux (AppImage)</b></td>
-    <td><a href='https://app.jan.ai/download/latest/linux-amd64-appimage'>jan.AppImage</a></td>
-  </tr>
-  <tr>
-    <td><b>Linux (Arm64)</b></td>
-    <td><a href='https://github.com/janhq/jan/issues/4543#issuecomment-4142429792'>How-to</a></td>
-  </tr>
-</table>
-
-
-Download from [jan.ai](https://jan.ai/) or [GitHub Releases](https://github.com/janhq/jan/releases).
-
-## Features
-
-- **Local AI Models**: Download and run LLMs (Llama, Gemma, Qwen, GPT-oss etc.) from HuggingFace
-- **Cloud Integration**: Connect to GPT models via OpenAI, Claude models via Anthropic, Mistral, Groq, MiniMax, and others
-- **Custom Assistants**: Create specialized AI assistants for your tasks
-- **OpenAI-Compatible API**: Local server at `localhost:1337` for other applications
-- **Model Context Protocol**: MCP integration for agentic capabilities
-- **Privacy First**: Everything runs locally when you want it to
-
-## Build from Source
-
-For those who enjoy the scenic route:
-
-### Prerequisites
-
-- Node.js ≥ 20.0.0
-- Yarn ≥ 4.5.3
-- Make ≥ 3.81
-- Rust (for Tauri)
-- (macOS Apple Silicon only) MetalToolchain `xcodebuild -downloadComponent MetalToolchain`
-
-### Run with Make
-
-```bash
-git clone https://github.com/janhq/jan
-cd jan
-make dev
+```powershell
+.\Iniciar-Rey30-IDvj.bat -Dev
 ```
 
-This handles everything: installs dependencies, builds core components, and launches the app.
+## Ejecutar desde el código
 
-**Available make targets:**
-- `make dev` - Full development setup and launch
-- `make build` - Production build
-- `make test` - Run tests and linting
-- `make clean` - Delete everything and start fresh
+Requisitos: Node.js compatible con `^20.19.0 || >=22.12.0`, Corepack con Yarn 4.5.3, Rust según [rust-toolchain.toml](rust-toolchain.toml), herramientas nativas de Tauri y la cadena de compilación del motor seleccionado. En Windows se requieren las herramientas de compilación de Visual Studio y WebView2. Para compilar llama.cpp también se necesitan Git Bash, Make, CMake, Ninja y LLVM; CUDA o ROCm dependen del backend elegido.
 
-### Manual Commands
+Desde esta carpeta:
 
-```bash
-yarn install
-yarn build
-yarn dev
+```powershell
+corepack yarn install
+corepack yarn build:tauri:plugin:api
+corepack yarn build:core
+corepack yarn build:extensions
+corepack yarn dev
 ```
 
-### Building on Windows
+`corepack yarn build` construye la aplicación. El ejecutable de escritorio se llama **Rey30-IDvj**. Los binarios necesarios y la compilación del motor pueden requerir descargas y herramientas adicionales; revisar el resultado de cada paso antes de distribuirlo.
 
-Run `make dev` from **Git Bash** (installed with Git for Windows) — make dispatches its recipes through `sh`, so a plain `cmd.exe` won't work.
+## Modelo y asistente predeterminados
 
-You do **not** need a "Native Tools Command Prompt for VS 2022". The bundled llama.cpp engine builds with Ninja + `clang-cl`, and `clang-cl` locates the MSVC toolchain and Windows SDK on its own. What has to be installed (and on `PATH` for `ninja`/`clang-cl`/`cmake`):
+La instalación y selección del modelo Jan de 4B se conservan. Sus identificadores, nombres de archivo y fuentes Hugging Face mantienen el nombre real del modelo, para que su descarga funcione y su procedencia siga siendo clara. La interfaz y el asistente de la distribución se presentan como Rey30 IDvj.
 
-- Visual Studio 2022 Build Tools (MSVC x64 workload + Windows SDK)
-- LLVM (provides `clang-cl`)
-- Ninja
-- CMake
-- CUDA Toolkit — only for `JAN_ENGINE_VARIANT=cuda12`/`cuda13` builds
+Los modelos descargados no forman parte del código fuente. Descargar un modelo, disponer de su archivo y completar una respuesta real son verificaciones diferentes. La compatibilidad, memoria necesaria y velocidad dependen del modelo, su cuantización y el equipo.
 
-Engine variants are picked with `JAN_ENGINE_VARIANT` (tokens: `cpu`, `vulkan`, `metal`, `cuda12`, `cuda13`, `hip`/`rocm`, joined by `-`), e.g.:
+## Importar recursos y conectar GitHub
 
-```bash
-make dev JAN_ENGINE_VARIANT=cuda13
+Desde **Importar recursos**, en el Hub o en ajustes de MCP, puedes detectar editores, elegir archivos o carpetas y revisar skills, agentes, reglas y servidores MCP antes de prepararlos. La conexión opcional con GitHub permite consultar repositorios de tu cuenta e inspeccionar sus recursos. La aplicación local funciona sin ese inicio de sesión.
+
+La [guía de importación](docs/RESOURCE_IMPORT_GUIDE.md) explica los formatos, el uso de skills en el chat, la comprobación de MCP y las dependencias que pueden necesitar configuración manual. La [auditoría de integraciones](docs/INTEGRATIONS_AUDIT_2026-11-03.md) registra las pruebas y limitaciones de esta entrega.
+
+## Componentes
+
+La [guía de uso de Rey30 IDvj](docs/REY30_USER_GUIDE.md) describe el perfil, las habilidades y el orquestador, el catálogo MCP, la conexión API, la recuperación de preferencias y los modos de privacidad. Los controles e instrucciones instaladas se presentan en español; nombres de modelos, identificadores técnicos, contenido externo y avisos legales conservan su identidad.
+
+- [web-app](web-app): interfaz React, navegación y ajustes.
+- [core](core): contratos TypeScript y sistema de extensiones.
+- [extensions](extensions): asistentes, conversaciones, descarga e inferencia.
+- [src-tauri](src-tauri): aplicación nativa Rust y plugins.
+- [docs](docs): guías funcionales de esta distribución.
+- [e2e](e2e): pruebas de escritorio con perfiles temporales.
+- [adk/python](adk/python): cliente Python del runtime de agentes.
+
+## Datos y actualizaciones
+
+Los perfiles nuevos usan Rey30-IDvj. La migración conserva acceso a configuraciones y modelos de perfiles anteriores mediante compatibilidad explícita; no hace falta duplicar pesos. No borres el perfil anterior hasta comprobar tus conversaciones y modelos.
+
+El canal de actualización del proyecto base está desactivado. Esta distribución necesita sus propios artefactos y firma antes de habilitar actualizaciones. No hay un sitio, tienda ni canal de soporte público de Rey30 IDvj configurado en este repositorio.
+
+## Comprobaciones
+
+```powershell
+corepack yarn lint
+corepack yarn test
+corepack yarn build:web
+cargo test --locked --manifest-path src-tauri/Cargo.toml --no-default-features
 ```
 
-**"nvcc fatal : Could not open output file ...fattn-...cu.obj.d"** during `tauri-plugin-llamacpp(build)` means the build path crossed Windows' 260-character `MAX_PATH` limit — nvcc does not honor the long-path opt-in. The build script now detects this and automatically relocates the llama.cpp build tree to a short directory under `%LOCALAPPDATA%\jan-engine`. If you hit path-length errors anyway, set `JAN_ENGINE_BUILD_DIR` to a short path (e.g. `C:\jb`) or move the checkout closer to the drive root.
-
-## System Requirements
-
-**Minimum specs for a decent experience:**
-
-- **macOS**: 13.6+ (8GB RAM for 3B models, 16GB for 7B, 32GB for 13B)
-- **Windows**: 10+ with GPU support for NVIDIA/AMD/Intel Arc
-- **Linux**: Most distributions work, GPU acceleration available
-
-For detailed compatibility, check our [installation guides](https://jan.ai/docs/desktop/mac).
-
-## Troubleshooting
-
-If things go sideways:
-
-1. Check our [troubleshooting docs](https://jan.ai/docs/desktop/troubleshooting)
-2. Copy your error logs and system specs
-3. Ask for help in our [Discord](https://discord.gg/FTk2MvZwJH) `#🆘|jan-help` channel
-
-
-## Contributing
-
-Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full spiel.
-
-> **Note:** Please [sign your commits](CONTRIBUTING.md#signed-commits) so we can verify your contributions.
-
-## Links
-
-- [Documentation](https://jan.ai/docs) - The manual you should read
-- [API Reference](https://jan.ai/api-reference) - For the technically inclined
-- [Changelog](https://jan.ai/changelog) - What we broke and fixed
-- [Discord](https://discord.gg/FTk2MvZwJH) - Where the community lives
-
-## Contact
-
-- **Bugs**: [GitHub Issues](https://github.com/janhq/jan/issues)
-- **Business**: hello@jan.ai
-- **Jobs**: hr@jan.ai
-- **General Discussion**: [Discord](https://discord.gg/FTk2MvZwJH)
-
-## License
-
-Apache 2.0 - Because sharing is caring.
-
-## Acknowledgements
-
-Built on the shoulders of giants:
-
-- [Llama.cpp](https://github.com/ggerganov/llama.cpp)
-- [Tauri](https://tauri.app/)
-- [Scalar](https://github.com/scalar/scalar)
+Las pruebas de escritorio requieren compilar la aplicación y usar un perfil aislado. [CONTRIBUTING.md](CONTRIBUTING.md) explica el flujo de trabajo; [SECURITY.md](SECURITY.md) describe el tratamiento de vulnerabilidades.

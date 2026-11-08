@@ -1,7 +1,7 @@
 ---
 title: Memory
 description: Durable facts the agent keeps about your project, stored as files you can read and edit.
-keywords: [Jan, Jan Agent, memory, durable facts, project memory, recall]
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, memory, durable facts, project memory, recall]
 ---
 
 import { Callout } from 'nextra/components'
@@ -35,11 +35,11 @@ Because writes prompt, nothing enters memory without you seeing it.
 
 ## Where it lives
 
-As plain markdown files in your Jan home, outside the repository. You can read them, edit them, or
+As plain markdown files in your Rey30 IDvj home, outside the repository. You can read them, edit them, or
 delete them. Nothing is hidden in an opaque store.
 
 ```
-~/.jan/
+~/.rey30-idvj/
 |-- MEMORY.md                  # root index: user notes + one line per project with memory
 |-- memory/<name>.md           # user-wide notes, every project
 `-- projects/<slug>/
@@ -58,7 +58,7 @@ Memory names are scoped:
 | Name | Refers to | Writable |
 | --- | --- | --- |
 | `name` | A note in this project | Yes |
-| `user:name` | A user-wide note in `~/.jan/memory/`, for preferences that apply to every project | Yes |
+| `user:name` | A user-wide note in `~/.rey30-idvj/memory/`, for preferences that apply to every project | Yes |
 | `project:<slug>` | Another project's `MEMORY.md` index | No |
 | `project:<slug>/name` | One note from another project | No |
 
@@ -68,17 +68,17 @@ change its own project's notes and your user notes.
 The system prompt's **Available Memories** block lists this project's notes, your user notes, and
 pointers to other projects that have memory, which the agent opens with `project:<slug>` only when
 relevant. To keep other projects out of the prompt and refuse `project:` reads, set this in
-`~/.jan/config.toml`:
+`~/.rey30-idvj/config.toml`:
 
 ```toml
 memory_cross_project = false   # default: true
 ```
 
-Retrieval is backed by the same store Jan Desktop uses for memory, so a fact learned in one is
+Retrieval is backed by the same store Rey30 IDvj Desktop uses for memory, so a fact learned in one is
 available in the other.
 
 <Callout type="info">
-Memory is shared with [Jan Desktop's Cowork surface](/docs/desktop/cowork), which ships in the
+Memory is shared with [Rey30 IDvj Desktop's Cowork surface](/docs/desktop/cowork), which ships in the
 `nightly` channel only. Settings you change there apply to what the terminal agent recalls, and
 vice versa.
 </Callout>
