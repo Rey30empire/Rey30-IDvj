@@ -31,7 +31,7 @@ const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Rey30 IDvj Agent global provider confi
 #                                     # reasoning (folded, resent), for every
 #                                     # provider. Unset: on only for a custom
 #                                     # OpenAI-compatible provider; off for
-#                                     # openai, anthropic and tokamak, which
+#                                     # openai and anthropic, which
 #                                     # send reasoning in its own field. A
 #                                     # provider overrides it with
 #                                     # parse_think_tags in its own table
@@ -655,7 +655,6 @@ pub(crate) fn hook_entries() -> Vec<tauri_plugin_agent_tools::tools::hooks::Hook
 const SEPARATE_REASONING_PROVIDERS: &[(&str, &str)] = &[
     ("openai", "api.openai.com"),
     ("anthropic", "api.anthropic.com"),
-    ("tokamak", "api.tokamak.sh"),
 ];
 
 /// Whether `provider` is one of the known providers talking to its own
@@ -892,82 +891,6 @@ pub(crate) fn set_default_model_if_unset(model: &str) -> Result<bool, String> {
     config.default_model = Some(model.to_string());
     write_raw(&config)?;
     Ok(true)
-}
-
-/// Why `default_model` was (re)pointed, so a caller can tell the user which of
-/// the two happened -- adopting a default is routine, replacing one the user
-/// chose needs saying out loud.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DefaultModelChange {
-    /// There was no default; `model` was adopted.
-    Adopted,
-    /// The previous default is no longer offered by any provider, so it was
-    /// replaced by `model`.
-    Repointed,
-}
-
-/// Point `default_model` at `model` when there is no default, **or** when the
-/// current default is not offered by any configured provider. Returns what
-/// changed, or `None` when the existing default was left alone.
-///
-/// The second case is the one [`set_default_model_if_unset`] cannot handle. A
-/// sign-in replaces a provider's roster wholesale, so a re-login after the
-/// upstream retires a model leaves `default_model` pointing at something no
-/// provider serves. That is not an "explicit choice" worth protecting any more:
-/// it is a fossil, and every run fails on it with a 404 (or, for a cost
-/// ceiling, is refused as unpriceable) with nothing connecting the failure to
-/// the sign-in that caused it.
-///
-/// A default some *other* provider still offers is left alone -- this provider's
-/// roster says nothing about models it never served.
-pub(crate) fn adopt_default_model(model: &str) -> Result<Option<DefaultModelChange>, String> {
-    let model = model.trim();
-    if model.is_empty() {
-        return Ok(None);
-    }
-    let mut config = load_raw()?;
-    let current = config
-        .default_model
-        .as_deref()
-        .map(str::trim)
-        .filter(|m| !m.is_empty())
-        .map(str::to_string);
-    let change = match current {
-        None => DefaultModelChange::Adopted,
-        // Already fine, and re-pointing an offered default would overwrite a
-        // deliberate choice on every sign-in.
-        Some(current) if config.providers.values().any(|p| p.models.contains(&current)) => {
-            return Ok(None)
-        }
-        Some(_) => DefaultModelChange::Repointed,
-    };
-    config.default_model = Some(model.to_string());
-    write_raw(&config)?;
-    Ok(Some(change))
-}
-
-/// Server-assigned metadata for a provider's stored key, when a v5 device-flow
-/// login recorded any. Used by `rey30-idvj auth status` / the expiry warning and by
-/// `rey30-idvj auth logout` to revoke the exact key.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct StoredKeyMeta {
-    pub key_id: Option<String>,
-    pub key_expires_at: Option<u64>,
-    pub account: Option<String>,
-}
-
-/// Read `key_id`/`key_expires_at` for a provider, if stored. Missing config or
-/// provider reads as `None` fields -- the legacy login records neither.
-pub(crate) fn provider_key_meta(name: &str) -> Result<StoredKeyMeta, String> {
-    let config = load_raw()?;
-    Ok(match config.providers.get(name) {
-        Some(entry) => StoredKeyMeta {
-            key_id: entry.key_id.clone(),
-            key_expires_at: entry.key_expires_at,
-            account: entry.account.clone(),
-        },
-        None => StoredKeyMeta::default(),
-    })
 }
 
 /// Remove a provider entry from `~/.rey30-idvj/config.toml`. Returns `true` if the
@@ -1263,7 +1186,7 @@ mod tests {
         with_temp_home(|_| {
             // Providers known to send reasoning in its own field, and any
             // non-chat-completions wire API, never need tag parsing.
-            for known in ["openai", "anthropic", "tokamak"] {
+            for known in ["openai", "anthropic"] {
                 assert!(!think_tags_enabled_for(Some(known), None, None), "{known}");
             }
             assert!(!think_tags_enabled_for(Some("mine"), Some("anthropic"), None));
@@ -1283,7 +1206,6 @@ mod tests {
             let own = [
                 ("openai", "https://api.openai.com/v1"),
                 ("anthropic", "https://API.Anthropic.com/v1/"),
-                ("tokamak", "https://api.tokamak.sh/v1"),
             ];
             for (name, url) in own {
                 assert!(!think_tags_enabled_for(Some(name), None, Some(url)), "{name}");
@@ -1773,53 +1695,11 @@ models = ["gpt-4o"]
         });
     }
 
-    /// `adopt_default_model` is the sign-in half that `set_default_model_if_unset`
-    /// cannot do: it distinguishes "the user chose this" from "this is a fossil
-    /// no configured provider serves any more".
-    #[test]
-    fn adopting_a_default_replaces_only_one_no_provider_offers() {
-        with_temp_home(|_| {
-            let offer = |models: &[&str]| {
-                set_provider(
-                    "tokamak",
-                    ProviderUpdate {
-                        models: Some(models.iter().map(|m| (*m).to_string()).collect()),
-                        ..Default::default()
-                    },
-                )
-                .unwrap();
-            };
-
-            // Nothing chosen yet: adopted.
-            offer(&["m1", "m2"]);
-            assert_eq!(
-                adopt_default_model("m1").expect("adopt"),
-                Some(DefaultModelChange::Adopted)
-            );
-
-            // Still offered, so it is a live choice and must survive.
-            assert_eq!(adopt_default_model("m2").expect("leave"), None);
-            assert_eq!(default_model().expect("read").as_deref(), Some("m1"));
-
-            // Retired upstream: now it is a fossil, and re-pointing is reported.
-            offer(&["m2", "m3"]);
-            assert_eq!(
-                adopt_default_model("m2").expect("repoint"),
-                Some(DefaultModelChange::Repointed)
-            );
-            assert_eq!(default_model().expect("read").as_deref(), Some("m2"));
-
-            // A blank candidate is never written: it would read as configured.
-            assert_eq!(adopt_default_model("   ").expect("blank"), None);
-            assert_eq!(default_model().expect("read").as_deref(), Some("m2"));
-        });
-    }
-
     #[test]
     fn default_model_set_keeps_existing_providers_and_rejects_blank() {
         with_temp_home(|_| {
             set_provider(
-                "tokamak",
+                "gateway",
                 ProviderUpdate {
                     api_key: Some("tk".into()),
                     ..Default::default()
@@ -1830,7 +1710,7 @@ models = ["gpt-4o"]
             assert!(set_default_model_if_unset("m1").expect("set"));
             let configs = load_global_config().expect("load");
             assert_eq!(
-                configs.get("tokamak").unwrap().api_key.as_deref(),
+                configs.get("gateway").unwrap().api_key.as_deref(),
                 Some("tk")
             );
         });

@@ -167,7 +167,7 @@ impl ProviderOverrides {
 }
 
 /// The environment variable that carries `provider`'s key for an explicit
-/// `--provider` (`ANTHROPIC_API_KEY`, `TOKAMAK_API_KEY`, ...).
+/// `--provider` (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, ...).
 pub(crate) fn provider_key_env(provider: &str) -> String {
     format!("{}_API_KEY", provider.to_ascii_uppercase())
 }
@@ -419,31 +419,15 @@ pub(crate) fn is_loopback_url(url: &str) -> bool {
     matches!(host, "localhost" | "127.0.0.1" | "0.0.0.0" | "::1")
 }
 
-/// `(provider, model_id)` pairs the CLI can actually run: Tokamak first, then
-/// every other provider by name, models sorted within each.
-///
-/// Tokamak leads because it is the provider the product signs users in to; a
-/// plain alphabetical sort buried it below whatever else happened to be
-/// configured. Ordering only -- nothing is filtered by provider, so a user who
-/// prefers another provider still sees it.
+/// `(provider, model_id)` pairs the CLI can actually run: providers by name,
+/// models sorted within each.
 pub fn reachable_models(configs: &HashMap<String, ProviderConfig>) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = configs
         .values()
         .filter(|c| is_cli_reachable(c))
         .flat_map(|c| c.models.iter().map(|m| (c.provider.clone(), m.clone())))
         .collect();
-    // `false < true`, so the Tokamak rows sort ahead of everything else while
-    // the rest stay alphabetical.
-    out.sort_by(|a, b| {
-        let key = |(provider, model): &(String, String)| {
-            (
-                provider != super::tokamak::PROVIDER,
-                provider.clone(),
-                model.clone(),
-            )
-        };
-        key(a).cmp(&key(b))
-    });
+    out.sort();
     out
 }
 
@@ -978,7 +962,7 @@ async fn fetch_models(
             let parsed: serde_json::Value = serde_json::from_str(&body)
                 .map_err(|e| format!("{url} returned a response we could not read: {e}"))?;
             return Ok(ModelListing {
-                ids: super::tokamak::parse_models(&parsed),
+                ids: super::auth::providers::parse_models(&parsed),
                 info: super::model_catalog::parse_listing(&parsed),
             });
         }
@@ -1138,7 +1122,7 @@ fn provider_config_from_section(section: ProviderSection) -> ProviderConfig {
 /// Fill in a provider's key chain from the OS secret store, on demand.
 ///
 /// No-op when the config already carries one: `~/.rey30-idvj/config.toml` providers
-/// (Tokamak included) hold their key inline, as do `--api-key`/env overrides,
+/// hold their key inline, as do `--api-key`/env overrides,
 /// so the prioritized path never reaches the keyring at all. Call this only for
 /// a provider that is about to be used -- each call can cost a macOS keychain
 /// prompt.
@@ -1558,8 +1542,8 @@ mod tests {
     #[test]
     fn usable_requires_a_key_only_for_remote_upstreams() {
         let keyed_remote = ProviderConfig {
-            provider: "tokamak".into(),
-            base_url: Some("https://api.tokamak.sh/v1".into()),
+            provider: "gateway".into(),
+            base_url: Some("https://gateway.example/v1".into()),
             api_key: Some("tk".into()),
             ..Default::default()
         };
@@ -1592,32 +1576,26 @@ mod tests {
         assert!(is_loopback_url("http://[::1]:1337/v1"));
         assert!(is_loopback_url("localhost:1337"));
         assert!(!is_loopback_url("https://localhost.evil.com/v1"));
-        assert!(!is_loopback_url("https://api.tokamak.sh/v1"));
+        assert!(!is_loopback_url("https://gateway.example/v1"));
         assert!(!is_loopback_url(""));
     }
 
-    /// Tokamak leads the `/model` picker; everything else keeps its alphabetical
-    /// order behind it, and models stay sorted within each provider.
+    /// Providers are listed alphabetically, models sorted within each provider.
     #[test]
-    fn reachable_models_lists_tokamak_first() {
+    fn reachable_models_are_sorted_by_provider_then_model() {
         let mut configs = HashMap::new();
-        configs.insert(
-            "anthropic".to_string(),
-            cfg("anthropic", Some("https://api.anthropic.com/v1"), &["claude-sonnet-5"]),
-        );
-        configs.insert(
-            "tokamak".to_string(),
-            cfg("tokamak", Some("https://api.tokamak.sh/v1"), &["tokamak-1-preview"]),
-        );
         configs.insert(
             "openai".to_string(),
             cfg("openai", Some("https://api.openai.com/v1"), &["gpt-5", "gpt-4o"]),
+        );
+        configs.insert(
+            "anthropic".to_string(),
+            cfg("anthropic", Some("https://api.anthropic.com/v1"), &["claude-sonnet-5"]),
         );
 
         assert_eq!(
             reachable_models(&configs),
             vec![
-                ("tokamak".to_string(), "tokamak-1-preview".to_string()),
                 ("anthropic".to_string(), "claude-sonnet-5".to_string()),
                 ("openai".to_string(), "gpt-4o".to_string()),
                 ("openai".to_string(), "gpt-5".to_string()),
@@ -1625,10 +1603,8 @@ mod tests {
         );
     }
 
-    /// Ordering is the only change: with no Tokamak entry the list is exactly
-    /// the alphabetical order it always was.
     #[test]
-    fn without_tokamak_the_order_is_unchanged() {
+    fn reachable_models_are_alphabetical_by_provider() {
         let mut configs = HashMap::new();
         configs.insert("zeta".to_string(), cfg("zeta", Some("https://z.example/v1"), &["z1"]));
         configs.insert("alpha".to_string(), cfg("alpha", Some("https://a.example/v1"), &["a1"]));
@@ -2092,7 +2068,7 @@ mod tests {
                 1,
             );
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("k".into()),
                     base_url: Some(format!("http://{addr}/v1")),
@@ -2109,7 +2085,7 @@ mod tests {
             assert_eq!(
                 refreshed.listed,
                 vec![ProviderModels {
-                    provider: "tokamak".to_string(),
+                    provider: "gateway".to_string(),
                     models: 2,
                     changed: true,
                     kept_unlisted: 0,
@@ -2118,7 +2094,7 @@ mod tests {
 
             let configs = load_global_config().unwrap();
             assert_eq!(
-                configs.get("tokamak").unwrap().models,
+                configs.get("gateway").unwrap().models,
                 vec![
                     "anthropic/claude-opus-5".to_string(),
                     "openai/gpt-oss-120b-medium".to_string()
@@ -2128,7 +2104,7 @@ mod tests {
 
             let catalog = crate::core::cli::model_catalog::load();
             let info = catalog
-                .get(Some("tokamak"), "anthropic/claude-opus-5")
+                .get(Some("gateway"), "anthropic/claude-opus-5")
                 .expect("metadata cached");
             assert_eq!(info.context_length, Some(1_000_000));
             assert_eq!(info.prompt_usd, Some(0.000005));
@@ -2552,28 +2528,28 @@ mod tests {
     #[test]
     fn a_desktop_default_provider_does_not_count_as_named() {
         let env = env_of(&[
-            ("REY30_BASE_URL", "https://api-stag.tokamak.sh/v1"),
+            ("REY30_BASE_URL", "https://staging.gateway.example/v1"),
             ("REY30_CUSTOM_HEADERS", "X-Client-Name: rey30-idvj-agent"),
-            ("TOKAMAK_API_KEY", "tk-env"),
+            ("GATEWAY_API_KEY", "gw-env"),
         ]);
         let defaulted = ProviderOverrides {
-            provider: Some("tokamak".into()),
+            provider: Some("gateway".into()),
             ..Default::default()
         }
         .with_env_from(&env);
-        assert_eq!(defaulted.api_key.as_deref(), Some("tk-env"), "the key fallback stays");
+        assert_eq!(defaulted.api_key.as_deref(), Some("gw-env"), "the key fallback stays");
         assert_eq!(defaulted.base_url, None);
         assert!(defaulted.headers.is_empty());
         assert_eq!(defaulted.session_scoped_provider(), None);
 
-        let explicit = named("tokamak").with_env_from(&env);
-        assert_eq!(explicit.base_url.as_deref(), Some("https://api-stag.tokamak.sh/v1"));
+        let explicit = named("gateway").with_env_from(&env);
+        assert_eq!(explicit.base_url.as_deref(), Some("https://staging.gateway.example/v1"));
         assert_eq!(explicit.base_url_source, Some(OverrideSource::Env));
         assert_eq!(
             explicit.headers,
             vec![("X-Client-Name".to_string(), "rey30-idvj-agent".to_string())]
         );
-        assert_eq!(explicit.session_scoped_provider(), Some("tokamak"));
+        assert_eq!(explicit.session_scoped_provider(), Some("gateway"));
     }
 
     /// `REY30_API_KEY` keeps its old meaning (every provider, or the targeted
@@ -2606,8 +2582,8 @@ mod tests {
     #[test]
     fn a_base_url_must_be_https_or_loopback() {
         assert_eq!(
-            parse_base_url(" https://api-stag.tokamak.sh/v1/ ").as_deref(),
-            Ok("https://api-stag.tokamak.sh/v1")
+            parse_base_url(" https://staging.gateway.example/v1/ ").as_deref(),
+            Ok("https://staging.gateway.example/v1")
         );
         assert_eq!(
             parse_base_url("http://127.0.0.1:8080/v1").as_deref(),
@@ -2624,14 +2600,14 @@ mod tests {
     #[test]
     fn custom_headers_parse_like_claudes() {
         let headers = parse_custom_headers(
-            "X-Client-Name: rey30-idvj-agent\r\nX-Tokamak-Launch-Id:  abc \n\n\
+            "X-Client-Name: rey30-idvj-agent\r\nX-Launch-Id:  abc \n\n\
              Authorization: Bearer nope\nno separator here\nBad Name: v\n\
              x-client-name: again\n",
         );
         assert_eq!(
             headers,
             vec![
-                ("X-Tokamak-Launch-Id".to_string(), "abc".to_string()),
+                ("X-Launch-Id".to_string(), "abc".to_string()),
                 ("x-client-name".to_string(), "again".to_string()),
             ]
         );
@@ -2763,13 +2739,13 @@ mod tests {
         serde_json::json!({ "data": data }).to_string()
     }
 
-    fn session_tokamak(addr: std::net::SocketAddr) -> ProviderOverrides {
+    fn session_gateway(addr: std::net::SocketAddr) -> ProviderOverrides {
         ProviderOverrides {
             api_key: Some("tk-session".into()),
             base_url: Some(format!("http://{addr}/v1")),
             base_url_source: Some(OverrideSource::Env),
             headers: vec![("X-Client-Name".into(), "rey30-idvj-agent".into())],
-            ..named("tokamak")
+            ..named("gateway")
         }
     }
 
@@ -2798,12 +2774,12 @@ mod tests {
     #[test]
     fn session_overrides_survive_every_rebuild() {
         let (addr, seen) = capturing_stub(priced_listing(&["m-1"]), 1);
-        super::super::session_provider::with_session(session_tokamak(addr), |_| {
-            assert_eq!(ProviderOverrides::session(), session_tokamak(addr));
+        super::super::session_provider::with_session(session_gateway(addr), |_| {
+            assert_eq!(ProviderOverrides::session(), session_gateway(addr));
             assert!(has_usable_provider(None));
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
             assert_eq!(
-                configs["tokamak"].bearer_key_chain(),
+                configs["gateway"].bearer_key_chain(),
                 vec!["tk-session".to_string()]
             );
 
@@ -2822,7 +2798,7 @@ mod tests {
     #[test]
     fn a_session_scoped_provider_works_on_a_fresh_home_and_writes_nothing() {
         let (addr, _seen) = capturing_stub(priced_listing(&["anthropic/claude-x", "m-2"]), 2);
-        super::super::session_provider::with_session(session_tokamak(addr), |home| {
+        super::super::session_provider::with_session(session_gateway(addr), |home| {
             let before = home_files(home);
             let rt = tokio::runtime::Runtime::new().unwrap();
             let probed = rt.block_on(probe_session_provider(
@@ -2830,24 +2806,24 @@ mod tests {
                 &ProviderOverrides::session(),
                 Duration::from_secs(10),
             ));
-            assert_eq!(probed, Some(("tokamak".to_string(), Ok(2))));
+            assert_eq!(probed, Some(("gateway".to_string(), Ok(2))));
 
             let pairs = list_provider_models(None);
             assert!(
-                pairs.contains(&("tokamak".to_string(), "m-2".to_string())),
+                pairs.contains(&("gateway".to_string(), "m-2".to_string())),
                 "the picker lists the band's models: {pairs:?}"
             );
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
-            assert_eq!(provider_for_model("m-2", &configs).as_deref(), Some("tokamak"));
+            assert_eq!(provider_for_model("m-2", &configs).as_deref(), Some("gateway"));
             let info = super::super::model_catalog::effective();
             assert!(info
-                .get(Some("tokamak"), "anthropic/claude-x")
+                .get(Some("gateway"), "anthropic/claude-x")
                 .and_then(|i| i.rates())
                 .is_some());
             let ceiling = super::super::resolve_cost_ceiling(
                 Some(1.0),
                 None,
-                Some("tokamak"),
+                Some("gateway"),
                 "anthropic/claude-x",
             )
             .expect("a priced model can be capped");
@@ -2869,11 +2845,11 @@ mod tests {
     fn a_failed_startup_probe_prices_nothing() {
         let overrides = ProviderOverrides {
             base_url: Some("http://127.0.0.1:9/v1".into()),
-            ..session_tokamak("127.0.0.1:9".parse().unwrap())
+            ..session_gateway("127.0.0.1:9".parse().unwrap())
         };
         super::super::session_provider::with_session(overrides, |_| {
             let mut catalog = super::super::model_catalog::Catalog::default();
-            for provider in ["openrouter", "tokamak"] {
+            for provider in ["openrouter", "gateway"] {
                 catalog.set_provider(
                     provider,
                     super::super::model_catalog::parse_listing(
@@ -2892,33 +2868,33 @@ mod tests {
             assert!(matches!(probed, Some((_, Err(_)))), "{probed:?}");
 
             let effective = super::super::model_catalog::effective();
-            assert!(effective.get(Some("tokamak"), "anthropic/claude-x").is_none());
+            assert!(effective.get(Some("gateway"), "anthropic/claude-x").is_none());
             assert!(super::super::model_catalog::load()
                 .with_session_overlay()
-                .get(Some("tokamak"), "anthropic/claude-x")
+                .get(Some("gateway"), "anthropic/claude-x")
                 .is_none());
             assert!(super::super::resolve_cost_ceiling(
                 Some(1.0),
                 None,
-                Some("tokamak"),
+                Some("gateway"),
                 "anthropic/claude-x"
             )
             .is_err());
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
-            assert!(configs["tokamak"].models.is_empty(), "no roster from another endpoint");
+            assert!(configs["gateway"].models.is_empty(), "no roster from another endpoint");
         });
     }
 
     /// The catalog's write paths all start from the disk file, and must stay
     /// that way: a refresh of another provider, a sign-in to it and a sign-out
-    /// from it each save the whole catalog, and the session's `tokamak` entry
+    /// from it each save the whole catalog, and the session's `gateway` entry
     /// must not ride along -- absent on a fresh home, the native one otherwise.
     #[test]
-    fn another_providers_writes_leave_the_tokamak_catalog_entry_alone() {
+    fn another_providers_writes_leave_the_gateway_catalog_entry_alone() {
         for native in [false, true] {
             let (band, _b) = capturing_stub(priced_listing(&["band-only"]), 1);
             let (other, _o) = capturing_stub(priced_listing(&["gpt-x"]), 1);
-            super::super::session_provider::with_session(session_tokamak(band), |home| {
+            super::super::session_provider::with_session(session_gateway(band), |home| {
                 crate::core::agent::global_config::set_provider(
                     "openrouter",
                     crate::core::agent::global_config::ProviderUpdate {
@@ -2930,10 +2906,10 @@ mod tests {
                 .unwrap();
                 if native {
                     crate::core::agent::global_config::set_provider(
-                        "tokamak",
+                        "gateway",
                         crate::core::agent::global_config::ProviderUpdate {
                             api_key: Some("tk-native".into()),
-                            base_url: Some("https://api.tokamak.sh/v1".into()),
+                            base_url: Some("https://gateway.example/v1".into()),
                             models: Some(vec!["native-model".into()]),
                             ..Default::default()
                         },
@@ -2941,22 +2917,22 @@ mod tests {
                     .unwrap();
                     let mut catalog = super::super::model_catalog::Catalog::default();
                     catalog.set_provider(
-                        "tokamak",
+                        "gateway",
                         super::super::model_catalog::parse_listing(
                             &serde_json::from_str(&priced_listing(&["native-model"])).unwrap(),
                         ),
                     );
                     catalog.save().unwrap();
                 }
-                let tokamak_entry = || {
+                let gateway_entry = || {
                     let raw = std::fs::read_to_string(home.join(".rey30-idvj").join("model_catalog.json"))
                         .unwrap_or_default();
                     serde_json::from_str::<serde_json::Value>(&raw)
                         .ok()
-                        .and_then(|v| v["providers"].get("tokamak").cloned())
+                        .and_then(|v| v["providers"].get("gateway").cloned())
                 };
-                let config_entry = || load_global_config().unwrap().get("tokamak").cloned().map(|c| (c.models, c.base_url, c.api_key));
-                let (catalog_before, config_before) = (tokamak_entry(), config_entry());
+                let config_entry = || load_global_config().unwrap().get("gateway").cloned().map(|c| (c.models, c.base_url, c.api_key));
+                let (catalog_before, config_before) = (gateway_entry(), config_entry());
 
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 let refreshed = rt
@@ -2970,7 +2946,7 @@ mod tests {
                 );
                 super::super::model_catalog::forget("openrouter");
 
-                assert_eq!(tokamak_entry(), catalog_before, "native={native}");
+                assert_eq!(gateway_entry(), catalog_before, "native={native}");
                 assert_eq!(config_entry(), config_before, "native={native}");
                 assert_eq!(catalog_before.is_some(), native);
             });
@@ -2985,7 +2961,7 @@ mod tests {
     fn desktop_and_project_providers_are_still_not_probed() {
         with_temp_secrets(|| {
             let (band, _seen) = capturing_stub(priced_listing(&["m"]), 1);
-            super::super::session_provider::with_session(session_tokamak(band), |home| {
+            super::super::session_provider::with_session(session_gateway(band), |home| {
                 let store = r#"{"model-provider":"{\"state\":{\"providers\":[{\"provider\":\"desk\",\"base_url\":\"http://127.0.0.1:9/v1\",\"models\":[{\"id\":\"d\"}]}]}}"}"#;
                 let data = crate::core::app::commands::resolve_rey30_data_folder();
                 std::fs::create_dir_all(&data).unwrap();
@@ -3013,7 +2989,7 @@ mod tests {
                     .map(|p| p.provider.as_str())
                     .chain(refreshed.failed.iter().map(|(p, _)| p.as_str()))
                     .collect();
-                assert_eq!(touched, vec!["tokamak"]);
+                assert_eq!(touched, vec!["gateway"]);
                 assert_eq!(home_files(home), before);
             });
         });

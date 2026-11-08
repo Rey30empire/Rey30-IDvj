@@ -190,7 +190,7 @@ fn initialize_response(req: &InitializeRequest) -> InitializeResponse {
     let auth_methods = if req.client_capabilities.auth.terminal {
         vec![AuthMethod::Terminal(
             AuthMethodTerminal::new("rey30-idvj-login", "Sign in to Rey30 IDvj")
-                .description("Opens `rey30-idvj login` to sign in to Tokamak and save an API key".to_string())
+                .description("Opens `rey30-idvj login` to sign in to a provider and save an API key".to_string())
                 .args(vec![LOGIN_ARG.to_string()]),
         )]
     } else {

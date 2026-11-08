@@ -1,4 +1,4 @@
-//! Best-effort browser launch, shared by `/login` (Tokamak sign-in) and the
+//! Best-effort browser launch, shared by `/login` (provider key pages) and the
 //! `/mcp` OAuth flow.
 //!
 //! Every caller prints the URL as well, because a spawned launcher reports

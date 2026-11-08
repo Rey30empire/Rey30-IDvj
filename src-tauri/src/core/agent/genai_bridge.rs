@@ -1044,8 +1044,8 @@ mod tests {
     fn endpoint_base_keeps_the_version_segment_and_trailing_slash() {
         for (input, want) in [
             (
-                "https://api.tokamak.sh/v1/chat/completions",
-                "https://api.tokamak.sh/v1/",
+                "https://gateway.example/v1/chat/completions",
+                "https://gateway.example/v1/",
             ),
             (
                 "http://127.0.0.1:1337/v1/chat/completions",
@@ -1550,9 +1550,9 @@ mod tests {
         server.await.expect("server");
     }
 
-    /// The whole reason for this migration: vLLM (and so `tokamak-1-preview`)
+    /// The whole reason for this migration: vLLM
     /// spells the field `reasoning`, not `reasoning_content`. genai accepts both
-    /// and normalizes, so the reasoning pane is no longer empty for Tokamak.
+    /// and normalizes, so the reasoning pane is no longer empty for vLLM servers.
     #[tokio::test]
     async fn bare_reasoning_deltas_surface_as_reasoning_events() {
         let (url, server) = serve(vec![Some(sse_response(&[

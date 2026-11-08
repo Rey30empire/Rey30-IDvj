@@ -1285,11 +1285,11 @@ mod tests {
 
         // A launcher's session: the named provider's key and, while Rey30 IDvj
         // exports, its collector headers too.
-        let launched = credential_vars(Some("tokamak"), true);
+        let launched = credential_vars(Some("gateway"), true);
         for name in [
             "REY30_API_KEY",
             "REY30_CUSTOM_HEADERS",
-            "TOKAMAK_API_KEY",
+            "GATEWAY_API_KEY",
             "OTEL_EXPORTER_OTLP_HEADERS",
             "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
             "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
@@ -1304,7 +1304,7 @@ mod tests {
 
         // Telemetry off: the OTLP headers are the user's, for a server that
         // exports to its own collector.
-        assert!(!credential_vars(Some("tokamak"), false)
+        assert!(!credential_vars(Some("gateway"), false)
             .iter()
             .any(|n| n.starts_with("OTEL_")));
     }
@@ -1314,10 +1314,10 @@ mod tests {
         let params = extract_command_args(&serde_json::json!({
             "command": "server",
             "args": ["--stdio"],
-            "env": { "TOKAMAK_API_KEY": "the-servers-own" },
+            "env": { "GATEWAY_API_KEY": "the-servers-own" },
         }))
         .unwrap();
-        let scrub = credential_vars(Some("tokamak"), true);
+        let scrub = credential_vars(Some("gateway"), true);
         let cmd = stdio_command(&params, &scrub);
         let envs: std::collections::HashMap<String, Option<String>> = cmd
             .as_std()
@@ -1336,7 +1336,7 @@ mod tests {
             "removed"
         );
         assert_eq!(
-            envs.get("TOKAMAK_API_KEY"),
+            envs.get("GATEWAY_API_KEY"),
             Some(&Some("the-servers-own".to_string())),
             "a server's explicit env entry is still set"
         );

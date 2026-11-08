@@ -231,34 +231,13 @@ enum Commands {
         #[command(subcommand)]
         cmd: CliCommands,
     },
-    /// Sign in to Tokamak and save the API key to ~/.rey30-idvj/config.toml
+    /// Sign in to a provider with an API key and save it to ~/.rey30-idvj/config.toml
     #[command(display_order = 2)]
     Login {
-        /// Skip the browser approval and paste an API key instead (the legacy flow)
+        /// Provider to sign in to (openai, anthropic, opencode, deepseek); asked
+        /// interactively when omitted
         #[arg(long)]
-        paste_token: bool,
-    },
-    /// Show or manage the Tokamak sign-in
-    #[command(display_order = 3)]
-    Auth {
-        #[command(subcommand)]
-        cmd: AuthCommands,
-    },
-    /// Read recorded usage and spend from the provider's usage API
-    #[command(display_order = 4)]
-    Usage {
-        // Optional so bare `rey30-idvj usage` answers "what have I spent" with the
-        // account summary. Unlike the TUI's bare `/usage` there is no session
-        // to estimate here -- a one-shot command has run no requests -- so the
-        // overview's local half does not exist and the account total is the
-        // whole answer.
-        #[command(subcommand)]
-        cmd: Option<UsageCommands>,
-        /// Print the provider's response body verbatim instead of a table.
-        /// Reshaping it would mean re-serializing money fields, which is how a
-        /// figure loses digits, so this forwards the bytes as received.
-        #[arg(long, global = true)]
-        json: bool,
+        provider: Option<String>,
     },
     /// Manage provider credentials in ~/.rey30-idvj/config.toml (used by the TUI and CLI)
     #[command(display_order = 5)]
@@ -329,45 +308,6 @@ enum McpServeCommands {
         #[arg(long)]
         token: Option<String>,
     },
-}
-
-/// Reads against the provider's usage API.
-///
-/// Deliberately a sibling of `rey30-idvj auth` rather than a mode of the agent: these
-/// are account-level questions about money, answered by the server, and none of
-/// them runs a model or touches a project. Every one of them reports figures
-/// the provider recorded -- not the local per-session estimate the TUI's bare
-/// `/usage` prints, which is an estimate and says so.
-#[derive(Subcommand)]
-enum UsageCommands {
-    /// Usage across this account's credentials, not only the key in use
-    Account,
-    /// Daily usage totals
-    Daily,
-    /// Recently recorded requests
-    Requests,
-    /// Current usage-limit status (separate from wallet credit)
-    Limits,
-    /// Inspect one execution by its X-Tokamak-Execution-Id
-    Generation {
-        /// The execution id, from the response header of an inference request
-        id: String,
-    },
-    /// Find every execution tagged with an X-Client-Request-Id
-    Correlate {
-        /// The correlation id sent on the original request
-        client_request_id: String,
-    },
-}
-
-/// Tokamak sign-in inspection and control.
-#[derive(Subcommand)]
-enum AuthCommands {
-    /// Show the current sign-in: account, endpoint, key id and expiry, plus a
-    /// live validity check against the upstream
-    Status,
-    /// Sign out: revoke the stored key server-side and clear the local entry.
-    Logout,
 }
 
 #[derive(Subcommand)]
@@ -665,7 +605,7 @@ enum ModelsCommands {
     },
     /// Re-read every provider's /models endpoint, replacing the stored list
     Refresh {
-        /// Only refresh this provider (e.g. tokamak)
+        /// Only refresh this provider (e.g. openai)
         #[arg(long)]
         provider: Option<String>,
         /// Project root whose agent.toml [provider] override is applied
@@ -850,20 +790,8 @@ async fn main() {
 
     match command {
         Commands::Cli { cmd } => handle_cli(cmd).await,
-        Commands::Login { paste_token } => {
-            if let Err(e) = app_lib::core::cli::login::run_login(paste_token).await {
-                eprintln!("Error: {e}");
-                std::process::exit(1);
-            }
-        }
-        Commands::Auth { cmd } => {
-            if let Err(e) = handle_auth(cmd).await {
-                eprintln!("Error: {e}");
-                std::process::exit(1);
-            }
-        }
-        Commands::Usage { cmd, json } => {
-            if let Err(e) = handle_usage(cmd, json).await {
+        Commands::Login { provider } => {
+            if let Err(e) = app_lib::core::cli::login::run_login(provider).await {
                 eprintln!("Error: {e}");
                 std::process::exit(1);
             }
@@ -896,7 +824,7 @@ async fn handle_acp(login: bool) {
     // The terminal auth method: the client relaunches `rey30-idvj acp --login` in a
     // terminal it shows the user, and a zero exit means signed in.
     let result = if login {
-        app_lib::core::cli::login::run_login(false).await
+        app_lib::core::cli::login::run_login(None).await
     } else {
         acp::serve().await
     };
@@ -1200,122 +1128,6 @@ fn exit_code(error: &str) -> i32 {
         53
     } else {
         1
-    }
-}
-
-/// `rey30-idvj usage` handler: read recorded spend from the provider's usage API.
-///
-/// Every view goes through one fetch so failures, timeouts and the not-signed-in
-/// case are reported identically regardless of which endpoint was asked for. A
-/// generation lookup is then rendered field by field, because its schema is
-/// documented; the rest are printed as flattened `path  value` pairs, so a
-/// field the server added since this build still shows up instead of being
-/// silently dropped by a struct that does not know about it.
-async fn handle_usage(cmd: Option<UsageCommands>, json: bool) -> Result<(), String> {
-    use app_lib::core::cli::tokamak::usage::{self, Query, UsageError};
-
-    let query = match &cmd {
-        None | Some(UsageCommands::Account) => Query::Summary,
-        Some(UsageCommands::Daily) => Query::Daily,
-        Some(UsageCommands::Requests) => Query::Requests,
-        Some(UsageCommands::Limits) => Query::Limits,
-        Some(UsageCommands::Generation { id }) => Query::Generation(id.clone()),
-        Some(UsageCommands::Correlate { client_request_id }) => {
-            Query::Correlated(client_request_id.clone())
-        }
-    };
-
-    let payload = match usage::fetch(&query).await {
-        Ok(payload) => payload,
-        // A not-found is a real answer to "what did this execution cost", not a
-        // crash, but it is still a failed lookup: exit non-zero so a script
-        // cannot read it as a zero charge.
-        Err(e @ UsageError::NotFound) => return Err(e.to_string()),
-        Err(e) => return Err(e.to_string()),
-    };
-
-    if json {
-        println!("{}", payload.as_str());
-        return Ok(());
-    }
-
-    // The same renderer the TUI readout draws, so the two surfaces cannot
-    // drift: one place decides how a reported charge is displayed. `Fixed`
-    // because nothing is folded here -- a fold is an interactive affordance,
-    // and a piped view that silently dropped rows would be wrong for the
-    // scripts reading it -- and because there is no `m` to press in a pipe, so
-    // the keybinding hint must not print either.
-    for line in app_lib::core::cli::usage_view::reported_usage_lines(
-        &query,
-        &payload,
-        app_lib::core::cli::usage_view::Fold::Fixed,
-    ) {
-        println!("{line}");
-    }
-    Ok(())
-}
-
-/// `rey30-idvj auth` handler: report sign-in state or sign out.
-async fn handle_auth(cmd: AuthCommands) -> Result<(), String> {
-    use app_lib::core::cli::tokamak;
-    match cmd {
-        AuthCommands::Status => {
-            let status = tokamak::auth_status();
-            if !status.signed_in {
-                println!("Not signed in to Tokamak. Run `rey30-idvj login`.");
-                return Ok(());
-            }
-            println!("Signed in to Tokamak");
-            match &status.account {
-                Some(account) => println!("  account:      {account}"),
-                // A legacy paste login never learns the account; that is not the
-                // same as failing to look one up.
-                None => println!("  account:      not recorded"),
-            }
-            println!("  endpoint:     {}", status.endpoint);
-            if let Some(key_id) = &status.key_id {
-                println!("  key id:       {key_id}");
-            }
-            match status.key_expires_at {
-                Some(ts) if ts != 0 => println!("  key expires:  {}", format_ts(ts)),
-                // A legacy paste login records no expiry; that is not the same
-                // as a key that never expires, so don't claim it does.
-                _ => println!("  key expires:  not recorded"),
-            }
-            match tokamak::live_valid().await {
-                Some(true) => println!("  valid:        yes"),
-                Some(false) => println!("  valid:        no (re-run `rey30-idvj login`)"),
-                None => println!("  valid:        could not reach upstream"),
-            }
-            if let Some(warning) = tokamak::expiry_warning() {
-                println!();
-                println!("Warning: {warning}");
-            }
-            Ok(())
-        }
-        AuthCommands::Logout => {
-            match tokamak::logout().await? {
-                tokamak::Logout::ClearedAndRevoked => {
-                    println!("Signed out of Tokamak (key revoked).")
-                }
-                tokamak::Logout::ClearedOnly => println!(
-                    "Signed out of Tokamak locally. The key could not be revoked upstream - \
-                     remove it at {}",
-                    tokamak::api_keys_url()
-                ),
-                tokamak::Logout::NothingToDo => println!("Not signed in to Tokamak."),
-            }
-            Ok(())
-        }
-    }
-}
-
-/// Render a unix timestamp as a UTC date/time for `auth status`.
-fn format_ts(ts: u64) -> String {
-    let secs = i64::try_from(ts).unwrap_or(0);
-    match chrono::DateTime::from_timestamp(secs, 0) {
-        Some(dt) => dt.format("%Y-%m-%d %H:%M UTC").to_string(),
-        None => format!("unix {ts}"),
     }
 }
 
@@ -1981,97 +1793,27 @@ mod tests {
     }
 
     #[test]
-    fn login_command_parses_and_takes_no_args() {
+    fn login_command_parses_and_takes_no_positional_args() {
         let cli = Cli::parse_from(["rey30-idvj", "login"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Login { paste_token: false })
-        ));
+        assert!(matches!(cli.command, Some(Commands::Login { provider: None })));
         assert!(Cli::try_parse_from(["rey30-idvj", "login", "sk-key"]).is_err());
     }
 
     #[test]
-    fn login_command_accepts_paste_token_flag() {
-        let cli = Cli::parse_from(["rey30-idvj", "login", "--paste-token"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Login { paste_token: true })
-        ));
-    }
-
-    #[test]
-    fn auth_subcommands_parse() {
-        let cli = Cli::parse_from(["rey30-idvj", "auth", "status"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Auth {
-                cmd: AuthCommands::Status
-            })
-        ));
-        let cli = Cli::parse_from(["rey30-idvj", "auth", "logout"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Auth {
-                cmd: AuthCommands::Logout
-            })
-        ));
-    }
-
-    #[test]
-    fn usage_subcommands_parse() {
-        let view = |argv: &[&str]| {
-            let mut full = vec!["rey30-idvj", "usage"];
-            full.extend_from_slice(argv);
-            match Cli::parse_from(full).command {
-                Some(Commands::Usage { cmd, .. }) => cmd,
-                other => panic!("expected a usage command, got {:?}", other.is_some()),
-            }
-        };
-        assert!(matches!(view(&["account"]), Some(UsageCommands::Account)));
-        assert!(matches!(view(&["daily"]), Some(UsageCommands::Daily)));
-        assert!(matches!(view(&["requests"]), Some(UsageCommands::Requests)));
-        assert!(matches!(view(&["limits"]), Some(UsageCommands::Limits)));
-        match view(&["generation", "exec-1"]) {
-            Some(UsageCommands::Generation { id }) => assert_eq!(id, "exec-1"),
-            _ => panic!("expected a generation lookup"),
+    fn login_command_accepts_a_provider() {
+        let cli = Cli::parse_from(["rey30-idvj", "login", "--provider", "openai"]);
+        match cli.command {
+            Some(Commands::Login { provider }) => assert_eq!(provider.as_deref(), Some("openai")),
+            _ => panic!("expected login"),
         }
-        match view(&["correlate", "my-app-request-001"]) {
-            Some(UsageCommands::Correlate { client_request_id }) => {
-                assert_eq!(client_request_id, "my-app-request-001");
-            }
-            _ => panic!("expected a correlation lookup"),
+    }
+
+    /// The account commands of the removed hosted service are gone for good.
+    #[test]
+    fn removed_account_commands_do_not_parse() {
+        for argv in [["rey30-idvj", "auth", "status"], ["rey30-idvj", "usage", "account"]] {
+            assert!(Cli::try_parse_from(argv).is_err(), "{argv:?}");
         }
-        // Bare `rey30-idvj usage` is the account summary: with no session to
-        // estimate, the recorded total is the only answer there is.
-        assert!(view(&[]).is_none(), "the subcommand is optional");
-    }
-
-    /// An id is required, not optional: a bare `rey30-idvj usage generation` would
-    /// otherwise have to invent one.
-    #[test]
-    fn a_generation_lookup_requires_an_id() {
-        assert!(Cli::try_parse_from(["rey30-idvj", "usage", "generation"]).is_err());
-        assert!(Cli::try_parse_from(["rey30-idvj", "usage", "correlate"]).is_err());
-    }
-
-    #[test]
-    fn usage_json_flag_parses_after_the_subcommand() {
-        let cli = Cli::parse_from(["rey30-idvj", "usage", "account", "--json"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Usage {
-                cmd: Some(UsageCommands::Account),
-                json: true
-            })
-        ));
-        let cli = Cli::parse_from(["rey30-idvj", "usage", "account"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Usage {
-                cmd: Some(UsageCommands::Account),
-                json: false
-            })
-        ));
     }
 
     /// Parse a `rey30-idvj cli mcp <cmd> <extra...>` argv and pull out the subcommand.
@@ -2247,13 +1989,13 @@ mod tests {
         let cli = Cli::parse_from([
             "rey30-idvj",
             "--provider",
-            "tokamak",
+            "gateway",
             "--base-url",
-            "https://api-stag.tokamak.sh/v1/",
+            "https://staging.gateway.example/v1/",
         ]);
         assert_eq!(
             cli.providers.base_url.as_deref(),
-            Some("https://api-stag.tokamak.sh/v1"),
+            Some("https://staging.gateway.example/v1"),
             "normalized: the trailing slash is dropped"
         );
         for sub in ["run", "step"] {

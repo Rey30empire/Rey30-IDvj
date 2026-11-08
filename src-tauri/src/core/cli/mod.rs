@@ -9,7 +9,6 @@ pub mod brand;
 pub mod browser;
 #[cfg(test)]
 mod contract_conformance;
-pub mod device_auth;
 pub mod housekeeping;
 pub mod journal;
 pub mod login;
@@ -32,11 +31,9 @@ mod secret_input;
 pub mod stream_input;
 pub mod telemetry;
 pub mod terminal_setup;
-pub mod tokamak;
 mod tui;
 /// The user-message wire shape, shared by the TUI and the headless channel.
 mod user_message;
-pub mod usage_view;
 pub mod updater;
 pub mod worktree;
 
@@ -804,15 +801,6 @@ const SESSION_PROBE_WAIT: std::time::Duration = std::time::Duration::from_secs(2
 /// How long the TUI waits for that listing otherwise: its first frame waits on
 /// it, and a slow endpoint's listing is picked up by the first `/model` anyway.
 const TUI_SESSION_PROBE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
-
-/// A provider id as the user knows it, for the startup listing's lines.
-fn provider_label(provider: &str) -> String {
-    if provider == tokamak::PROVIDER {
-        "Tokamak".to_string()
-    } else {
-        provider.to_string()
-    }
-}
 
 /// Where the session token ceiling in effect came from, so `agent status` can
 /// say which source won and the TUI knows whether a model switch moves it.
@@ -1682,17 +1670,6 @@ pub struct SessionFlags {
     pub max_budget_usd: Option<f64>,
 }
 
-/// The desktop app's currently-selected model, adopted only when signed in to
-/// Tokamak. Split out from the resolution chain so the rule is testable without
-/// a `settings.json` on disk; see the note at the call site for why the sign-in
-/// gates it.
-fn inherit_desktop_model(
-    signed_in: bool,
-    selection: crate::core::cli::providers::DesktopSelection,
-) -> Option<String> {
-    signed_in.then_some(selection.model).flatten()
-}
-
 /// The newest workspace snapshot a thread recorded, which is where a fork of it
 /// should start its own checkout: the files as that conversation last left them,
 /// rather than a `HEAD` its whole transcript predates.
@@ -1854,28 +1831,15 @@ fn prepare_agent_session(
 
     // Resolution order: --model flag, then agent.toml [agent].model, then the
     // standalone global config (~/.rey30-idvj/config.toml default_model / first provider
-    // model), then the desktop app's currently-selected model (settings.json
-    // inherit). Global config outranks desktop so a standalone agent is
-    // self-sufficient without a desktop install.
-    //
-    // The desktop inherit is the last resort and applies only when signed in to
-    // Tokamak. Without a sign-in, silently adopting whatever model the desktop
-    // app last had selected starts the session on a provider the user never
-    // chose here -- and hides the sign-in notice that would otherwise fire,
-    // because a non-empty model reads as "configured". Leaving it unset surfaces
-    // the notice instead. An explicit --model, agent.toml, or ~/.rey30-idvj default is
-    // unaffected: all three outrank this.
+    // model). The desktop app's last selection is never adopted: silently
+    // starting on whatever the desktop had selected puts the session on a
+    // provider the user never chose here -- and hides the sign-in notice that
+    // would otherwise fire, because a non-empty model reads as "configured".
     let explicit = model_override.is_some() || overrides.api_key.is_some();
     let model_pinned = model_override.is_some();
     let model = model_override
         .or_else(|| cfg.agent.model.clone())
-        .or_else(|| crate::core::agent::global_config::default_model().ok().flatten())
-        .or_else(|| {
-            inherit_desktop_model(
-                crate::core::cli::tokamak::auth_status().signed_in,
-                crate::core::cli::providers::desktop_selection(),
-            )
-        });
+        .or_else(|| crate::core::agent::global_config::default_model().ok().flatten());
     // A project or global default can name a model with nobody around to serve
     // it (e.g. this repo's own agent.toml pins one, but a fresh `~/.rey30-idvj` has no
     // credentials for anything). Trust it only when the user was explicit
@@ -1892,7 +1856,7 @@ fn prepare_agent_session(
     };
     if model.is_empty() && flags.require_model {
         return Err(
-            "no model specified: run `rey30-idvj login` to sign in to Tokamak, or pass --model, set [agent].model in agent.toml, set default_model in ~/.rey30-idvj/config.toml, or select a model in the desktop app"
+            "no model specified: run `rey30-idvj login` to sign in to a provider, or pass --model, set [agent].model in agent.toml, or set default_model in ~/.rey30-idvj/config.toml"
                 .to_string(),
         );
     }
@@ -2301,7 +2265,7 @@ async fn run_agent_loop(
     )
     .await
     {
-        eprintln!("(could not list {} models: {e})", provider_label(&provider));
+        eprintln!("(could not list {} models: {e})", provider);
     }
     let prepared = prepare_agent_run(
         project,
@@ -3163,14 +3127,14 @@ pub async fn cli_agent_ui(
     };
     if let Some(provider) = overrides.session_scoped_provider() {
         // Before the alternate screen, which would hide anything printed later.
-        eprintln!("fetching {} models...", provider_label(provider));
+        eprintln!("fetching {} models...", provider);
     }
     if let Some((provider, Err(e))) =
         providers::probe_session_provider(Some(&project_root), &overrides, wait).await
     {
         session_provider::set_startup_notice(format!(
             "could not list {} models ({e}); /model retries",
-            provider_label(&provider)
+            provider
         ));
     }
     // Fresh install with a terminal attached: launch with no model rather than
@@ -4030,36 +3994,6 @@ mod tests {
         );
     }
 
-    /// Signing in to Tokamak is what unlocks the desktop inherit. Without it the
-    /// model stays unset so the TUI's sign-in notice fires, instead of the
-    /// session silently starting on whatever the desktop app last had selected.
-    #[test]
-    fn desktop_model_is_inherited_only_when_signed_in() {
-        let selection = crate::core::cli::providers::DesktopSelection {
-            provider: Some("llamacpp".into()),
-            model: Some("gemma-4-E2B-it-IQ4_XS".into()),
-        };
-        assert_eq!(
-            inherit_desktop_model(true, selection.clone()).as_deref(),
-            Some("gemma-4-E2B-it-IQ4_XS"),
-        );
-        assert_eq!(
-            inherit_desktop_model(false, selection),
-            None,
-            "a signed-out session does not adopt the desktop's selection"
-        );
-    }
-
-    /// Signed in but the desktop has no selection (or no desktop at all) is not
-    /// an error -- it just contributes nothing to the chain.
-    #[test]
-    fn an_empty_desktop_selection_contributes_nothing() {
-        assert_eq!(
-            inherit_desktop_model(true, crate::core::cli::providers::DesktopSelection::default()),
-            None
-        );
-    }
-
     // ── resume ─────────────────────────────────────────────────────────────
 
     #[test]
@@ -4618,7 +4552,7 @@ mod tests {
 
     /// A project's `agent.toml` naming a model must not paper over "nothing can
     /// actually serve it": with no provider configured (this repo's own
-    /// agent.toml pins `tokamak-1-preview`, but a fresh `~/.rey30-idvj` has no
+    /// agent.toml pins `gateway-model`, but a fresh `~/.rey30-idvj` has no
     /// credentials for it), the TUI path must still come back with an empty
     /// model so its sign-in notice fires instead of a first-message failure.
     #[test]
@@ -4627,7 +4561,7 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             std::fs::write(
                 dir.path().join("agent.toml"),
-                "[agent]\nmodel = \"tokamak-1-preview\"\n",
+                "[agent]\nmodel = \"gateway-model\"\n",
             )
             .unwrap();
 
@@ -4644,7 +4578,7 @@ mod tests {
     }
 
     /// End-to-end for the sign-in gate, arranged so the pre-existing
-    /// "nothing usable is configured" guard cannot mask it: a usable non-Tokamak
+    /// "nothing usable is configured" guard cannot mask it: a usable
     /// provider is present (so the guard passes) but names no models (so
     /// `default_model` contributes nothing), leaving the desktop inherit as the
     /// only thing that could supply a model. Signed out, it must not.
@@ -4677,7 +4611,6 @@ mod tests {
                 crate::core::cli::providers::desktop_selection().model.as_deref(),
                 Some("gemma-4-E2B-it-IQ4_XS")
             );
-            assert!(!crate::core::cli::tokamak::auth_status().signed_in);
 
             let dir = tempfile::tempdir().unwrap();
             let session = prepare_agent_session(
@@ -4703,12 +4636,12 @@ mod tests {
     fn tui_session_honors_a_project_model_once_a_provider_is_usable() {
         crate::core::agent::global_config::with_temp_home(|_| {
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("tk".into()),
                     clear_api_key: false,
-                    base_url: Some(crate::core::cli::tokamak::BASE_URL.into()),
-                    models: Some(vec!["tokamak-1-preview".into()]),
+                    base_url: Some("https://gateway.example/v1".into()),
+                    models: Some(vec!["gateway-model".into()]),
                     api_type: None,
                                     ..Default::default()
                 },
@@ -4717,7 +4650,7 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             std::fs::write(
                 dir.path().join("agent.toml"),
-                "[agent]\nmodel = \"tokamak-1-preview\"\n",
+                "[agent]\nmodel = \"gateway-model\"\n",
             )
             .unwrap();
 
@@ -4729,7 +4662,7 @@ mod tests {
                 None,
             )
             .expect("session prep");
-            assert_eq!(session.model, "tokamak-1-preview");
+            assert_eq!(session.model, "gateway-model");
         });
     }
 
@@ -5390,13 +5323,13 @@ mod tests {
     #[test]
     fn agent_status_reports_capabilities_header_names_and_base_url_sources() {
         let overrides = ProviderOverrides {
-            provider: Some("tokamak".into()),
+            provider: Some("gateway".into()),
             api_key: Some("tk-session".into()),
             base_url: Some("http://127.0.0.1:9/v1".into()),
             base_url_source: Some(crate::core::cli::providers::OverrideSource::Env),
             headers: vec![
                 ("X-Client-Name".into(), "rey30-idvj-agent".into()),
-                ("X-Tokamak-Launch-Id".into(), "abc".into()),
+                ("X-Launch-Id".into(), "abc".into()),
             ],
             explicit_provider: true,
         };
@@ -5434,17 +5367,17 @@ mod tests {
             assert_eq!(status["capabilities"], serde_json::Value::Array(expected));
 
             let providers = status["providers"].as_array().expect("providers");
-            let tokamak = providers
+            let gateway = providers
                 .iter()
-                .find(|p| p["provider"] == "tokamak")
-                .expect("tokamak listed");
-            assert_eq!(tokamak["base_url"], "http://127.0.0.1:9/v1");
-            assert_eq!(tokamak["base_url_source"], "env");
-            assert_eq!(tokamak["has_api_key"], true);
-            assert_eq!(tokamak["models"], 0);
+                .find(|p| p["provider"] == "gateway")
+                .expect("gateway listed");
+            assert_eq!(gateway["base_url"], "http://127.0.0.1:9/v1");
+            assert_eq!(gateway["base_url_source"], "env");
+            assert_eq!(gateway["has_api_key"], true);
+            assert_eq!(gateway["models"], 0);
             assert_eq!(
-                tokamak["header_names"],
-                serde_json::json!(["X-Client-Name", "X-Tokamak-Launch-Id"])
+                gateway["header_names"],
+                serde_json::json!(["X-Client-Name", "X-Launch-Id"])
             );
             let openai = providers
                 .iter()

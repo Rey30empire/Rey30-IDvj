@@ -1566,18 +1566,7 @@ pub(crate) async fn stream_converted_chat_completions(
             .map(|ct| ct.contains("event-stream"))
             .unwrap_or(true);
 
-        // The execution id, read here because this is the last point at which
-        // the response headers exist: both branches below consume the body.
-        // This is the direct billing handle, and the only path that can get one
-        // -- the genai path discards headers on a successful stream.
-        let execution_id = resp
-            .headers()
-            .get(crate::core::agent::correlation::EXECUTION_ID_HEADER)
-            .and_then(|v| v.to_str().ok())
-            .filter(|id| !id.is_empty())
-            .map(str::to_string);
-
-        let mut completion = if is_sse {
+        let completion = if is_sse {
             consume_converted_sse(resp, converter, events).await?
         } else {
             let bytes = resp
@@ -1586,9 +1575,6 @@ pub(crate) async fn stream_converted_chat_completions(
                 .map_err(|e| format!("Upstream body read failed: {e}"))?;
             decode_converted_response(&bytes, converter)?
         };
-        if let Some(id) = execution_id {
-            crate::core::agent::correlation::attach_execution_id(&mut completion, &id);
-        }
         return Ok(completion);
     }
 
@@ -2387,10 +2373,10 @@ mod tests {
     #[test]
     fn a_verbatim_listed_id_keeps_its_slash_despite_a_same_named_provider() {
         let mut pc = provider_configs(&[
-            ("tokamak", "https://api.tokamak.sh/v1"),
+            ("gateway", "https://gateway.example/v1"),
             ("anthropic", "https://api.anthropic.com/v1"),
         ]);
-        pc.get_mut("tokamak").unwrap().models = vec!["anthropic/claude-opus-5".to_string()];
+        pc.get_mut("gateway").unwrap().models = vec!["anthropic/claude-opus-5".to_string()];
         assert_eq!(
             strip_provider_prefix("anthropic/claude-opus-5", &pc),
             "anthropic/claude-opus-5"
@@ -2632,12 +2618,11 @@ mod tests {
         assert!(body.get("max_output_tokens").is_none());
     }
 
-    /// The correlation id has to actually reach the wire, and the execution id
-    /// has to come back off the response headers before the body is consumed.
-    /// Both are invisible when broken -- the request still succeeds and only a
-    /// later billing lookup comes back empty -- so this asserts the bytes.
+    /// The correlation id has to actually reach the wire. It is invisible when
+    /// broken -- the request still succeeds and only a later lookup comes back
+    /// empty -- so this asserts the bytes.
     #[tokio::test]
-    async fn the_converted_path_sends_the_correlation_id_and_captures_the_execution_id() {
+    async fn the_converted_path_sends_the_correlation_id() {
         use base64::Engine as _;
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -2653,7 +2638,7 @@ mod tests {
             let response = "event: response.completed\n\
                 data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n";
             let wire = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nX-Tokamak-Execution-Id: exec-abc\r\n\r\n{response}",
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{response}",
                 response.len()
             );
             socket.write_all(wire.as_bytes()).await.expect("response");
@@ -2697,8 +2682,8 @@ mod tests {
         );
         assert_eq!(
             crate::core::agent::correlation::execution_id_of(&completion),
-            Some("exec-abc".to_string()),
-            "the execution id must be read off the response headers"
+            None,
+            "no provider header is read as an execution id"
         );
     }
 
@@ -2987,20 +2972,20 @@ mod tests {
     #[tokio::test]
     async fn a_verbatim_listed_slashed_id_is_reported_against_the_gateway_that_serves_it() {
         let mut configs = provider_configs(&[
-            ("tokamak", "https://api.tokamak.sh/v1"),
+            ("gateway", "https://gateway.example/v1"),
             ("anthropic", "https://api.anthropic.com/v1"),
         ]);
-        configs.get_mut("tokamak").unwrap().models = vec!["anthropic/claude-opus-5".to_string()];
+        configs.get_mut("gateway").unwrap().models = vec!["anthropic/claude-opus-5".to_string()];
 
         assert_eq!(
             pick_provider_for_model("anthropic/claude-opus-5", &configs),
-            Some("tokamak".to_string())
+            Some("gateway".to_string())
         );
         let (url, _) =
             resolve_upstream_for_model("anthropic/claude-opus-5", Arc::new(Mutex::new(configs)))
                 .await
                 .expect("the gateway listing the id serves it");
-        assert_eq!(url, "https://api.tokamak.sh/v1/chat/completions");
+        assert_eq!(url, "https://gateway.example/v1/chat/completions");
     }
 
     /// A provider credentialed through the `api_keys` chain rather than a bare

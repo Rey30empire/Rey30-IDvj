@@ -16,7 +16,7 @@ summarizing the older part of the conversation rather than failing.
 The header carries live usage:
 
 ```
- rey30-idvj agent   tokamak-1-preview   10:40:49   turn 1/400   ctx 6K/128K fallback   30.1/s   [ready]
+ rey30-idvj agent   gpt-5-mini          10:40:49   turn 1/400   ctx 6K/128K fallback   30.1/s   [ready]
 ```
 
 `ctx 6K/128K` is context used against the window, and the word after it says where the window size
@@ -111,7 +111,7 @@ how many of those the provider served from its cache), tokens out, and an estima
 
 ```
 session usage
-  tokamak/anthropic/claude-opus-5  12 req · 480K in (300K cached) · 21K out  ~$1.42
+  openrouter/anthropic/claude-opus  12 req · 480K in (300K cached) · 21K out  ~$1.42
   total                            12 req · 480K in (300K cached) · 21K out  ~$1.42
   estimated from the provider's published prices - not a bill
 ```

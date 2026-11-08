@@ -814,7 +814,7 @@ mod tests {
         let out = value(report.finish(
             Some("3f7a91c2"),
             None,
-            "tokamak-1-preview",
+            "gateway-model",
             48213,
             Some("done"),
         ));
@@ -824,7 +824,7 @@ mod tests {
         assert_eq!(out["result"], "done");
         assert_eq!(out["stop_reason"], "end_turn");
         assert_eq!(out["session_id"], "3f7a91c2");
-        assert_eq!(out["model"], "tokamak-1-preview");
+        assert_eq!(out["model"], "gateway-model");
         assert_eq!(out["num_turns"], 1);
         assert_eq!(out["duration_ms"], 48213u64);
         assert_eq!(out["usage"]["prompt_tokens"], 9011);
@@ -850,7 +850,7 @@ mod tests {
         ] {
             report.observe(&ev);
         }
-        let out = value(report.finish(Some("3f7a91c2"), None, "tokamak-1-preview", 1204, None));
+        let out = value(report.finish(Some("3f7a91c2"), None, "gateway-model", 1204, None));
 
         assert_eq!(out["is_error"], true);
         assert_eq!(out["result"], "I started reviewing auth.rs and");
@@ -980,7 +980,7 @@ mod tests {
         crate::core::agent::global_config::with_temp_home(|_| {
             let mut catalog = crate::core::cli::model_catalog::Catalog::default();
             catalog.set_provider(
-                "tokamak",
+                "gateway",
                 std::collections::BTreeMap::from([(
                     "priced-model".to_string(),
                     crate::core::cli::model_catalog::ModelInfo {

@@ -1,24 +1,14 @@
 //! Correlating an agent request with the provider's billing record.
 //!
-//! A charge is recorded by the provider, keyed by an execution id. To ask what
-//! a request cost you need a handle on that record, and there are exactly two
-//! ways to get one:
+//! A charge is recorded by the provider. To find what a request cost later the
+//! agent sends **a correlation id**, in `X-Client-Request-Id`: a provider that
+//! supports it records the id against every execution the request produced,
+//! and it is searchable afterwards. It works on every transport path.
 //!
-//! 1. **The execution id the provider returns** on the inference response, in
-//!    the `X-Tokamak-Execution-Id` header. This is the direct handle, but it is
-//!    only readable where the agent owns the HTTP response -- the native-wire
-//!    converter path. The default path runs through `genai`, which drops the
-//!    response headers on a successful stream (they survive only inside an
-//!    error), so there is nothing to read there.
-//! 2. **A correlation id the caller sends**, in `X-Client-Request-Id`. The
-//!    provider records it against every execution the request produced, and it
-//!    is searchable afterwards. This works on every path, including the one
-//!    where the execution id is unreachable, which is why it is the mechanism
-//!    the agent relies on rather than a convenience.
-//!
-//! The two are not equivalent and this module does not pretend otherwise. An
-//! execution id names exactly one execution; a correlation id may match several
-//! and is explicitly not an idempotency key, so a retried request shares it.
+//! An execution id (one execution, as a provider might name it) can still be
+//! carried on a completion body via [`attach_execution_id`]; no built-in
+//! provider supplies one. A correlation id may match several executions and is
+//! explicitly not an idempotency key, so a retried request shares it.
 //! That is a property to report, not to engineer around: a turn that was
 //! retried really did produce more than one execution, and more than one
 //! charge.
@@ -27,12 +17,6 @@
 //! identical in the desktop and `cli` builds -- a correlation id that differs
 //! between them would silently fail to correlate, which is the one failure mode
 //! that looks like success.
-
-/// Header the provider returns on an inference response, naming that execution.
-///
-/// Readable only where the agent holds the `reqwest::Response` itself. See the
-/// module docs for why the default path cannot see it.
-pub const EXECUTION_ID_HEADER: &str = "X-Tokamak-Execution-Id";
 
 /// Header the agent sends so its requests can be found later.
 ///

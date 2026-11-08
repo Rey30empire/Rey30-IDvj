@@ -965,11 +965,7 @@ impl ModelPicker {
         roles: &[&str],
         current_model: &str,
     ) -> Option<Self> {
-        pairs.sort_by(|a, b| match (a.0 == "tokamak", b.0 == "tokamak") {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.cmp(b),
-        });
+        pairs.sort();
         pairs.dedup();
         let roles = roles
             .iter()
@@ -1156,50 +1152,6 @@ enum Readout {
     /// lives on the readout rather than on `App` so it resets with the dock:
     /// an expansion is a thing you did to this readout, not a preference.
     Session { all_models: bool },
-    /// Bare `/usage`: the session estimate and the account's recorded spend
-    /// in one pane, each labelled with its source.
-    ///
-    /// The two halves are never added together and never share a figure --
-    /// that is the whole reason this is one readout with two sections rather
-    /// than one combined number. The session half renders instantly from
-    /// local state; the account half arrives over the network, so it carries
-    /// its own state instead of holding the whole readout on a spinner.
-    Overview {
-        all_models: bool,
-        account: AccountSlot,
-    },
-    /// `/usage <account view>`: requested, not yet fetched.
-    ReportedLoading(super::tokamak::usage::Query),
-    /// `/usage <account view>`: the fetched body, rendered at draw time.
-    ///
-    /// The payload is kept rather than the rendered lines so `m` can fold the
-    /// breakdown without refetching -- re-asking the server for a list the
-    /// user already has would bill a request to expand a table. `error` holds
-    /// a failed read, which has no payload to re-render.
-    Reported {
-        title: String,
-        query: super::tokamak::usage::Query,
-        payload: Box<super::tokamak::usage::Payload>,
-        all_rows: bool,
-    },
-    /// `/usage <account view>`: the read failed, and why.
-    ReportedError { title: String, message: String },
-}
-
-/// The account half of the overview, which is a network read and so has to
-/// be able to say "not yet", "not available" and "not configured" without
-/// taking the session half down with it.
-#[derive(Debug, Clone)]
-enum AccountSlot {
-    /// No Tokamak credential, so there is no account to read. Not an error:
-    /// most providers have no usage API and the session estimate is the whole
-    /// answer for them.
-    NotConfigured,
-    Loading,
-    Ready(Box<super::tokamak::usage::Payload>),
-    /// The read failed, and why. Shown rather than swallowed: a blank account
-    /// section would read as "you have spent nothing".
-    Failed(String),
 }
 
 impl Readout {
@@ -1211,9 +1163,6 @@ impl Readout {
         match self {
             Readout::ContextLoading | Readout::Context(_) => "context".to_string(),
             Readout::Session { .. } => "session estimate".to_string(),
-            Readout::Overview { .. } => "usage".to_string(),
-            Readout::ReportedLoading(query) => query.label().to_string(),
-            Readout::Reported { title, .. } | Readout::ReportedError { title, .. } => title.clone(),
         }
     }
 }
@@ -1273,56 +1222,26 @@ struct BrowserConfirm {
     purpose: String,
 }
 
-/// Which sign-in the `/login` dock is running. The browser flow is the default;
-/// the paste field is what a server predating it (or a failure) falls back to.
+/// What the `/login` dock is showing: the API-key paste field.
 enum LoginStage {
-    /// Creating the session -- one round trip before there is a code to show.
-    Connecting,
-    /// Waiting on the browser. The code is displayed so the user can check it
-    /// against the approve page before clicking Approve.
-    ///
-    /// While `confirm_open` is set the user has not yet said whether to launch a
-    /// browser here. The poll runs regardless, so approving from a phone still
-    /// completes the sign-in without ever answering.
-    Approving {
-        user_code: String,
-        authorize_url: String,
-        confirm_open: bool,
-    },
-    /// Legacy paste-a-key entry. `confirm_open` gates sending the user to the
-    /// API-keys page; the field only accepts a key once that is answered.
+    /// Paste-a-key entry. `confirm_open` gates sending the user to the
+    /// provider's API-keys page; the field only accepts a key once that is
+    /// answered.
     Paste { confirm_open: bool },
 }
 
 impl LoginStage {
-    /// The page this stage would send the user to, while that is still unasked.
-    fn unconfirmed_url(&self) -> Option<String> {
-        match self {
-            Self::Approving {
-                authorize_url,
-                confirm_open: true,
-                ..
-            } => Some(authorize_url.clone()),
-            Self::Paste { confirm_open: true } => Some(super::tokamak::api_keys_url()),
-            _ => None,
-        }
-    }
-
-    /// Mark the browser question answered, whichever stage asked it.
+    /// Mark the browser question answered.
     fn mark_confirmed(&mut self) {
         match self {
-            Self::Approving { confirm_open, .. } | Self::Paste { confirm_open } => {
-                *confirm_open = false
-            }
-            Self::Connecting => {}
+            Self::Paste { confirm_open } => *confirm_open = false,
         }
     }
 }
 
-/// `/login`: a docked prompt that runs the browser-approval sign-in and, when
-/// that is unavailable, collects a Tokamak API key without echoing it. The
-/// network work runs off the render loop (see `login_*_task` in `chat_loop`), so
-/// `verifying` marks the window where the paste field is read-only.
+/// `/login`: a docked prompt that collects a provider API key without echoing
+/// it. The verification runs off the render loop (see `login_task` in
+/// `chat_loop`), so `verifying` marks the window where the field is read-only.
 ///
 /// The dock stays open for the whole flow, which is also what makes Esc a
 /// reliable cancel: `chat_loop` drops every in-flight sign-in task the moment
@@ -1348,27 +1267,18 @@ impl LoginPrompt {
         }
     }
 
-    /// The dock as `/login` opens it, before the session exists.
-    /// The dock for Tokamak's browser-approval flow, before the session exists.
-    fn connecting() -> Self {
-        Self {
-            stage: LoginStage::Connecting,
-            ..Self::new("tokamak")
-        }
-    }
-
     fn unconfirmed_url(&self) -> Option<String> {
         match &self.stage {
             LoginStage::Paste { confirm_open: true } => {
                 crate::core::cli::auth::provider_by_id(&self.provider)
                     .map(|provider| provider.api_key.keys_url.to_string())
             }
-            _ => self.stage.unconfirmed_url(),
+            LoginStage::Paste { confirm_open: false } => None,
         }
     }
 
-    /// Only the paste field accepts input, and only once the browser question is
-    /// answered; the approval stages are display-only throughout.
+    /// The paste field accepts input only once the browser question is
+    /// answered.
     fn editable(&self) -> bool {
         matches!(
             self.stage,
@@ -4480,16 +4390,6 @@ struct App {
     /// loop (it sizes the tool segment, which takes the MCP server lock a turn
     /// may be holding). Taken once, like `mcp_job_request`.
     context_request: bool,
-    /// The provider's execution id for the most recent request that reported
-    /// one, so `/usage` can name something concrete to look up. `None` when no
-    /// request has reported one -- which is the normal case on the default
-    /// upstream path, where the response headers are unreachable.
-    last_execution_id: Option<String>,
-    /// Set by `/usage <mode>` to ask the loop to perform the read off the
-    /// render loop. These are network calls against the provider's usage API,
-    /// so running one inline would freeze the frame for as long as the request
-    /// takes. Taken once, like `context_request`.
-    reported_usage_request: Option<super::tokamak::usage::Query>,
     /// Active MCP add/edit wizard (docked); owns the keyboard while open.
     mcp_prompt: Option<McpPrompt>,
     /// The `/mcp` detail screen's data, alongside the `McpServer` picker whose
@@ -4540,8 +4440,6 @@ struct App {
     /// Manual OAuth input submitted while no task sender is active; delivered to
     /// the fresh task channel on retry spawn.
     account_login_pending_manual_input: Option<String>,
-    /// `/login` asked for the browser flow: `chat_loop` creates the session.
-    login_device_request: bool,
     /// A `/mcp` authorization waiting on the user's yes/no before a browser is
     /// launched. Holds only the URL and what it is for - never the bound
     /// loopback listener, which stays on the task awaiting the redirect.
@@ -5318,8 +5216,7 @@ impl App {
             vibe_confirm: None,
             readout: None,
             context_request: false,
-            last_execution_id: None,
-            reported_usage_request: None,
+
             mcp_prompt: None,
             mcp_detail: None,
             agent_detail: None,
@@ -5341,7 +5238,7 @@ impl App {
             account_login_submit: None,
             account_login_manual_tx: None,
             account_login_pending_manual_input: None,
-            login_device_request: false,
+
             browser_confirm: None,
             update_requested: false,
             plugin_install_request: None,
@@ -8196,16 +8093,8 @@ impl App {
             } => self.apply_subagent_event(&run_id, &name, *event),
             StreamEvent::TurnUsage {
                 usage,
-                execution_id,
+                execution_id: _,
             } => {
-                // The provider's handle for the request that just landed, kept
-                // so `/usage` can offer a lookup of what it actually cost
-                // instead of only the estimate. Only overwritten when one was
-                // reported: a path that cannot see the header (the default one)
-                // must not erase an id an earlier request did report.
-                if let Some(id) = execution_id {
-                    self.last_execution_id = Some(id);
-                }
                 // Session totals are per model: `/usage` prices each at its own
                 // published rates, and the current model is the one billed.
                 let key = self.usage_key();
@@ -8403,7 +8292,7 @@ impl App {
             // rather than a rate.
             StreamEvent::TurnUsage {
                 usage,
-                execution_id,
+                execution_id: _,
             } => {
                 if let Some(panel) = panel {
                     panel.prompt_tokens = usage.prompt_tokens.unwrap_or(panel.prompt_tokens);
@@ -8412,11 +8301,6 @@ impl App {
                     if usage.cached_tokens.is_some() {
                         panel.cache_reported = true;
                     }
-                }
-                // A child's requests are billed to the same account, so its
-                // execution ids are as lookup-worthy as the parent's.
-                if let Some(id) = execution_id {
-                    self.last_execution_id = Some(id);
                 }
                 // A child's tokens are spend on the same account, against the
                 // model the dispatch inherited, so they belong in the session
@@ -9582,78 +9466,6 @@ fn session_estimate_lines(app: &App, all_models: bool) -> Vec<Line<'static>> {
     lines
 }
 
-/// Bare `/usage`: this session's estimate over the account's recorded spend.
-///
-/// Two sections, never one total. They measure different things -- a local
-/// guess at what this process has run up, and what the provider has actually
-/// recorded across every client on the account -- and adding them would
-/// double-count this very session while implying a precision neither has. The
-/// heading of each names its source, and the account half degrades to a
-/// reason rather than a blank when it cannot be read.
-fn overview_lines(
-    app: &App,
-    all_models: bool,
-    account: &AccountSlot,
-    width: usize,
-) -> Vec<Line<'static>> {
-    let dim = Style::new().dark_gray();
-    let mut lines = vec![Line::styled(
-        "THIS SESSION (estimated)".to_string(),
-        Style::new().bold(),
-    )];
-    lines.extend(session_estimate_lines(app, all_models));
-
-    lines.push(Line::raw(""));
-    lines.push(Line::styled(
-        "ON YOUR ACCOUNT (recorded by the provider)".to_string(),
-        Style::new().bold(),
-    ));
-    match account {
-        AccountSlot::NotConfigured => lines.push(Line::styled(
-            "no account usage API is configured for this provider".to_string(),
-            dim,
-        )),
-        AccountSlot::Loading => lines.push(Line::raw("reading account usage...")),
-        AccountSlot::Failed(message) => {
-            lines.extend(wrap_text(message, dim, width).into_iter().map(Line::from));
-        }
-        AccountSlot::Ready(payload) => {
-            // The account total only -- the per-model breakdown belongs to
-            // `/usage account`, which is one keystroke away and is where
-            // someone who wants it is already going. An overview that printed
-            // both breakdowns would be two screens of table under a heading
-            // promising a summary.
-            let query = super::tokamak::usage::Query::Summary;
-            let reported = super::usage_view::account_total_lines(payload);
-            match reported {
-                Some(rows) => lines.extend(
-                    rows.iter()
-                        .flat_map(|line| wrap_text(line, Style::new(), width))
-                        .map(Line::from),
-                ),
-                // Unparseable: fall back to the same field walk every other
-                // reported view degrades to, rather than showing nothing.
-                None => lines.extend(
-                    super::usage_view::reported_usage_lines(
-                        &query,
-                        payload,
-                        super::usage_view::Fold::Folded,
-                    )
-                        .iter()
-                        .flat_map(|line| wrap_text(line, Style::new(), width))
-                        .map(Line::from),
-                ),
-            }
-        }
-    }
-
-    lines.push(Line::raw(""));
-    lines.push(Line::styled(
-        "/usage account · daily · requests · limits for the detail".to_string(),
-        dim,
-    ));
-    lines
-}
 
 /// The docked readout's body at `width`.
 ///
@@ -9662,50 +9474,10 @@ fn overview_lines(
 /// during a turn is watching the run's spend, and a frozen total would be
 /// quietly wrong from the first token that arrived after it.
 fn readout_lines(app: &App, readout: &Readout, width: usize) -> Vec<Line<'static>> {
-    let dim = Style::new().dark_gray();
     match readout {
         Readout::ContextLoading => vec![Line::raw("computing context...")],
         Readout::Context(report) => context_lines(report, width),
-        Readout::Session { all_models } => {
-            let mut lines = session_estimate_lines(app, *all_models);
-            lines.push(Line::styled(
-                match &app.last_execution_id {
-                    // A concrete id beats naming the command: this is the one
-                    // request whose real charge can be looked up right now.
-                    Some(id) => format!("/usage {id} for what the provider recorded"),
-                    None => "/usage account for what the provider actually recorded".to_string(),
-                },
-                dim,
-            ));
-            lines
-        }
-        Readout::Overview {
-            all_models,
-            account,
-        } => overview_lines(app, *all_models, account, width),
-        Readout::ReportedLoading(query) => {
-            vec![Line::raw(format!("reading {}...", query.label()))]
-        }
-        Readout::Reported {
-            query,
-            payload,
-            all_rows,
-            ..
-        } => super::usage_view::reported_usage_lines(
-            query,
-            payload,
-            super::usage_view::Fold::docked(*all_rows),
-        )
-            .iter()
-            // Hard-wrapped rather than clipped: a truncated money figure is a
-            // wrong money figure.
-            .flat_map(|line| wrap_text(line, Style::new(), width))
-            .map(Line::from)
-            .collect(),
-        Readout::ReportedError { message, .. } => wrap_text(message, Style::new(), width)
-            .into_iter()
-            .map(Line::from)
-            .collect(),
+        Readout::Session { all_models } => session_estimate_lines(app, *all_models),
     }
 }
 
@@ -12522,29 +12294,6 @@ async fn await_context(
     joined.ok()
 }
 
-/// Await an in-flight account-usage read, parking forever when none is running
-/// so this can sit in the loop's `select!` unconditionally.
-#[allow(clippy::type_complexity)]
-async fn await_reported_usage(
-    task: &mut Option<
-        tokio::task::JoinHandle<(
-            super::tokamak::usage::Query,
-            Result<super::tokamak::usage::Payload, super::tokamak::usage::UsageError>,
-        )>,
-    >,
-) -> Option<(
-    super::tokamak::usage::Query,
-    Result<super::tokamak::usage::Payload, super::tokamak::usage::UsageError>,
-)> {
-    let joined = match task.as_mut() {
-        Some(h) => h.await,
-        None => return pending().await,
-    };
-    *task = None;
-    // A panicked job leaves the overlay on its loading state for the user to
-    // close, same as `await_context`.
-    joined.ok()
-}
 
 /// Await an in-flight `/login` verification, parking forever when none is
 /// running so this can sit in the loop's `select!` unconditionally.
@@ -12568,16 +12317,6 @@ async fn await_login(
     }
 }
 
-async fn await_tokamak_login(
-    task: &mut Option<tokio::task::JoinHandle<Result<super::tokamak::Login, String>>>,
-) -> Result<super::tokamak::Login, String> {
-    let joined = match task.as_mut() {
-        Some(h) => h.await,
-        None => return pending().await,
-    };
-    *task = None;
-    joined.map_err(|e| format!("Tokamak sign-in task failed: {e}"))?
-}
 
 async fn await_account_login(
     task: &mut Option<tokio::task::JoinHandle<Result<String, String>>>,
@@ -12604,27 +12343,6 @@ async fn await_account_usage(task: &mut Option<tokio::task::JoinHandle<String>>)
     }
 }
 
-/// Await the session-creation half of the browser sign-in, parking forever when
-/// none is running so this can sit in the loop's `select!` unconditionally.
-async fn await_login_begin(
-    task: &mut Option<
-        tokio::task::JoinHandle<
-            Result<super::device_auth::PendingAuth, super::device_auth::BeginError>,
-        >,
-    >,
-) -> Result<super::device_auth::PendingAuth, super::device_auth::BeginError> {
-    let joined = match task.as_mut() {
-        Some(h) => h.await,
-        None => return pending().await,
-    };
-    *task = None;
-    match joined {
-        Ok(inner) => inner,
-        Err(e) => Err(super::device_auth::BeginError::Failed(format!(
-            "sign-in task failed: {e}"
-        ))),
-    }
-}
 
 /// How often the dock's branch indicator re-reads `HEAD`, so a checkout made
 /// outside the TUI (another terminal, an editor) shows up without needing a
@@ -12996,10 +12714,6 @@ pub async fn run(
     }
     if app.model.is_empty() {
         app.note("not signed in - run /login to choose a provider");
-    } else if let Some(warning) = super::tokamak::expiry_warning() {
-        // Say it at launch rather than letting the key expire into a 401 in the
-        // middle of a run.
-        app.note(&warning);
     }
     // An invitation when there is nothing to load, a label when a REY30.md
     // or a CLAUDE.md is what loaded; an AGENTS.md project hears nothing.
@@ -13251,17 +12965,6 @@ async fn chat_loop<B: Backend>(
     // instead of surfacing later as sonnet/opus 429s. Detached like the update
     // check: the probe is a network round trip and must not block sign-in.
     let mut account_usage_task: Option<tokio::task::JoinHandle<String>> = None;
-    // The browser-approval sign-in, in two off-loop halves: `begin` creates the
-    // session (one round trip), then the claim polls until the user approves --
-    // which can take minutes, so it must never touch the render loop.
-    let mut login_begin_task: Option<
-        tokio::task::JoinHandle<
-            Result<super::device_auth::PendingAuth, super::device_auth::BeginError>,
-        >,
-    > = None;
-    let mut login_claim_task: Option<
-        tokio::task::JoinHandle<Result<super::tokamak::Login, String>>,
-    > = None;
     // `/mcp` work that must not run on the render loop: a tool listing is a
     // round trip to the peer, and an authorization waits on a browser for up to
     // five minutes. One at a time -- the detail screen only ever asks for one.
@@ -13270,11 +12973,6 @@ async fn chat_loop<B: Backend>(
     // executing an MCP tool call holds it for up to the tool-call timeout), so
     // it must never run on the render loop. One at a time.
     let mut context_task: Option<tokio::task::JoinHandle<ContextReport>> = None;
-    type ReportedUsageResult = (
-        super::tokamak::usage::Query,
-        Result<super::tokamak::usage::Payload, super::tokamak::usage::UsageError>,
-    );
-    let mut reported_usage_task: Option<tokio::task::JoinHandle<ReportedUsageResult>> = None;
     // The update check is a network round trip, so it runs off the render loop
     // and notes itself whenever it lands rather than delaying the first frame.
     let mut update_task = Some(tokio::spawn(super::updater::available_update()));
@@ -13337,13 +13035,6 @@ async fn chat_loop<B: Backend>(
             if let Some(task) = login_task.take() {
                 task.abort();
             }
-            if let Some(task) = login_claim_task.take() {
-                task.abort();
-            }
-            if let Some(task) = login_begin_task.take() {
-                task.abort();
-            }
-            app.login_device_request = false;
         }
         if app.account_login.is_none() {
             app.account_login_pending_manual_input = None;
@@ -13422,17 +13113,7 @@ async fn chat_loop<B: Backend>(
             let snapshot = app.context_snapshot();
             context_task = Some(tokio::spawn(compute_context_report(snapshot)));
         }
-        // `/usage <view>` asked for an account read. It is a network call, so
-        // it runs off the render loop exactly like `/context`'s report: one at
-        // a time, with the overlay sitting on its loading state until it lands.
-        if reported_usage_task.is_none() {
-            if let Some(query) = app.reported_usage_request.take() {
-                reported_usage_task = Some(tokio::spawn(async move {
-                    let result = super::tokamak::usage::fetch(&query).await;
-                    (query, result)
-                }));
-            }
-        }
+
         // A key was submitted at the `/login` prompt: verify it off-loop. One at
         // a time - the prompt is read-only while `verifying`.
         if login_task.is_none() {
@@ -13449,19 +13130,6 @@ async fn chat_loop<B: Backend>(
             }
         }
 
-        // `/login` asked for the browser flow: create the session off-loop. Only
-        // when nothing else sign-in shaped is already running, so a repeated
-        // `/login` cannot open two sessions.
-        if app.login_device_request
-            && login_begin_task.is_none()
-            && login_claim_task.is_none()
-            && login_task.is_none()
-        {
-            app.login_device_request = false;
-            login_begin_task = Some(tokio::spawn(async move {
-                super::device_auth::begin(&super::tokamak::base_url()).await
-            }));
-        }
 
         // `/update` was typed: install off-loop. The flag is only honored when
         // no install is in flight, so a repeated request can't spawn a second
@@ -13741,9 +13409,7 @@ async fn chat_loop<B: Backend>(
                 // landing after the overlay was closed must not reopen it.
                 finish_context_report(app, report);
             }
-            Some((query, result)) = await_reported_usage(&mut reported_usage_task) => {
-                finish_reported_usage(app, &query, result);
-            }
+
             login_res = await_login(&mut login_task) => {
                 let login_ok = login_res.is_ok();
                 finish_login(app, login_res);
@@ -13769,33 +13435,7 @@ async fn chat_loop<B: Backend>(
             usage = await_account_usage(&mut account_usage_task) => {
                 app.note(&usage);
             }
-            begun = await_login_begin(&mut login_begin_task) => {
-                match begun {
-                    Ok(pending) => {
-                        show_login_approval(app, pending.session());
-                        login_claim_task =
-                            Some(tokio::spawn(super::tokamak::device_login(pending)));
-                    }
-                    // Not a failure, but say it: an unexplained paste field
-                    // reads as the browser sign-in having silently broken.
-                    Err(super::device_auth::BeginError::Unsupported) => {
-                        app.note("this Tokamak deployment does not support browser sign-in yet");
-                        open_login_prompt(app, "tokamak");
-                    }
-                    Err(e) => {
-                        app.note(&format!(
-                            "browser sign-in unavailable: {}",
-                            e.message(&super::tokamak::base_url())
-                        ));
-                        open_login_prompt(app, "tokamak");
-                    }
-                }
-            }
-            claimed = await_tokamak_login(&mut login_claim_task) => {
-                if finish_tokamak_login(app, claimed) {
-                    reload_provider_configs(app).await;
-                }
-            }
+
             update = await_update_check(&mut update_task) => {
                 note_update(app, update);
             }
@@ -15033,16 +14673,14 @@ async fn handle_key_input(
     // up.
     if app.readout.is_some() {
         match key.code {
-            // `m` folds a readout's list open and shut -- the session's
-            // models, or an account view's breakdown. Readouts with no tail
-            // fall through to the catch-all and do nothing rather than
+            // `m` folds the session's model list open and shut. Readouts with
+            // no tail fall through to the catch-all and do nothing rather than
             // closing the dock.
-            KeyCode::Char('m') if !ctrl => match &mut app.readout {
-                Some(Readout::Session { all_models })
-                | Some(Readout::Overview { all_models, .. }) => *all_models = !*all_models,
-                Some(Readout::Reported { all_rows, .. }) => *all_rows = !*all_rows,
-                _ => {}
-            },
+            KeyCode::Char('m') if !ctrl => {
+                if let Some(Readout::Session { all_models }) = &mut app.readout {
+                    *all_models = !*all_models;
+                }
+            }
             KeyCode::Esc | KeyCode::Char('q') if !ctrl => {
                 app.readout = None;
             }
@@ -15329,10 +14967,6 @@ async fn handle_key_input(
                     // The watermark row: nothing to delete.
                     return;
                 }
-                if tokamak_change_refused(&name) {
-                    app.note(super::session_provider::TOKAMAK_REFUSAL);
-                    return;
-                }
                 let sel = picker.selected;
                 if picker.armed_delete == Some(sel) {
                     // Second `d` on the same row confirms the delete.
@@ -15355,9 +14989,6 @@ async fn handle_key_input(
             KeyCode::Char('x') if picker.kind == PickerKind::ProviderSettings => {
                 let name = picker.items[picker.selected].value.clone();
                 if name.is_empty() {
-                    return;
-                }
-                if refuse_tokamak_change(app, &name) {
                     return;
                 }
                 sign_out_provider(app, &name);
@@ -15447,9 +15078,6 @@ async fn handle_key_input(
             // for a provider that is currently signed in.
             KeyCode::Char('x') if picker.kind == PickerKind::LoginProvider => {
                 let name = picker.items[picker.selected].value.clone();
-                if refuse_tokamak_change(app, &name) {
-                    return;
-                }
                 if !crate::core::cli::providers::provider_is_signed_in(
                     Some(&app.project_root),
                     &name,
@@ -15556,15 +15184,10 @@ async fn handle_key_input(
                         resume_thread(app, &value).await
                     }
                     PickerKind::LoginProvider => {
-                        if refuse_tokamak_change(app, &value) {
-                            return;
-                        }
                         if crate::core::cli::auth::account::AccountProvider::from_credential_provider(&value)
                             .is_some()
                         {
                             open_account_login(app, &value);
-                        } else if value == "tokamak" {
-                            open_login(app);
                         } else {
                             open_login_prompt(app, &value);
                         }
@@ -15615,9 +15238,6 @@ async fn handle_key_input(
                     }
                     // `/settings > providers`: open the wizard for the row.
                     PickerKind::ProviderSettings => {
-                        if refuse_tokamak_change(app, &value) {
-                            return;
-                        }
                         let entry = crate::core::agent::global_config::load_global_config()
                             .ok()
                             .and_then(|c| c.get(&value).cloned());
@@ -16274,8 +15894,8 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     },
     SlashCommand {
         name: "/usage",
-        hint: "[session|run|account|daily|requests|limits|<execution-id>]",
-        description: "This session's estimated cost and your account's recorded spend",
+        hint: "[session]",
+        description: "This session's estimated cost",
         alias_of: None,
     },
     SlashCommand {
@@ -16430,7 +16050,7 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     },
     SlashCommand {
         name: "/login",
-        hint: "[--paste-token]",
+        hint: "[provider]",
         description: "Sign in to a provider",
         alias_of: None,
     },
@@ -16753,61 +16373,6 @@ fn usage_command(app: &mut App, arg: &str) {
         // answer to the question that was asked, and answering it somewhere
         // else would make the command's surface depend on its result.
         UsageMode::Session => app.readout = Some(Readout::Session { all_models: false }),
-        // Bare `/usage` is "how much am I spending", which has two honest
-        // answers: this session's estimate and the account's recorded total.
-        // The session half draws immediately from local state, so the pane is
-        // never empty while the network read is in flight -- and when there is
-        // no account API to read, the overview is still the estimate plus a
-        // line saying so, rather than an error.
-        UsageMode::Overview => {
-            let configured = super::tokamak::auth_status().signed_in;
-            app.readout = Some(Readout::Overview {
-                all_models: false,
-                account: if configured {
-                    AccountSlot::Loading
-                } else {
-                    AccountSlot::NotConfigured
-                },
-            });
-            if configured {
-                app.reported_usage_request = Some(super::tokamak::usage::Query::Summary);
-            }
-        }
-        UsageMode::Run => {
-            // Every request this session made carries the session's correlation
-            // id, so one lookup returns the whole run's executions -- which is
-            // the authoritative answer to the question bare `/usage` estimates.
-            let correlation = app
-                .args
-                .as_ref()
-                .and_then(|args| args.session_id.as_deref())
-                .and_then(|id| {
-                    crate::core::agent::correlation::session_request_id(Some(id))
-                });
-            match correlation {
-                Some(id) => usage_command(app, &format!("correlate {id}")),
-                None => {
-                    app.note("this run has no session id to correlate");
-                    app.system_detail_text(
-                        "executions are found by the id sent with each request; without a session there is none",
-                    );
-                }
-            }
-        }
-        UsageMode::Account(query) => {
-            // An account read needs a Tokamak key. Saying so here, before any
-            // request, keeps a user on another provider from watching a
-            // spinner resolve into an auth error.
-            if !super::tokamak::auth_status().signed_in {
-                app.note("no account usage API is configured for this provider");
-                app.system_detail_text(
-                    "account spend is read from Tokamak; `/usage` alone still estimates this session",
-                );
-                return;
-            }
-            app.readout = Some(Readout::ReportedLoading(query.clone()));
-            app.reported_usage_request = Some(query);
-        }
         UsageMode::Unknown(arg) => {
             app.note(&format!("unknown usage view: {arg}"));
             app.system_detail_text(USAGE_MODE_HELP);
@@ -16818,69 +16383,19 @@ fn usage_command(app: &mut App, arg: &str) {
 /// What `/usage` was asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum UsageMode {
-    /// The default: this session's estimate and the account's recorded spend,
-    /// side by side.
-    Overview,
-    /// This session's local estimate alone -- the only view that works
-    /// offline, mid-turn, and for a non-Tokamak provider.
+    /// This session's local estimate -- works offline, mid-turn, and for every
+    /// provider.
     Session,
-    /// An authoritative read from the provider's usage API.
-    Account(super::tokamak::usage::Query),
-    /// Every execution this run produced, found by its correlation id.
-    /// Resolved into an [`UsageMode::Account`] lookup once the session id is
-    /// known, which only the caller has.
-    Run,
     Unknown(String),
 }
 
-const USAGE_MODE_HELP: &str =
-    "/usage (overview) · session · run · account · daily · requests · limits · <execution-id>";
+const USAGE_MODE_HELP: &str = "/usage · /usage session";
 
-/// Parse the argument to `/usage`.
-///
-/// A bare `/usage` stays the session estimate it has always been -- the one
-/// answer available instantly and without a network -- so this only ever adds
-/// views. An argument that is not a known mode is treated as an execution id
-/// rather than rejected: that is the shape of the thing a user pastes, and an
-/// id that turns out not to exist reports a clean not-found.
+/// Parse the argument to `/usage`. A bare `/usage` is the session estimate.
 fn parse_usage_mode(arg: &str) -> UsageMode {
-    use super::tokamak::usage::Query;
-    let arg = arg.trim();
-    match arg {
-        "" => UsageMode::Overview,
-        "session" => UsageMode::Session,
-        "run" => UsageMode::Run,
-        "account" | "me" => UsageMode::Account(Query::Summary),
-        "daily" => UsageMode::Account(Query::Daily),
-        "requests" => UsageMode::Account(Query::Requests),
-        "limits" => UsageMode::Account(Query::Limits),
-        other => {
-            // `correlate <id>` is how `/usage run` re-enters this parser once it
-            // has resolved the session's correlation id, and is usable directly
-            // for an id from another run. Matched before the lone-word case
-            // below, or a bare `correlate` would be looked up as an execution
-            // id of that name.
-            if let Some(id) = other
-                .strip_prefix("correlate")
-                .map(str::trim)
-                .filter(|_| other == "correlate" || other.starts_with("correlate "))
-            {
-                return if id.is_empty() {
-                    UsageMode::Unknown(other.to_string())
-                } else {
-                    UsageMode::Account(Query::Correlated(id.to_string()))
-                };
-            }
-            // Anything else is taken as an execution id, but only when it is
-            // plausibly one: a word with no whitespace. A phrase is a typo, and
-            // sending it upstream to be told it does not exist would be a worse
-            // answer than naming the available views.
-            if other.split_whitespace().count() == 1 {
-                UsageMode::Account(Query::Generation(other.to_string()))
-            } else {
-                UsageMode::Unknown(other.to_string())
-            }
-        }
+    match arg.trim() {
+        "" | "session" => UsageMode::Session,
+        other => UsageMode::Unknown(other.to_string()),
     }
 }
 
@@ -17929,13 +17444,6 @@ impl ProviderPrompt {
         let name = self.name.trim();
         if name.is_empty() {
             return Err("provider name is required".to_string());
-        }
-        // The add wizard takes any name, and `set_provider` merges into an
-        // existing entry: `tokamak` here would overwrite (or create) the entry
-        // a launched session must leave alone.
-        if name == super::tokamak::PROVIDER && super::session_provider::tokamak_is_session_scoped()
-        {
-            return Err(super::session_provider::TOKAMAK_REFUSAL.to_string());
         }
         if let Some(err) = self.validate_base_url() {
             return Err(err);
@@ -20649,13 +20157,8 @@ fn clamp_line(line: Line<'static>, width: u16) -> Line<'static> {
 
 fn open_login_picker_at(app: &mut App, selected_provider: Option<&str>) {
     let mut providers = crate::core::cli::auth::provider_catalog();
-    // Pin Tokamak to the top (the default provider), then list the rest in
-    // name order so the picker is stable and predictable.
-    providers.sort_by(|a, b| match (a.id == "tokamak", b.id == "tokamak") {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => a.name.cmp(b.name),
-    });
+    // Name order, so the picker is stable and predictable.
+    providers.sort_by(|a, b| a.name.cmp(b.name));
     let items = providers
         .into_iter()
         .map(|provider| {
@@ -20686,8 +20189,8 @@ fn open_login_picker_at(app: &mut App, selected_provider: Option<&str>) {
     });
 }
 
-/// `/login [--paste-token]`: choose a provider, or skip directly to Tokamak's
-/// legacy API-key field.
+/// `/login [provider]`: choose a provider, or go straight to the named one's
+/// API-key field.
 fn login_command(app: &mut App, arg: &str) {
     if app.login.is_some()
         || app.account_login.is_some()
@@ -20700,50 +20203,20 @@ fn login_command(app: &mut App, arg: &str) {
         return;
     }
     match arg.split_whitespace().next() {
-        Some("--paste-token" | "--paste") => {
-            if !refuse_tokamak_change(app, super::tokamak::PROVIDER) {
-                open_login_prompt(app, "tokamak")
+        Some(provider) => {
+            if crate::core::cli::auth::provider_by_id(provider).is_none() {
+                return app.note(&format!("/login: unknown provider {provider}"));
+            }
+            if crate::core::cli::auth::account::AccountProvider::from_credential_provider(provider)
+                .is_some()
+            {
+                open_account_login(app, provider);
+            } else {
+                open_login_prompt(app, provider);
             }
         }
-        Some(other) => app.note(&format!(
-            "/login: unknown option {other} (try --paste-token)"
-        )),
         None => open_login_picker(app),
     }
-}
-
-/// Start `/login`: the browser-approval flow. The dock opens immediately, so
-/// there is something to Esc out of while the session is being created, and
-/// `chat_loop` picks the request up off the render loop.
-fn open_login(app: &mut App) {
-    if refuse_tokamak_change(app, super::tokamak::PROVIDER) {
-        return;
-    }
-    app.login = Some(LoginPrompt::connecting());
-    app.login_device_request = true;
-}
-
-/// The session exists: show the code to check and the page to approve on, and
-/// open the browser. The URL goes to the transcript as well as the dock, so a
-/// remote or headless session can still be finished by hand -- or from a phone.
-fn show_login_approval(app: &mut App, session: &super::device_auth::Session) {
-    app.note("sign in to Tokamak in your browser - confirm this code matches:");
-    app.system_detail(vec![Span::styled(
-        session.user_code.clone(),
-        Style::new().fg(theme::accent()).bold(),
-    )]);
-    app.system_detail(vec![Span::styled(
-        session.authorize_url.clone(),
-        Style::new().fg(theme::accent()),
-    )]);
-    app.login = Some(LoginPrompt {
-        stage: LoginStage::Approving {
-            user_code: session.user_code.clone(),
-            authorize_url: session.authorize_url.clone(),
-            confirm_open: true,
-        },
-        ..LoginPrompt::new("tokamak")
-    });
 }
 
 /// Act on an answered "open a browser?" question: launch it, or say we didn't.
@@ -20830,33 +20303,9 @@ fn open_browser(url: &str) -> Result<(), String> {
         .map_err(|_| "could not open the browser".to_string())
 }
 
-/// Refuse a change to the Tokamak entry or its credential while Tokamak is the
-/// session-scoped provider -- the credential in use then comes from whoever
-/// started the session, and a sign-in, sign-out or edit here would only rewrite
-/// the user's native Tokamak setup (or orphan a live key) while the session
-/// carried on with the launcher's. `true` when refused; the note says why.
-/// Other providers are never refused.
-fn refuse_tokamak_change(app: &mut App, provider: &str) -> bool {
-    if tokamak_change_refused(provider) {
-        app.note(super::session_provider::TOKAMAK_REFUSAL);
-        return true;
-    }
-    false
-}
-
-/// The predicate behind [`refuse_tokamak_change`], for a caller still holding a
-/// borrow into `App` (a picker row) when it asks.
-fn tokamak_change_refused(provider: &str) -> bool {
-    provider.trim() == super::tokamak::PROVIDER
-        && super::session_provider::tokamak_is_session_scoped()
-}
-
 fn logout_command(app: &mut App, provider: &str) {
     if provider.trim().is_empty() {
         return app.note("usage: /logout <provider>");
-    }
-    if refuse_tokamak_change(app, provider) {
-        return;
     }
     let owned_model = crate::core::agent::global_config::load_global_config()
         .ok()
@@ -20885,9 +20334,6 @@ fn sign_out_provider(app: &mut App, provider: &str) {
 }
 
 fn open_login_prompt(app: &mut App, provider: &str) {
-    if refuse_tokamak_change(app, provider) {
-        return;
-    }
     let Some(definition) = crate::core::cli::auth::provider_by_id(provider) else {
         return app.note("selected provider is unavailable");
     };
@@ -20933,48 +20379,6 @@ fn finish_login(
     }
 }
 
-fn finish_tokamak_login(app: &mut App, result: Result<super::tokamak::Login, String>) -> bool {
-    match result {
-        Ok(login) => {
-            let super::tokamak::Login {
-                models,
-                config_path,
-                default_model,
-                replaced_default,
-                account,
-            } = login;
-            let repointed = replaced_default.then(|| default_model.clone()).flatten();
-            finish_login(
-                app,
-                Ok(crate::core::cli::auth::LoginResult {
-                    provider: "tokamak".to_string(),
-                    models,
-                    config_path,
-                    default_model,
-                }),
-            );
-            if let Some(account) = account {
-                app.note(&format!("signed in to Tokamak as {account}"));
-            }
-            // Said out loud rather than applied quietly: the user picked the
-            // old default at some point, and a model silently swapped under
-            // them is worse than the 404 the swap avoids.
-            if let Some(model) = repointed {
-                app.note(&format!(
-                    "your default model is no longer offered - switched to {model}"
-                ));
-            }
-            if let Some(warning) = super::tokamak::expiry_warning() {
-                app.note(&warning);
-            }
-            true
-        }
-        Err(error) => {
-            finish_login(app, Err(crate::core::cli::auth::LoginError::OAuth(error)));
-            false
-        }
-    }
-}
 
 fn finish_account_login(app: &mut App, result: Result<String, String>) {
     app.account_login_manual_tx = None;
@@ -21357,48 +20761,6 @@ fn finish_context_report(app: &mut App, report: ContextReport) {
     }
 }
 
-/// Fold a finished account-usage read into its overlay. Like
-/// [`finish_context_report`], a result landing after the user closed the
-/// overlay is dropped rather than reopening it.
-///
-/// A failure fills the overlay rather than being swallowed: the user asked a
-/// question about money and "the request did not land" is a real answer, where
-/// an empty popup would read as "nothing was spent".
-fn finish_reported_usage(
-    app: &mut App,
-    query: &super::tokamak::usage::Query,
-    result: Result<super::tokamak::usage::Payload, super::tokamak::usage::UsageError>,
-) {
-    // The overview holds the account read in a slot beside the session
-    // estimate, so a landing result fills that slot rather than replacing the
-    // readout -- replacing it would throw away the half already on screen.
-    if let Some(Readout::Overview { account, .. }) = &mut app.readout {
-        if matches!(account, AccountSlot::Loading) {
-            *account = match result {
-                Ok(payload) => AccountSlot::Ready(Box::new(payload)),
-                Err(e) => AccountSlot::Failed(e.to_string()),
-            };
-        }
-        return;
-    }
-    // Same rule as `finish_context_report`, and for the same reason: a result
-    // only fills the readout that is still waiting for it.
-    if !matches!(app.readout, Some(Readout::ReportedLoading(_))) {
-        return;
-    }
-    app.readout = Some(match result {
-        Ok(payload) => Readout::Reported {
-            title: query.label().to_string(),
-            query: query.clone(),
-            payload: Box::new(payload),
-            all_rows: false,
-        },
-        Err(e) => Readout::ReportedError {
-            title: query.label().to_string(),
-            message: e.to_string(),
-        },
-    });
-}
 
 /// Open the add/edit wizard prefilled from a configured server.
 fn edit_mcp_server(app: &mut App, name: &str) {
@@ -23318,11 +22680,6 @@ fn login_prompt_lines(prompt: &LoginPrompt, width: u16) -> Vec<Line<'static>> {
     let dim = Style::new().fg(theme::muted());
     let max = width.max(1) as usize;
     let lead = match &prompt.stage {
-        LoginStage::Connecting => vec![Span::styled("starting browser sign-in...", dim)],
-        LoginStage::Approving { authorize_url, .. } => vec![
-            Span::styled("approve at ", dim),
-            Span::styled(authorize_url.clone(), Style::new().fg(theme::accent())),
-        ],
         LoginStage::Paste { .. } => {
             let keys_url = crate::core::cli::auth::provider_by_id(&prompt.provider)
                 .map(|provider| provider.api_key.keys_url)
@@ -23337,14 +22694,6 @@ fn login_prompt_lines(prompt: &LoginPrompt, width: u16) -> Vec<Line<'static>> {
         .into_iter()
         .map(Line::from)
         .collect();
-    // The code is the one thing the user must compare against the browser, so
-    // it gets its own bright line rather than riding the URL's wrap.
-    if let LoginStage::Approving { user_code, .. } = &prompt.stage {
-        lines.push(Line::from(vec![
-            Span::styled("code: ", dim),
-            Span::styled(user_code.clone(), Style::new().fg(theme::accent()).bold()),
-        ]));
-    }
     if let Some(error) = &prompt.error {
         lines.extend(
             wrap_text(error, Style::new().red(), max)
@@ -23352,7 +22701,6 @@ fn login_prompt_lines(prompt: &LoginPrompt, width: u16) -> Vec<Line<'static>> {
                 .map(Line::from),
         );
     }
-    // The browser question, whichever stage is asking it, reads the same.
     if prompt.unconfirmed_url().is_some() {
         lines.push(Line::styled(
             "open this page in your browser?".to_string(),
@@ -23365,17 +22713,6 @@ fn login_prompt_lines(prompt: &LoginPrompt, width: u16) -> Vec<Line<'static>> {
         return lines;
     }
     match &prompt.stage {
-        LoginStage::Connecting => lines.push(Line::styled("Esc cancel".to_string(), dim)),
-        LoginStage::Approving { .. } => {
-            lines.push(Line::styled(
-                "waiting for approval...".to_string(),
-                Style::new().fg(theme::warning()),
-            ));
-            lines.push(Line::styled(
-                "approve from any device · Esc cancel".to_string(),
-                dim,
-            ));
-        }
         LoginStage::Paste { .. } if prompt.verifying => {
             lines.push(Line::styled(
                 "verifying...".to_string(),
@@ -25412,7 +24749,7 @@ mod tests {
         await_shell_ping, brand,
         build_user_message, clipboard_path, compact_tokens, context_lines, diff_lines,
         drain_stream_events, estimate_token_count, finish_account_login, finish_compaction,
-        finish_context_report, finish_login, finish_plugin_install, finish_tokamak_login,
+        finish_context_report, finish_login, finish_plugin_install,
         agent_stats, finish_update_install, fork_at, format_tokens, group_detail_lines, group_summary,
         handle_ask_key, handle_ask_mouse, handle_key, handle_mouse, handle_plugin_setup_key,
         header_spans, image_mime,
@@ -27698,17 +27035,17 @@ mod tests {
     fn login_prompt_grows_to_fit_a_long_error() {
         let mut app = test_app();
         let error = "verification failed: the upstream returned 502 Bad Gateway \
-                     from https://api.tokamak.sh/v1/models after three attempts";
+                     from https://api.deepseek.com/v1/models after three attempts";
         app.login = Some(super::LoginPrompt {
-            provider: "tokamak".to_string(),
+            provider: "deepseek".to_string(),
             input: String::new(),
             error: Some(error.to_string()),
-            ..super::LoginPrompt::new("tokamak")
+            ..super::LoginPrompt::new("deepseek")
         });
         let rows = render_rows(&mut app, 56, 24);
         let joined = rows.join(" ");
         // Single tokens: the assertion must not straddle a wrap point.
-        for word in ["502", "api.tokamak.sh/v1/models", "attempts"] {
+        for word in ["502", "api.deepseek.com/v1/models", "attempts"] {
             assert!(
                 joined.contains(word),
                 "error clipped ({word}):\n{}",
@@ -28085,9 +27422,9 @@ mod tests {
         assert!(app.ask_queue.front().unwrap().editing_custom);
         app.login = Some(confirmed_paste_prompt());
 
-        route_paste_event(&mut app, Event::Paste("tokamak-api-key".into()));
+        route_paste_event(&mut app, Event::Paste("deepseek-api-key".into()));
 
-        assert_eq!(app.login.as_ref().unwrap().input, "tokamak-api-key");
+        assert_eq!(app.login.as_ref().unwrap().input, "deepseek-api-key");
         assert!(app.ask_queue.front().unwrap().custom_input.is_empty());
         assert!(app.input.is_empty(), "paste leaked into chat composer");
     }
@@ -31232,7 +30569,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn help_login_copy_describes_provider_sign_in_without_stale_tokamak_key_copy() {
+    async fn help_login_copy_describes_provider_sign_in() {
         let mut app = test_app();
 
         run_command(&mut app, "help", &no_mcp()).await;
@@ -31240,12 +30577,11 @@ mod tests {
         let text: String = app.transcript.rows.iter().map(row_text).collect();
         assert!(text.contains("/login"), "{text}");
         assert!(text.contains("Sign in to a provider"), "{text}");
-        assert!(!text.contains("Sign in to Tokamak"), "{text}");
         assert!(!text.contains("save the API key"), "{text}");
     }
 
     #[test]
-    fn login_empty_state_points_to_provider_picker_without_stale_tokamak_copy() {
+    fn login_empty_state_points_to_provider_picker() {
         let mut app = test_app();
         app.model.clear();
 
@@ -31256,7 +30592,6 @@ mod tests {
             text.contains("not signed in — run /login to choose a provider"),
             "{text}"
         );
-        assert!(!text.contains("Tokamak"), "{text}");
     }
 
     fn with_isolated_login_state<T>(f: impl FnOnce() -> T) -> T {
@@ -31324,16 +30659,11 @@ mod tests {
             assert_eq!(picker.kind, PickerKind::LoginProvider);
 
             let catalog = crate::core::cli::auth::provider_catalog();
-            // Expected picker order: Tokamak pinned to the top (the default
-            // provider), then the remaining providers in name order:
-            // Claude, Codex, DeepSeek, OpenCode. (catalog keeps its own order.)
+            // Expected picker order: providers in name order (the catalog
+            // keeps its own order).
             let ordered = |catalog: &Vec<crate::core::cli::auth::ProviderDefinition>| {
                 let mut providers = catalog.clone();
-                providers.sort_by(|a, b| match (a.id == "tokamak", b.id == "tokamak") {
-                    (true, false) => std::cmp::Ordering::Less,
-                    (false, true) => std::cmp::Ordering::Greater,
-                    _ => a.name.cmp(b.name),
-                });
+                providers.sort_by(|a, b| a.name.cmp(b.name));
                 providers
             };
             let ordered = ordered(&catalog);
@@ -31375,11 +30705,6 @@ mod tests {
                         }
                     })
                     .collect::<Vec<_>>()
-            );
-            // Tokamak is the first row.
-            assert_eq!(
-                picker.items.first().map(|i| i.value.as_str()),
-                Some("tokamak")
             );
             assert!(picker
                 .items
@@ -31430,22 +30755,22 @@ mod tests {
     async fn login_api_key_provider_selection_starts_masked_prompt_directly() {
         let mut app = test_app();
         super::open_login_picker(&mut app);
-        let tokamak = app
+        let deepseek = app
             .picker
             .as_ref()
             .unwrap()
             .items
             .iter()
-            .position(|item| item.value == "tokamak")
+            .position(|item| item.value == "deepseek")
             .unwrap();
-        app.picker.as_mut().unwrap().selected = tokamak;
+        app.picker.as_mut().unwrap().selected = deepseek;
 
         press(&mut app, KeyCode::Enter, KeyModifiers::NONE).await;
 
         assert!(app.picker.is_none());
         assert_eq!(
             app.login.as_ref().map(|p| p.provider.as_str()),
-            Some("tokamak")
+            Some("deepseek")
         );
         assert!(app.account_login.is_none());
     }
@@ -31479,7 +30804,7 @@ mod tests {
 
         let rows = render_rows(&mut app, 80, 24);
         let screen = rows.join("\n");
-        assert!(screen.contains("Tokamak sign-in"), "{screen}");
+        assert!(screen.contains("DeepSeek sign-in"), "{screen}");
         assert!(
             !screen.contains("tk-secret"),
             "the key must never be rendered:\n{screen}"
@@ -31495,7 +30820,7 @@ mod tests {
 
         assert_eq!(
             app.login_submit.as_ref(),
-            Some(&("tokamak".to_string(), "tk-abc".to_string()))
+            Some(&("deepseek".to_string(), "tk-abc".to_string()))
         );
         assert!(app.login.as_ref().unwrap().verifying);
     }
@@ -31534,7 +30859,7 @@ mod tests {
     #[tokio::test]
     async fn login_prompt_esc_cancels_without_outcome_message() {
         let mut app = test_app();
-        super::open_login_prompt(&mut app, "tokamak");
+        super::open_login_prompt(&mut app, "deepseek");
         let before = app.transcript.rows.len();
 
         press(&mut app, KeyCode::Esc, KeyModifiers::NONE).await;
@@ -31579,7 +30904,7 @@ mod tests {
         finish_login(
             &mut app,
             Err(crate::core::cli::auth::LoginError::Unavailable(
-                "Tokamak rejected that API key.".to_string(),
+                "DeepSeek rejected that API key.".to_string(),
             )),
         );
 
@@ -31588,7 +30913,7 @@ mod tests {
         assert!(prompt.input.is_empty());
         assert_eq!(
             prompt.error.as_deref(),
-            Some("tokamak sign-in failed: Tokamak rejected that API key.")
+            Some("deepseek sign-in failed: DeepSeek rejected that API key.")
         );
     }
 
@@ -31873,106 +31198,6 @@ mod tests {
         assert!(app.account_login_submit.is_none());
     }
 
-    /// `/login --paste-token` skips straight to the legacy field, the same
-    /// escape hatch `rey30-idvj login --paste-token` gives, and never asks the loop for
-    /// a browser session.
-    #[tokio::test]
-    async fn login_paste_token_forces_the_legacy_field() {
-        let mut app = test_app();
-        run_command(&mut app, "login --paste-token", &no_mcp()).await;
-        let prompt = app.login.as_ref().expect("dock open");
-        assert!(matches!(
-            prompt.stage,
-            super::LoginStage::Paste { confirm_open: true }
-        ));
-        assert!(
-            !app.login_device_request,
-            "no browser session may be started"
-        );
-
-        // The field opens only once the browser question is answered.
-        assert!(
-            !prompt.editable(),
-            "no key entry before the browser question"
-        );
-        press(&mut app, KeyCode::Char('n'), KeyModifiers::NONE).await;
-        assert!(app.login.as_ref().unwrap().editable());
-    }
-
-    /// Nothing may reach a browser until the user says so -- in either flow.
-    #[tokio::test]
-    async fn the_browser_is_never_opened_without_an_answer() {
-        // Paste fallback.
-        let mut app = test_app();
-        super::open_login_prompt(&mut app, "tokamak");
-        let prompt = app.login.as_ref().unwrap();
-        assert_eq!(
-            prompt.stage.unconfirmed_url(),
-            Some(crate::core::cli::tokamak::api_keys_url())
-        );
-        let screen = render_rows(&mut app, 80, 24).join("\n");
-        assert!(
-            screen.contains("open this page in your browser?"),
-            "{screen}"
-        );
-
-        // Browser approval.
-        let mut app = test_app();
-        super::show_login_approval(&mut app, &test_session());
-        assert_eq!(
-            app.login.as_ref().unwrap().stage.unconfirmed_url().as_deref(),
-            Some("https://tokamak.sh/cli/authorize?code=ABCD-2345")
-        );
-        let screen = render_rows(&mut app, 80, 24).join("\n");
-        assert!(
-            screen.contains("open this page in your browser?"),
-            "{screen}"
-        );
-        // The code is still shown while the question is up: the user may prefer
-        // to approve on a phone and never open a browser here at all.
-        assert!(screen.contains("ABCD-2345"), "{screen}");
-    }
-
-    /// Declining does not abandon the sign-in: the poll is already running, so
-    /// the dock moves on to waiting and a phone can still approve it.
-    #[tokio::test]
-    async fn declining_the_browser_still_waits_for_approval() {
-        let mut app = test_app();
-        super::show_login_approval(&mut app, &test_session());
-        press(&mut app, KeyCode::Char('n'), KeyModifiers::NONE).await;
-
-        let prompt = app.login.as_ref().expect("dock stays open");
-        assert!(
-            prompt.stage.unconfirmed_url().is_none(),
-            "question answered"
-        );
-        assert!(matches!(
-            prompt.stage,
-            super::LoginStage::Approving {
-                confirm_open: false,
-                ..
-            }
-        ));
-        let screen = render_rows(&mut app, 80, 24).join("\n");
-        assert!(screen.contains("waiting for approval"), "{screen}");
-    }
-
-    /// Esc at the browser question cancels the whole sign-in rather than
-    /// answering it, so the question can never wedge the dock.
-    #[tokio::test]
-    async fn esc_at_the_browser_question_cancels() {
-        for open_paste in [true, false] {
-            let mut app = test_app();
-            if open_paste {
-                super::open_login_prompt(&mut app, "tokamak");
-            } else {
-                super::show_login_approval(&mut app, &test_session());
-            }
-            press(&mut app, KeyCode::Esc, KeyModifiers::NONE).await;
-            assert!(app.login.is_none(), "Esc must close the dock");
-        }
-    }
-
     fn pending_browser(app: &mut App) {
         app.browser_confirm = Some(super::BrowserConfirm {
             url: "https://github.com/login/oauth/authorize?client_id=x".into(),
@@ -32052,83 +31277,41 @@ mod tests {
         }
     }
 
-    /// The paste field with the browser question already answered -- what most
-    /// key-entry tests are actually about.
-    /// Accepting launches the opener and moves on. `browser::open` is disabled
-    /// under `cfg(test)`, so this exercises the accept path (and its "could not
-    /// open" reporting) without hijacking a real browser.
-    #[tokio::test]
-    async fn accepting_the_browser_question_moves_on_either_way() {
-        for accept in [KeyCode::Enter, KeyCode::Char('y')] {
-            let mut app = test_app();
-            super::show_login_approval(&mut app, &test_session());
-            press(&mut app, accept, KeyModifiers::NONE).await;
-
-            let prompt = app.login.as_ref().expect("dock stays open");
-            assert!(
-                prompt.stage.unconfirmed_url().is_none(),
-                "{accept:?} must answer the question"
-            );
-            let screen = render_rows(&mut app, 80, 24).join("\n");
-            assert!(screen.contains("waiting for approval"), "{screen}");
-        }
-
-        // Same for the paste fallback: accepting opens the field.
-        let mut app = test_app();
-        super::open_login_prompt(&mut app, "tokamak");
-        press(&mut app, KeyCode::Enter, KeyModifiers::NONE).await;
-        assert!(app.login.as_ref().unwrap().editable());
-    }
-
-    /// A keystroke that is neither an answer nor a cancel is swallowed, so it
-    /// cannot leak into the key field or the chat input.
-    #[tokio::test]
-    async fn stray_keys_at_the_browser_question_do_nothing() {
-        let mut app = test_app();
-        super::open_login_prompt(&mut app, "tokamak");
-        type_key_chars(&mut app, "tk-secret").await;
-
-        let prompt = app.login.as_ref().expect("dock stays open");
-        assert!(prompt.stage.unconfirmed_url().is_some(), "still unanswered");
-        assert!(prompt.input.is_empty(), "no key may be collected yet");
-        assert!(app.input.is_empty(), "and nothing may reach the chat input");
-    }
-
     fn confirmed_paste_prompt() -> super::LoginPrompt {
         super::LoginPrompt {
             stage: super::LoginStage::Paste {
                 confirm_open: false,
             },
-            ..super::LoginPrompt::new("tokamak")
+            ..super::LoginPrompt::new("deepseek")
         }
     }
 
     /// Open the paste fallback and decline the browser, leaving an editable field.
     async fn open_paste_field(app: &mut App) {
-        super::open_login_prompt(app, "tokamak");
+        super::open_login_prompt(app, "deepseek");
         press(app, KeyCode::Char('n'), KeyModifiers::NONE).await;
     }
 
-    fn test_session() -> crate::core::cli::device_auth::Session {
-        crate::core::cli::device_auth::Session {
-            session_id: "sess-1".into(),
-            user_code: "ABCD-2345".into(),
-            authorize_url: "https://tokamak.sh/cli/authorize?code=ABCD-2345".into(),
-            expires_in: 300,
-            interval: 5,
-        }
-    }
-
     #[tokio::test]
-    async fn login_rejects_an_unknown_option_without_opening_a_dock() {
+    async fn login_rejects_an_unknown_provider_without_opening_a_dock() {
         let mut app = test_app();
         run_command(&mut app, "login --nope", &no_mcp()).await;
         assert!(app.login.is_none());
-        assert!(!app.login_device_request);
+        assert!(app.picker.is_none());
+        assert!(transcript_text(&app).contains("unknown provider"));
     }
 
-    /// `/login` opens the provider picker. Selecting Tokamak starts its browser
-    /// flow; other providers open their own credential path.
+    /// `/login <provider>` goes straight to that provider's key field.
+    #[tokio::test]
+    async fn login_with_a_provider_opens_its_key_field() {
+        let mut app = test_app();
+        run_command(&mut app, "login deepseek", &no_mcp()).await;
+        assert_eq!(app.login.as_ref().map(|p| p.provider.as_str()), Some("deepseek"));
+        assert!(app.picker.is_none());
+    }
+
+    /// `/login` opens the provider picker; each provider opens its own
+    /// credential path.
     #[tokio::test]
     async fn login_opens_the_provider_picker() {
         let mut app = test_app();
@@ -32138,7 +31321,6 @@ mod tests {
             Some(PickerKind::LoginProvider)
         );
         assert!(app.login.is_none());
-        assert!(!app.login_device_request);
     }
 
     /// A second `/login` while the provider picker is open must not replace it
@@ -32148,13 +31330,12 @@ mod tests {
         let mut app = test_app();
         run_command(&mut app, "login", &no_mcp()).await;
 
-        run_command(&mut app, "login --paste-token", &no_mcp()).await;
+        run_command(&mut app, "login deepseek", &no_mcp()).await;
         assert_eq!(
             app.picker.as_ref().map(|picker| picker.kind),
             Some(PickerKind::LoginProvider)
         );
         assert!(app.login.is_none());
-        assert!(!app.login_device_request);
         let transcript = transcript_text(&app);
         assert!(transcript.contains("already in progress"), "{transcript}");
     }
@@ -32214,7 +31395,7 @@ mod tests {
     /// the next dock added cannot quietly regress only the rendering half.
     #[test]
     fn every_blocking_dock_marks_the_input_row_inactive() {
-        let setups: [DockSetup; 10] = [
+        let setups: [DockSetup; 9] = [
             // The account OAuth dock takes every keystroke and outranks the
             // API-key one, so it has to block the field as hard as the rest.
             ("account_login", |app| {
@@ -32229,9 +31410,6 @@ mod tests {
             // keys, so the field must go inactive for it too.
             ("readout", |app| {
                 app.readout = Some(super::Readout::Session { all_models: false })
-            }),
-            ("login/connecting", |app| {
-                app.login = Some(super::LoginPrompt::connecting())
             }),
             ("login/paste", |app| {
                 app.login = Some(confirmed_paste_prompt())
@@ -32288,102 +31466,6 @@ mod tests {
         let screen = render_rows(&mut app, 80, 24).join("\n");
         assert!(screen.contains("Type here to chat with agent"), "{screen}");
         assert!(!screen.contains("the field is inactive"), "{screen}");
-    }
-
-    /// The approval stage shows the code and the URL, and takes no input -- the
-    /// code is the one thing the user has to compare against the browser.
-    #[tokio::test]
-    async fn login_approval_stage_shows_the_code_and_ignores_typing() {
-        let mut app = test_app();
-        super::show_login_approval(
-            &mut app,
-            &crate::core::cli::device_auth::Session {
-                session_id: "sess-1".into(),
-                user_code: "ABCD-2345".into(),
-                authorize_url: "https://tokamak.sh/cli/authorize?code=ABCD-2345".into(),
-                expires_in: 300,
-                interval: 5,
-            },
-        );
-        let prompt = app.login.as_ref().expect("dock open");
-        assert!(matches!(prompt.stage, super::LoginStage::Approving { .. }));
-        assert!(!prompt.editable());
-
-        type_key_chars(&mut app, "xyz").await;
-        assert!(
-            app.login.as_ref().unwrap().input.is_empty(),
-            "no field to type into"
-        );
-        assert!(app.login_submit.is_none());
-
-        let screen = render_rows(&mut app, 80, 24).join("\n");
-        assert!(screen.contains("ABCD-2345"), "{screen}");
-        assert!(screen.contains("waiting for approval"), "{screen}");
-    }
-
-    /// Esc during a browser approval closes the dock, which is what makes
-    /// `chat_loop` drop the in-flight poll.
-    #[tokio::test]
-    async fn esc_cancels_a_browser_approval() {
-        let mut app = test_app();
-        run_command(&mut app, "login", &no_mcp()).await;
-        press(&mut app, KeyCode::Esc, KeyModifiers::NONE).await;
-        assert!(app.login.is_none(), "Esc must close the dock");
-    }
-
-    /// A denied or expired approval has no field to correct, so the dock closes
-    /// with the reason rather than sitting there uneditable.
-    #[tokio::test]
-    async fn a_failed_approval_closes_the_dock_with_the_reason() {
-        let mut app = test_app();
-        super::show_login_approval(
-            &mut app,
-            &crate::core::cli::device_auth::Session {
-                session_id: "s".into(),
-                user_code: "A-1".into(),
-                authorize_url: "https://tokamak.sh/cli/authorize?code=A-1".into(),
-                expires_in: 300,
-                interval: 5,
-            },
-        );
-        finish_login(
-            &mut app,
-            Err(crate::core::cli::auth::LoginError::OAuth(
-                "the sign-in was denied in the browser.".to_string(),
-            )),
-        );
-        assert!(app.login.is_none(), "an uneditable dock must not stay open");
-        let text: String = row_lines(&app.transcript.rows)
-            .iter()
-            .flat_map(|l| l.spans.clone())
-            .map(|s| s.content.to_string())
-            .collect();
-        assert!(
-            text.contains("could not complete browser sign-in"),
-            "{text}"
-        );
-    }
-
-    /// A successful browser sign-in names the account it signed in as.
-    #[test]
-    fn a_browser_login_reports_the_account() {
-        let mut app = test_app();
-        assert!(finish_tokamak_login(
-            &mut app,
-            Ok(crate::core::cli::tokamak::Login {
-                models: vec!["tokamak-1-preview".into()],
-                config_path: std::path::PathBuf::from("/tmp/config.toml"),
-                default_model: None,
-                replaced_default: false,
-                account: Some("a@b.c".into()),
-            }),
-        ));
-        let text: String = row_lines(&app.transcript.rows)
-            .iter()
-            .flat_map(|l| l.spans.clone())
-            .map(|s| s.content.to_string())
-            .collect();
-        assert!(text.contains("as a@b.c"), "{text}");
     }
 
     #[test]
@@ -32465,22 +31547,22 @@ mod tests {
             finish_login(
                 &mut app,
                 Ok(crate::core::cli::auth::LoginResult {
-                    provider: "tokamak".into(),
-                    models: vec!["tokamak-1-preview".into(), "tokamak-1-mini".into()],
+                    provider: "deepseek".into(),
+                    models: vec!["deepseek-chat".into(), "deepseek-reasoner".into()],
                     config_path: std::path::PathBuf::from("/tmp/config.toml"),
-                    default_model: Some("tokamak-1-preview".into()),
+                    default_model: Some("deepseek-chat".into()),
                 }),
             );
             assert!(app.login.is_none());
             assert!(
                 transcript_text(&app)
-                    .contains("signed in to tokamak. Use /model to select a model."),
+                    .contains("signed in to deepseek. Use /model to select a model."),
                 "{}",
                 transcript_text(&app)
             );
             // The session's old model ("m") is offered by nobody, so sign-in must
             // move it onto one the new account can serve.
-            assert_eq!(app.model, "tokamak-1-preview");
+            assert_eq!(app.model, "deepseek-chat");
         });
     }
 
@@ -32498,17 +31580,17 @@ mod tests {
         let prompt = app.login.as_ref().expect("prompt stays open to retry");
         assert_eq!(
             prompt.error.as_deref(),
-            Some("tokamak sign-in failed: that API key was not accepted")
+            Some("deepseek sign-in failed: that API key was not accepted")
         );
         let screen = render_rows(&mut app, 80, 24).join("\n");
-        assert!(screen.contains("tokamak sign-in failed"), "{screen}");
+        assert!(screen.contains("deepseek sign-in failed"), "{screen}");
         assert!(!screen.contains("tk-secret-do-not-render"), "{screen}");
     }
 
     #[test]
     fn login_error_message_sanitizes_persistence_failure_details() {
         let message = super::login_error_message(
-            "tokamak",
+            "deepseek",
             crate::core::cli::auth::LoginError::Persist(
                 "could not save provider configuration to /Users/alice/.rey30-idvj/config.toml with key tk-secret-do-not-render".to_string(),
             ),
@@ -32516,7 +31598,7 @@ mod tests {
 
         assert_eq!(
             message,
-            "tokamak sign-in failed: could not save sign-in securely"
+            "deepseek sign-in failed: could not save sign-in securely"
         );
         assert!(
             !message.contains("/Users/alice/.rey30-idvj/config.toml"),
@@ -32549,11 +31631,11 @@ mod tests {
     fn login_keeps_a_still_runnable_model_on_a_key_refresh() {
         crate::core::agent::global_config::with_temp_home(|_| {
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("tk".into()),
                     clear_api_key: false,
-                    base_url: Some(crate::core::cli::tokamak::BASE_URL.into()),
+                    base_url: Some("https://gateway.example/v1".into()),
                     models: Some(vec!["m".into()]),
                     api_type: None,
                     ..Default::default()
@@ -32566,8 +31648,8 @@ mod tests {
             finish_login(
                 &mut app,
                 Ok(crate::core::cli::auth::LoginResult {
-                    provider: "tokamak".into(),
-                    models: vec!["tokamak-1-preview".into()],
+                    provider: "gateway".into(),
+                    models: vec!["gateway-model".into()],
                     config_path: std::path::PathBuf::from("/tmp/config.toml"),
                     default_model: None,
                 }),
@@ -32582,15 +31664,15 @@ mod tests {
     #[test]
     fn reload_provider_configs_picks_up_login_credentials() {
         crate::core::agent::global_config::with_temp_home(|_| {
-            // Seed a tokamak provider in the global config (simulates what
+            // Seed a gateway provider in the global config (simulates what
             // `/login` persisted to `~/.rey30-idvj/config.toml`).
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("tk".into()),
                     clear_api_key: false,
-                    base_url: Some(crate::core::cli::tokamak::BASE_URL.into()),
-                    models: Some(vec!["tokamak-1-preview".into()]),
+                    base_url: Some("https://gateway.example/v1".into()),
+                    models: Some(vec!["gateway-model".into()]),
                     api_type: None,
                     ..Default::default()
                 },
@@ -32613,28 +31695,28 @@ mod tests {
             // Reload from disk (the config we seeded above).
             rt.block_on(super::reload_provider_configs(&mut app));
 
-            // After reload, tokamak provider must be present with the right key.
+            // After reload, gateway provider must be present with the right key.
             let map = rt.block_on(args.provider_configs.lock());
-            let tokamak = map
-                .get("tokamak")
-                .expect("tokamak provider should be present after reload");
-            assert_eq!(tokamak.api_key.as_deref(), Some("tk"));
+            let gateway = map
+                .get("gateway")
+                .expect("gateway provider should be present after reload");
+            assert_eq!(gateway.api_key.as_deref(), Some("tk"));
             assert_eq!(
-                tokamak.base_url.as_deref(),
-                Some(crate::core::cli::tokamak::BASE_URL)
+                gateway.base_url.as_deref(),
+                Some("https://gateway.example/v1")
             );
-            assert!(tokamak.models.iter().any(|m| m == "tokamak-1-preview"));
+            assert!(gateway.models.iter().any(|m| m == "gateway-model"));
         });
     }
 
     /// Two providers whose defaults disagree: a custom OpenAI-compatible one
-    /// (inline tags are reasoning) and tokamak on its own host (reasoning comes
+    /// (inline tags are reasoning) and openai on its own host (reasoning comes
     /// in its own field, so tags are ordinary prose).
     fn tag_gate_providers() -> std::collections::HashMap<String, crate::core::state::ProviderConfig>
     {
         let provider = |name: &str, model: &str| {
             let base_url = match name {
-                "tokamak" => "https://api.tokamak.sh/v1",
+                "openai" => "https://api.openai.com/v1",
                 _ => "http://127.0.0.1:1/v1",
             };
             (
@@ -32647,13 +31729,13 @@ mod tests {
                 },
             )
         };
-        [provider("mine", "local-reasoner"), provider("tokamak", "tk-1")]
+        [provider("mine", "local-reasoner"), provider("openai", "tk-1")]
             .into_iter()
             .collect()
     }
 
     /// The tag gate follows whoever serves the model: a custom OpenAI-compatible
-    /// provider parses inline tags, tokamak (reasoning in its own field) does not,
+    /// provider parses inline tags, openai (reasoning in its own field) does not,
     /// and switching models moves the gate with it.
     #[test]
     fn think_tag_gate_follows_the_serving_provider_across_a_model_switch() {
@@ -32666,7 +31748,7 @@ mod tests {
                 app.model = "local-reasoner".into();
                 assert!(app.think_tags_gate(), "custom provider parses tags");
                 app.set_model("tk-1".into());
-                assert!(!app.think_tags_gate(), "tokamak sends reasoning separately");
+                assert!(!app.think_tags_gate(), "openai sends reasoning separately");
                 assert!(!app.transcript.parse_think_tags);
                 app.set_model("local-reasoner".into());
                 assert!(app.transcript.parse_think_tags);
@@ -32682,7 +31764,7 @@ mod tests {
         crate::core::agent::global_config::with_temp_home(|_| {
             let set = |name: &str, model: &str| {
                 let base_url = match name {
-                    "tokamak" => "https://api.tokamak.sh/v1",
+                    "openai" => "https://api.openai.com/v1",
                     _ => "http://127.0.0.1:1/v1",
                 };
                 crate::core::agent::global_config::set_provider(
@@ -32696,7 +31778,7 @@ mod tests {
                 .expect("seed provider");
             };
             set("mine", "local-reasoner");
-            set("tokamak", "tk-1");
+            set("openai", "tk-1");
             let dir = tempfile::tempdir().unwrap();
             let gate = |model: &str| {
                 super::super::prepare_agent_session(
@@ -32710,7 +31792,7 @@ mod tests {
                 .parse_think_tags
             };
             assert!(gate("local-reasoner"), "custom provider parses tags");
-            assert!(!gate("tk-1"), "tokamak sends reasoning separately");
+            assert!(!gate("tk-1"), "openai sends reasoning separately");
         });
     }
 
@@ -32770,7 +31852,7 @@ mod tests {
         crate::core::agent::global_config::with_temp_home(|_| {
             with_real_think_tag_gate(|| {
                 let (child, main_parses) =
-                    child_with_tagged_content("local-reasoner", Some(("tokamak", "tk-1")));
+                    child_with_tagged_content("local-reasoner", Some(("openai", "tk-1")));
                 assert!(main_parses, "the main model's provider parses tags");
                 assert!(
                     child.contains("<think>child thought</think>child answer"),
@@ -32829,7 +31911,7 @@ mod tests {
                     name: "a".into(),
                     task: None,
                 });
-                app.apply(child_request_on("tokamak", "tk-1"));
+                app.apply(child_request_on("openai", "tk-1"));
                 app.submit_user("go".into());
                 app.apply(StreamEvent::Token {
                     text: "<think>main thought</think>main answer".into(),
@@ -32843,7 +31925,7 @@ mod tests {
 
     /// A request landing while the provider config is locked cannot say what
     /// the child's provider is configured as. The child keeps the setting it
-    /// has rather than guessing: without the endpoint, a `tokamak` entry
+    /// has rather than guessing: without the endpoint, an `openai` entry
     /// pointed at some other host reads as the official one and would flip a
     /// tags-parsing child off for that request.
     #[test]
@@ -32851,17 +31933,17 @@ mod tests {
         crate::core::agent::global_config::with_temp_home(|_| {
             with_real_think_tag_gate(|| {
                 let mut app = test_app();
-                // `tokamak` on a self-hosted endpoint: tags are reasoning there.
+                // `openai` on a self-hosted endpoint: tags are reasoning there.
                 let mut providers = tag_gate_providers();
                 providers
-                    .get_mut("tokamak")
+                    .get_mut("openai")
                     .expect("seeded")
                     .base_url = Some("http://127.0.0.1:1/v1".into());
                 let args = test_args(&app, providers);
                 app.args = Some(args.clone());
                 app.model = "tk-1".into();
                 app.sync_think_tags();
-                assert!(app.transcript.parse_think_tags, "self-hosted tokamak parses tags");
+                assert!(app.transcript.parse_think_tags, "self-hosted openai parses tags");
                 app.apply(StreamEvent::SubagentStart {
                     run_id: "sub-a-1".into(),
                     name: "a".into(),
@@ -32869,7 +31951,7 @@ mod tests {
                 });
                 let rt = tokio::runtime::Runtime::new().expect("runtime");
                 let held = rt.block_on(args.provider_configs.lock());
-                app.apply(child_request_on("tokamak", "tk-1"));
+                app.apply(child_request_on("openai", "tk-1"));
                 drop(held);
                 assert!(
                     app.subagents[0].transcript.parse_think_tags,
@@ -32890,10 +31972,10 @@ mod tests {
         app.model = "shared-model".into();
         let mut provider_configs = std::collections::HashMap::new();
         provider_configs.insert(
-            "tokamak".to_string(),
+            "openai".to_string(),
             crate::core::state::ProviderConfig {
-                provider: "tokamak".into(),
-                base_url: Some("https://api.tokamak.sh/v1".into()),
+                provider: "openai".into(),
+                base_url: Some("https://api.openai.com/v1".into()),
                 api_key: Some("tk".into()),
                 models: vec!["shared-model".into()],
                 ..Default::default()
@@ -32902,7 +31984,7 @@ mod tests {
         let args = test_args(&app, provider_configs);
         app.args = Some(args.clone());
 
-        assert_eq!(app.usage_key().provider.as_deref(), Some("tokamak"));
+        assert_eq!(app.usage_key().provider.as_deref(), Some("openai"));
 
         // The config snapshot is being replaced (a refresh or a /login
         // reload); the render path asks mid-write.
@@ -32911,7 +31993,7 @@ mod tests {
         let held = rt.block_on(args.provider_configs.lock());
         assert_eq!(
             app.usage_key().provider.as_deref(),
-            Some("tokamak"),
+            Some("openai"),
             "a busy lock must keep the last known provider, not fall back to None"
         );
         drop(held);
@@ -34995,16 +34077,16 @@ mod tests {
     fn login_picker_x_signs_out_signed_in_provider() {
         with_isolated_login_state(|| {
             use crate::core::cli::auth::{Credential, CredentialStore};
-            // A catalog provider (tokamak) that we can sign out of.
-            CredentialStore::store("tokamak", &Credential::ApiKey("k".into()))
+            // A catalog provider (deepseek) that we can sign out of.
+            CredentialStore::store("deepseek", &Credential::ApiKey("k".into()))
                 .expect("seed a stored credential");
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "deepseek",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("k".into()),
-                    base_url: Some("https://api.tokamak.sh/v1".into()),
+                    base_url: Some("https://api.deepseek.com/v1".into()),
                     clear_api_key: false,
-                    models: Some(vec!["tokamak-1-preview".into()]),
+                    models: Some(vec!["deepseek-chat".into()]),
                     api_type: None,
                     ..Default::default()
                 },
@@ -35013,14 +34095,22 @@ mod tests {
 
             let mut app = test_app();
             super::open_login_picker(&mut app);
-            // Tokamak is pinned to the top of the login picker.
+            let row = app
+                .picker
+                .as_ref()
+                .unwrap()
+                .items
+                .iter()
+                .position(|item| item.value == "deepseek")
+                .expect("deepseek row");
+            app.picker.as_mut().unwrap().selected = row;
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 press(&mut app, KeyCode::Char('x'), KeyModifiers::NONE).await;
             });
 
             assert!(
-                crate::core::cli::auth::CredentialStore::load("tokamak")
+                crate::core::cli::auth::CredentialStore::load("deepseek")
                     .unwrap()
                     .is_none(),
                 "x on the login picker signs out"
@@ -35030,13 +34120,13 @@ mod tests {
                 "login picker stays open after sign-out"
             );
             let picker = app.picker.as_ref().unwrap();
-            assert_eq!(picker.items[0].value, "tokamak");
+            assert_eq!(picker.items[row].value, "deepseek");
             assert_eq!(
-                picker.items[0].hint.as_deref(),
+                picker.items[row].hint.as_deref(),
                 Some("not signed in"),
                 "row hint flips to not signed in"
             );
-            assert!(transcript_text(&app).contains("signed out of tokamak"));
+            assert!(transcript_text(&app).contains("signed out of deepseek"));
         });
     }
 
@@ -41298,7 +40388,7 @@ mod tests {
             tokens: buffer.min(window),
         });
         ContextReport {
-            model_id: "tokamak-1-preview".into(),
+            model_id: "gateway-model".into(),
             window,
             fill: used,
             fill_reported: false,
@@ -41364,10 +40454,10 @@ mod tests {
     #[test]
     fn usage_prices_each_model_and_flags_the_unpriced_ones() {
         crate::core::agent::global_config::with_temp_home(|_| {
-            seed_priced_model("tokamak", "anthropic/claude-opus-5");
+            seed_priced_model("gateway", "anthropic/claude-opus-5");
             let usage = std::collections::BTreeMap::from([
                 (
-                    usage_key("tokamak", "anthropic/claude-opus-5"),
+                    usage_key("gateway", "anthropic/claude-opus-5"),
                     usage_of(2, 100_000, 10_000, 40_000),
                 ),
                 (
@@ -41417,12 +40507,12 @@ mod tests {
                 .iter()
                 .enumerate()
             {
-                seed_priced_model("tokamak", name);
+                seed_priced_model("gateway", name);
                 // Ascending spend, so the map's alphabetical order is not the
                 // ranked order and a naive truncation would keep the wrong
                 // three.
                 usage.insert(
-                    usage_key("tokamak", name),
+                    usage_key("gateway", name),
                     usage_of(1, 1_000 * (i as u64 + 1), 100, 0),
                 );
             }
@@ -41675,376 +40765,6 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n")
-    }
-
-    /// Bare `/usage` is the overview -- "how much am I spending" has two
-    /// honest answers and the default shows both. `session` still names the
-    /// estimate alone, which is the only view that works offline, mid-turn
-    /// and for a provider with no usage API.
-    #[test]
-    fn bare_usage_is_the_overview_and_session_is_still_reachable() {
-        assert_eq!(super::parse_usage_mode(""), super::UsageMode::Overview);
-        assert_eq!(super::parse_usage_mode("  "), super::UsageMode::Overview);
-        assert_eq!(super::parse_usage_mode("session"), super::UsageMode::Session);
-    }
-
-    /// The overview renders the session estimate immediately, without waiting
-    /// on the network: the half that can be answered locally must never be
-    /// held hostage by the half that cannot.
-    #[test]
-    fn the_overview_shows_the_session_estimate_before_the_account_lands() {
-        let mut app = test_app();
-        app.set_model("anthropic/claude-opus-5".to_string());
-        app.apply(StreamEvent::TurnUsage {
-            usage: crate::core::agent::events::Usage {
-                prompt_tokens: Some(100_000),
-                completion_tokens: Some(10_000),
-                total_tokens: None,
-                cached_tokens: None,
-                cache_write_tokens: None,
-            },
-            execution_id: None,
-        });
-        app.readout = Some(Readout::Overview {
-            all_models: false,
-            account: super::AccountSlot::Loading,
-        });
-        let text = readout_text(&app);
-        assert!(text.contains("THIS SESSION (estimated)"), "{text}");
-        assert!(text.contains("this session"), "{text}");
-        assert!(text.contains("ON YOUR ACCOUNT"), "{text}");
-        assert!(text.contains("reading account usage..."), "{text}");
-        // The estimate is on screen while the account read is still in flight.
-        assert!(text.contains("not a bill"), "{text}");
-    }
-
-    /// The two figures are labelled by source and never combined. An overview
-    /// that added them would double-count this session inside the account
-    /// total it is sitting next to.
-    #[test]
-    fn the_overview_keeps_the_estimate_and_the_charge_apart() {
-        use crate::core::cli::tokamak::usage::parse_payload_for_test;
-        let mut app = test_app();
-        app.set_model("anthropic/claude-opus-5".to_string());
-        app.apply(StreamEvent::TurnUsage {
-            usage: crate::core::agent::events::Usage {
-                prompt_tokens: Some(100_000),
-                completion_tokens: Some(10_000),
-                total_tokens: None,
-                cached_tokens: None,
-                cache_write_tokens: None,
-            },
-            execution_id: None,
-        });
-        app.readout = Some(Readout::Overview {
-            all_models: false,
-            account: super::AccountSlot::Ready(Box::new(parse_payload_for_test(ACCOUNT_BODY))),
-        });
-        let text = readout_text(&app);
-
-        // Each half names its source in its own heading.
-        let session_at = text.find("THIS SESSION (estimated)").expect("session heading");
-        let account_at = text
-            .find("ON YOUR ACCOUNT (recorded by the provider)")
-            .expect("account heading");
-        assert!(session_at < account_at, "local first, recorded second: {text}");
-
-        // The account's exact recorded figure, unrounded.
-        assert!(text.contains("$1240.10224445"), "{text}");
-        // The session half is marked as an estimate in its heading and again
-        // in its own provenance line, so neither figure can be mistaken for
-        // the other kind.
-        assert!(text.contains("(estimated)"), "{text}");
-        assert!(text.contains("not a bill"), "{text}");
-        // No combined figure anywhere.
-        assert!(!text.contains("total spend"), "{text}");
-        assert!(text.contains("/usage account"), "points at the detail: {text}");
-    }
-
-    /// A provider with no usage API still gets an overview: the estimate, and
-    /// a line saying why there is no account half. Not an error -- most
-    /// providers have no such API and the estimate is the whole answer.
-    #[test]
-    fn the_overview_without_an_account_api_is_still_the_estimate() {
-        let mut app = test_app();
-        app.readout = Some(Readout::Overview {
-            all_models: false,
-            account: super::AccountSlot::NotConfigured,
-        });
-        let text = readout_text(&app);
-        assert!(text.contains("THIS SESSION"), "{text}");
-        assert!(
-            text.contains("no account usage API is configured"),
-            "{text}"
-        );
-    }
-
-    /// A failed account read says why, in place. A blank account section would
-    /// read as "you have spent nothing", which is the one thing it must not
-    /// say -- and it must not take the session half down with it.
-    #[test]
-    fn a_failed_account_read_does_not_blank_the_overview() {
-        use crate::core::cli::tokamak::usage::{Query, UsageError};
-        let mut app = test_app();
-        app.readout = Some(Readout::Overview {
-            all_models: false,
-            account: super::AccountSlot::Loading,
-        });
-        super::finish_reported_usage(
-            &mut app,
-            &Query::Summary,
-            Err(UsageError::Failed("could not reach the server".to_string())),
-        );
-        assert!(
-            matches!(
-                app.readout,
-                Some(Readout::Overview {
-                    account: super::AccountSlot::Failed(_),
-                    ..
-                })
-            ),
-            "the slot holds the failure, the readout survives"
-        );
-        let text = readout_text(&app);
-        assert!(text.contains("could not reach the server"), "{text}");
-        assert!(text.contains("THIS SESSION"), "the estimate survives: {text}");
-    }
-
-    /// An account result fills the overview's slot rather than replacing the
-    /// whole readout, which would discard the session half already drawn.
-    #[test]
-    fn an_account_result_fills_the_overview_slot() {
-        use crate::core::cli::tokamak::usage::{parse_payload_for_test, Query};
-        let mut app = test_app();
-        app.readout = Some(Readout::Overview {
-            all_models: false,
-            account: super::AccountSlot::Loading,
-        });
-        super::finish_reported_usage(
-            &mut app,
-            &Query::Summary,
-            Ok(parse_payload_for_test(ACCOUNT_BODY)),
-        );
-        match &app.readout {
-            Some(Readout::Overview { account, .. }) => {
-                assert!(matches!(account, super::AccountSlot::Ready(_)));
-            }
-            _ => panic!("the overview should have survived the result landing"),
-        }
-        let text = readout_text(&app);
-        assert!(text.contains("$1240.10224445"), "{text}");
-        assert!(text.contains("15049 req"), "{text}");
-        // The overview shows the total, not the whole per-model table --
-        // that belongs to `/usage account`.
-        assert!(!text.contains("top models"), "{text}");
-    }
-
-    #[test]
-    fn usage_modes_map_to_their_documented_endpoints() {
-        use crate::core::cli::tokamak::usage::Query;
-        let account = |arg: &str| match super::parse_usage_mode(arg) {
-            super::UsageMode::Account(q) => q,
-            other => panic!("{arg} should be an account view, got {other:?}"),
-        };
-        assert_eq!(account("account"), Query::Summary);
-        assert_eq!(account("daily"), Query::Daily);
-        assert_eq!(account("requests"), Query::Requests);
-        assert_eq!(account("limits"), Query::Limits);
-    }
-
-    /// `/usage run` asks the one question the session estimate approximates:
-    /// what this run actually cost. It resolves to a correlation lookup, which
-    /// is the only mechanism that works on the default upstream path.
-    #[test]
-    fn the_run_view_resolves_to_a_correlation_lookup() {
-        use crate::core::cli::tokamak::usage::Query;
-        assert_eq!(super::parse_usage_mode("run"), super::UsageMode::Run);
-        assert_eq!(
-            super::parse_usage_mode("correlate rey30-idvj-session-7"),
-            super::UsageMode::Account(Query::Correlated("rey30-idvj-session-7".to_string()))
-        );
-        // A correlation with no id would search for everything, and must not
-        // fall through to being looked up as an execution named "correlate".
-        assert!(matches!(
-            super::parse_usage_mode("correlate "),
-            super::UsageMode::Unknown(_)
-        ));
-        assert!(matches!(
-            super::parse_usage_mode("correlate"),
-            super::UsageMode::Unknown(_)
-        ));
-    }
-
-    /// Without a session there is no correlation id on any request, so there is
-    /// nothing to look up and saying so beats an empty result.
-    #[test]
-    fn the_run_view_without_a_session_says_so() {
-        let mut app = test_app();
-        super::usage_command(&mut app, "run");
-        let text = transcript_text(&app);
-        assert!(text.contains("no session id to correlate"), "{text}");
-        assert!(app.reported_usage_request.is_none());
-    }
-
-    /// A pasted execution id is what a user actually types here, so a lone
-    /// unrecognized word is a lookup rather than an error.
-    #[test]
-    fn a_lone_word_is_taken_as_an_execution_id() {
-        use crate::core::cli::tokamak::usage::Query;
-        assert_eq!(
-            super::parse_usage_mode("0b7c1d2e-3f45-6789-abcd-ef0123456789"),
-            super::UsageMode::Account(Query::Generation(
-                "0b7c1d2e-3f45-6789-abcd-ef0123456789".to_string()
-            ))
-        );
-        // A phrase is a typo, not an id; naming the views beats a round trip
-        // that can only come back not-found.
-        assert!(matches!(
-            super::parse_usage_mode("how much did i spend"),
-            super::UsageMode::Unknown(_)
-        ));
-    }
-
-    /// Without a Tokamak key there is no account to read, and the TUI must say
-    /// so locally instead of opening an overlay that can only resolve into an
-    /// auth failure. Critically it is not an error: the session estimate is
-    /// still a valid answer and the note points at it.
-    #[test]
-    fn an_account_view_without_a_key_is_declined_not_attempted() {
-        crate::core::agent::global_config::with_temp_home(|_| {
-            let mut app = test_app();
-            super::usage_command(&mut app, "account");
-            let text = transcript_text(&app);
-            assert!(
-                text.contains("no account usage API is configured"),
-                "{text}"
-            );
-            assert!(
-                app.reported_usage_request.is_none(),
-                "nothing may be sent upstream without a key"
-            );
-            assert!(app.readout.is_none(), "no readout should open");
-        });
-    }
-
-    /// A view that landed must never be reopened after the user closed it,
-    /// matching `/context`'s overlay contract.
-    #[test]
-    fn a_usage_result_landing_after_close_is_dropped() {
-        use crate::core::cli::tokamak::usage::{Query, UsageError};
-        let mut app = test_app();
-        app.readout = None;
-        super::finish_reported_usage(&mut app, &Query::Summary, Err(UsageError::NotFound));
-        assert!(app.readout.is_none());
-    }
-
-    /// A failed read fills the overlay with the reason. An empty popup would
-    /// read as "you spent nothing", which is the one thing it must not say.
-    #[test]
-    fn a_failed_read_reports_the_reason_rather_than_an_empty_readout() {
-        use crate::core::cli::tokamak::usage::{Query, UsageError};
-        let mut app = test_app();
-        app.readout = Some(super::Readout::ReportedLoading(Query::Summary));
-        super::finish_reported_usage(&mut app, &Query::Summary, Err(UsageError::NotFound));
-        match &app.readout {
-            Some(super::Readout::ReportedError { message, .. }) => {
-                assert!(message.contains("not found"), "{message}");
-            }
-            _ => panic!("the readout should hold the failure"),
-        }
-        assert!(readout_text(&app).contains("not found"), "{}", readout_text(&app));
-    }
-
-    /// A live account summary, trimmed to six models. Shaped exactly as
-    /// `GET /v1/usage/me` answers, including the empty `provider` fields and
-    /// money as decimal strings.
-    const ACCOUNT_BODY: &str = r#"{
-        "period": {"start_date":"2026-08-23T08:57:21.160234939Z",
-                   "end_date":"2026-09-22T08:57:21.160234939Z"},
-        "total_usage": {"model":"","provider":"","total_prompt_tokens":277414219,
-            "total_completion_tokens":10931093,"total_tokens":1892976850,
-            "request_count":15049,"estimated_cost_usd":"1240.10224445",
-            "cache_read_tokens":1577470525,"cache_creation_tokens":27161013,
-            "cache_savings_usd":"1200.5278263"},
-        "by_model": [
-          {"model":"cheap-model","total_prompt_tokens":56073,
-           "total_completion_tokens":2217,"request_count":29,
-           "estimated_cost_usd":"0.087158","cache_read_tokens":0,
-           "cache_creation_tokens":0,"cache_savings_usd":"0"},
-          {"model":"anthropic/claude-sonnet-5","total_prompt_tokens":4408975,
-           "total_completion_tokens":1295731,"request_count":1238,
-           "estimated_cost_usd":"46.7142352","cache_read_tokens":105369976,
-           "cache_creation_tokens":1545992,"cache_savings_usd":"189.6659568"},
-          {"model":"anthropic/claude-opus-5","total_prompt_tokens":8639502,
-           "total_completion_tokens":1546976,"request_count":2987,
-           "estimated_cost_usd":"195.67393925","cache_read_tokens":224635971,
-           "cache_creation_tokens":237447,"cache_savings_usd":"1010.8618695"},
-          {"model":"tokamak-1-preview","total_prompt_tokens":263419660,
-           "total_completion_tokens":2879420,"request_count":4884,
-           "estimated_cost_usd":"69.454827","cache_read_tokens":0,
-           "cache_creation_tokens":0,"cache_savings_usd":"0"},
-          {"model":"claude-opus-4-8","total_prompt_tokens":890009,
-           "total_completion_tokens":120000,"request_count":300,
-           "estimated_cost_usd":"12.5","cache_read_tokens":0,
-           "cache_creation_tokens":0,"cache_savings_usd":"0"},
-          {"model":"claude-haiku-4-5","total_prompt_tokens":100000,
-           "total_completion_tokens":20000,"request_count":120,
-           "estimated_cost_usd":"3.25","cache_read_tokens":0,
-           "cache_creation_tokens":0,"cache_savings_usd":"0"}
-        ]}"#;
-
-    /// `m` folds an account readout the same way it folds the session one, and
-    /// without refetching -- the payload is held, so expanding a table costs
-    /// no request.
-    #[tokio::test]
-    async fn m_folds_an_account_readout_without_refetching() {
-        use crate::core::cli::tokamak::usage::{parse_payload_for_test, Query};
-        let mut app = test_app();
-        app.readout = Some(super::Readout::ReportedLoading(Query::Summary));
-        super::finish_reported_usage(
-            &mut app,
-            &Query::Summary,
-            Ok(parse_payload_for_test(ACCOUNT_BODY)),
-        );
-        assert!(readout_text(&app).contains("m to show all"));
-        assert!(!readout_text(&app).contains("cheap-model"));
-
-        press(&mut app, KeyCode::Char('m'), KeyModifiers::NONE).await;
-        assert!(
-            matches!(app.readout, Some(super::Readout::Reported { all_rows: true, .. })),
-            "m expands"
-        );
-        assert!(readout_text(&app).contains("cheap-model"));
-
-        press(&mut app, KeyCode::Char('m'), KeyModifiers::NONE).await;
-        assert!(
-            matches!(app.readout, Some(super::Readout::Reported { all_rows: false, .. })),
-            "m folds back"
-        );
-        // Folding is a view change, not a close.
-        assert!(readout_text(&app).contains("account total"));
-    }
-
-    /// The session readout points at the authoritative view rather than
-    /// leaving the user to believe the estimate is the bill.
-    #[test]
-    fn the_session_readout_points_at_the_account_view() {
-        let mut app = test_app();
-        app.set_model("anthropic/claude-opus-5".to_string());
-        app.apply(StreamEvent::TurnUsage {
-            usage: crate::core::agent::events::Usage {
-                prompt_tokens: Some(100),
-                completion_tokens: Some(10),
-                total_tokens: None,
-                cached_tokens: None,
-                cache_write_tokens: None,
-            },
-            execution_id: None,
-        });
-        super::usage_command(&mut app, "");
-        let text = readout_text(&app);
-        assert!(text.contains("not a bill"), "{text}");
-        assert!(text.contains("/usage account"), "{text}");
     }
 
     /// The session estimate renders from live state, not from a snapshot taken
@@ -42307,7 +41027,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        assert!(text.contains("tokamak-1-preview · 120K / 234k tokens used (51.5%, provider)"));
+        assert!(text.contains("gateway-model · 120K / 234k tokens used (51.5%, provider)"));
         assert!(text.contains("Context window"));
         assert!(text.contains("|==============================^...................|╳╳╳╳╳╳╳╳╳|"));
         assert!(text.contains("79K tokens available before auto-compact"));
@@ -42415,7 +41135,7 @@ mod tests {
 
         let estimated = text(&report);
         assert!(
-            estimated.contains("tokamak-1-preview · 120K / 234k tokens used (51.5%, estimated)"),
+            estimated.contains("gateway-model · 120K / 234k tokens used (51.5%, estimated)"),
             "an estimated fill must say so: {estimated}"
         );
         assert!(estimated.contains("Context breakdown (estimated)"));
@@ -42423,7 +41143,7 @@ mod tests {
         report.fill_reported = true;
         let reported = text(&report);
         assert!(
-            reported.contains("tokamak-1-preview · 120K / 234k tokens used (51.5%, provider)"),
+            reported.contains("gateway-model · 120K / 234k tokens used (51.5%, provider)"),
             "a provider fill is stated plainly: {reported}"
         );
         assert!(
@@ -42463,33 +41183,7 @@ mod tests {
                 Readout::ContextLoading,
                 Readout::Context(Box::new(report.clone())),
                 Readout::Session { all_models: false },
-                Readout::Overview {
-                    all_models: true,
-                    account: super::AccountSlot::Ready(Box::new(
-                        crate::core::cli::tokamak::usage::parse_payload_for_test(ACCOUNT_BODY),
-                    )),
-                },
-                Readout::Overview {
-                    all_models: false,
-                    account: super::AccountSlot::Loading,
-                },
-                Readout::Overview {
-                    all_models: false,
-                    account: super::AccountSlot::Failed("could not reach the server".to_string()),
-                },
-                Readout::ReportedLoading(crate::core::cli::tokamak::usage::Query::Summary),
-                Readout::Reported {
-                    title: "account".to_string(),
-                    query: crate::core::cli::tokamak::usage::Query::Summary,
-                    payload: Box::new(
-                        crate::core::cli::tokamak::usage::parse_payload_for_test(ACCOUNT_BODY),
-                    ),
-                    all_rows: true,
-                },
-                Readout::ReportedError {
-                    title: "account".to_string(),
-                    message: "not found".to_string(),
-                },
+                Readout::Session { all_models: true },
             ]
         };
         for readout in variants() {
@@ -42515,20 +41209,13 @@ mod tests {
     #[test]
     fn the_readout_docks_above_the_input_box() {
         let mut app = test_app();
-        app.readout = Some(Readout::Reported {
-            title: "account".to_string(),
-            query: crate::core::cli::tokamak::usage::Query::Summary,
-            payload: Box::new(crate::core::cli::tokamak::usage::parse_payload_for_test(
-                r#"{"spend_usd":"1.25"}"#,
-            )),
-            all_rows: false,
-        });
+        app.readout = Some(Readout::Session { all_models: false });
         let rows = render_rows(&mut app, 60, 24);
         // Located by the title, not by border glyphs: other chrome draws
         // horizontal rules too, so a glyph search finds the wrong box.
         let top = rows
             .iter()
-            .position(|row| row.contains("account"))
+            .position(|row| row.contains("session estimate"))
             .expect("the readout draws its title");
         // Docked: the box lives in the bottom half, against the input, rather
         // than centered over the conversation.
@@ -48226,7 +46913,7 @@ mod tests {
     }
 
     /// The reasoning-effort level is always forwarded so compatible providers
-    /// (OpenAI, Gemini, Tokamak) can scale reasoning depth per request.
+    /// (OpenAI, Gemini) can scale reasoning depth per request.
     #[test]
     fn body_includes_reasoning_effort() {
         let mut app = test_app();
@@ -48286,7 +46973,7 @@ mod tests {
     #[test]
     fn banner_opens_with_the_wordmark_and_this_sessions_facts() {
         let mut app = test_app();
-        app.model = "tokamak-1-preview".into();
+        app.model = "gateway-model".into();
         app.git_branch = Some("fix/tui-panel-width".into());
         app.push_banner("auto-approved inside the OS sandbox", true);
 
@@ -48298,7 +46985,7 @@ mod tests {
         );
         // The model is the header's job, not the splash's (it would otherwise
         // appear twice on the first screen).
-        assert!(!joined.contains("tokamak-1-preview"), "{joined}");
+        assert!(!joined.contains("gateway-model"), "{joined}");
         assert!(joined.contains("/tmp/repo"), "{joined}");
         assert!(joined.contains("fix/tui-panel-width"), "{joined}");
         assert!(
@@ -48554,7 +47241,7 @@ mod tests {
     #[test]
     fn header_leads_with_the_wave_then_the_model() {
         let mut app = test_app();
-        app.model = "tokamak-1-preview".into();
+        app.model = "gateway-model".into();
         let top = render_rows(&mut app, 60, 12).remove(0);
         let head = top.trim_start();
         assert!(
@@ -48564,7 +47251,7 @@ mod tests {
         assert!(
             head[brand::WAVE.len()..]
                 .trim_start()
-                .starts_with("tokamak-1-preview"),
+                .starts_with("gateway-model"),
             "the model should follow the wave, with no name chip between: {top:?}"
         );
         // The freed columns are what let the status survive. This branch's
@@ -48826,23 +47513,6 @@ mod tests {
         );
     }
     #[test]
-    fn model_picker_pins_tokamak_scope_and_models_first() {
-        let picker = super::ModelPicker::from_pairs(
-            vec![
-                ("anthropic".into(), "claude-sonnet".into()),
-                ("openai".into(), "gpt-5-codex".into()),
-                ("tokamak".into(), "tokamak-1-preview".into()),
-            ],
-            "tokamak-1-preview",
-        )
-        .unwrap();
-
-        assert_eq!(picker.scopes[1].label, "tokamak");
-        assert_eq!(picker.items[0].provider, "tokamak");
-        assert_eq!(picker.items[0].model, "tokamak-1-preview");
-    }
-
-    #[test]
     fn model_picker_builds_all_and_provider_scopes_with_counts() {
         let picker = super::ModelPicker::from_pairs(
             vec![
@@ -48908,12 +47578,12 @@ mod tests {
     fn model_picker_reopens_with_newly_written_provider_models() {
         with_isolated_login_state(|| {
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("tk".into()),
                     clear_api_key: false,
-                    base_url: Some(crate::core::cli::tokamak::BASE_URL.into()),
-                    models: Some(vec!["tokamak-old".into()]),
+                    base_url: Some("https://gateway.example/v1".into()),
+                    models: Some(vec!["gateway-old".into()]),
                     api_type: None,
                     ..Default::default()
                 },
@@ -48929,15 +47599,15 @@ mod tests {
                 .unwrap()
                 .all_items
                 .iter()
-                .any(|item| item.value == "tokamak-old"));
+                .any(|item| item.value == "gateway-old"));
 
             crate::core::agent::global_config::set_provider(
-                "tokamak",
+                "gateway",
                 crate::core::agent::global_config::ProviderUpdate {
                     api_key: Some("tk".into()),
                     clear_api_key: false,
-                    base_url: Some(crate::core::cli::tokamak::BASE_URL.into()),
-                    models: Some(vec!["tokamak-old".into(), "tokamak-new".into()]),
+                    base_url: Some("https://gateway.example/v1".into()),
+                    models: Some(vec!["gateway-old".into(), "gateway-new".into()]),
                     api_type: None,
                     ..Default::default()
                 },
@@ -48949,7 +47619,7 @@ mod tests {
             assert!(picker
                 .all_items
                 .iter()
-                .any(|item| item.value == "tokamak-new"));
+                .any(|item| item.value == "gateway-new"));
             assert!(app.picker.is_none());
         });
     }
@@ -49503,11 +48173,11 @@ mod tests {
 
         let mut pinned = test_app();
         pinned.agent_dir = app.agent_dir.clone();
-        pinned.model = "tokamak/claude-x".into();
+        pinned.model = "gateway/claude-x".into();
         pinned.model_pinned = true;
         apply_resume(&mut pinned, &ResumeRequest::resume(ResumeTarget::Latest)).await;
         assert!(pinned.thread_id.is_some(), "the thread was resumed");
-        assert_eq!(pinned.model, "tokamak/claude-x");
+        assert_eq!(pinned.model, "gateway/claude-x");
 
         let mut unpinned = test_app();
         unpinned.agent_dir = app.agent_dir.clone();
@@ -49515,9 +48185,9 @@ mod tests {
         assert_eq!(unpinned.model, "saved-model", "without --model the thread's model wins");
     }
 
-    /// `with_isolated_login_state`, with Tokamak installed as the session-scoped
-    /// provider for its duration.
-    fn with_session_tokamak<T>(f: impl FnOnce() -> T) -> T {
+    /// `with_isolated_login_state`, with a `gateway` provider installed as the
+    /// session-scoped provider for its duration.
+    fn with_session_gateway<T>(f: impl FnOnce() -> T) -> T {
         struct Reset;
         impl Drop for Reset {
             fn drop(&mut self) {
@@ -49528,9 +48198,9 @@ mod tests {
             let _reset = Reset;
             super::super::session_provider::reset();
             super::super::providers::ProviderOverrides {
-                provider: Some("tokamak".into()),
-                api_key: Some("tk-session".into()),
-                base_url: Some("https://api-stag.tokamak.sh/v1".into()),
+                provider: Some("gateway".into()),
+                api_key: Some("gw-session".into()),
+                base_url: Some("https://staging.gateway.example/v1".into()),
                 explicit_provider: true,
                 ..Default::default()
             }
@@ -49540,14 +48210,14 @@ mod tests {
     }
 
     /// A native sign-in the launched session must leave exactly as it was.
-    fn seed_native_tokamak() -> Vec<u8> {
+    fn seed_native_gateway() -> Vec<u8> {
         use crate::core::cli::auth::{Credential, CredentialStore};
-        CredentialStore::store("tokamak", &Credential::ApiKey("tk-native".into())).unwrap();
+        CredentialStore::store("gateway", &Credential::ApiKey("gw-native".into())).unwrap();
         crate::core::agent::global_config::set_provider(
-            "tokamak",
+            "gateway",
             crate::core::agent::global_config::ProviderUpdate {
-                api_key: Some("tk-native".into()),
-                base_url: Some("https://api.tokamak.sh/v1".into()),
+                api_key: Some("gw-native".into()),
+                base_url: Some("https://gateway.example/v1".into()),
                 models: Some(vec!["native-model".into()]),
                 ..Default::default()
             },
@@ -49556,152 +48226,27 @@ mod tests {
         std::fs::read(crate::core::agent::global_config::global_config_path().unwrap()).unwrap()
     }
 
-    fn assert_native_tokamak_untouched(before: &[u8], sink: &str) {
-        let after =
-            std::fs::read(crate::core::agent::global_config::global_config_path().unwrap()).unwrap();
-        assert_eq!(after, before, "{sink}: config.toml must be byte-identical");
-        assert!(
-            crate::core::cli::auth::CredentialStore::load("tokamak")
-                .unwrap()
-                .is_some(),
-            "{sink}: the stored Tokamak credential must survive"
-        );
-    }
-
-    /// Whether the refusal was said, however the transcript wrapped it.
-    fn refused(app: &App) -> bool {
-        let text = transcript_text(app);
-        let flat = text
-            .split_whitespace()
-            .filter(|word| *word != "•")
-            .collect::<Vec<_>>()
-            .join(" ");
-        flat.contains(super::super::session_provider::TOKAMAK_REFUSAL)
-    }
-
-    #[test]
-    fn a_session_tokamak_refuses_login_paste_token() {
-        with_session_tokamak(|| {
-            let before = seed_native_tokamak();
-            let mut app = test_app();
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(run_command(&mut app, "login --paste-token", &no_mcp()));
-            assert!(app.login.is_none(), "no key field opens");
-            assert!(refused(&app), "{}", transcript_text(&app));
-            assert_native_tokamak_untouched(&before, "/login --paste-token");
-        });
-    }
-
-    #[test]
-    fn a_session_tokamak_refuses_the_login_pickers_enter_and_x() {
-        with_session_tokamak(|| {
-            let before = seed_native_tokamak();
-            let rt = tokio::runtime::Runtime::new().unwrap();
-
-            let mut app = test_app();
-            super::open_login_picker(&mut app);
-            assert_eq!(app.picker.as_ref().unwrap().items[0].value, "tokamak");
-            rt.block_on(press(&mut app, KeyCode::Enter, KeyModifiers::NONE));
-            assert!(app.login.is_none() && !app.login_device_request, "no sign-in starts");
-            assert!(refused(&app), "Enter: {}", transcript_text(&app));
-
-            let mut app = test_app();
-            super::open_login_picker(&mut app);
-            rt.block_on(press(&mut app, KeyCode::Char('x'), KeyModifiers::NONE));
-            assert!(refused(&app), "x: {}", transcript_text(&app));
-            assert_native_tokamak_untouched(&before, "/login picker");
-        });
-    }
-
-    #[test]
-    fn a_session_tokamak_refuses_logout_but_not_for_other_providers() {
-        with_session_tokamak(|| {
-            let before = seed_native_tokamak();
-            let rt = tokio::runtime::Runtime::new().unwrap();
-
-            let mut app = test_app();
-            rt.block_on(run_command(&mut app, "logout", &no_mcp()));
-            assert!(transcript_text(&app).contains("usage: /logout <provider>"));
-            rt.block_on(run_command(&mut app, "logout tokamak", &no_mcp()));
-            assert!(refused(&app), "{}", transcript_text(&app));
-            assert_native_tokamak_untouched(&before, "/logout tokamak");
-
-            rt.block_on(run_command(&mut app, "logout openai", &no_mcp()));
-            assert!(transcript_text(&app).contains("signed out of openai"));
-        });
-    }
-
-    #[test]
-    fn a_session_tokamak_refuses_the_provider_settings_x_d_and_edit() {
-        with_session_tokamak(|| {
-            let before = seed_native_tokamak();
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            for code in [KeyCode::Char('x'), KeyCode::Char('d'), KeyCode::Enter] {
-                let mut app = test_app();
-                super::open_provider_settings(&mut app);
-                assert_eq!(app.picker.as_ref().unwrap().items[0].value, "tokamak");
-                rt.block_on(press(&mut app, code, KeyModifiers::NONE));
-                if code == KeyCode::Char('d') {
-                    // A second `d` would confirm a delete: it must not either.
-                    rt.block_on(press(&mut app, code, KeyModifiers::NONE));
-                }
-                assert!(app.provider_prompt.is_none(), "{code:?}: no edit form opens");
-                assert!(refused(&app), "{code:?}: {}", transcript_text(&app));
-                assert_native_tokamak_untouched(&before, &format!("/settings > providers {code:?}"));
-            }
-        });
-    }
-
-    /// The add wizard's name is free text, and saving merges into an existing
-    /// entry: `tokamak` there would overwrite the native one.
-    #[test]
-    fn a_session_tokamak_refuses_the_add_wizard_named_tokamak() {
-        with_session_tokamak(|| {
-            let before = seed_native_tokamak();
-            let mut app = test_app();
-            let mut prompt = super::ProviderPrompt::new();
-            prompt.name = "tokamak".into();
-            prompt.base_url = "https://evil.example/v1".into();
-            prompt.api_key = "sk-other".into();
-            app.provider_prompt = Some(prompt);
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(press(&mut app, KeyCode::Enter, KeyModifiers::NONE));
-            let prompt = app.provider_prompt.as_ref().expect("the form stays open on the refusal");
-            assert_eq!(
-                prompt.error.as_deref(),
-                Some(super::super::session_provider::TOKAMAK_REFUSAL)
-            );
-            assert_native_tokamak_untouched(&before, "/settings > providers add");
-
-            // Any other name still saves.
-            let mut other = super::ProviderPrompt::new();
-            other.name = "mine".into();
-            other.base_url = "https://mine.example/v1".into();
-            assert!(other.save().is_ok());
-        });
-    }
-
     /// Signing in to another provider inside a launched session neither moves
     /// the session off its provider nor writes that provider's model into
     /// agent.toml; a `/model` pick the session provider serves is not saved
     /// either.
     #[test]
     fn a_session_served_by_its_own_provider_stays_there() {
-        with_session_tokamak(|| {
+        with_session_gateway(|| {
             let mut app = test_app();
             let mut configs = std::collections::HashMap::new();
             configs.insert(
-                "tokamak".to_string(),
+                "gateway".to_string(),
                 crate::core::state::ProviderConfig {
-                    provider: "tokamak".into(),
-                    base_url: Some("https://api-stag.tokamak.sh/v1".into()),
-                    api_key: Some("tk-session".into()),
+                    provider: "gateway".into(),
+                    base_url: Some("https://staging.gateway.example/v1".into()),
+                    api_key: Some("gw-session".into()),
                     models: vec!["band-model".into()],
                     ..Default::default()
                 },
             );
             app.args = Some(test_args(&app, configs));
-            app.model = "tokamak/band-model".into();
+            app.model = "gateway/band-model".into();
             let agent_toml = app.agent_dir.join("agent.toml");
 
             super::adopt_login_model(
@@ -49713,7 +48258,7 @@ mod tests {
                     default_model: Some("gpt-x".into()),
                 },
             );
-            assert_eq!(app.model, "tokamak/band-model");
+            assert_eq!(app.model, "gateway/band-model");
             assert!(!agent_toml.exists(), "no agent.toml write");
 
             app.set_model("band-model".into());
@@ -49726,18 +48271,18 @@ mod tests {
     /// overrides, so the launcher's key and base URL survive it.
     #[test]
     fn a_reload_keeps_the_session_key_and_base_url() {
-        with_session_tokamak(|| {
-            seed_native_tokamak();
+        with_session_gateway(|| {
+            seed_native_gateway();
             let mut app = test_app();
             let args = test_args(&app, std::collections::HashMap::new());
             app.args = Some(args.clone());
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(super::reload_provider_configs(&mut app));
             let map = rt.block_on(args.provider_configs.lock());
-            let tokamak = map.get("tokamak").expect("present");
-            assert_eq!(tokamak.bearer_key_chain(), vec!["tk-session".to_string()]);
-            assert_eq!(tokamak.base_url.as_deref(), Some("https://api-stag.tokamak.sh/v1"));
-            assert!(tokamak.models.is_empty(), "not the native roster");
+            let gateway = map.get("gateway").expect("present");
+            assert_eq!(gateway.bearer_key_chain(), vec!["gw-session".to_string()]);
+            assert_eq!(gateway.base_url.as_deref(), Some("https://staging.gateway.example/v1"));
+            assert!(gateway.models.is_empty(), "not the native roster");
         });
     }
 

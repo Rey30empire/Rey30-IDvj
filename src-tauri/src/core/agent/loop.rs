@@ -5136,9 +5136,9 @@ async fn run_turn_cycle(
         // result back as a `role: "tool"` message carrying its `tool_call_id`.
         //
         // A prior workaround delivered tool results as `role: "user"` because
-        // some served models (observed with `tokamak-1-preview`) didn't attend
+        // some served models did not attend
         // to `role: "tool"` messages with large content. That is now fixed
-        // server-side: the tokamak-1-preview facade rewrites role:tool -> user
+        // server-side by the serving gateway, which rewrites role:tool -> user
         // for the specific model that needs it (scoped, content preserved), so
         // the agent can speak standard OpenAI tool protocol on the wire again.
         let assistant_turn = if let Some(choice_message) = extract_choice_message(&completion) {

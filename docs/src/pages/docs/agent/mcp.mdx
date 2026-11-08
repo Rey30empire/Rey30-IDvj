@@ -52,7 +52,7 @@ hiccup, and so does the prefix your provider is caching.
 
 A stdio server inherits Rey30 IDvj's environment, minus the credentials Rey30 IDvj was given for its own gateway:
 `REY30_API_KEY`, `REY30_CUSTOM_HEADERS`, the `--provider`'s own `<PROVIDER>_API_KEY` (for example
-`TOKAMAK_API_KEY` under `rey30-idvj --provider tokamak`), and, while Rey30 IDvj exports
+`GATEWAY_API_KEY` under `rey30-idvj --provider gateway`), and, while Rey30 IDvj exports
 [telemetry](/docs/agent/telemetry), the `OTEL_EXPORTER_OTLP_*HEADERS` variables. Everything else is
 inherited as before, so a server that reads `GITHUB_TOKEN`, or the key of a provider you did not
 name with `--provider`, keeps working. To hand a server one of the removed variables, set it in the

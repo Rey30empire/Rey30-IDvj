@@ -1,5 +1,5 @@
 {
-  "identifier": "rey30-idvj.ai.app.ios",
+  "identifier": "com.rey30.idvj.app.ios",
   "build": {
     "devUrl": null,
     "frontendDist": "../web-app/dist",

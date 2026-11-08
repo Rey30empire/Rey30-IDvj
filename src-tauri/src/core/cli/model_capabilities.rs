@@ -47,11 +47,11 @@ impl ContextWindowSource {
 /// A user-provided model id is normally the bare id, but `--model
 /// anthropic/claude-sonnet-4-6` and the desktop selection can carry the
 /// provider prefix, and a gateway route nests one more
-/// (`tokamak/anthropic/claude-...`); all of them must resolve alike.
+/// (`openrouter/anthropic/claude-...`); all of them must resolve alike.
 fn strip_provider_qualifier(mut model_id: &str) -> &str {
     while let Some((first, rest)) = model_id.split_once('/') {
         match first {
-            "anthropic" | "openai" | "google" | "tokamak" | "rey30-idvj" => model_id = rest,
+            "anthropic" | "openai" | "google" | "openrouter" | "rey30-idvj" => model_id = rest,
             _ => break,
         }
     }
@@ -109,9 +109,6 @@ fn catalog_window(model_id: &str) -> Option<u64> {
 
     if model_id.starts_with("gemini-2.5-") || model_id.starts_with("gemini-3-") {
         return Some(1_000_000);
-    }
-    if model_id.starts_with("tokamak-") {
-        return Some(200_000);
     }
 
     None
@@ -247,10 +244,10 @@ mod tests {
         let bare = resolve_context_window("claude-sonnet-4-6", None, None);
         assert_eq!(resolve_context_window("anthropic/claude-sonnet-4-6", None, None), bare);
         // A gateway route nests its upstream's qualifier inside its own.
-        assert_eq!(resolve_context_window("tokamak/anthropic/claude-sonnet-4-6", None, None), bare);
+        assert_eq!(resolve_context_window("openrouter/anthropic/claude-sonnet-4-6", None, None), bare);
         // Only known qualifiers are peeled: an unknown one stops the walk.
         assert_eq!(
-            resolve_context_window("tokamak/azure/claude-sonnet-4-6", None, None).source,
+            resolve_context_window("openrouter/azure/claude-sonnet-4-6", None, None).source,
             ContextWindowSource::Fallback,
         );
     }
@@ -297,14 +294,14 @@ mod tests {
         );
     }
 
-    /// Tokamak reports each model's window in its `/models` listing, and that
+    /// A gateway that reports each model's window in its `/models` listing, and that
     /// figure is authoritative: the Claude catalog rows only fill in when the
     /// listing said nothing, so a catalog change can never override it.
     #[test]
-    fn tokamak_reported_window_beats_the_claude_catalog() {
+    fn a_gateway_reported_window_beats_the_claude_catalog() {
         for (model, reported) in [
-            ("tokamak/anthropic/claude-opus-5", 400_000),
-            ("tokamak/anthropic/claude-sonnet-4-5", 1_000_000),
+            ("openrouter/anthropic/claude-opus-5", 400_000),
+            ("openrouter/anthropic/claude-sonnet-4-5", 1_000_000),
         ] {
             assert_eq!(
                 resolve_context_window(model, None, Some(reported)),

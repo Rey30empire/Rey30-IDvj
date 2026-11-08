@@ -262,14 +262,14 @@ mod tests {
                 ("user-agent", "spoofed/1.0"),
                 ("x-session-id", "not-this-one"),
                 ("X-CLIENT-REQUEST-ID", "nor-this"),
-                ("X-Tokamak-Launch-Id", "abc"),
+                ("X-Launch-Id", "abc"),
             ]),
             owned(Some("Rey30-IDvj-Agent/1 (linux; x86_64)"), Some("rey30-idvj-s1")),
         );
         assert_eq!(
             out,
             vec![
-                ("X-Tokamak-Launch-Id".to_string(), "abc".to_string()),
+                ("X-Launch-Id".to_string(), "abc".to_string()),
                 (
                     "User-Agent".to_string(),
                     "Rey30-IDvj-Agent/1 (linux; x86_64)".to_string()
@@ -318,11 +318,11 @@ mod tests {
                 ("X-Client-Name", "rey30-idvj-agent"),
                 ("Authorization", "x"),
                 ("x-client-name", "dup"),
-                ("X-Tokamak-Launch-Id", "abc"),
+                ("X-Launch-Id", "abc"),
             ])),
             vec![
                 "X-Client-Name".to_string(),
-                "X-Tokamak-Launch-Id".to_string()
+                "X-Launch-Id".to_string()
             ]
         );
     }

@@ -874,7 +874,7 @@ fn picker_app() -> TestApp {
             ("anthropic".into(), "claude-haiku-4-5".into()),
             ("openai".into(), "gpt-5-mini".into()),
             ("openai".into(), "gpt-5.1".into()),
-            ("tokamak".into(), "tokamak-1-preview".into()),
+            ("deepseek".into(), "deepseek-chat".into()),
         ],
         "gpt-5-mini",
     );

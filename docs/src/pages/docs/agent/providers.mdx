@@ -1,7 +1,7 @@
 ---
 title: Providers
-description: Connect Rey30 IDvj Agent to a model - cloud, Tokamak, or your own OpenAI-compatible endpoint.
-keywords: [Rey30 IDvj, Rey30 IDvj Agent, providers, API key, base URL, models, local models, Tokamak]
+description: Connect Rey30 IDvj Agent to a model - a cloud provider, a gateway, or your own OpenAI-compatible endpoint.
+keywords: [Rey30 IDvj, Rey30 IDvj Agent, providers, API key, base URL, models, local models, gateway]
 ---
 
 import { Callout } from 'nextra/components'
@@ -99,15 +99,19 @@ window drives the header gauge and compaction, and the per-token prices drive th
 `/context` and `/usage`; the output cap is cached and echoed back by `rey30-idvj cli models list`, but
 nothing reads it yet. That file is only a cache: delete it and the next refresh rebuilds it.
 
-## Tokamak
+## Signing in
 
-Signing in avoids managing a key yourself:
+`rey30-idvj login` asks which provider to use (OpenAI, Anthropic, OpenCode or DeepSeek), then
+for its API key, which it verifies before saving:
 
 ```bash
 rey30-idvj login
+rey30-idvj login --provider deepseek
+echo "$OPENAI_API_KEY" | rey30-idvj login --provider openai
 ```
 
-Or `/login` from inside the console. The key is saved to `~/.rey30-idvj/config.toml`.
+Or `/login` (or `/login <provider>`) from inside the console. The key is saved to
+`~/.rey30-idvj/config.toml`.
 
 ## Where settings come from
 
@@ -126,24 +130,24 @@ single run can override everything.
 
 ## Using a gateway
 
-A gateway is an OpenAI-compatible endpoint that sits in front of other providers. Tokamak is one;
-so are OpenRouter-style routers and a company proxy that adds its own headers. You can point one
+A gateway is an OpenAI-compatible endpoint that sits in front of other providers: OpenRouter-style
+routers, or a company proxy that adds its own headers. You can point one
 run at a gateway without touching `~/.rey30-idvj/config.toml`, the same way `ANTHROPIC_BASE_URL` works
 for Claude Code:
 
 ```bash
-export TOKAMAK_API_KEY="sk_live_..."
-export REY30_BASE_URL="https://api-stag.tokamak.sh/v1"
+export GATEWAY_API_KEY="sk-..."
+export REY30_BASE_URL="https://gateway.example.com/v1"
 export REY30_CUSTOM_HEADERS=$'X-Client-Name: my-launcher\nX-Team: infra'
 
-rey30-idvj --provider tokamak --model tokamak/auto
-rey30-idvj cli agent run --provider tokamak "fix the failing test"
+rey30-idvj --provider gateway --model gateway/auto
+rey30-idvj cli agent run --provider gateway "fix the failing test"
 ```
 
 | Setting | Flag | Environment | Notes |
 | --- | --- | --- | --- |
 | Base URL | `--base-url <URL>` | `REY30_BASE_URL` | `https://`, or `http://` for localhost only. The flag wins |
-| Key | `--api-key <KEY>` | `<PROVIDER>_API_KEY`, e.g. `TOKAMAK_API_KEY` | `REY30_API_KEY` still works as before |
+| Key | `--api-key <KEY>` | `<PROVIDER>_API_KEY`, e.g. `GATEWAY_API_KEY` | `REY30_API_KEY` still works as before |
 | Headers | none | `REY30_CUSTOM_HEADERS` | One `Name: Value` per line, the format of Claude Code's `ANTHROPIC_CUSTOM_HEADERS`. Beats a configured header of the same name |
 
 These apply **only to the provider named with `--provider`**. If you leave `--provider` out, Rey30 IDvj
@@ -173,12 +177,6 @@ config was written for, so Rey30 IDvj keeps them in memory and never writes them
 - Signing in to another provider inside the session works as usual, and does not move the session
   off the gateway.
 
-If that provider is `tokamak`, account commands (`/usage`, the key check) use the session's
-endpoint and key. The console also refuses any change to the Tokamak sign-in, because the key in use
-belongs to whoever started the session. That covers `/login` (including `--paste-token`),
-`/logout tokamak`, and the `tokamak` row of the `/login` picker and of `/settings` > `providers`.
-Other providers are unaffected.
-
 ### What the gateway sees
 
 Every inference request from the CLI carries:
@@ -202,7 +200,7 @@ before it relies on anything:
   "capabilities": ["provider-overrides", "session-overrides", "custom-headers",
                    "user-agent", "session-header", "session-scoped-providers"],
   "providers": [
-    { "provider": "tokamak", "base_url": "https://api-stag.tokamak.sh/v1",
+    { "provider": "gateway", "base_url": "https://gateway.example.com/v1",
       "base_url_source": "env", "has_api_key": true, "models": 0,
       "header_names": ["X-Client-Name", "X-Team"] }
   ]
@@ -212,13 +210,6 @@ before it relies on anything:
 `base_url_source` is one of `flag`, `env`, `project`, `config` or `desktop`. `header_names` lists
 names only, never values.
 
-### Tokamak on another deployment
-
-A native `rey30-idvj login` (not a gateway session) follows `TOKAMAK_BASE_URL` for a dev or self-hosted
-deployment. A bare origin such as `https://api-stag.tokamak.sh` gets `/v1` appended. The sign-in and
-API-keys pages open on the matching web app: `api.` maps to the bare host and `api-<band>.` to
-`<band>.`. Set `TOKAMAK_WEB_URL` when the web app can't be derived that way, for example a local
-stack on `http://localhost:3001`.
 
 ## Your own hardware
 

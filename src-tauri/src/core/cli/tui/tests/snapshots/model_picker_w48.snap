@@ -4,10 +4,10 @@ expression: render_snapshot(buf)
 ---
 |╭ Models ──────────────────────────────────────╮|
 |│   All models               5│All available … │|
-|│   tokamak                  1│⌕ █             │|
-|│   anthropic                2│  tokamak / to… │|
+|│   anthropic                2│⌕ █             │|
+|│   deepseek                 1│  anthropic / … │|
 |│   openai                   2│  anthropic / … │|
-|│                             │  anthropic / … │|
+|│                             │  deepseek / d… │|
 |│                             │▶ openai / gpt… │|
 |│                             │  openai / gpt… │|
 |│                             │                │|

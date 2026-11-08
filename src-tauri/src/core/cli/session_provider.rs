@@ -108,39 +108,6 @@ pub(crate) fn is_session_scoped(provider: &str) -> bool {
     scoped_provider().as_deref() == Some(provider)
 }
 
-/// Whether Tokamak is the session-scoped provider: its entry and credential
-/// then belong to whoever started this session (a launcher), and nothing in
-/// the session may sign in to it, out of it, or edit it.
-pub(crate) fn tokamak_is_session_scoped() -> bool {
-    is_session_scoped(super::tokamak::PROVIDER)
-}
-
-/// What a refused Tokamak sign-in change says.
-pub(crate) const TOKAMAK_REFUSAL: &str = "this session's Tokamak credential comes from the \
-     environment (the launcher); run `rey30-idvj login` outside it";
-
-/// The session's Tokamak key, when Tokamak is the explicitly named session
-/// provider and the key came from the session. Account calls (`/usage`, `auth
-/// status`) use this and nothing else from the session: a key given for any
-/// other provider, or a `REY30_API_KEY` that reached a Desktop-selected one, is
-/// never sent to Tokamak.
-pub(crate) fn tokamak_key() -> Option<String> {
-    let guard = read();
-    let overrides = &guard.as_ref()?.overrides;
-    (overrides.explicit_provider_name() == Some(super::tokamak::PROVIDER))
-        .then(|| overrides.api_key.clone())
-        .flatten()
-}
-
-/// The session's Tokamak base URL, under the same rule as [`tokamak_key`].
-pub(crate) fn tokamak_base_url() -> Option<String> {
-    let guard = read();
-    let overrides = &guard.as_ref()?.overrides;
-    (overrides.explicit_provider_name() == Some(super::tokamak::PROVIDER))
-        .then(|| overrides.base_url.clone())
-        .flatten()
-}
-
 /// Put the overlay's roster on the session-scoped provider's config. Only for a
 /// load made with the session's own overrides naming that provider, so a load
 /// with other overrides (RPC's `default()`, a test) sees the files alone.
@@ -266,22 +233,22 @@ mod tests {
     use crate::core::agent::global_config::{load_global_config, set_provider, ProviderUpdate};
     use crate::core::cli::providers::load_provider_configs;
 
-    fn tokamak(base_url: Option<&str>) -> ProviderOverrides {
+    fn gateway(base_url: Option<&str>) -> ProviderOverrides {
         ProviderOverrides {
-            provider: Some("tokamak".into()),
-            api_key: Some("tk-session".into()),
+            provider: Some("gateway".into()),
+            api_key: Some("gw-session".into()),
             base_url: base_url.map(str::to_string),
             explicit_provider: true,
             ..Default::default()
         }
     }
 
-    fn native_tokamak() {
+    fn native_gateway() {
         set_provider(
-            "tokamak",
+            "gateway",
             ProviderUpdate {
-                api_key: Some("tk-native".into()),
-                base_url: Some("https://api.tokamak.sh/v1".into()),
+                api_key: Some("gw-native".into()),
+                base_url: Some("https://gateway.example/v1".into()),
                 models: Some(vec!["native-only".into()]),
                 ..Default::default()
             },
@@ -289,7 +256,7 @@ mod tests {
         .unwrap();
         let mut catalog = Catalog::default();
         catalog.set_provider(
-            "tokamak",
+            "gateway",
             BTreeMap::from([(
                 "native-only".to_string(),
                 ModelInfo {
@@ -307,18 +274,18 @@ mod tests {
     /// (or without) an answer from the session's endpoint.
     #[test]
     fn a_session_base_url_replaces_the_native_roster_and_prices() {
-        with_session(tokamak(Some("https://api-stag.tokamak.sh/v1")), |_| {
-            native_tokamak();
+        with_session(gateway(Some("https://staging.gateway.example/v1")), |_| {
+            native_gateway();
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
             assert!(
-                configs["tokamak"].models.is_empty(),
+                configs["gateway"].models.is_empty(),
                 "nothing from the native roster"
             );
             let effective = crate::core::cli::model_catalog::effective();
-            assert!(effective.get(Some("tokamak"), "native-only").is_none());
+            assert!(effective.get(Some("gateway"), "native-only").is_none());
 
             assert!(record_listing(
-                "tokamak",
+                "gateway",
                 vec!["band-only".into()],
                 BTreeMap::from([(
                     "band-only".to_string(),
@@ -329,17 +296,17 @@ mod tests {
                 )]),
             ));
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
-            assert_eq!(configs["tokamak"].models, vec!["band-only".to_string()]);
+            assert_eq!(configs["gateway"].models, vec!["band-only".to_string()]);
             let effective = crate::core::cli::model_catalog::effective();
-            assert!(effective.get(Some("tokamak"), "band-only").is_some());
-            assert!(effective.get(Some("tokamak"), "native-only").is_none());
+            assert!(effective.get(Some("gateway"), "band-only").is_some());
+            assert!(effective.get(Some("gateway"), "native-only").is_none());
             // The disk is where it was.
             assert_eq!(
-                load_global_config().unwrap()["tokamak"].models,
+                load_global_config().unwrap()["gateway"].models,
                 vec!["native-only".to_string()]
             );
             assert!(crate::core::cli::model_catalog::load()
-                .get(Some("tokamak"), "native-only")
+                .get(Some("gateway"), "native-only")
                 .is_some());
         });
     }
@@ -348,21 +315,21 @@ mod tests {
     /// so its roster and prices stand until the endpoint says otherwise.
     #[test]
     fn a_session_key_alone_keeps_the_files_roster_until_a_probe_answers() {
-        with_session(tokamak(None), |_| {
-            native_tokamak();
+        with_session(gateway(None), |_| {
+            native_gateway();
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
-            assert_eq!(configs["tokamak"].models, vec!["native-only".to_string()]);
+            assert_eq!(configs["gateway"].models, vec!["native-only".to_string()]);
             assert_eq!(
-                configs["tokamak"].bearer_key_chain(),
-                vec!["tk-session".to_string()]
+                configs["gateway"].bearer_key_chain(),
+                vec!["gw-session".to_string()]
             );
             assert!(crate::core::cli::model_catalog::effective()
-                .get(Some("tokamak"), "native-only")
+                .get(Some("gateway"), "native-only")
                 .is_some());
 
-            record_listing("tokamak", vec!["listed".into()], BTreeMap::new());
+            record_listing("gateway", vec!["listed".into()], BTreeMap::new());
             let configs = load_provider_configs(None, &ProviderOverrides::session()).unwrap();
-            assert_eq!(configs["tokamak"].models, vec!["listed".to_string()]);
+            assert_eq!(configs["gateway"].models, vec!["listed".to_string()]);
         });
     }
 
@@ -370,14 +337,14 @@ mod tests {
     /// only: RPC builds with `default()` and must see the files alone.
     #[test]
     fn a_load_with_other_overrides_sees_only_the_files() {
-        with_session(tokamak(Some("https://api-stag.tokamak.sh/v1")), |_| {
-            native_tokamak();
-            record_listing("tokamak", vec!["band-only".into()], BTreeMap::new());
+        with_session(gateway(Some("https://staging.gateway.example/v1")), |_| {
+            native_gateway();
+            record_listing("gateway", vec!["band-only".into()], BTreeMap::new());
             let configs = load_provider_configs(None, &ProviderOverrides::default()).unwrap();
-            assert_eq!(configs["tokamak"].models, vec!["native-only".to_string()]);
+            assert_eq!(configs["gateway"].models, vec!["native-only".to_string()]);
             assert_eq!(
-                configs["tokamak"].base_url.as_deref(),
-                Some("https://api.tokamak.sh/v1")
+                configs["gateway"].base_url.as_deref(),
+                Some("https://gateway.example/v1")
             );
         });
     }
@@ -386,7 +353,7 @@ mod tests {
     /// catalog does; a roster change is reported as one.
     #[test]
     fn an_id_only_answer_keeps_earlier_prices() {
-        with_session(tokamak(Some("https://api-stag.tokamak.sh/v1")), |_| {
+        with_session(gateway(Some("https://staging.gateway.example/v1")), |_| {
             let priced = BTreeMap::from([(
                 "m".to_string(),
                 ModelInfo {
@@ -395,14 +362,14 @@ mod tests {
                     ..Default::default()
                 },
             )]);
-            assert!(record_listing("tokamak", vec!["m".into()], priced));
+            assert!(record_listing("gateway", vec!["m".into()], priced));
             assert!(!record_listing(
-                "tokamak",
+                "gateway",
                 vec!["m".into()],
                 BTreeMap::new()
             ));
             assert!(crate::core::cli::model_catalog::effective()
-                .get(Some("tokamak"), "m")
+                .get(Some("gateway"), "m")
                 .and_then(|i| i.rates())
                 .is_some());
             assert!(
@@ -417,18 +384,15 @@ mod tests {
         with_session(
             ProviderOverrides {
                 explicit_provider: false,
-                ..tokamak(None)
+                ..gateway(None)
             },
             |_| {
                 assert_eq!(scoped_provider(), None);
-                assert!(!tokamak_is_session_scoped());
-                assert_eq!(tokamak_key(), None);
+                assert!(!is_session_scoped("gateway"));
             },
         );
-        with_session(tokamak(None), |_| {
-            assert!(tokamak_is_session_scoped());
-            assert_eq!(tokamak_key().as_deref(), Some("tk-session"));
-            assert_eq!(tokamak_base_url(), None);
+        with_session(gateway(None), |_| {
+            assert!(is_session_scoped("gateway"));
         });
     }
 }

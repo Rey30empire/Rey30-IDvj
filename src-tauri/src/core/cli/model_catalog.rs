@@ -544,7 +544,7 @@ mod tests {
     fn lookup_prefers_the_named_provider_then_falls_back_to_the_bare_id() {
         let mut catalog = Catalog::default();
         catalog.set_provider(
-            "tokamak",
+            "gateway",
             BTreeMap::from([(
                 "anthropic/claude-opus-5".to_string(),
                 ModelInfo {
@@ -555,7 +555,7 @@ mod tests {
         );
         assert_eq!(
             catalog
-                .get(Some("tokamak"), "anthropic/claude-opus-5")
+                .get(Some("gateway"), "anthropic/claude-opus-5")
                 .and_then(|i| i.context_length),
             Some(1_000_000)
         );
@@ -633,22 +633,22 @@ mod tests {
             assert_eq!(load(), Catalog::default(), "a missing cache is empty");
             let mut catalog = Catalog::default();
             catalog.set_provider(
-                "tokamak",
+                "gateway",
                 parse_listing(&json!({"data": [router_entry("anthropic/claude-opus-5")]})),
             );
             catalog.save().expect("save");
             let reloaded = load();
             assert_eq!(reloaded, catalog);
             assert_eq!(
-                reloaded.provider_ids("tokamak"),
+                reloaded.provider_ids("gateway"),
                 vec!["anthropic/claude-opus-5".to_string()]
             );
 
             // A provider that reports nothing is dropped rather than left stale.
             let mut catalog = reloaded;
-            catalog.set_provider("tokamak", BTreeMap::new());
+            catalog.set_provider("gateway", BTreeMap::new());
             catalog.save().expect("save");
-            assert!(load().provider_ids("tokamak").is_empty());
+            assert!(load().provider_ids("gateway").is_empty());
         });
     }
 
