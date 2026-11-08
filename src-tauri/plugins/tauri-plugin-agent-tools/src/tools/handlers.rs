@@ -3258,7 +3258,7 @@ mod tests {
         std::fs::write(rey30.join("config.toml"), b"api_key = SECRET_MARKER").unwrap();
         std::fs::write(rey30.join("projects/p-1/agent.toml"), b"SECRET_MARKER").unwrap();
         std::fs::write(home.join("notes.txt"), b"SECRET_MARKER").unwrap();
-        std::fs::write(home.join(".janitor"), b"SECRET_MARKER").unwrap();
+        std::fs::write(home.join(".rey30-idvjx"), b"SECRET_MARKER").unwrap();
         let store = crate::workspace::project_store(&home);
         let ctx = ToolContext::new(&home, &store, &[]).with_hidden_root(Some(&rey30));
         let run = |tool: &'static str, args: serde_json::Value| {
@@ -3267,13 +3267,13 @@ mod tests {
         };
         for path in [".", "./"] {
             let ls = run("ls", json!({"path": path})).await;
-            assert!(ls.contains("notes.txt") && ls.contains(".janitor"), "{ls}");
+            assert!(ls.contains("notes.txt") && ls.contains(".rey30-idvjx"), "{ls}");
             assert!(!ls.lines().any(|l| l == ".rey30-idvj/"), "{ls}");
             let find = run("find", json!({"pattern": "**/*", "path": path})).await;
             assert!(find.contains("notes.txt"), "{find}");
             assert!(!find.contains("config.toml") && !find.contains("agent.toml"), "{find}");
             let grep = run("grep", json!({"pattern": "SECRET_MARKER", "path": path})).await;
-            assert!(grep.contains("notes.txt") && grep.contains(".janitor"), "{grep}");
+            assert!(grep.contains("notes.txt") && grep.contains(".rey30-idvjx"), "{grep}");
             assert!(!grep.contains("config.toml") && !grep.contains("agent.toml"), "{grep}");
         }
         // Unset (sandbox off), the home is walked like any other directory.

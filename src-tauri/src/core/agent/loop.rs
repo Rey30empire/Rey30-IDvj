@@ -5141,7 +5141,6 @@ async fn run_turn_cycle(
         // server-side: the tokamak-1-preview facade rewrites role:tool -> user
         // for the specific model that needs it (scoped, content preserved), so
         // the agent can speak standard OpenAI tool protocol on the wire again.
-        // See janhq/jan-internal#238.
         let assistant_turn = if let Some(choice_message) = extract_choice_message(&completion) {
             let assistant_content = choice_message
                 .get("content")
@@ -8933,7 +8932,7 @@ mod tests {
         }
     }
 
-    /// janhq/jan-internal#394: the CLI's `skill_list`/`skill_read` resolve
+    /// The CLI's `skill_list`/`skill_read` resolve
     /// through the same layering as the prompt catalog, so a plugin skill the
     /// prompt advertises is readable (it used to read only `<store>/skills`),
     /// on both the concurrent read path and the serial one.

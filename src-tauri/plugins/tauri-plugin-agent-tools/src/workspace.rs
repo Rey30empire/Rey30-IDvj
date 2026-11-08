@@ -87,9 +87,9 @@ pub fn store_dir(store_root: &Path, kind: &str) -> PathBuf {
 /// Where projects' stores live under a Rey30 IDvj home: `<rey30_home>/projects`.
 const PROJECTS: &str = "projects";
 
-/// The directory a project stored its state in before it moved out of the
-/// project: `<project_root>/.jan`. Only the launch migration reads it.
-pub const LEGACY_DIR: &str = ".jan";
+/// The in-project directory used for a project's state only when there is no
+/// usable home directory: `<project_root>/.rey30-idvj`.
+pub const IN_PROJECT_DIR: &str = ".rey30-idvj";
 
 /// `~/.rey30-idvj`, the user-wide agent home, or `None` when the home directory is
 /// unset or degenerate (a `/` home would put every project's state at the
@@ -120,9 +120,7 @@ pub fn rey30_home() -> Option<PathBuf> {
         if home.parent().is_none() || home.as_os_str().is_empty() {
             return None;
         }
-        let current = home.join(".rey30-idvj");
-        let previous = home.join(".jan");
-        Some(if !current.exists() && previous.is_dir() { previous } else { current })
+        Some(home.join(".rey30-idvj"))
     }
 }
 
@@ -221,8 +219,8 @@ pub fn project_store_in(rey30_home: &Path, project_root: &Path) -> PathBuf {
 ///
 /// Kept outside the project so the agent's own state never sits in the tree
 /// its tools work on (nothing to hide, nothing to gitignore). With no usable
-/// home directory it falls back to the legacy in-project location so the agent
-/// still works.
+/// home directory it falls back to an in-project location so the agent still
+/// works.
 pub fn project_store(project_root: &Path) -> PathBuf {
     project_store_at(rey30_home().as_deref(), project_root)
 }
@@ -232,7 +230,7 @@ pub fn project_store(project_root: &Path) -> PathBuf {
 pub fn project_store_at(rey30_home: Option<&Path>, project_root: &Path) -> PathBuf {
     match rey30_home {
         Some(home) => project_store_in(home, project_root),
-        None => legacy_project_store(project_root),
+        None => in_project_store(project_root),
     }
 }
 
@@ -259,9 +257,9 @@ pub fn project_meta(store: &Path) -> Option<String> {
     value.get("path")?.as_str().map(str::to_string)
 }
 
-/// Where a project kept its store before the move: `<project_root>/.rey30-idvj/agent`.
-pub fn legacy_project_store(project_root: &Path) -> PathBuf {
-    project_root.join(LEGACY_DIR).join("agent")
+/// The fallback store with no usable home: `<project_root>/.rey30-idvj/agent`.
+pub fn in_project_store(project_root: &Path) -> PathBuf {
+    project_root.join(IN_PROJECT_DIR).join("agent")
 }
 
 /// The desktop's permanent store root: `<rey30_data_folder>/agent-workspace`.
@@ -1376,7 +1374,7 @@ mod tests {
             "/home/u/.SSH",
             "/home/u/library/launchagents",
             "/HOME/U",
-            "/SRV/JAN-DATA/x",
+            "/SRV/REY30-IDVJ-DATA/x",
         ] {
             assert!(
                 write_root(bad, "/home/u").is_err(),

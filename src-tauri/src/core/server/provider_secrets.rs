@@ -28,7 +28,7 @@ use sha2::{Digest, Sha256};
 
 use crate::core::app::commands::resolve_rey30_data_folder;
 
-const KEYRING_SERVICE: &str = "jan-providers";
+const KEYRING_SERVICE: &str = "rey30-idvj-providers";
 const SECRETS_FILE_NAME: &str = "provider_secrets.enc";
 const SECRETS_INDEX_FILE_NAME: &str = "provider_secrets.index.json";
 const NONCE_LEN: usize = 12;
@@ -96,9 +96,9 @@ fn secrets_file_path() -> PathBuf {
 
 /// Derive a stable 32-byte key from a per-machine id and a versioned app salt.
 fn derive_cipher() -> Result<Aes256Gcm, String> {
-    let machine_id = machine_uid::get().unwrap_or_else(|_| "jan-fallback-machine".to_string());
+    let machine_id = machine_uid::get().unwrap_or_else(|_| "rey30-idvj-fallback-machine".to_string());
     let mut hasher = Sha256::new();
-    hasher.update(b"jan-provider-secrets-v1");
+    hasher.update(b"rey30-idvj-provider-secrets-v1");
     hasher.update(machine_id.as_bytes());
     let key = hasher.finalize();
     Aes256Gcm::new_from_slice(&key).map_err(|e| e.to_string())

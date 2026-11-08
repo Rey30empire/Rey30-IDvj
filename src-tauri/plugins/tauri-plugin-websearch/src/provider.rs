@@ -40,7 +40,7 @@ const YOU_COM_HOSTED_URL: &str = "https://api.you.com/mcp?profile=free";
 const YOU_COM_USER_AGENT: &str = concat!(
     "rey30-idvj-websearch/",
     env!("CARGO_PKG_VERSION"),
-    " (https://github.com/Rey30empire/jan)"
+    " (https://github.com/Rey30empire)"
 );
 const YOU_COM_CLIENT_INFO: &str = concat!(
     "plugin; client=rey30-idvj-websearch/",
@@ -1559,7 +1559,7 @@ mod tests {
         // the segment split on the receiving side.
         assert!(segments.iter().all(|s| !s.contains(';')));
         assert!(YOU_COM_USER_AGENT.starts_with("rey30-idvj-websearch/"));
-        assert!(YOU_COM_USER_AGENT.contains("github.com/Rey30empire/jan"));
+        assert!(YOU_COM_USER_AGENT.contains("github.com/Rey30empire)"));
     }
 
     #[test]

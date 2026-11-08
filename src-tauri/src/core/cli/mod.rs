@@ -950,27 +950,10 @@ fn resolve_cost_ceiling(
 /// working-directory block, so a bare "." must become the real cwd rather than
 /// being sent to the model as-is. Falls back to the raw (possibly relative)
 /// path if canonicalization fails (e.g. the directory doesn't exist yet).
-///
-/// Every CLI entry point resolves its project here, so this is also where a
-/// legacy `<project>/.rey30-idvj` is moved into the project's store: before anything
-/// reads it, and only when the workspace still has one. The notice is kept for
-/// the surface to show (see [`take_migration_notice`]).
 fn resolve_project_root(project: &str) -> PathBuf {
-    let root = PathBuf::from(project)
+    PathBuf::from(project)
         .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(project));
-    if let Some(note) = crate::core::agent::project::migrate_legacy_store(&root) {
-        log::info!("Agent: {note}");
-        *MIGRATION_NOTICE.lock().unwrap_or_else(|e| e.into_inner()) = Some(note);
-    }
-    root
-}
-
-static MIGRATION_NOTICE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
-
-/// The launch migration's one-line report, handed out once.
-pub(crate) fn take_migration_notice() -> Option<String> {
-    MIGRATION_NOTICE.lock().unwrap_or_else(|e| e.into_inner()).take()
+        .unwrap_or_else(|_| PathBuf::from(project))
 }
 
 /// What this build supports that a caller (a launcher) must be able to check
@@ -2131,9 +2114,6 @@ fn prepare_agent_run(
         resume.as_ref(),
     )?;
     let project_root = resolve_project_root(project);
-    if let Some(note) = take_migration_notice() {
-        eprintln!("({note})");
-    }
     if let Some(note) = session.workspace_note.as_deref() {
         eprintln!("({note})");
     }

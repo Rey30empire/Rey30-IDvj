@@ -6422,7 +6422,7 @@ impl App {
     /// `/name` token (no whitespace yet), the popup was Esc-dismissed, or
     /// nothing matches.
     ///
-    /// Shown while a run is live as well as idle (janhq/jan-internal#395): Enter
+    /// Shown while a run is live as well as idle: Enter
     /// runs a typed `/command` in any state, so hiding the popup mid-run only
     /// hid what could be run. Esc on the open popup dismisses it; only the next
     /// Esc, with the popup gone, cancels the run. Skills honor the `[skills].enabled`
@@ -7784,7 +7784,7 @@ async fn compute_context_report(snapshot: ContextSnapshot) -> ContextReport {
     let root = args.and_then(|a| a.project_root.clone());
 
     // The three system-prompt segments are carved out of one build of the
-    // real prompt: the whole thing, minus the JAN.md block, minus the
+    // real prompt: the whole thing, minus the REY30.md block, minus the
     // skills/memory catalogs. Splitting a single build (rather than
     // re-deriving each piece) is what keeps them summing to what is sent.
     //
@@ -9290,8 +9290,8 @@ struct ContextReport {
     session_cached_tokens: u64,
     session_cache_write_tokens: u64,
     /// The instructions files the project context loaded, farthest first, each
-    /// with whether it is not a `JAN.md` (#9079). `/context` labels each by
-    /// name (legacy `JAN.md`, `CLAUDE.md` fallback), so the choice is never silent.
+    /// with whether it is not a `REY30.md` (#9079). `/context` labels each by
+    /// name (`REY30.md`, `CLAUDE.md` fallback), so the choice is never silent.
     instruction_files: Vec<(String, bool)>,
 }
 
@@ -9524,7 +9524,7 @@ fn cost_summary_line(report: &ContextReport) -> Option<String> {
 }
 
 /// Which instructions files the project context holds, for `/context`: a blank
-/// separator, a heading, then one path per file, a legacy JAN.md or a CLAUDE.md
+/// separator, a heading, then one path per file, a REY30.md or a CLAUDE.md
 /// fallback labelled as such.
 /// Empty when none loaded, so a project without instructions shows nothing.
 fn instruction_file_lines(report: &ContextReport) -> Vec<String> {
@@ -12986,9 +12986,6 @@ pub async fn run(
         (false, false) => "--safe: approval needed, but unsandboxed - what you approve runs with your own access (--sandbox to confine)".to_string(),
     };
     app.push_session_banner(!seeded);
-    if let Some(note) = super::take_migration_notice() {
-        app.note(&note);
-    }
     // The startup model listing ran before the alternate screen, where a
     // failure printed to stderr would be wiped by the first frame.
     if let Some(note) = super::session_provider::take_startup_notice() {
@@ -13004,7 +13001,7 @@ pub async fn run(
         // middle of a run.
         app.note(&warning);
     }
-    // An invitation when there is nothing to load, a label when a legacy JAN.md
+    // An invitation when there is nothing to load, a label when a REY30.md
     // or a CLAUDE.md is what loaded; an AGENTS.md project hears nothing.
     if let Some(note) = project_instructions_note(&app.project_root) {
         app.note(&note);
@@ -16916,7 +16913,7 @@ Then report what you wrote and why, briefly."
 
 /// The startup note about project instructions: an invitation to `/init` when
 /// there are none, and a plain statement when a loaded file is not the default
-/// `AGENTS.md` -- a legacy `JAN.md` or an opt-in `CLAUDE.md` -- so which file
+/// `AGENTS.md` -- a `REY30.md` or an opt-in `CLAUDE.md` -- so which file
 /// the prompt holds is never silent (#9079). `None` when every loaded file is
 /// an `AGENTS.md`: nothing to say.
 fn project_instructions_note(project_root: &std::path::Path) -> Option<String> {
@@ -16951,9 +16948,9 @@ struct InitPlan {
 }
 
 /// Choose `/init`'s target (#9083). `AGENTS.md` is the default. A root that
-/// already has a legacy `JAN.md` keeps it: `JAN.md` wins over `AGENTS.md` in the
+/// already has a `REY30.md` keeps it: `REY30.md` wins over `AGENTS.md` in the
 /// same folder, so an `AGENTS.md` written next to it would never load. A project
-/// whose `[context].fallback_files` leaves `AGENTS.md` out gets `JAN.md`, the
+/// whose `[context].fallback_files` leaves `AGENTS.md` out gets `REY30.md`, the
 /// one name that is always read. A `CLAUDE.md` seeds a new file.
 fn init_plan(project_root: &std::path::Path) -> InitPlan {
     use crate::core::agent::context::{
@@ -17012,15 +17009,15 @@ fn init_command(app: &mut App) {
     }
     if file == crate::core::agent::context::CONTEXT_FILE_NAME && plan.existing {
         prompt.push_str("\n\n");
-        prompt.push_str(INIT_LEGACY_PARAGRAPH);
+        prompt.push_str(INIT_REY30_PARAGRAPH);
     }
     app.submit_user_hidden(prompt);
 }
 
-/// The `/init` addendum for a project whose own file is the legacy `JAN.md`:
-/// keep editing it in place, and leave the rename to the user.
-const INIT_LEGACY_PARAGRAPH: &str = "`JAN.md` is Rey30 IDvj's legacy instructions file; new projects use \
-`AGENTS.md`, which other coding agents read too. Keep editing `JAN.md` in place -- it wins over an \
+/// The `/init` addendum for a project whose own file is `REY30.md`: keep
+/// editing it in place, and leave any rename to the user.
+const INIT_REY30_PARAGRAPH: &str = "`REY30.md` is Rey30 IDvj's own instructions file; new projects use \
+`AGENTS.md`, which other coding agents read too. Keep editing `REY30.md` in place -- it wins over an \
 `AGENTS.md` in the same folder -- and do not rename it yourself. In your report, mention that the \
 user can rename it to `AGENTS.md` if they want one file shared by every agent.";
 
@@ -19425,7 +19422,7 @@ fn diff_reload_entries(before: &[ReloadEntry], after: &[ReloadEntry]) -> ReloadD
 /// project's `agent.toml` limits (context window, compaction, output cap,
 /// token budget) and reports each value that moved; `plugin`/`skills` re-run
 /// discovery and rebuild the slash catalog, reporting added/removed/changed
-/// entries. The model-facing system prompt (JAN.md instructions, the skills
+/// entries. The model-facing system prompt (REY30.md instructions, the skills
 /// catalog) is rebuilt from disk on every run, so `system-prompt` re-reads and
 /// reports what the next run picks up. Bare `/reload` does all of them.
 fn reload_command(app: &mut App, arg: &str) {
@@ -19468,12 +19465,12 @@ fn reload_system_prompt(app: &mut App) {
     // Nothing caches the instructions across runs: the system prompt
     // (including this block and the skills catalog) is rebuilt from disk at
     // the start of every run. Re-read now to confirm what the next run picks up,
-    // through the same discovery the prompt uses: JAN.md per directory, else a
+    // through the same discovery the prompt uses: REY30.md per directory, else a
     // `[context].fallback_files` entry (#9079), with that list re-resolved too.
     let files = crate::core::agent::context::project_context_files(&app.project_root);
     if files.is_empty() {
         app.note(
-            "◈ reload · system-prompt · no AGENTS.md or JAN.md in this project or its ancestors",
+            "◈ reload · system-prompt · no AGENTS.md or REY30.md in this project or its ancestors",
         );
         return;
     }
@@ -32414,7 +32411,7 @@ mod tests {
         assert!(app.want_start, "/init must start a turn");
         let sent = app.history.last().expect("user message").to_string();
         assert!(sent.contains("Write `AGENTS.md`"), "{sent}");
-        assert!(!sent.contains("JAN.md"), "a new project never hears of JAN.md: {sent}");
+        assert!(!sent.contains("REY30.md"), "a new project never hears of REY30.md: {sent}");
         assert!(sent.contains("skill_write"), "{sent}");
         assert!(sent.contains("memory_write"), "{sent}");
         let _ = std::fs::remove_dir_all(&app.agent_dir);
@@ -36460,7 +36457,7 @@ mod tests {
             args: json!({ "command": "git push" }),
         });
         let content =
-            "To github.com:janhq/jan.git\n   a1b2c3d..e4f5g6h  main -> main\nremote line\n[exit 0]";
+            "To github.com:Rey30empire/Rey30-IDvj.git\n   a1b2c3d..e4f5g6h  main -> main\nremote line\n[exit 0]";
         app.apply(StreamEvent::ToolResult {
             id: "c1".into(),
             content: content.into(),
@@ -46162,7 +46159,7 @@ mod tests {
         assert!(app.slash_matches().is_empty());
     }
 
-    /// janhq/jan-internal#395: Enter runs a `/command` mid-run, so the popup
+    /// Enter runs a `/command` mid-run, so the popup
     /// that discovers and completes one shows mid-run too, and filters live.
     #[test]
     fn slash_shown_while_running() {
@@ -46757,7 +46754,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// janhq/jan-internal#394: `/skills` lists every scope, and a user skill
+    /// `/skills` lists every scope, and a user skill
     /// hidden by a same-named project skill is shown as shadowed; the popup
     /// catalog offers user skills and `/reload skills` picks up new ones.
     #[tokio::test]
@@ -46806,21 +46803,21 @@ mod tests {
         let (mut app, root) = skill_test_app("deploy", "How to deploy.");
         run_command(&mut app, "reload system-prompt", &no_mcp()).await;
         assert!(
-            transcript_text(&app).contains("no AGENTS.md or JAN.md"),
+            transcript_text(&app).contains("no AGENTS.md or REY30.md"),
             "empty project: {}",
             transcript_text(&app)
         );
 
-        std::fs::write(root.join("JAN.md"), "# Rules\n\nRun the tests.\n").unwrap();
+        std::fs::write(root.join("REY30.md"), "# Rules\n\nRun the tests.\n").unwrap();
         run_command(&mut app, "reload system-prompt", &no_mcp()).await;
         let out = transcript_text(&app);
         assert!(out.contains("re-read project instructions"), "{out}");
-        assert!(out.contains("JAN.md"), "{out}");
+        assert!(out.contains("REY30.md"), "{out}");
         let _ = std::fs::remove_dir_all(&root);
     }
 
     /// #9079 x #9077: `/reload system-prompt` goes through the same discovery,
-    /// so a project with only AGENTS.md reports it, and a legacy JAN.md added
+    /// so a project with only AGENTS.md reports it, and a REY30.md added
     /// later shadows it and is labelled.
     #[tokio::test]
     async fn reload_system_prompt_reads_agents_md_fallback() {
@@ -46830,12 +46827,12 @@ mod tests {
         let out = transcript_text(&app);
         assert!(out.contains("AGENTS.md (") && !out.contains("fallback"), "{out}");
 
-        std::fs::write(root.join("JAN.md"), "# Rules\n").unwrap();
+        std::fs::write(root.join("REY30.md"), "# Rules\n").unwrap();
         let before = transcript_text(&app).len();
         run_command(&mut app, "reload system-prompt", &no_mcp()).await;
         let out = transcript_text(&app);
         let tail = &out[before..];
-        assert!(tail.contains("legacy JAN.md") && !tail.contains("AGENTS.md"), "{tail}");
+        assert!(tail.contains("Rey30 IDvj file") && !tail.contains("AGENTS.md"), "{tail}");
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -48384,23 +48381,23 @@ mod tests {
     }
 
     /// The invitation is conditional on the same rule the system prompt uses, so
-    /// an already-onboarded project (its own JAN.md, or an ancestor's) is quiet.
+    /// an already-onboarded project (its own REY30.md, or an ancestor's) is quiet.
     #[test]
     fn init_invitation_tracks_whether_the_project_has_instructions() {
         let root = std::env::temp_dir().join(format!("rey30_init_invite_{}", std::process::id()));
         let nested = root.join("pkg");
         std::fs::create_dir_all(&nested).unwrap();
         assert!(!crate::core::agent::context::has_context_file(&nested));
-        std::fs::write(root.join("JAN.md"), "ROOT_RULES").unwrap();
+        std::fs::write(root.join("REY30.md"), "ROOT_RULES").unwrap();
         assert!(
             crate::core::agent::context::has_context_file(&nested),
-            "an ancestor's JAN.md already onboards this project"
+            "an ancestor's REY30.md already onboards this project"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
 
     /// #9079/#9083: no instructions invites `/init`; an AGENTS.md says nothing;
-    /// a legacy JAN.md (which shadows it) is named as such.
+    /// a REY30.md (which shadows it) is named as such.
     #[test]
     fn startup_note_names_an_agents_md_fallback() {
         crate::core::agent::global_config::with_temp_home(|_| {
@@ -48416,21 +48413,21 @@ mod tests {
                 None,
                 "AGENTS.md is the default: nothing to say"
             );
-            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
-            let legacy = super::project_instructions_note(&root).expect("a legacy note");
-            assert!(legacy.contains("JAN.md (legacy JAN.md)"), "{legacy}");
+            std::fs::write(root.join("REY30.md"), "REY30_RULES").unwrap();
+            let legacy = super::project_instructions_note(&root).expect("a REY30.md note");
+            assert!(legacy.contains("REY30.md (Rey30 IDvj file)"), "{legacy}");
             let _ = std::fs::remove_dir_all(&root);
         });
     }
 
     /// `/context` lists the files the project context holds, labelling a legacy
-    /// JAN.md and a CLAUDE.md fallback.
+    /// REY30.md and a CLAUDE.md fallback.
     #[test]
     fn context_view_lists_instruction_files_and_marks_a_fallback() {
         let mut report = context_report(128_000, 16_000, [100, 100, 100, 100, 100]);
         assert!(!context_text(&report).contains("Project instructions"));
         report.instruction_files = vec![
-            ("/repo/JAN.md".into(), false),
+            ("/repo/REY30.md".into(), false),
             ("/repo/pkg/AGENTS.md".into(), true),
         ];
         for width in [80usize, 30] {
@@ -48440,21 +48437,21 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n");
             assert!(text.contains("Project instructions"), "{text}");
-            assert!(text.contains("/repo/JAN.md"), "{text}");
+            assert!(text.contains("/repo/REY30.md"), "{text}");
             assert!(text.contains("AGENTS.md"), "{text}");
         }
         let text = context_text(&report);
-        assert!(text.contains("/repo/JAN.md (legacy JAN.md)"), "{text}");
+        assert!(text.contains("/repo/REY30.md (Rey30 IDvj file)"), "{text}");
         assert!(!text.contains("AGENTS.md ("), "AGENTS.md is unlabelled: {text}");
         report.instruction_files = vec![("/repo/CLAUDE.md".into(), true)];
         assert!(context_text(&report).contains("CLAUDE.md (fallback)"));
     }
 
     /// #9083: `/init` writes AGENTS.md by default, reviews one that exists,
-    /// starts from a CLAUDE.md, keeps a legacy JAN.md, and falls back to JAN.md
+    /// starts from a CLAUDE.md, keeps a REY30.md, and falls back to REY30.md
     /// when `[context].fallback_files` would not read AGENTS.md.
     #[test]
-    fn init_plan_defaults_to_agents_md_and_keeps_a_legacy_rey30_md() {
+    fn init_plan_defaults_to_agents_md_and_keeps_a_rey30_md() {
         crate::core::agent::global_config::with_temp_home(|_| {
             let root =
                 std::env::temp_dir().join(format!("rey30_init_plan_{}", std::process::id()));
@@ -48473,17 +48470,17 @@ mod tests {
             );
             std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
             assert_eq!(super::init_plan(&root), plan("AGENTS.md", true, None));
-            // A legacy JAN.md shadows AGENTS.md, so /init edits it, not AGENTS.md.
-            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
-            assert_eq!(super::init_plan(&root), plan("JAN.md", true, None));
-            // `fallback_files = []` reads JAN.md only: /init writes that.
-            std::fs::remove_file(root.join("JAN.md")).unwrap();
+            // A REY30.md shadows AGENTS.md, so /init edits it, not AGENTS.md.
+            std::fs::write(root.join("REY30.md"), "REY30_RULES").unwrap();
+            assert_eq!(super::init_plan(&root), plan("REY30.md", true, None));
+            // `fallback_files = []` reads REY30.md only: /init writes that.
+            std::fs::remove_file(root.join("REY30.md")).unwrap();
             let store = crate::core::agent::project::store_root(&root);
             std::fs::create_dir_all(&store).unwrap();
             std::fs::write(store.join("agent.toml"), "[context]\nfallback_files = []\n").unwrap();
             assert_eq!(
                 super::init_plan(&root),
-                plan("JAN.md", false, Some("AGENTS.md"))
+                plan("REY30.md", false, Some("AGENTS.md"))
             );
             let _ = std::fs::remove_dir_all(&store);
             let _ = std::fs::remove_dir_all(&root);
@@ -48491,7 +48488,7 @@ mod tests {
     }
 
     /// `/init` in a project with CLAUDE.md builds AGENTS.md on it; one with a
-    /// legacy JAN.md keeps editing it and is told about the rename.
+    /// REY30.md keeps editing it and is told it may rename it.
     #[test]
     fn init_prompt_names_the_planned_file() {
         crate::core::agent::global_config::with_temp_home(|_| {
@@ -48509,14 +48506,14 @@ mod tests {
             assert!(transcript_text(&app).contains("writing AGENTS.md from this project's CLAUDE.md"));
             let _ = std::fs::remove_dir_all(&app.agent_dir);
 
-            std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
+            std::fs::write(root.join("REY30.md"), "REY30_RULES").unwrap();
             let mut app = test_app();
             app.project_root = root.clone();
             super::init_command(&mut app);
             let sent = app.history.last().expect("user message").to_string();
-            assert!(sent.contains("Write `JAN.md`"), "{sent}");
-            assert!(sent.contains("legacy instructions file"), "{sent}");
-            assert!(transcript_text(&app).contains("reviewing JAN.md"));
+            assert!(sent.contains("Write `REY30.md`"), "{sent}");
+            assert!(sent.contains("own instructions file"), "{sent}");
+            assert!(transcript_text(&app).contains("reviewing REY30.md"));
             let _ = std::fs::remove_dir_all(&app.agent_dir);
             let _ = std::fs::remove_dir_all(&root);
         });

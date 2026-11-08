@@ -50,10 +50,10 @@ pub fn migrate_mcp_servers(
         }
     }
     if mcp_version < 2 {
-        log::info!("Migrating MCP schema version 2: Adding Jan Browser MCP");
+        log::info!("Migrating MCP schema version 2: Adding Rey30 IDvj Browser MCP");
         let result = add_server_config(
             app_handle.clone(),
-            "Jan Browser MCP".to_string(),
+            "Rey30 IDvj Browser MCP".to_string(),
             serde_json::json!({
                 "command": "npx",
                 "args": ["-y", "search-mcp-server@latest"],
@@ -66,7 +66,7 @@ pub fn migrate_mcp_servers(
             }),
         );
         if let Err(e) = result {
-            log::error!("Failed to add Jan Browser MCP server config: {e}");
+            log::error!("Failed to add Rey30 IDvj Browser MCP server config: {e}");
         }
     }
     if mcp_version < 3 {

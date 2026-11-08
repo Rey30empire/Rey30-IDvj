@@ -728,8 +728,7 @@ Function .onInit
   ; Captured here rather than in Section Install, where stock Tauri reads it: a
   ; passive upgrade runs the previous uninstaller from PageLeaveReinstall, and
   ; that deletes UNINSTKEY. Read any later, the name is gone, so a renamed main
-  ; binary (jan.exe -> Rey30-IDvj.exe in 0.8.5) leaves every shortcut pointing
-  ; at the deleted exe.
+  ; binary leaves every shortcut pointing at the deleted exe.
   ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
 FunctionEnd
 
@@ -1069,14 +1068,6 @@ Section Uninstall
     Delete "$INSTDIR\LICENSE"
     Delete "$INSTDIR\NOTICE"
     Delete "$INSTDIR\LICENSE-APACHE-2.0.txt"
-
-  ; Delete resources
-    Delete "$INSTDIR\resources\pre-install\janhq-assistant-extension-1.0.2.tgz"
-    Delete "$INSTDIR\resources\pre-install\janhq-conversational-extension-1.0.0.tgz"
-    Delete "$INSTDIR\resources\pre-install\janhq-engine-management-extension-1.0.3.tgz"
-    Delete "$INSTDIR\resources\pre-install\janhq-hardware-management-extension-1.0.0.tgz"
-    Delete "$INSTDIR\resources\pre-install\janhq-inference-cortex-extension-1.0.25.tgz"
-    Delete "$INSTDIR\resources\pre-install\janhq-model-extension-1.0.36.tgz"
 
   ; Delete external binaries
     Delete "$INSTDIR\bun.exe"

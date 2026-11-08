@@ -58,16 +58,7 @@ pub struct MinimalChunkInput {
 /// Windows `%APPDATA%` override lives. Resolving `dirs::data_dir()` locally
 /// would put the plugin -- and only the plugin -- back on the real profile.
 pub fn base_dir_in(data_root: &Path) -> PathBuf {
-    let mut base = data_root.to_path_buf();
-    let current = data_root.join("Rey30-IDvj").join("data").join("db");
-    let previous = data_root.join("Jan").join("data").join("db");
-    if !current.exists() && previous.is_dir() {
-        return previous;
-    }
-    base.push("Rey30-IDvj");
-    base.push("data");
-    base.push("db");
-    base
+    data_root.join("Rey30-IDvj").join("data").join("db")
 }
 
 /// The database file for collection `name`, always a single file directly in

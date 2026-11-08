@@ -68,7 +68,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// keep two spellings of one workspace on one container.
 pub fn moniker(workspace: &Path) -> String {
     let key = workspace.to_string_lossy().to_lowercase();
-    format!("Rey30 IDvj.Agent.{:016x}", fnv1a(key.as_bytes()))
+    format!("Rey30IDvj.Agent.{:016x}", fnv1a(key.as_bytes()))
 }
 
 /// argv for the helper re-exec. Shaped like the other backends -- fixed
@@ -305,7 +305,7 @@ fn spawn_failure(program: &Path, error: &std::io::Error) -> String {
 /// such as Wine); deriving a SID is a pure hash and touches nothing.
 #[cfg(windows)]
 pub fn available() -> bool {
-    win::derive_sid("Rey30 IDvj.Agent.Probe").is_ok()
+    win::derive_sid("Rey30IDvj.Agent.Probe").is_ok()
 }
 
 #[cfg(not(windows))]
@@ -782,7 +782,7 @@ mod tests {
         assert_eq!(moniker(&ws()), moniker(&ws()));
         assert_eq!(
             moniker(&ws()),
-            moniker(Path::new(r"C:\USERS\ME\.JAN\AGENT-WORKSPACE\THREADS\T1"))
+            moniker(Path::new(r"C:\USERS\ME\.REY30-IDVJ\AGENT-WORKSPACE\THREADS\T1"))
         );
     }
 

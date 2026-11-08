@@ -81,9 +81,9 @@ const GLOBAL_CONFIG_TEMPLATE: &str = r#"# Rey30 IDvj Agent global provider confi
 #
 # [context]
 # fallback_files = ["AGENTS.md"]      # instructions files read where a folder
-#                                     # has no JAN.md (JAN.md always wins).
+#                                     # has no REY30.md (REY30.md always wins).
 #                                     # Default ["AGENTS.md"]; add "CLAUDE.md"
-#                                     # to opt in; [] reads JAN.md only. A
+#                                     # to opt in; [] reads REY30.md only. A
 #                                     # project's agent.toml [context] wins
 #
 # [web_search]                        # backend for the web_search/web_fetch
@@ -208,7 +208,7 @@ struct GlobalConfigToml {
     #[serde(default, skip_serializing_if = "TelemetrySection::is_empty")]
     telemetry: TelemetrySection,
     /// `[context]` -- the user-wide default for which instructions files are
-    /// read where a directory has no `JAN.md`. A project's own `[context]`
+    /// read where a directory has no `REY30.md`. A project's own `[context]`
     /// wins. See `project::context_fallback_files`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     context: Option<GlobalContextSection>,
@@ -363,11 +363,7 @@ pub(crate) fn global_rey30_dir() -> Result<PathBuf, String> {
     let home = TEST_HOME.with(|home| Some(home.borrow().path().to_path_buf()));
     #[cfg(not(test))]
     let home = dirs::home_dir();
-    home.map(|home| {
-        let current = home.join(".rey30-idvj");
-        let previous = home.join(".jan");
-        if !current.exists() && previous.is_dir() { previous } else { current }
-    })
+    home.map(|home| home.join(".rey30-idvj"))
         .ok_or_else(|| "could not resolve the user's home directory".to_string())
 }
 

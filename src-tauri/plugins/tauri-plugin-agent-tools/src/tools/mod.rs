@@ -749,8 +749,7 @@ pub fn is_workspace_tool(name: &str) -> bool {
     )
 }
 
-/// The shell tool's name. Not `bash`: on Windows it runs PowerShell or cmd
-/// (janhq/jan#9128).
+/// The shell tool's name. Not `bash`: on Windows it runs PowerShell or cmd.
 pub const SHELL_TOOL: &str = "shell";
 
 /// The notice for a user-written tool name or pattern that is `bash`, the

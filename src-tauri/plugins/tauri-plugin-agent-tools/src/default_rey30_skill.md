@@ -12,7 +12,7 @@ Run `rey30-idvj` in a folder. That CWD is the project root; `--project DIR` sele
 ## Project files
 
 Rey30 IDvj reads one non-empty instructions file per folder, from the project root and its ancestors. The
-nearest file wins. `AGENTS.md` is the default and what `/init` writes; a legacy `JAN.md` still loads
+nearest file wins. `AGENTS.md` is the default and what `/init` writes; a `REY30.md` also loads
 and wins over `AGENTS.md` in the same folder. It is the only file Rey30 IDvj keeps in the project; commit it
 to share instructions.
 Everything else is per-user state under `~/.rey30-idvj/`, created on first use.

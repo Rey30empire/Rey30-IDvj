@@ -388,7 +388,7 @@ mod tests {
         assert_eq!(names, expected);
     }
 
-    /// `skill_write` gains an optional `scope` (janhq/jan-internal#394):
+    /// `skill_write` gains an optional `scope`:
     /// additive, so `required` is unchanged and a caller that omits it keeps
     /// writing to the project. The schema must also serialize to the same
     /// bytes every time, since the tool array sits in the cached prefix.

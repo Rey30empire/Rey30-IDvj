@@ -21,7 +21,7 @@ export {
 } from './types'
 
 /**
- * Every call takes the Jan data folder, because the plugin derives its
+ * Every call takes the Rey30 IDvj data folder, because the plugin derives its
  * directories from it (`<dataFolder>/agent-workspace`) while the app remains the
  * owner of where the data folder actually is.
  *
@@ -401,7 +401,7 @@ export async function sandboxStatus(): Promise<SandboxStatus> {
  * `bash` needs because it keeps producing output after the tool has returned.
  *
  * `readOnlyProject` attaches a folder the tools may read. It is validated on
- * the Rust side and rejected outright if it overlaps the workspace or the Jan
+ * the Rust side and rejected outright if it overlaps the workspace or the Rey30 IDvj
  * data folder, rather than being silently dropped. By default it is never
  * written; `projectWritable` opts the same folder into writes and edits in
  * place (Cowork's shared-folder mode).

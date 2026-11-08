@@ -1,5 +1,5 @@
 //! Opt-in OpenTelemetry export of the agent's usage: metrics, event logs and
-//! (separately opted into) traces over OTLP/HTTP, to a collector the user names (janhq/jan-internal#393).
+//! (separately opted into) traces over OTLP/HTTP, to a collector the user names.
 //!
 //! Off by default: nothing here runs, and no request is made, unless
 //! [`config::enabled`] says so. This is separate from Rey30 IDvj's own update-check

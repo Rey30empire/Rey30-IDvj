@@ -555,27 +555,27 @@ fn test_constants_values() {
 
 #[test]
 fn test_get_data_dir_appends_threads_subdir() {
-    let base = PathBuf::from("/tmp/jandata");
+    let base = PathBuf::from("/tmp/rey30data");
     assert_eq!(get_data_dir(&base), base.join("threads"));
 }
 
 #[test]
 fn test_get_thread_dir_includes_thread_id() {
-    let base = PathBuf::from("/tmp/jandata");
+    let base = PathBuf::from("/tmp/rey30data");
     let dir = get_thread_dir(&base, "abc-123").unwrap();
     assert_eq!(dir, base.join("threads").join("abc-123"));
 }
 
 #[test]
 fn test_get_thread_metadata_path_layout() {
-    let base = PathBuf::from("/tmp/jandata");
+    let base = PathBuf::from("/tmp/rey30data");
     let path = get_thread_metadata_path(&base, "tid").unwrap();
     assert!(path.ends_with("threads/tid/thread.json"));
 }
 
 #[test]
 fn test_get_messages_path_layout() {
-    let base = PathBuf::from("/tmp/jandata");
+    let base = PathBuf::from("/tmp/rey30data");
     let path = get_messages_path(&base, "tid").unwrap();
     assert!(path.ends_with("threads/tid/messages.jsonl"));
 }
@@ -795,7 +795,7 @@ fn test_validate_thread_id_rejects_path_like_ids() {
         "lpt9",
     ] {
         assert!(validate_thread_id(id).is_err(), "{id:?} should be rejected");
-        assert!(get_thread_dir(std::path::Path::new("/tmp/jandata"), id).is_err());
+        assert!(get_thread_dir(std::path::Path::new("/tmp/rey30data"), id).is_err());
     }
     assert!(validate_thread_id(&"a".repeat(129)).is_err());
 }

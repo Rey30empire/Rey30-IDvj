@@ -6,8 +6,6 @@ pub mod models;
 // Resolves the OS app-data root. Every `dirs::data_dir()` / `path().data_dir()`
 // call in the app goes through here so Windows has an env lever at all.
 pub mod paths;
-#[cfg(windows)]
-pub mod webview_migration;
 // Desktop settings.json store, driven by Tauri commands + a flush thread.
 #[cfg(not(feature = "cli"))]
 pub mod settings_store;

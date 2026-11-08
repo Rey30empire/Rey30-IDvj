@@ -48,32 +48,32 @@ notified when it exits. A command you detach yourself is invisible to that: no o
 /// the project root up to the filesystem root. When a directory has a
 /// non-empty one it wins outright: nothing else in that directory is read.
 ///
-/// `JAN.md` is the *legacy* name: `/init` now writes `AGENTS.md` (#9083), but a
-/// `JAN.md` the user already has keeps winning, so an existing project loads
+/// `REY30.md` is Rey30 IDvj's own name: `/init` writes `AGENTS.md` by default,
+/// but a `REY30.md` the user already has keeps winning, so the project loads
 /// exactly the bytes it loaded before and its prompt cache stays warm. Other
 /// directories fall back to the names in `[context].fallback_files` (default
 /// `AGENTS.md`; `CLAUDE.md` is opt-in), tried in order, one file per directory.
-/// `[]` restores JAN.md-only exactly.
-pub(crate) const CONTEXT_FILE_NAME: &str = "JAN.md";
+/// `[]` restores REY30.md-only exactly.
+pub(crate) const CONTEXT_FILE_NAME: &str = "REY30.md";
 
-/// The instructions file `/init` writes for a new project (#9083).
+/// The instructions file `/init` writes for a new project.
 #[cfg(feature = "cli")]
 pub(crate) const DEFAULT_INSTRUCTIONS_FILE: &str = "AGENTS.md";
 
-/// How a surface labels a loaded instructions file by its name: `JAN.md` is
-/// the legacy name, `CLAUDE.md` an opt-in fallback, and `AGENTS.md` -- the
+/// How a surface labels a loaded instructions file by its name: `REY30.md` is
+/// Rey30 IDvj's own file, `CLAUDE.md` an opt-in fallback, and `AGENTS.md` -- the
 /// default -- needs no label.
 #[cfg(feature = "cli")]
 pub(crate) fn instructions_file_label(path: &Path) -> Option<&'static str> {
     match path.file_name().and_then(|name| name.to_str()) {
-        Some(CONTEXT_FILE_NAME) => Some("legacy JAN.md"),
+        Some(CONTEXT_FILE_NAME) => Some("Rey30 IDvj file"),
         Some(DEFAULT_INSTRUCTIONS_FILE) | None => None,
         Some(_) => Some("fallback"),
     }
 }
 
 /// One instructions file the walk picked: where it is, what it says, and
-/// whether it is a fallback (not `JAN.md`), so a surface can say so.
+/// whether it is a fallback (not `REY30.md`), so a surface can say so.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ContextFile {
     pub path: std::path::PathBuf,
@@ -82,9 +82,9 @@ pub(crate) struct ContextFile {
 }
 
 /// Walk from `project_root` to the filesystem root and pick at most one
-/// instructions file per directory: a non-empty `JAN.md`, else the first
+/// instructions file per directory: a non-empty `REY30.md`, else the first
 /// non-empty name in `fallback_files`. A file whose canonical path was already
-/// picked (a `sub/AGENTS.md -> ../JAN.md` symlink) is skipped, so the same text
+/// picked (a `sub/AGENTS.md -> ../REY30.md` symlink) is skipped, so the same text
 /// is never loaded twice. Returned farthest-first, so the nearest -- most
 /// specific -- instructions come last and take precedence.
 ///
@@ -109,7 +109,7 @@ pub(crate) fn discover_context_files(
                 continue;
             }
             // This directory is decided by the first usable file, even when it
-            // turns out to be a duplicate: a JAN.md that links to an ancestor's
+            // turns out to be a duplicate: a REY30.md that links to an ancestor's
             // file must not let this directory's AGENTS.md in behind it.
             let canonical = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
             if seen.insert(canonical) {
@@ -138,7 +138,7 @@ pub(crate) fn project_context_files(project_root: &Path) -> Vec<ContextFile> {
 
 /// Render picked instruction files as the `<project_context>` block, or None
 /// when there are none. Each file keeps its own `<project_instructions path=...>`
-/// tag, so the model sees which file -- `JAN.md` or a fallback -- it got.
+/// tag, so the model sees which file -- `REY30.md` or a fallback -- it got.
 fn render_context_files(files: &[ContextFile]) -> Option<String> {
     if files.is_empty() {
         return None;
@@ -157,7 +157,7 @@ fn render_context_files(files: &[ContextFile]) -> Option<String> {
     Some(block)
 }
 
-/// Ingest the project's instructions -- `JAN.md`, or a configured fallback where
+/// Ingest the project's instructions -- `REY30.md`, or a configured fallback where
 /// a directory has none -- from the project root and its ancestors, wrapped in a
 /// `<project_context>` block so the model treats them as authoritative project
 /// instructions. Returns None when none exist.
@@ -166,7 +166,7 @@ pub(crate) fn load_context_files(project_root: &Path) -> Option<String> {
 }
 
 /// Whether this project has usable instructions, by the same rule the system
-/// prompt uses: a non-empty `JAN.md` (or fallback) at the root or in any
+/// prompt uses: a non-empty `REY30.md` (or fallback) at the root or in any
 /// ancestor, so an ancestor's file (a monorepo root) counts as already
 /// onboarded. The startup note reads [`project_context_files`] directly, since
 /// it also names a fallback; this is the yes/no its tests pin.
@@ -440,7 +440,7 @@ impl ComposedPrompt {
 }
 
 /// Render one composer's block, or `None` when it has nothing to contribute to
-/// this project (no JAN.md, no skills, no memory notes).
+/// this project (no REY30.md, no skills, no memory notes).
 ///
 /// Exhaustive over the registry on purpose: a new composer does not compile
 /// until somebody decides what it writes, which is the same review that decides
@@ -764,8 +764,8 @@ mod tests {
         let root = scratch_project("ctxfiles");
         let nested = root.join("sub");
         std::fs::create_dir_all(&nested).unwrap();
-        std::fs::write(root.join("JAN.md"), "ROOT_RULES").unwrap();
-        std::fs::write(nested.join("JAN.md"), "NESTED_RULES").unwrap();
+        std::fs::write(root.join("REY30.md"), "ROOT_RULES").unwrap();
+        std::fs::write(nested.join("REY30.md"), "NESTED_RULES").unwrap();
 
         let block = load_context_files(&nested).expect("context block");
         assert!(block.starts_with("<project_context>"));
@@ -785,7 +785,7 @@ mod tests {
         vec!["AGENTS.md".to_string()]
     }
 
-    /// #9079: a directory with no JAN.md falls back to AGENTS.md, and the tag
+    /// #9079: a directory with no REY30.md falls back to AGENTS.md, and the tag
     /// names the file so the model can tell which one it got.
     #[test]
     fn agents_md_is_read_where_there_is_no_rey30_md() {
@@ -805,24 +805,24 @@ mod tests {
     /// before the fallback existed.
     #[test]
     fn rey30_md_wins_over_agents_md_in_the_same_directory() {
-        let root = scratch_project("janwins");
-        std::fs::write(root.join("JAN.md"), "REY30_RULES").unwrap();
+        let root = scratch_project("rey30wins");
+        std::fs::write(root.join("REY30.md"), "REY30_RULES").unwrap();
         std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
         std::fs::write(root.join("CLAUDE.md"), "CLAUDE_RULES").unwrap();
         let all = vec!["AGENTS.md".to_string(), "CLAUDE.md".to_string()];
         let block = render_context_files(&discover_context_files(&root, &all)).unwrap();
         let rey30_only = render_context_files(&discover_context_files(&root, &[])).unwrap();
-        assert_eq!(block, rey30_only, "JAN.md must shadow every fallback");
+        assert_eq!(block, rey30_only, "REY30.md must shadow every fallback");
         assert!(!block.contains("AGENTS_RULES") && !block.contains("CLAUDE_RULES"));
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// An empty JAN.md does not count, the same rule as before: the directory
+    /// An empty REY30.md does not count, the same rule as before: the directory
     /// falls through to its AGENTS.md.
     #[test]
     fn an_empty_rey30_md_falls_through_to_the_fallback() {
-        let root = scratch_project("emptyjan");
-        std::fs::write(root.join("JAN.md"), "  \n").unwrap();
+        let root = scratch_project("emptyrey30");
+        std::fs::write(root.join("REY30.md"), "  \n").unwrap();
         std::fs::write(root.join("AGENTS.md"), "AGENTS_RULES").unwrap();
         let files = discover_context_files(&root, &agents_only());
         assert_eq!(files.len(), 1);
@@ -849,19 +849,19 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// Mixed monorepo: the root's JAN.md and a package's AGENTS.md both load,
+    /// Mixed monorepo: the root's REY30.md and a package's AGENTS.md both load,
     /// nearest last, each tagged with its own path.
     #[test]
     fn fallback_is_decided_per_directory() {
         let root = scratch_project("perdir");
         let nested = root.join("pkg");
         std::fs::create_dir_all(&nested).unwrap();
-        std::fs::write(root.join("JAN.md"), "ROOT_JAN").unwrap();
+        std::fs::write(root.join("REY30.md"), "ROOT_REY30").unwrap();
         std::fs::write(root.join("AGENTS.md"), "ROOT_AGENTS").unwrap();
         std::fs::write(nested.join("AGENTS.md"), "PKG_AGENTS").unwrap();
         let files = discover_context_files(&nested, &agents_only());
         let texts: Vec<&str> = files.iter().map(|f| f.content.as_str()).collect();
-        assert_eq!(texts, ["ROOT_JAN", "PKG_AGENTS"]);
+        assert_eq!(texts, ["ROOT_REY30", "PKG_AGENTS"]);
         assert_eq!(
             files.iter().map(|f| f.fallback).collect::<Vec<_>>(),
             [false, true]
@@ -869,13 +869,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// The common `JAN.md -> AGENTS.md` symlink loads once, as JAN.md.
+    /// The common `REY30.md -> AGENTS.md` symlink loads once, as REY30.md.
     #[cfg(unix)]
     #[test]
     fn a_symlinked_rey30_md_loads_its_target_once() {
         let root = scratch_project("symlink");
         std::fs::write(root.join("AGENTS.md"), "SHARED_RULES").unwrap();
-        std::os::unix::fs::symlink("AGENTS.md", root.join("JAN.md")).unwrap();
+        std::os::unix::fs::symlink("AGENTS.md", root.join("REY30.md")).unwrap();
         let files = discover_context_files(&root, &agents_only());
         assert_eq!(files.len(), 1);
         assert!(!files[0].fallback);
@@ -1179,7 +1179,7 @@ mod tests {
     fn the_default_policy_keeps_the_prefix_in_registry_order() {
         let root = scratch_project("order");
         write_skill(&root, "s.md", "Do the thing.");
-        std::fs::write(root.join("JAN.md"), "PROJECT_RULES").unwrap();
+        std::fs::write(root.join("REY30.md"), "PROJECT_RULES").unwrap();
         let composed = compose_system_prompt(None, &root, None, false, &PromptPolicy::default(), None)
             .expect("default policy");
 

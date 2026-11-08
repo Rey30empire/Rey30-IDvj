@@ -6,8 +6,7 @@
  * 2. First endpoint is treated as PRIMARY - uses HMAC request signing
  * 3. Remaining endpoints are FALLBACK - no signing needed
  *
- * Convention: The first endpoint in the list should be the signed endpoint
- * (e.g., https://apps.jan.ai/update-check)
+ * Convention: The first endpoint in the list should be the signed endpoint.
  */
 use super::hmac_client::SignedRequestHeaders;
 use reqwest::Client;
@@ -20,10 +19,7 @@ use thiserror::Error;
 /// - In local dev: Falls back to a test key
 pub(crate) const SECRET_KEY: &str = match option_env!("REY30_SIGNING_KEY") {
     Some(key) => key,
-    None => match option_env!("JAN_SIGNING_KEY") {
-        Some(key) => key,
-        None => "local-dev-test-key-not-for-production",
-    },
+    None => "local-dev-test-key-not-for-production",
 };
 
 /// Timeout for HTTP requests

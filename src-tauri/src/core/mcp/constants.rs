@@ -1,11 +1,10 @@
 // Default MCP runtime settings
 pub const DEFAULT_MCP_TOOL_CALL_TIMEOUT_SECS: u64 = 30;
 
-pub const BROWSER_MCP_NAME: &str = "Jan Browser MCP";
-pub const BROWSER_MCP_COMPAT_NAME: &str = "Rey30 IDvj Browser MCP";
+pub const BROWSER_MCP_NAME: &str = "Rey30 IDvj Browser MCP";
 
 pub fn is_browser_mcp_server_name(name: &str) -> bool {
-    name == BROWSER_MCP_NAME || name == BROWSER_MCP_COMPAT_NAME
+    name == BROWSER_MCP_NAME
 }
 
 /// Per-tool-result character cap applied before the result enters conversation
@@ -24,7 +23,7 @@ pub const DEFAULT_MCP_BACKOFF_MULTIPLIER: f64 = 2.0; // Double the delay each ti
 
 pub const DEFAULT_MCP_CONFIG: &str = r#"{
   "mcpServers": {
-    "Jan Browser MCP": {
+    "Rey30 IDvj Browser MCP": {
       "command": "npx",
       "args": ["-y", "search-mcp-server@latest"],
       "env": {

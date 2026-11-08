@@ -24,7 +24,7 @@ fn resolve_bundle_app_data_dir() -> Option<PathBuf> {
 }
 
 /// Keep `%APPDATA%/Rey30 IDvj/settings.json` as canonical, but recover from legacy or
-/// alternate locations if users removed one directory (#7898).
+/// alternate locations if users removed one directory.
 fn migrate_legacy_app_configuration(app_data_dir: &Path) -> std::io::Result<()> {
     fs::create_dir_all(app_data_dir)?;
     let canonical = app_data_dir.join(CONFIGURATION_FILE_NAME);
@@ -63,11 +63,6 @@ fn legacy_app_config_candidate_paths(_app_data_dir: &Path) -> Vec<PathBuf> {
         paths.push(bundle_dir.join(CONFIGURATION_FILE_NAME));
     }
 
-    if let Some(root) = paths::data_dir() {
-        paths.push(root.join("Jan").join(CONFIGURATION_FILE_NAME));
-        paths.push(root.join("jan.ai.app").join(CONFIGURATION_FILE_NAME));
-    }
-
     #[cfg(target_os = "linux")]
     {
         let package_name = env!("CARGO_PKG_NAME");
@@ -76,8 +71,6 @@ fn legacy_app_config_candidate_paths(_app_data_dir: &Path) -> Vec<PathBuf> {
             if legacy != _app_data_dir.join(CONFIGURATION_FILE_NAME) {
                 paths.push(legacy);
             }
-            paths.push(config_dir.join("Jan").join(CONFIGURATION_FILE_NAME));
-            paths.push(config_dir.join("jan.ai.app").join(CONFIGURATION_FILE_NAME));
         }
     }
 
@@ -151,9 +144,7 @@ pub fn resolve_rey30_data_folder() -> PathBuf {
     // Explicit override wins on every platform. `dirs::data_dir()` reads
     // XDG_DATA_HOME only on Linux, so tests/headless consumers need a portable
     // way to redirect the data folder without relying on OS-specific env.
-    if let Ok(folder) = std::env::var("REY30_DATA_FOLDER")
-        .or_else(|_| std::env::var("JAN_DATA_FOLDER"))
-    {
+    if let Ok(folder) = std::env::var("REY30_DATA_FOLDER") {
         if !folder.is_empty() {
             return PathBuf::from(folder);
         }
@@ -172,10 +163,6 @@ pub fn resolve_rey30_data_folder() -> PathBuf {
     // Default: data_dir/Rey30 IDvj/data  (mirrors default_data_folder_path)
     let app_name = std::env::var("APP_NAME").unwrap_or_else(|_| env!("CARGO_PKG_NAME").to_string());
     if let Some(data_dir) = paths::data_dir() {
-        let previous = data_dir.join("Jan").join("data");
-        if previous.is_dir() && !data_dir.join(&app_name).join("data").exists() {
-            return previous;
-        }
         return data_dir.join(&app_name).join("data");
     }
     let home = std::env::var("HOME")
@@ -329,20 +316,9 @@ pub fn default_data_folder_path<R: Runtime>(app_handle: tauri::AppHandle<R>) -> 
 
     let app_name = std::env::var("APP_NAME")
         .unwrap_or_else(|_| env!("CARGO_PKG_NAME").to_string());
-    let previous = path.join("Jan").join("data");
-    if previous.is_dir() && !path.join(&app_name).join("data").exists() {
-        return previous.to_string_lossy().into_owned();
-    }
     path.push(app_name);
     path.push("data");
-
-    let mut path_str = path.to_string_lossy().into_owned();
-
-    if let Some(stripped) = path_str.strip_suffix(".ai.app") {
-        path_str = stripped.to_string();
-    }
-
-    path_str
+    path.to_string_lossy().into_owned()
 }
 
 #[cfg(not(feature = "cli"))]

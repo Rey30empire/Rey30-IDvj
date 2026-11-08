@@ -33,10 +33,10 @@ use crate::core::state::{RunningServiceEnum, SharedMcpServers};
 
 use super::providers::ProviderOverrides;
 
-/// The Jan Browser MCP needs the desktop bridge/lockfile machinery, so it is
+/// The Rey30 IDvj Browser MCP needs the desktop bridge/lockfile machinery, so it is
 /// never offered or connected from the CLI.
 #[cfg(test)]
-const BROWSER_MCP_NAME: &str = "Jan Browser MCP";
+const BROWSER_MCP_NAME: &str = "Rey30 IDvj Browser MCP";
 
 /// A configured server as read from `mcp_config.json`.
 pub struct McpServerEntry {
@@ -451,7 +451,7 @@ async fn connect_resolved(
 ) -> Result<(), ConnectError> {
     if is_browser_mcp_server_name(name) {
         return Err(ConnectError::Failed(
-            "Jan Browser MCP is desktop-only".to_string(),
+            "Rey30 IDvj Browser MCP is desktop-only".to_string(),
         ));
     }
 

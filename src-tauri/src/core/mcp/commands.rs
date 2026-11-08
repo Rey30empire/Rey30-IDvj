@@ -1,4 +1,4 @@
-use crate::core::mcp::constants::{is_browser_mcp_server_name, BROWSER_MCP_COMPAT_NAME};
+use crate::core::mcp::constants::{is_browser_mcp_server_name, BROWSER_MCP_NAME};
 use rmcp::model::{CallToolRequestParams, CallToolResult};
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
@@ -689,16 +689,16 @@ pub async fn get_mcp_configs<R: Runtime>(app: AppHandle<R>) -> Result<String, St
         mutated = true;
     }
 
-    // Migration: Add Jan Browser MCP if not present
+    // Migration: Add the Rey30 IDvj Browser MCP if not present
     let mcp_servers = config_object
         .get_mut("mcpServers")
         .and_then(|v| v.as_object_mut())
         .ok_or("mcpServers is not an object")?;
 
     if !mcp_servers.keys().any(|name| is_browser_mcp_server_name(name)) {
-        log::info!("Migrating config: Adding 'Jan Browser MCP' server");
+        log::info!("Migrating config: Adding '{BROWSER_MCP_NAME}' server");
         mcp_servers.insert(
-            "Jan Browser MCP".to_string(),
+            BROWSER_MCP_NAME.to_string(),
             json!({
                 "command": "npx",
                 "args": ["-y", "search-mcp-server@latest"],
@@ -769,7 +769,7 @@ pub async fn check_rey30_browser_extension_connected(
     state: State<'_, AppState>,
 ) -> Result<bool, String> {
     let servers = state.mcp_servers.lock().await;
-    let service = match servers.get("Jan Browser MCP").or_else(|| servers.get(BROWSER_MCP_COMPAT_NAME)) {
+    let service = match servers.get(BROWSER_MCP_NAME) {
         Some(s) => s,
         None => return Ok(false),
     };

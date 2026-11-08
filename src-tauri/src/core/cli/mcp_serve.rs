@@ -39,10 +39,6 @@ fn options_for(project: &str, flags: &ServeFlags) -> Result<ServeOptions, String
     let root = PathBuf::from(project)
         .canonicalize()
         .map_err(|e| format!("Cannot resolve project '{project}': {e}"))?;
-    // stdout is the MCP channel, so the notice goes to stderr.
-    if let Some(note) = crate::core::agent::project::migrate_legacy_store(&root) {
-        eprintln!("({note})");
-    }
     let settings = crate::core::agent::project::run_settings(&root);
     let mut opts = ServeOptions::new(root);
     opts.enabled_skills = settings.enabled_skills;

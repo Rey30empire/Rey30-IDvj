@@ -81,7 +81,7 @@ fn builtins_default() -> bool {
 #[serde(rename_all = "lowercase")]
 pub enum PermissionOwner {
     #[default]
-    #[serde(rename = "jan", alias = "rey30")]
+    #[serde(rename = "rey30")]
     Rey30,
     Host,
 }

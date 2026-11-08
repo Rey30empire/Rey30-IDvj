@@ -183,7 +183,7 @@ impl Project {
         std::fs::create_dir_all(store.join("skills")).unwrap();
         std::fs::create_dir_all(store.join("memory")).unwrap();
         std::fs::write(
-            root.join("JAN.md"),
+            root.join("REY30.md"),
             "# Project\n\nPrefix-stability fixture.\n",
         )
         .unwrap();
@@ -192,7 +192,7 @@ impl Project {
             "---\nname: example\ndescription: An example skill\n---\n\nSkill body.\n",
         )
         .unwrap();
-        // A user-scope skill (`~/.rey30-idvj/skills`, janhq/jan-internal#394): the
+        // A user-scope skill (`~/.rey30-idvj/skills`): the
         // catalog layers it in, and it must be as byte-stable as a project one.
         // The test home is shared by the whole process, so the skill lives as
         // long as any fixture does and no longer.
@@ -638,20 +638,20 @@ async fn compaction_breaks_the_prefix_exactly_once() {
 }
 
 /// #9079: a project whose instructions come from the `AGENTS.md` fallback
-/// instead of `JAN.md`. The fixture pins `[context].fallback_files` in its own
+/// instead of `REY30.md`. The fixture pins `[context].fallback_files` in its own
 /// agent.toml, so the result cannot depend on the developer's
 /// `~/.rey30-idvj/config.toml`.
 fn agents_md_project(tag: &str, link_rey30_md: bool) -> Project {
     let project = Project::new(tag);
     let root = project.root();
     let body = "# Project\n\nPrefix-stability fixture.\n";
-    std::fs::remove_file(root.join("JAN.md")).unwrap();
+    std::fs::remove_file(root.join("REY30.md")).unwrap();
     std::fs::write(root.join("AGENTS.md"), body).unwrap();
     if link_rey30_md {
         #[cfg(unix)]
-        std::os::unix::fs::symlink("AGENTS.md", root.join("JAN.md")).unwrap();
+        std::os::unix::fs::symlink("AGENTS.md", root.join("REY30.md")).unwrap();
         #[cfg(not(unix))]
-        std::fs::write(root.join("JAN.md"), body).unwrap();
+        std::fs::write(root.join("REY30.md"), body).unwrap();
     }
     let store = crate::core::agent::project::store_root(root);
     std::fs::write(
@@ -662,7 +662,7 @@ fn agents_md_project(tag: &str, link_rey30_md: bool) -> Project {
     project
 }
 
-/// #9079: the fallback file is part of the stable prefix like `JAN.md` is. The
+/// #9079: the fallback file is part of the stable prefix like `REY30.md` is. The
 /// same tree composes the same bytes, consecutive turns extend each other, and
 /// the block names the file it came from.
 #[test]
@@ -691,13 +691,13 @@ fn an_agents_md_fallback_keeps_the_prefix_stable() {
     first.assert_extended_by("an AGENTS.md project on the next turn", &second);
 }
 
-/// #9079: the common `JAN.md -> AGENTS.md` symlink loads once, as `JAN.md`, so
-/// the prefix is byte-identical to a project with a plain `JAN.md` of the same
+/// #9079: the common `REY30.md -> AGENTS.md` symlink loads once, as `REY30.md`, so
+/// the prefix is byte-identical to a project with a plain `REY30.md` of the same
 /// text. Adopting the symlink costs no cache miss beyond the one edit.
 #[test]
 fn a_rey30_md_symlink_to_agents_md_composes_like_a_plain_rey30_md() {
-    let plain = Project::new("plainjan");
-    let linked = agents_md_project("linkedjan", true);
+    let plain = Project::new("plainrey30");
+    let linked = agents_md_project("linkedrey30", true);
     let tools = advertised(&["read_file"]);
     let history = [user("a question")];
 
@@ -720,7 +720,7 @@ fn a_rey30_md_symlink_to_agents_md_composes_like_a_plain_rey30_md() {
     }
     let linked_block = block(&linked_turn);
     assert_same_bytes(
-        "a symlinked JAN.md must load once, as JAN.md",
+        "a symlinked REY30.md must load once, as REY30.md",
         &block(&plain_turn),
         &linked_block,
     );

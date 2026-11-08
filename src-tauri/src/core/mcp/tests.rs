@@ -538,7 +538,7 @@ async fn test_stop_mcp_servers_prevents_concurrent_shutdown() {
 
 #[test]
 fn test_extension_disconnected_error_detection() {
-    // Real error messages from Jan Browser MCP server when extension is not connected
+    // Real error messages from Rey30 IDvj Browser MCP server when extension is not connected
     let disconnected_errors = [
         // Direct error messages from MCP server
         "Browser extension not connected to bridge",
@@ -814,7 +814,7 @@ fn test_mcp_lock_file_serde_round_trip() {
         pid: 4242,
         rey30_pid: std::process::id(),
         port: 17389,
-        server_name: "Jan Browser MCP".to_string(),
+        server_name: "Rey30 IDvj Browser MCP".to_string(),
         created_at: "2026-01-01T00:00:00+00:00".to_string(),
         hostname: "test-host".to_string(),
     };
@@ -822,7 +822,7 @@ fn test_mcp_lock_file_serde_round_trip() {
     let parsed: McpLockFile = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.pid, 4242);
     assert_eq!(parsed.port, 17389);
-    assert_eq!(parsed.server_name, "Jan Browser MCP");
+    assert_eq!(parsed.server_name, "Rey30 IDvj Browser MCP");
     assert_eq!(parsed.created_at, "2026-01-01T00:00:00+00:00");
     assert_eq!(parsed.hostname, "test-host");
 }

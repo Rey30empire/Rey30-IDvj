@@ -116,7 +116,7 @@ mod tests {
     use serde_json::json;
 
     fn entry() -> serde_json::Value {
-        json!({ "url": "https://example.com/Jan.app.tar.gz", "signature": "sig" })
+        json!({ "url": "https://example.com/Rey30-IDvj.app.tar.gz", "signature": "sig" })
     }
 
     #[test]

@@ -276,12 +276,10 @@ async fn handle_graceful_exit<R: tauri::Runtime>(
 pub fn run() {
     #[cfg(windows)]
     {
-        let preparation = tauri_plugin_agent_tools::workspace::configured_agent_home()
-            .and_then(|_| core::app::webview_migration::before_webviews());
-        if let Err(error) = preparation {
+        if let Err(error) = tauri_plugin_agent_tools::workspace::configured_agent_home() {
             eprintln!("{error}");
             rfd::MessageDialog::new()
-                .set_title("Rey30 IDvj - ajustes pendientes de migración")
+                .set_title("Rey30 IDvj - configuración no válida")
                 .set_description(&error)
                 .set_level(rfd::MessageLevel::Error)
                 .show();

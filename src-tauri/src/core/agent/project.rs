@@ -78,13 +78,13 @@ pub(crate) struct PromptSection {
     pub prefix_allow: Option<Vec<String>>,
 }
 
-/// `[context]` — which instructions files Rey30 IDvj reads besides `JAN.md`.
+/// `[context]` — which instructions files Rey30 IDvj reads besides `REY30.md`.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub(crate) struct ContextSection {
-    /// Files read, in order, from a directory that has no non-empty `JAN.md`
+    /// Files read, in order, from a directory that has no non-empty `REY30.md`
     /// (#9079). Only `AGENTS.md` and `CLAUDE.md` are recognised. `None` defers to
     /// `~/.rey30-idvj/config.toml`, then to [`DEFAULT_CONTEXT_FALLBACK_FILES`]; `[]`
-    /// reads `JAN.md` only, which is the behaviour before the fallback existed.
+    /// reads `REY30.md` only, which is the behaviour before the fallback existed.
     #[serde(default)]
     pub fallback_files: Option<Vec<String>>,
 }
@@ -420,9 +420,9 @@ enabled = []
 # No effect on current composers. Use prefix_allow to narrow today's prefix.
 # default = "tail"
 
-# Instructions files read from a directory that has no JAN.md, in order. JAN.md
+# Instructions files read from a directory that has no REY30.md, in order. REY30.md
 # always wins. Unset uses ~/.rey30-idvj/config.toml, else ["AGENTS.md"]. Add
-# "CLAUDE.md" to opt in to it; [] reads JAN.md only.
+# "CLAUDE.md" to opt in to it; [] reads REY30.md only.
 # [context]
 # fallback_files = ["AGENTS.md"]
 "#;
@@ -455,40 +455,9 @@ pub(crate) fn hidden_root(sandbox: bool) -> Option<PathBuf> {
 
 /// A project's store root, `~/.rey30-idvj/projects/<slug>`: `agent.toml`, `memory/`,
 /// `skills/`, `subagents/`, `plugins/` and the TUI's threads. The one place the
-/// app resolves it; the project directory itself holds only `JAN.md`.
+/// app resolves it; the project directory itself holds only `REY30.md`.
 pub(crate) fn store_root(project_root: &Path) -> PathBuf {
     tauri_plugin_agent_tools::workspace::project_store_at(rey30_home().as_deref(), project_root)
-}
-
-/// Move a legacy `<project>/.rey30-idvj/agent` into [`store_root`] when the workspace
-/// still has a `.rey30-idvj` directory. Called once per launch, before anything reads
-/// the store; returns a line for the surface to show, if any.
-///
-/// Once per project per process: later calls are free and return `None`, so
-/// every entry point can call it without re-reporting.
-pub(crate) fn migrate_legacy_store(project_root: &Path) -> Option<String> {
-    use std::collections::HashSet;
-    use std::sync::Mutex;
-    static SEEN: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
-    {
-        let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
-        if !seen.get_or_insert_with(HashSet::new).insert(project_root.to_path_buf()) {
-            return None;
-        }
-    }
-    let home = rey30_home()?;
-    let store = store_root(project_root);
-    let outcome =
-        crate::core::agent::store_migration::migrate_on_launch(project_root, &store, Some(&home));
-    if matches!(outcome, crate::core::agent::store_migration::Outcome::Moved { .. }) {
-        // A migrated store has notes but no indexes yet, and the root index
-        // should point at it straight away.
-        let _ = tauri_plugin_agent_tools::workspace::write_project_meta(&store, project_root);
-        tauri_plugin_agent_tools::memory::write_index(&store);
-        let (_, _, cross_project) = memory_roots(project_root);
-        tauri_plugin_agent_tools::memory::write_root_index(&home, cross_project);
-    }
-    outcome.message()
 }
 
 /// The memory a run in `project_root` reaches, as owned paths: the project's
@@ -631,7 +600,7 @@ pub(crate) fn permissions_from(cfg: &AgentToml) -> ToolPermissions {
 /// Idempotent and clobber-safe: preserves user edits on re-runs. Auto-managed
 /// on both the CLI and desktop agent-run paths (there is no explicit init step).
 ///
-/// The project instructions file (`<project_root>/JAN.md`) is deliberately not
+/// The project instructions file (`<project_root>/REY30.md`) is deliberately not
 /// scaffolded: an empty placeholder costs prompt space and teaches nothing, so
 /// it is written by `/init` or by hand.
 pub(crate) fn ensure_project(project_root: &Path) -> Result<PathBuf, String> {
@@ -648,12 +617,6 @@ pub(crate) fn ensure_project(project_root: &Path) -> Result<PathBuf, String> {
             "project directory does not exist: {}. Pass --project with a path to an existing directory (paths are case-sensitive).",
             project_root.display()
         ));
-    }
-    // Before scaffolding, or an empty new store would turn the move into a
-    // conflict. A no-op after the first call for this project; the CLI already
-    // ran it (and reported it) when it resolved the project.
-    if let Some(note) = migrate_legacy_store(project_root) {
-        log::info!("Agent: {note}");
     }
     let agent_dir = store_root(project_root);
     std::fs::create_dir_all(agent_dir.join("skills"))
@@ -675,7 +638,7 @@ pub(crate) fn ensure_project(project_root: &Path) -> Result<PathBuf, String> {
 }
 
 /// Delete keys an older scaffold wrote that nothing reads any more, in place and
-/// format-preserving. Only `[skills].inject` today (janhq/jan-internal#394): the
+/// format-preserving. Only `[skills].inject` today: the
 /// agent.toml is Rey30 IDvj's own scaffold in Rey30 IDvj's store, so tidying it here beats a
 /// warning on every launch asking the user to do the same edit by hand.
 ///
@@ -929,7 +892,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&bare);
     }
 
-    /// `[skills].inject` was scaffolded but never read (janhq/jan-internal#394);
+    /// `[skills].inject` was scaffolded but never read;
     /// it is gone from the template, and an agent.toml that still has it keeps
     /// parsing with the whitelist intact.
     #[test]
@@ -984,7 +947,7 @@ mod tests {
         assert!(!root.exists(), "must not create the missing project dir");
     }
 
-    /// The instructions file lives at the project root as `JAN.md` and is the
+    /// The instructions file lives at the project root as `REY30.md` and is the
     /// user's (or `/init`'s) to create -- the scaffold must not plant an empty
     /// one in the store, which nothing reads.
     #[test]
@@ -992,7 +955,7 @@ mod tests {
         let root = unique_root("no_instructions");
         let dir = ensure_project(&root).expect("ensure");
         assert!(!dir.join("AGENT.md").exists());
-        assert!(!root.join("JAN.md").exists());
+        assert!(!root.join("REY30.md").exists());
         assert!(!AGENT_TOML_TEMPLATE.contains("instructions_file"));
         let _ = std::fs::remove_dir_all(&root);
     }

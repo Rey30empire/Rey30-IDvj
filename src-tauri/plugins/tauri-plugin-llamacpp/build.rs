@@ -262,7 +262,7 @@ mod engine {
     ];
 
     /// The GPUs a HIP build targets when REY30_ENGINE_HIP_TARGETS is unset: the
-    /// list janhq/llama.cpp's menlo-build.yml shipped for the previous engine.
+    /// list the upstream engine build shipped for the previous engine.
     /// Without an explicit list cmake asks `rocm_agent_enumerator`, which on a
     /// GPU-less build host yields nothing or the compiler's single default.
     const HIP_TARGETS: &str = "gfx908;gfx90a;gfx942;gfx1030;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1200;gfx1201";

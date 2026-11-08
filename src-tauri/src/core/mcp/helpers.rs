@@ -29,10 +29,7 @@ use rey30_idvj_utils::{can_override_npx, can_override_uvx};
 
 fn sensitive_inherited_mcp_env(name: &str) -> bool {
     let upper = name.to_ascii_uppercase();
-    if matches!(
-        upper.as_str(),
-        "REY30_CUSTOM_HEADERS" | "JAN_CUSTOM_HEADERS"
-    ) || (upper.starts_with("OTEL_EXPORTER_OTLP_") && upper.ends_with("HEADERS"))
+    if upper == "REY30_CUSTOM_HEADERS" || (upper.starts_with("OTEL_EXPORTER_OTLP_") && upper.ends_with("HEADERS"))
     {
         return true;
     }
@@ -1079,7 +1076,7 @@ async fn kill_process_by_pid(pid: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Tear down a Jan Browser MCP child and confirm its `port` is released.
+/// Tear down a Rey30 IDvj Browser MCP child and confirm its `port` is released.
 /// Kills the recorded child's process group (Phase 1 makes children group
 /// leaders, so this reaps forked grandchildren that hold the port), then polls;
 /// if some straggler still binds the port it is found and group-killed too.
@@ -1362,9 +1359,7 @@ mod stdio_environment_tests {
     fn credentials_are_detected_without_scrubbing_operational_variables() {
         for name in [
             "REY30_API_KEY",
-            "JAN_API_KEY",
             "REY30_CUSTOM_HEADERS",
-            "JAN_CUSTOM_HEADERS",
             "GH_TOKEN",
             "GITHUB_TOKEN",
             "OPENAI_API_KEY",

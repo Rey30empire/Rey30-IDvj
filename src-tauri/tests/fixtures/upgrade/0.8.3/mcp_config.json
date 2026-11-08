@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "Jan Browser MCP": {
+    "Rey30 IDvj Browser MCP": {
       "command": "npx",
       "args": ["-y", "search-mcp-server@latest"],
       "env": {

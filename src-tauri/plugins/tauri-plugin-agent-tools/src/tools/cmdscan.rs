@@ -1434,7 +1434,7 @@ mod tests {
         );
     }
 
-    /// janhq/jan#9142: a grant covers a segment only while it is a plain
+    /// A grant covers a segment only while it is a plain
     /// invocation. Every way to change what a granted name runs, or to run a
     /// variable's value as code, prompts instead.
     #[test]
@@ -1500,7 +1500,7 @@ mod tests {
                 "nice PATH=/tmp ls",
                 "set PATH=C:\\evil",
                 "path C:\\evil",
-                // janhq/jan#9149: `time -o FILE cmd` writes to `FILE` and
+                // `time -o FILE cmd` writes to `FILE` and
                 // runs `cmd`, not `FILE`; `-o` must not be skipped as an
                 // ordinary flag. `-f`/`--format` take a value too, and so
                 // does `-o` combined into a short-flag cluster (`-ao`) or
@@ -1539,7 +1539,7 @@ mod tests {
             plain("timeout --signal=KILL 5 curl u", kind, &["curl"]);
             plain("nice -n 10 make", kind, &["make"]);
             plain("stdbuf -oL make", kind, &["make"]);
-            // janhq/jan#9149: `time`'s no-value flags still yield its
+            // `time`'s no-value flags still yield its
             // wrapped command.
             plain("time -p ls", kind, &["ls"]);
             plain("time -aqvV ls", kind, &["ls"]);
@@ -1610,7 +1610,7 @@ mod tests {
         plain("./build.ps1 -Release", ShellKind::PowerShell, &["./build.ps1"]);
     }
 
-    /// janhq/jan#9149: cmd strips `^` from every token before acting on it,
+    /// cmd strips `^` from every token before acting on it,
     /// so `set PA^TH=...` and `setx` can still change `PATH` even though the
     /// literal assignment name does not match `PATH`.
     #[test]
@@ -1629,7 +1629,7 @@ mod tests {
         );
     }
 
-    /// janhq/jan#9315: the caret also escapes the command word, so `cm^d`
+    /// The caret also escapes the command word, so `cm^d`
     /// runs `cmd` and must not become a grantable base of its own.
     #[test]
     fn cmd_caret_in_command_word_is_opaque() {

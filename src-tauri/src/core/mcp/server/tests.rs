@@ -455,7 +455,7 @@ async fn bash_exit_status_decides_is_error() {
     server_task.abort();
 }
 
-/// janhq/jan-internal#394: a served client reaches the same skills the agent
+/// A served client reaches the same skills the agent
 /// does: user-scope skills from `~/.rey30-idvj/skills` and plugin skills, by the
 /// names `skill_list` advertises, and `skill_write` `scope:"user"` lands in
 /// the user store.

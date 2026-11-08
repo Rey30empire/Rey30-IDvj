@@ -1003,7 +1003,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&ws);
     }
 
-    /// The home-as-project case from the #9065 review: the Rey30 IDvj home sits inside
+    /// The home-as-project case: the Rey30 IDvj home sits inside
     /// the project, and everything under it is hidden, not just config.toml.
     #[test]
     fn the_rey30_home_is_hidden_when_the_project_contains_it() {
@@ -1018,8 +1018,8 @@ mod tests {
         assert!(in_hidden_root(&home, None, &rey30, ".rey30-idvj/projects/p-1/agent.toml"));
         // Not yet existing files are hidden too, so a write cannot create one.
         assert!(in_hidden_root(&home, None, &rey30, ".rey30-idvj/hooks.toml"));
-        assert!(!in_hidden_root(&home, None, &rey30, "JAN.md"));
-        assert!(!in_hidden_root(&home, None, &rey30, ".janitor"));
+        assert!(!in_hidden_root(&home, None, &rey30, "REY30.md"));
+        assert!(!in_hidden_root(&home, None, &rey30, ".rey30-idvjx"));
         let _ = std::fs::remove_dir_all(&home);
     }
 

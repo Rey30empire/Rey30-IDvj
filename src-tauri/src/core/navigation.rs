@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn only_web_urls_are_handed_to_the_browser() {
-        assert!(opens_externally(&u("https://jan.ai/docs")));
+        assert!(opens_externally(&u("https://example.com/docs")));
         assert!(opens_externally(&u("http://example.com/")));
         assert!(!opens_externally(&u("file:///etc/passwd")));
         assert!(!opens_externally(&u("asset://localhost/x")));

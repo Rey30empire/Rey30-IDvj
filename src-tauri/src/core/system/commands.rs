@@ -1681,7 +1681,7 @@ mod tests {
             "MY_PATH",
             "ENVIRONMENT",
             "OLD_LD_PRELOAD",
-            "JANET",
+            "REY30X",
             "ANTHROPIC_AUTH_TOKEN",
             "ANTHROPIC_BASE_URL",
             "LD",

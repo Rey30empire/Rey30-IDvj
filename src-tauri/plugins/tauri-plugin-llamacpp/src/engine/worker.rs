@@ -903,7 +903,7 @@ pub(crate) mod tests {
         }
     }
 
-    // The exact pair from janhq/jan#9198. The status line alone looks like a
+    // The exact pair from a real report. The status line alone looks like a
     // generic Metal error; only the line after it says it was memory.
     #[test]
     fn a_metal_status_line_is_reported_together_with_its_oom_detail() {

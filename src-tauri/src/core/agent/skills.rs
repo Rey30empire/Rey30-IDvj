@@ -1667,7 +1667,7 @@ mod tests {
     fn built_in_rey30_is_shadowed_by_a_user_skill_named_rey30() {
         let mut user = UserSkills::new();
         user.folder("rey30-idvj", "---\ndescription: my rey30-idvj\n---\nmine\n");
-        let root = temp_root("janu");
+        let root = temp_root("rey30u");
         let model = catalog(&root, &[]);
         let rey30: Vec<_> = model.iter().filter(|m| m.name == "rey30-idvj").collect();
         assert_eq!(rey30.len(), 1);

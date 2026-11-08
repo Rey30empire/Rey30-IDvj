@@ -67,7 +67,6 @@ fn absolute_override(raw: Option<OsString>) -> Option<PathBuf> {
 /// The override, or `None` when it is unset or malformed.
 fn env_data_dir() -> Option<PathBuf> {
     absolute_override(std::env::var_os(DATA_ROOT_ENV))
-        .or_else(|| absolute_override(std::env::var_os("JAN_DATA_ROOT")))
 }
 
 /// The OS app-data root: `$REY30_DATA_ROOT` when set, else `dirs::data_dir()`.
