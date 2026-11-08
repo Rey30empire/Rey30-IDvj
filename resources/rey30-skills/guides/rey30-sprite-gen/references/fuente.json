@@ -1,0 +1,36 @@
+{
+  "requested": "sprite gen",
+  "matchStatus": "found",
+  "repository": "aldegad/sprite-gen",
+  "commit": "4f5ccd55c7cf06685a41f954acc1e476b7772ece",
+  "commitDate": "2026-11-01T20:32:26Z",
+  "type": "Habilidad de sprites y CLI Python",
+  "license": "Apache-2.0",
+  "requirements": [
+    "Python>=3.11; venv; Pillow/NumPy; FFmpeg/img2webp para vídeo; credenciales multimedia elegidas por el usuario"
+  ],
+  "windowsAssessment": "No se validaron sus herramientas en Windows.",
+  "amdAssessment": "RIFE opcional usa Vulkan o torch cuda/cpu; ninguna vía AMD se probó.",
+  "risks": "Puede generar cargos y descargar un instalador RIFE de unos830MB; no se descargaron modelos ni herramientas.",
+  "sourceLicenseMetadata": "Apache-2.0",
+  "sources": [
+    {
+      "url": "https://github.com/aldegad/sprite-gen",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen/commit/4f5ccd55c7cf06685a41f954acc1e476b7772ece",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen/blob/4f5ccd55c7cf06685a41f954acc1e476b7772ece/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

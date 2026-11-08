@@ -1,0 +1,36 @@
+{
+  "requested": "agents quest",
+  "matchStatus": "ambiguous-probable",
+  "repository": "FulAppiOS/Agent-Quest",
+  "commit": "44fb28fc89c14442979a8e29f160db8037bacbf0",
+  "commitDate": "2026-10-29T11:41:51Z",
+  "type": "Aplicación de visualización de sesiones de agentes",
+  "license": "MIT",
+  "requirements": [
+    "Bun>=1.1; Node20+ para comando opcional; registros de sesiones Claude/Codex existentes"
+  ],
+  "windowsAssessment": "El README recomienda WSL2; Windows nativo no se prueba habitualmente en origen.",
+  "amdAssessment": "Monitorización independiente de GPU.",
+  "risks": "Lee directorios de sesiones/registros y despliega dependencias/servidor. Copiar README no instala un orquestador ni una habilidad.",
+  "sourceLicenseMetadata": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/FulAppiOS/Agent-Quest",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/FulAppiOS/Agent-Quest/commit/44fb28fc89c14442979a8e29f160db8037bacbf0",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/FulAppiOS/Agent-Quest/blob/44fb28fc89c14442979a8e29f160db8037bacbf0/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://www.fulvioscichilone.it/agent-quest/",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

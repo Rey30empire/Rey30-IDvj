@@ -1,0 +1,36 @@
+{
+  "name": "archify",
+  "language": "es",
+  "translationRole": "adaptación al runtime Rey30 en español; no equivalencia CLI",
+  "repository": "tt-a1i/archify",
+  "commit": "a4065941f12be7967436261d9934784e381d423c",
+  "license": "Apache-2.0",
+  "original": {
+    "url": "https://github.com/tt-a1i/archify/blob/a4065941f12be7967436261d9934784e381d423c/archify/SKILL.md",
+    "sha256": "1382cfb7108b05e500b82af93c04fd7b694430d3908039bd92d634f01c1e7181",
+    "intendedBundledPath": "references/upstream-SKILL.md",
+    "preservedUnmodifiedInStaging": true
+  },
+  "adaptation": {
+    "path": "SKILL.md",
+    "sha256": "42ad6ba010230a8ca4a90ac2acaec28ace11f0375eb31c1c4b5cf0e24becae82",
+    "bytes": 7117,
+    "characters": 7044
+  },
+  "references": {
+    "reviewedStagingRoot": "../../staging/archify",
+    "linksAllPresent": true,
+    "links": [
+      "references/authoring-defaults.md",
+      "references/repository-authoring.md",
+      "references/delivery-contract.md",
+      "references/explainer-authoring.md"
+    ]
+  },
+  "thirdPartySoftwareInstalledByAdaptation": false,
+  "thirdPartySoftwareExecuted": false,
+  "modelsExecuted": false,
+  "hardwareChanged": false,
+  "originalLegalNoticesUnmodified": true,
+  "integrationNote": "Root incorporará referencias/licencias originales del staging y el original en references/upstream-SKILL.md. Estos cinco directorios de adaptación por sí solos no son el paquete final instalado."
+}

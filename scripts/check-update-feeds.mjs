@@ -14,7 +14,7 @@
 //       network; safe for per-PR runs. Re-record the fixtures when the feed
 //       schema evolves.
 //   node scripts/check-update-feeds.mjs --live     fetch the live feeds
-//       (apps.jan.ai / delta.jan.ai) and additionally HEAD every asset URL.
+//       (REY30_UPDATE_FEED_STABLE / REY30_UPDATE_FEED_NIGHTLY) and additionally HEAD every asset URL.
 //       For the nightly scheduled job, not for per-PR runs.
 //
 // The version-comparison invariants encode the channel trap: a nightly
@@ -39,7 +39,7 @@ const FEEDS = [
   {
     name: 'stable',
     fixture: join(fixturesDir, 'stable.json'),
-    live: 'https://apps.jan.ai/update-check',
+    live: process.env.REY30_UPDATE_FEED_STABLE,
     // windows-aarch64 is deliberately absent today; shipping a stable arm64
     // build must consciously extend this set.
     requiredPlatforms: ['darwin-aarch64', 'windows-x86_64', 'linux-x86_64'],
@@ -47,7 +47,7 @@ const FEEDS = [
   {
     name: 'nightly',
     fixture: join(fixturesDir, 'nightly.json'),
-    live: 'https://delta.jan.ai/nightly/latest.json',
+    live: process.env.REY30_UPDATE_FEED_NIGHTLY,
     requiredPlatforms: [
       'darwin-aarch64',
       'windows-x86_64',
@@ -60,7 +60,7 @@ const FEEDS = [
 const errors = []
 const fail = (msg) => errors.push(msg)
 
-// Minimal semver for the two shapes Jan ships: `x.y.z` and `x.y.z-<run>`.
+// Semver cases retained from recorded upstream fixtures: `x.y.z` and `x.y.z-<run>`.
 // Returns a negative number if a < b, positive if a > b, 0 if equal.
 function compareVersions(a, b) {
   const parse = (v) => {

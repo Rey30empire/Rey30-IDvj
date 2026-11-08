@@ -1,0 +1,28 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "Godde3s/omnirouter",
+  "sourceCommit": "b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354",
+  "externalLicense": "MIT para Godde3s; otros servicios tienen condiciones propias",
+  "sources": [
+    {
+      "url": "https://github.com/Godde3s/omnirouter",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Godde3s/omnirouter/commit/b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Godde3s/omnirouter/blob/b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://godde3s.github.io/omnirouter/",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

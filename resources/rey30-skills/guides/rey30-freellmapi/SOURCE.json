@@ -1,0 +1,28 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "tashfeenahmed/freellmapi",
+  "sourceCommit": "fb07845faf7cf986ea9f3692e055076035dd8739",
+  "externalLicense": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/tashfeenahmed/freellmapi",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/tashfeenahmed/freellmapi/commit/fb07845faf7cf986ea9f3692e055076035dd8739",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/tashfeenahmed/freellmapi/blob/fb07845faf7cf986ea9f3692e055076035dd8739/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://freellmapi.co",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

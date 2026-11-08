@@ -1,10 +1,10 @@
-# Makefile for Jan Electron App - Build, Lint, Test, and Clean
+# Makefile for Rey30 IDvj Electron App - Build, Lint, Test, and Clean
 
 REPORT_PORTAL_URL ?= ""
 REPORT_PORTAL_API_KEY ?= ""
 REPORT_PORTAL_PROJECT_NAME ?= ""
-REPORT_PORTAL_LAUNCH_NAME ?= "Jan App"
-REPORT_PORTAL_DESCRIPTION ?= "Jan App report"
+REPORT_PORTAL_LAUNCH_NAME ?= "Rey30 IDvj App"
+REPORT_PORTAL_DESCRIPTION ?= "Rey30 IDvj App report"
 
 # Detect OS
 ifeq ($(OS),Windows_NT)
@@ -93,10 +93,10 @@ build-web-app: install-web-app
 	yarn build:web
 
 serve-web-app:
-	yarn workspace @janhq/web-app preview
+	yarn workspace @rey30-idvj/web-app preview
 
 build-serve-web-app: build-web-app
-	yarn workspace @janhq/web-app preview
+	yarn workspace @rey30-idvj/web-app preview
 
 # Mobile
 dev-android: install-and-build install-android-rust-targets
@@ -161,19 +161,19 @@ test-rust: stub-resources
 # protocol/schema.json is committed, and core::cli::protocol_schema fails when it
 # no longer matches the types that define the channel. This is the fix for that
 # failure, not an optional extra: change a protocol type, run this, commit both.
-# `cd` rather than `--manifest-path` because jan-cli is its own workspace and its
-# .cargo/config.toml is what points the build at src-tauri/target. The feature
+# `cd` rather than `--manifest-path` because rey30-idvj-cli is its own workspace and its
+# .cargo/config.toml keeps CLI output in its own target directory. The feature
 # set matches build-cli, so this does not compile a second configuration.
 protocol-schema:
-	cd src-tauri/jan-cli && cargo run --quiet --locked --no-default-features --features cli --bin jan -- cli agent schema --out ../../protocol/schema.json
+	cd src-tauri/rey30-idvj-cli && cargo run --target-dir target --quiet --locked --no-default-features --features cli --bin rey30-idvj -- cli agent schema --out ../../protocol/schema.json
 
 # The same guard for the RPC surface: protocol/rpc-schema.json is committed, and
 # core::cli::rpc_schema fails when it no longer matches the types that define the
 # envelope. It covers this surface only - stream-json records are in
-# protocol/schema.json, and ACP (`jan acp`) uses the upstream
+# protocol/schema.json, and ACP (`rey30-idvj acp`) uses the upstream
 # ACP schema.
 protocol-rpc-schema:
-	cd src-tauri/jan-cli && cargo run --quiet --locked --no-default-features --features cli --bin jan -- cli agent rpc-schema --out ../../protocol/rpc-schema.json
+	cd src-tauri/rey30-idvj-cli && cargo run --target-dir target --quiet --locked --no-default-features --features cli --bin rey30-idvj -- cli agent rpc-schema --out ../../protocol/rpc-schema.json
 
 test: test-prepare install-rust-targets
 	yarn build:mlx-server
@@ -198,30 +198,30 @@ stub-resources:
 test-ci: test-prepare
 	$(MAKE) test-rust
 
-# Compile and test guard for the CLI feature set. The `jan` CLI is no longer
+# Compile and test guard for the CLI feature set. The `rey30-idvj` CLI is no longer
 # bundled with the app; `make test` still builds the real binary via build-cli.
 #
-# jan-cli is a standalone crate and not a dependency of src-tauri, so the
+# rey30-idvj-cli is a standalone crate and not a dependency of src-tauri, so the
 # rust-check `cli` app entry never reaches it (that entry's --all-targets covers
 # app_lib's own cfg(feature = "cli") test modules, a different crate). This
-# target runs its tests; the CI lint guarantee is the jan-cli entry of the
+# target runs its tests; the CI lint guarantee is the rey30-idvj-cli entry of the
 # rust-check `crates` matrix, which `lint-cli` reproduces locally. A bare
 # `cargo check` here once built the bin but not the #[cfg(test)] module, which
 # is how the fixture in `compact_plugin_list_omits_long_metadata` silently rotted.
 check-cli:
-	cd src-tauri/jan-cli && cargo test --locked --no-default-features --features cli
+	cd src-tauri/rey30-idvj-cli && cargo test --target-dir target --locked --no-default-features --features cli
 
-# The same clippy invocation as the rust-check `crates` matrix jan-cli entry.
+# The same clippy invocation as the rust-check `crates` matrix rey30-idvj-cli entry.
 # Kept out of check-cli so the linter workflow does not lint it a second time.
 lint-cli:
-	cd src-tauri/jan-cli && cargo clippy --locked --no-default-features --features cli --all-targets -- -D warnings
+	cd src-tauri/rey30-idvj-cli && cargo clippy --target-dir target --locked --no-default-features --features cli --all-targets -- -D warnings
 
 # Build MLX server (macOS Apple Silicon only) - always builds, unless
-# JAN_MLX_PREBUILT_DIR holds a cached build of the same inputs
+# REY30_MLX_PREBUILT_DIR holds a cached build of the same inputs
 # (build-utils/mlx-prebuilt.sh), which is then staged and signed the same way
 build-mlx-server:
 ifeq ($(DETECTED_OS),Darwin)
-ifeq ($(JAN_MLX_PREBUILT_DIR),)
+ifeq ($(REY30_MLX_PREBUILT_DIR),)
 	@echo "Building MLX server for Apple Silicon..."
 	# mlx-swift's Metal shaders are compiled by the PrepareMetalShaders
 	# plugin, which only runs under Xcode -- `swift build` produces a
@@ -231,7 +231,7 @@ ifeq ($(JAN_MLX_PREBUILT_DIR),)
 	cd mlx-server && xcodebuild build -scheme mlx-server -destination 'platform=OS X' -configuration Release OTHER_LDFLAGS="-dead_strip"
 endif
 	@echo "Finding build products..."
-	@DERIVED_DATA=$${JAN_MLX_PREBUILT_DIR:-$$(find ~/Library/Developer/Xcode/DerivedData/mlx-server-*/Build/Products/Release -maxdepth 0 2>/dev/null | head -1)}; \
+	@DERIVED_DATA=$${REY30_MLX_PREBUILT_DIR:-$$(find ~/Library/Developer/Xcode/DerivedData/mlx-server-*/Build/Products/Release -maxdepth 0 2>/dev/null | head -1)}; \
 	if [ -z "$$DERIVED_DATA" ] || [ ! -f "$$DERIVED_DATA/mlx-server" ]; then \
 		echo "Error: Could not find xcodebuild products under DerivedData"; \
 		exit 1; \
@@ -280,41 +280,41 @@ else
 	@echo "Skipping MLX server build (macOS only)"
 endif
 
-# Build jan CLI (release, platform-aware) → src-tauri/resources/bin/jan[.exe]
+# Build rey30-idvj CLI (release, platform-aware) → src-tauri/resources/bin/rey30-idvj[.exe]
 build-cli:
 ifeq ($(DETECTED_OS),Darwin)
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli --target aarch64-apple-darwin
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli --target x86_64-apple-darwin
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli --target aarch64-apple-darwin
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli --target x86_64-apple-darwin
 	lipo -create \
-		src-tauri/target/aarch64-apple-darwin/release/jan \
-		src-tauri/target/x86_64-apple-darwin/release/jan \
-		-output src-tauri/resources/bin/jan
-	chmod +x src-tauri/resources/bin/jan
-	$(call MKDIR,'src-tauri/target/universal-apple-darwin/release')
+		src-tauri/rey30-idvj-cli/target/aarch64-apple-darwin/release/rey30-idvj \
+		src-tauri/rey30-idvj-cli/target/x86_64-apple-darwin/release/rey30-idvj \
+		-output src-tauri/resources/bin/rey30-idvj
+	chmod +x src-tauri/resources/bin/rey30-idvj
+	$(call MKDIR,'src-tauri/rey30-idvj-cli/target/universal-apple-darwin/release')
 
 	echo "Checking for code signing identity..."; \
 	SIGNING_IDENTITY=$$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/'); \
 	if [ -n "$$SIGNING_IDENTITY" ]; then \
-		echo "Signing jan with identity: $$SIGNING_IDENTITY"; \
-		codesign --force --options runtime --timestamp --sign "$$SIGNING_IDENTITY" src-tauri/resources/bin/jan; \
+		echo "Signing rey30-idvj with identity: $$SIGNING_IDENTITY"; \
+		codesign --force --options runtime --timestamp --sign "$$SIGNING_IDENTITY" src-tauri/resources/bin/rey30-idvj; \
 		echo "Code signing completed successfully"; \
 	else \
 		echo "Warning: No Developer ID Application identity found. Skipping code signing (notarization will fail)."; \
 	fi
 
-	cp src-tauri/resources/bin/jan src-tauri/target/universal-apple-darwin/release/jan
+	cp src-tauri/resources/bin/rey30-idvj src-tauri/rey30-idvj-cli/target/universal-apple-darwin/release/rey30-idvj
 else ifeq ($(DETECTED_OS),Windows)
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli
-	cp src-tauri/target/release/jan.exe src-tauri/resources/bin/jan.exe
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli
+	cp src-tauri/rey30-idvj-cli/target/release/rey30-idvj.exe src-tauri/resources/bin/rey30-idvj.exe
 else
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli
-	cp src-tauri/target/release/jan src-tauri/resources/bin/jan
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli
+	cp src-tauri/rey30-idvj-cli/target/release/rey30-idvj src-tauri/resources/bin/rey30-idvj
 endif
 
 # ---------------------------------------------------------------------------
 # llama.cpp engine worker
 #
-# JAN_ENGINE_VARIANT picks the GPU backends compiled into the worker. Vulkan is
+# REY30_ENGINE_VARIANT picks the GPU backends compiled into the worker. Vulkan is
 # in every variant, not just the default: it is the fallback when the CUDA or
 # ROCm runtime turns out to be missing or too old on the user's machine, and
 # ggml chooses between the registered backends at runtime.
@@ -344,33 +344,33 @@ endif
 # than letting a cuda13 build ship labelled cuda12.
 COMMA := ,
 SPACE := $(subst ,, )
-JAN_ENGINE_VARIANT ?= vulkan
+REY30_ENGINE_VARIANT ?= vulkan
 
 # Shipping builds pair Vulkan with CUDA/ROCm so the app still offloads when the
 # vendor runtime turns out to be missing or too old. That needs the Vulkan SDK,
 # which a developer with only a CUDA toolkit has no reason to install, so it can
 # be dropped locally. Never drop it for a release: the fallback is the point.
-JAN_ENGINE_VULKAN_FALLBACK ?= 1
+REY30_ENGINE_VULKAN_FALLBACK ?= 1
 
 # Overrides the GPU architectures a CUDA build targets. Empty means upstream's
 # own list, which covers discrete desktop/datacenter parts (75/80/86/89/90, plus
 # 50/61/70 below CUDA 13) but has NO Jetson entry -- Orin is sm_87 and Xavier
 # sm_72. Set it for an ARM/Jetson target, or to trim a build to one known GPU:
-#     make build-engine JAN_ENGINE_VARIANT=cuda13 JAN_ENGINE_CUDA_ARCHS=87
-#     make build-engine JAN_ENGINE_VARIANT=cuda13 JAN_ENGINE_CUDA_ARCHS=86-real
-JAN_ENGINE_CUDA_ARCHS ?=
-export JAN_ENGINE_CUDA_ARCHS
+#     make build-engine REY30_ENGINE_VARIANT=cuda13 REY30_ENGINE_CUDA_ARCHS=87
+#     make build-engine REY30_ENGINE_VARIANT=cuda13 REY30_ENGINE_CUDA_ARCHS=86-real
+REY30_ENGINE_CUDA_ARCHS ?=
+export REY30_ENGINE_CUDA_ARCHS
 
 # Overrides the AMD GPUs a HIP build targets (cmake GPU_TARGETS). Empty means
 # the list build.rs carries over from the previous engine's releases:
-#     make build-engine JAN_ENGINE_VARIANT=rocm JAN_ENGINE_HIP_TARGETS=gfx1100
-JAN_ENGINE_HIP_TARGETS ?=
-export JAN_ENGINE_HIP_TARGETS
+#     make build-engine REY30_ENGINE_VARIANT=rocm REY30_ENGINE_HIP_TARGETS=gfx1100
+REY30_ENGINE_HIP_TARGETS ?=
+export REY30_ENGINE_HIP_TARGETS
 
 # One token to one cargo feature. `engine` alone is the CPU-only worker, and it
 # is implied by every other feature, so `cpu` maps to it and the GPU tokens do
 # not have to name it.
-ENGINE_TOKENS := $(subst -, ,$(JAN_ENGINE_VARIANT))
+ENGINE_TOKENS := $(subst -, ,$(REY30_ENGINE_VARIANT))
 ENGINE_FEATURE_cpu := engine
 ENGINE_FEATURE_vulkan := engine-vulkan
 ENGINE_FEATURE_metal := engine-metal
@@ -381,10 +381,10 @@ ENGINE_FEATURE_rocm := engine-hip
 
 ENGINE_UNKNOWN_TOKENS := $(strip $(foreach t,$(ENGINE_TOKENS),$(if $(ENGINE_FEATURE_$(t)),,$(t))))
 ifneq ($(ENGINE_UNKNOWN_TOKENS),)
-    $(error Unknown JAN_ENGINE_VARIANT '$(JAN_ENGINE_VARIANT)': no backend named '$(ENGINE_UNKNOWN_TOKENS)'. Tokens are cpu, vulkan, metal, cuda12, cuda13, hip/rocm, joined by '-')
+    $(error Unknown REY30_ENGINE_VARIANT '$(REY30_ENGINE_VARIANT)': no backend named '$(ENGINE_UNKNOWN_TOKENS)'. Tokens are cpu, vulkan, metal, cuda12, cuda13, hip/rocm, joined by '-')
 endif
 ifneq ($(word 2,$(filter cuda12 cuda13,$(ENGINE_TOKENS))),)
-    $(error JAN_ENGINE_VARIANT '$(JAN_ENGINE_VARIANT)' names more than one CUDA major, which one build cannot carry)
+    $(error REY30_ENGINE_VARIANT '$(REY30_ENGINE_VARIANT)' names more than one CUDA major, which one build cannot carry)
 endif
 
 # The fallback adds vulkan whenever a vendor runtime is in play and the variant
@@ -392,7 +392,7 @@ endif
 # harmless and the feature list is deterministic.
 ENGINE_VENDOR_FEATURES := $(filter engine-cuda engine-hip,$(foreach t,$(ENGINE_TOKENS),$(ENGINE_FEATURE_$(t))))
 ENGINE_FEATURE_LIST := $(sort $(foreach t,$(ENGINE_TOKENS),$(ENGINE_FEATURE_$(t))) \
-    $(if $(ENGINE_VENDOR_FEATURES),$(if $(filter 1,$(JAN_ENGINE_VULKAN_FALLBACK)),engine-vulkan,),))
+    $(if $(ENGINE_VENDOR_FEATURES),$(if $(filter 1,$(REY30_ENGINE_VULKAN_FALLBACK)),engine-vulkan,),))
 ENGINE_FEATURES := $(subst $(SPACE),$(COMMA),$(ENGINE_FEATURE_LIST))
 
 ENGINE_PLUGIN_DIR := src-tauri/plugins/tauri-plugin-llamacpp
@@ -403,7 +403,7 @@ ENGINE_BIN_DIR := src-tauri/resources/bin
 # a fifteen-minute engine build prints nothing and looks hung. Kept afterwards
 # as the artifact to attach to a build report.
 ENGINE_BUILD_LOG := $(CURDIR)/src-tauri/target/engine-build.log
-export JAN_ENGINE_BUILD_LOG := $(ENGINE_BUILD_LOG)
+export REY30_ENGINE_BUILD_LOG := $(ENGINE_BUILD_LOG)
 
 # Parallelism for the engine build only.
 #
@@ -417,9 +417,9 @@ export JAN_ENGINE_BUILD_LOG := $(ENGINE_BUILD_LOG)
 # build is the memory spike worth limiting; throttling the 1,200-crate app build
 # to match would just make everything slower.
 #
-# JAN_ENGINE_JOBS overrides both, for limiting the engine without touching the
+# REY30_ENGINE_JOBS overrides both, for limiting the engine without touching the
 # rest of the tree:
-#     make build-engine JAN_ENGINE_VARIANT=cuda13 JAN_ENGINE_JOBS=2
+#     make build-engine REY30_ENGINE_VARIANT=cuda13 REY30_ENGINE_JOBS=2
 #
 # A bare `make -j` (unlimited) yields an empty value and falls through to
 # cargo's default, which is the right reading of "no limit".
@@ -428,12 +428,12 @@ export JAN_ENGINE_BUILD_LOG := $(ENGINE_BUILD_LOG)
 # empty value and the limit is silently lost -- the exact failure this is meant
 # to fix. `--jobserver-auth=...` does not match `-j%` (it starts `--`).
 MAKE_J = $(strip $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS))))
-JAN_ENGINE_JOBS ?= $(MAKE_J)
-ENGINE_CARGO_JOBS = $(if $(JAN_ENGINE_JOBS),CARGO_BUILD_JOBS=$(JAN_ENGINE_JOBS),)
+REY30_ENGINE_JOBS ?= $(MAKE_J)
+ENGINE_CARGO_JOBS = $(if $(REY30_ENGINE_JOBS),CARGO_BUILD_JOBS=$(REY30_ENGINE_JOBS),)
 # cmd.exe has no `VAR=value command` prefix, so the same limit is set with `set`
 # there. The Windows recipes still run under sh when one is on PATH, where the
 # prefix form is the only one that works.
-ENGINE_CARGO_JOBS_WIN = $(if $(RECIPE_SHELL_IS_CMD),$(if $(JAN_ENGINE_JOBS),set CARGO_BUILD_JOBS=$(JAN_ENGINE_JOBS)&&,),$(ENGINE_CARGO_JOBS))
+ENGINE_CARGO_JOBS_WIN = $(if $(RECIPE_SHELL_IS_CMD),$(if $(REY30_ENGINE_JOBS),set CARGO_BUILD_JOBS=$(REY30_ENGINE_JOBS)&&,),$(ENGINE_CARGO_JOBS))
 
 # cargo also finds the jobserver in MAKEFLAGS and tries to join it, but a recipe
 # line make did not mark recursive never inherits its file descriptors, so cargo
@@ -469,7 +469,7 @@ endef
 # skipping it would leave someone waiting for an engine that was never built.
 # `origin` distinguishes the two: `file` means the `?=` default below, anything
 # else means the caller named it.
-ENGINE_VARIANT_EXPLICIT := $(if $(filter-out file,$(origin JAN_ENGINE_VARIANT)),yes,)
+ENGINE_VARIANT_EXPLICIT := $(if $(filter-out file,$(origin REY30_ENGINE_VARIANT)),yes,)
 
 build-engine-dev-if-possible:
 ifeq ($(DETECTED_OS),Windows)
@@ -481,10 +481,10 @@ else
 	elif [ -n "$(ENGINE_VARIANT_EXPLICIT)" ]; then \
 		echo "$$out" >&2; \
 		echo "" >&2; \
-		echo "You asked for JAN_ENGINE_VARIANT=$(JAN_ENGINE_VARIANT) explicitly, so this is a" >&2; \
+		echo "You asked for REY30_ENGINE_VARIANT=$(REY30_ENGINE_VARIANT) explicitly, so this is a" >&2; \
 		echo "hard failure rather than a skip. Note that PATH changes must be in the" >&2; \
 		echo "same shell as make, e.g.:" >&2; \
-		echo "    PATH=/usr/local/cuda-13/bin:\$$PATH make dev JAN_ENGINE_VARIANT=$(JAN_ENGINE_VARIANT)$(if $(filter 1,$(JAN_ENGINE_VULKAN_FALLBACK)), JAN_ENGINE_VULKAN_FALLBACK=0,)" >&2; \
+		echo "    PATH=/usr/local/cuda-13/bin:\$$PATH make dev REY30_ENGINE_VARIANT=$(REY30_ENGINE_VARIANT)$(if $(filter 1,$(REY30_ENGINE_VULKAN_FALLBACK)), REY30_ENGINE_VULKAN_FALLBACK=0,)" >&2; \
 		exit 1; \
 	else \
 		echo "=============================================================="; \
@@ -493,7 +493,7 @@ else
 		echo ""; \
 		echo "Local models will not run. Cloud providers are unaffected."; \
 		echo "To build one, name a variant you have the toolchain for:"; \
-		echo "    make build-engine-dev JAN_ENGINE_VARIANT=cpu"; \
+		echo "    make build-engine-dev REY30_ENGINE_VARIANT=cpu"; \
 		echo "=============================================================="; \
 	fi
 endif
@@ -517,7 +517,7 @@ else
 endif
 
 check-engine-toolchain:
-	bash src-tauri/build-utils/check-engine-toolchain.sh $(JAN_ENGINE_VARIANT) $(ENGINE_FEATURES)
+	bash src-tauri/build-utils/check-engine-toolchain.sh $(REY30_ENGINE_VARIANT) $(ENGINE_FEATURES)
 
 # The S3 cache key for what build-engine would compile. Run through make so the
 # script sees the same resolved features and exported environment cargo gets.
@@ -526,13 +526,13 @@ engine-prebuilt-key:
 
 # Release worker plus the ggml runtime it loads.
 build-engine: engine-source check-engine-toolchain
-	@echo "Building llama.cpp engine worker (variant: $(JAN_ENGINE_VARIANT), features: $(ENGINE_FEATURES), jobs: $(if $(JAN_ENGINE_JOBS),$(JAN_ENGINE_JOBS),all cores))"
+	@echo "Building llama.cpp engine worker (variant: $(REY30_ENGINE_VARIANT), features: $(ENGINE_FEATURES), jobs: $(if $(REY30_ENGINE_JOBS),$(REY30_ENGINE_JOBS),all cores))"
 	$(call MKDIR,'$(ENGINE_BIN_DIR)')
 ifeq ($(DETECTED_OS),Windows)
-	cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS_WIN) cargo build --release --features $(ENGINE_FEATURES) --bin jan-llama-worker
+	cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS_WIN) cargo build --release --features $(ENGINE_FEATURES) --bin rey30-idvj-llama-worker
 	bash src-tauri/build-utils/stage-engine.sh release
 else
-	$(call with_engine_log,cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS) cargo build --release --features $(ENGINE_FEATURES) --bin jan-llama-worker)
+	$(call with_engine_log,cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS) cargo build --release --features $(ENGINE_FEATURES) --bin rey30-idvj-llama-worker)
 	bash src-tauri/build-utils/stage-engine.sh release
 endif
 	bash src-tauri/build-utils/sign-engine.sh
@@ -543,48 +543,48 @@ endif
 # rust-check.yml and a plain `cargo test --lib` run with the feature off, so all
 # three report "0 passed; ok" -- green suites that assert nothing, over the whole
 # FFI boundary. `--no-run` is the part that needs no model: the runtime half
-# still wants JAN_TEST_GGUF, but a suite that stops compiling now fails loudly
+# still wants REY30_TEST_GGUF, but a suite that stops compiling now fails loudly
 # instead of passing vacuously. Depends on the same toolchain check as
 # build-engine, and reuses ENGINE_FEATURES so it cannot drift from what the
 # worker is built with.
 check-engine-tests: engine-source check-engine-toolchain
-	@echo "Compiling engine test suites (variant: $(JAN_ENGINE_VARIANT), features: $(ENGINE_FEATURES))"
+	@echo "Compiling engine test suites (variant: $(REY30_ENGINE_VARIANT), features: $(ENGINE_FEATURES))"
 	cd $(ENGINE_PLUGIN_DIR) && cargo test --features $(ENGINE_FEATURES) --no-run
 
 # Debug worker for local dev. Same staging, so `make dev` behaves like a bundle.
 build-engine-dev: engine-source check-engine-toolchain
-	@echo "Building llama.cpp engine worker (dev, variant: $(JAN_ENGINE_VARIANT), jobs: $(if $(JAN_ENGINE_JOBS),$(JAN_ENGINE_JOBS),all cores))"
+	@echo "Building llama.cpp engine worker (dev, variant: $(REY30_ENGINE_VARIANT), jobs: $(if $(REY30_ENGINE_JOBS),$(REY30_ENGINE_JOBS),all cores))"
 	$(call MKDIR,'$(ENGINE_BIN_DIR)')
 ifeq ($(DETECTED_OS),Windows)
-	cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS_WIN) cargo build --features $(ENGINE_FEATURES) --bin jan-llama-worker
+	cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS_WIN) cargo build --features $(ENGINE_FEATURES) --bin rey30-idvj-llama-worker
 	bash src-tauri/build-utils/stage-engine.sh debug
 else
-	$(call with_engine_log,cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS) cargo build --features $(ENGINE_FEATURES) --bin jan-llama-worker)
+	$(call with_engine_log,cd $(ENGINE_PLUGIN_DIR) && $(ENGINE_CARGO_JOBS) cargo build --features $(ENGINE_FEATURES) --bin rey30-idvj-llama-worker)
 	bash src-tauri/build-utils/stage-engine.sh debug
 endif
 
-# Build the Jan agent CLI (the `jan` binary with the `cli` feature)
+# Build the Rey30 IDvj agent CLI (the `rey30-idvj` binary with the `cli` feature)
 # The compiled binary lives at two locations after build:
-#   1. src-tauri/resources/bin/jan[.exe] (bundled copy)
-#   2. src-tauri/target/<triple>/release/jan[.exe] (Cargo output)
+#   1. src-tauri/resources/bin/rey30-idvj[.exe] (bundled copy)
+#   2. src-tauri/rey30-idvj-cli/target/<triple>/release/rey30-idvj[.exe] (Cargo output)
 agent: build-agent
 
-# Build the jan agent CLI binary (release, platform-aware)
-# The binary is compiled into src-tauri/target/<triple>/release/jan[.exe]
-# and then installed to src-tauri/resources/bin/jan[.exe] for bundling.
+# Build the rey30-idvj agent CLI binary (release, platform-aware)
+# The binary is compiled into src-tauri/rey30-idvj-cli/target/<triple>/release/rey30-idvj[.exe]
+# and then installed to src-tauri/resources/bin/rey30-idvj[.exe] for bundling.
 build-agent:
 ifeq ($(DETECTED_OS),Windows)
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli
-	copy src-tauri\target\release\jan.exe src-tauri\resources\bin\jan.exe
-	@echo "Jan agent built at:"
-	@echo "  src-tauri/resources/bin/jan.exe"
-	@echo "  src-tauri/target/release/jan.exe"
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli
+	copy src-tauri\rey30-idvj-cli\target\release\rey30-idvj.exe src-tauri\resources\bin\rey30-idvj.exe
+	@echo "Rey30 IDvj agent built at:"
+	@echo "  src-tauri/resources/bin/rey30-idvj.exe"
+	@echo "  src-tauri/rey30-idvj-cli/target/release/rey30-idvj.exe"
 else
-	cd src-tauri/jan-cli && cargo build --release --no-default-features --features cli
-	install -m755 src-tauri/target/release/jan src-tauri/resources/bin/jan
-	@echo "Jan agent built at:"
-	@echo "  src-tauri/resources/bin/jan"
-	@echo "  src-tauri/target/release/jan"
+	cd src-tauri/rey30-idvj-cli && cargo build --target-dir target --release --no-default-features --features cli
+	install -m755 src-tauri/rey30-idvj-cli/target/release/rey30-idvj src-tauri/resources/bin/rey30-idvj
+	@echo "Rey30 IDvj agent built at:"
+	@echo "  src-tauri/resources/bin/rey30-idvj"
+	@echo "  src-tauri/rey30-idvj-cli/target/release/rey30-idvj"
 endif
 
 # Build
@@ -601,7 +601,7 @@ ifeq ($(DETECTED_OS),Windows)
 	-powershell -Command "Remove-Item -Recurse -Force ./electron/pre-install/*.tgz"
 	-powershell -Command "Remove-Item -Recurse -Force ./src-tauri/resources"
 	-powershell -Command "Remove-Item -Recurse -Force ./src-tauri/target"
-	-powershell -Command "if (Test-Path \"$($env:USERPROFILE)\jan\extensions\") { Remove-Item -Path \"$($env:USERPROFILE)\jan\extensions\" -Recurse -Force }"
+	-powershell -Command "if (Test-Path \"$($env:USERPROFILE)\rey30-idvj\extensions\") { Remove-Item -Path \"$($env:USERPROFILE)\rey30-idvj\extensions\" -Recurse -Force }"
 else ifeq ($(DETECTED_OS),Linux)
 	find . -name "node_modules" -type d -prune -exec rm -rf '{}' +
 	find . -name ".next" -type d -exec rm -rf '{}' +
@@ -617,8 +617,8 @@ else ifeq ($(DETECTED_OS),Linux)
 	rm -rf ./electron/pre-install/*.tgz
 	rm -rf ./src-tauri/resources
 	rm -rf ./src-tauri/target
-	rm -rf "~/jan/extensions"
-	rm -rf "~/.cache/jan*"
+	rm -rf "~/rey30-idvj/extensions"
+	rm -rf "~/.cache/rey30-idvj*"
 	rm -rf "./.cache"
 else
 	find . -name "node_modules" -type d -prune -exec rm -rfv '{}' +
@@ -634,6 +634,6 @@ else
 	rm -rfv ./electron/pre-install/*.tgz
 	rm -rfv ./src-tauri/resources
 	rm -rfv ./src-tauri/target
-	rm -rfv ~/jan/extensions
-	rm -rfv ~/Library/Caches/jan*
+	rm -rfv ~/rey30-idvj/extensions
+	rm -rfv ~/Library/Caches/rey30-idvj*
 endif

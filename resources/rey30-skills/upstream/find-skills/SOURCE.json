@@ -1,0 +1,24 @@
+{
+  "name": "find-skills",
+  "repository": "vercel-labs/skills",
+  "commit": "9197d919034d19010ae303cf96bf19ad087dd4be",
+  "license": "MIT",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "url": "https://github.com/vercel-labs/skills/blob/9197d919034d19010ae303cf96bf19ad087dd4be/skills/find-skills/SKILL.md",
+      "bytes": 5472,
+      "sha256": "c00eeea0e13e74fe4a9d84ba0a8542205a1b736d65f13134fe1a6647eb14976f"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://github.com/vercel-labs/skills/blob/9197d919034d19010ae303cf96bf19ad087dd4be/LICENSE",
+      "bytes": 1069,
+      "sha256": "661142e53c313d2bb5e1b055f5c0a39001450ff1b5e27b89dc4bc7de9a6352ca"
+    }
+  ]
+}

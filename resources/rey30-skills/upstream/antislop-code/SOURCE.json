@@ -1,0 +1,24 @@
+{
+  "name": "antislop-code",
+  "repository": "miqdadbadjuber/anti-slop",
+  "commit": "941b1532f9cc8ffde766bca5921d75257c9e5762",
+  "license": "MIT",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "url": "https://github.com/miqdadbadjuber/anti-slop/blob/941b1532f9cc8ffde766bca5921d75257c9e5762/skills/antislop-code/SKILL.md",
+      "bytes": 8944,
+      "sha256": "004933009d352710dcbea7817101d5c188474a442e3ece26a6e0c18d3223898f"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://github.com/miqdadbadjuber/anti-slop/blob/941b1532f9cc8ffde766bca5921d75257c9e5762/LICENSE",
+      "bytes": 1083,
+      "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+    }
+  ]
+}

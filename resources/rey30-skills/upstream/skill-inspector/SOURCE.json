@@ -1,0 +1,34 @@
+{
+  "name": "skill-inspector",
+  "repository": "NVIDIA/SkillSpector",
+  "commit": "1cd5a1d05ace88c661659d26a0f83a91af4522f4",
+  "license": "Apache-2.0",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "review": "Manual review fallback is explicitly supported when skillspector is unavailable. CLI and all fixtures/examples excluded; no scanner or runtime installed.",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sourcePath": "skills/skill-inspector/SKILL.md",
+      "url": "https://github.com/NVIDIA/SkillSpector/blob/1cd5a1d05ace88c661659d26a0f83a91af4522f4/skills/skill-inspector/SKILL.md",
+      "bytes": 7559,
+      "sha256": "1acc220016936ba68f7b9083c19575a8866c9cf74c251d689285a0d9fbe2a067"
+    },
+    {
+      "path": "LICENSE",
+      "sourcePath": "LICENSE",
+      "url": "https://github.com/NVIDIA/SkillSpector/blob/1cd5a1d05ace88c661659d26a0f83a91af4522f4/LICENSE",
+      "bytes": 10782,
+      "sha256": "9f8785b47596b2993a17a3fa8d747ae63126a2c5e80a9e77195a907273d71839"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sourcePath": "THIRD_PARTY_NOTICES.md",
+      "url": "https://github.com/NVIDIA/SkillSpector/blob/1cd5a1d05ace88c661659d26a0f83a91af4522f4/THIRD_PARTY_NOTICES.md",
+      "bytes": 4651,
+      "sha256": "72039110c4a0d82b74270161b21c02c14aa6a2e9b7ae4426d8e2ab28145bd38e"
+    }
+  ]
+}

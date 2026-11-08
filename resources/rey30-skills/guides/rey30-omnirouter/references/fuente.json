@@ -1,0 +1,49 @@
+{
+  "requested": "omniruter",
+  "matchStatus": "ambiguous",
+  "repository": "Godde3s/omnirouter",
+  "commit": "b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354",
+  "commitDate": "2026-10-26T14:11:53Z",
+  "type": "Enrutador de API, servicio alojado o proyecto de investigación",
+  "license": "MIT para Godde3s; otros servicios tienen condiciones propias",
+  "requirements": [
+    "Go>=1.22 o binario publicado; acceso configurado a proveedores/API/cookies"
+  ],
+  "windowsAssessment": "El README declara binarios Windows/Linux/macOS; no se ejecutaron.",
+  "amdAssessment": "El enrutador no requiere GPU; los endpoints de modelos tienen requisitos propios.",
+  "risks": "Puentes web a API, cookies y prueba de trabajo; no se eligió ni configuró proveedor comercial.",
+  "sourceLicenseMetadata": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/Godde3s/omnirouter",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Godde3s/omnirouter/commit/b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Godde3s/omnirouter/blob/b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://godde3s.github.io/omnirouter/",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false,
+  "alternatives": [
+    {
+      "url": "https://omnirouter.cc/docs",
+      "type": "Servicio de API alojado",
+      "selected": false
+    },
+    {
+      "url": "https://github.com/dongyuanjushi/OmniRouter",
+      "type": "Código de investigación enlazado desde artículo KDD",
+      "selected": false,
+      "verification": "No se pudo verificar metadata del repositorio en esta pasada; no se afirma commit"
+    }
+  ]
+}

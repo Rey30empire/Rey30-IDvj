@@ -1,0 +1,36 @@
+{
+  "requested": "anycreature",
+  "matchStatus": "found",
+  "repository": "Ariescar/anyCreature",
+  "commit": "88041c1efb316370dd78963f422decd854fd9067",
+  "commitDate": "2026-09-21T14:15:24Z",
+  "type": "Motor procedural 3D y entorno de validación",
+  "license": "MIT y avisos de Three.js",
+  "requirements": [
+    "Node18+; Python3.9+ para validación; setup instala three/numpy/Pillow/scipy"
+  ],
+  "windowsAssessment": "Documenta setup.ps1; no se ejecutó.",
+  "amdAssessment": "El motor geométrico Node documentado no exige CUDA; no se probó renderizado AMD.",
+  "risks": "Instala dependencias y escribe GLB/recursos; ejecuta calibración/render. MANUAL.md no equivale al software instalado.",
+  "sourceLicenseMetadata": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/Ariescar/anyCreature",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Ariescar/anyCreature/commit/88041c1efb316370dd78963f422decd854fd9067",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Ariescar/anyCreature/blob/88041c1efb316370dd78963f422decd854fd9067/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://gobkit.com/harness/anycreature",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

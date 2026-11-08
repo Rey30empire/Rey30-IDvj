@@ -1,0 +1,44 @@
+{
+  "requested": "agent reach",
+  "matchStatus": "found",
+  "repository": "Panniantong/Agent-Reach",
+  "commit": "c62128afe64c9bb624360d683db6036502535a3a",
+  "commitDate": "2026-11-04T09:06:45Z",
+  "type": "CLI y plantilla de habilidad",
+  "license": "MIT",
+  "requirements": [
+    "CLI uv/Python y configuración de navegadores/CLI/claves por canal"
+  ],
+  "windowsAssessment": "La guía incluye PowerShell; no se probó el entorno.",
+  "amdAssessment": "Herramientas de lectura/búsqueda sin necesidad de GPU.",
+  "risks": "Puede copiar una sesión existente de Chrome a su navegador y aprovisionar dependencias. El paquete homónimo de PyPI no es el proyecto oficial.",
+  "sourceLicenseMetadata": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/commit/c62128afe64c9bb624360d683db6036502535a3a",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/docs/install.md",
+      "role": "docs/install.md"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/main/docs/install.md",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

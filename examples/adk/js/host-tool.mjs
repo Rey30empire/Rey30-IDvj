@@ -1,14 +1,14 @@
-// Give Jan Agent a tool that your Node.js code executes.
+// Give Rey30 IDvj Agent a tool that your Node.js code executes.
 //
 // Declares `get_weather` with `--host-tools`, checks the run advertised it,
 // approves the permission prompt for it (the run is started with `--safe`, so
 // your code decides every side effect), runs it when the model calls it, and
 // sends the result back. Everything travels over the stream-json channel of
-// `jan cli agent run`. No dependencies.
+// `rey30-idvj cli agent run`. No dependencies.
 //
 //     node host-tool.mjs "What's the weather in Hanoi?"
 //
-// Set JAN_BIN to use a jan binary that is not on PATH, and JAN_MODEL to pick a model.
+// Set REY30_BIN to use a rey30-idvj binary that is not on PATH, and REY30_MODEL to pick a model.
 
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -16,10 +16,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
-const jan = process.env.JAN_BIN ?? 'jan'
+const runtimeBin = process.env.REY30_BIN ?? 'rey30-idvj'
 const task = process.argv[2] ?? "What's the weather in Hanoi? Use the get_weather tool."
 
-// What the model sees, as `host__get_weather`. Jan validates the declaration
+// What the model sees, as `host__get_weather`. Rey30 IDvj validates the declaration
 // before the run starts; the arguments are validated by your code, below.
 const tools = [
   {
@@ -41,7 +41,7 @@ const handlers = {
   },
 }
 
-const scratch = mkdtempSync(join(tmpdir(), 'jan-host-tool-'))
+const scratch = mkdtempSync(join(tmpdir(), 'rey30-idvj-host-tool-'))
 const project = join(scratch, 'project')
 mkdirSync(project)
 const toolsFile = join(scratch, 'host-tools.json')
@@ -55,10 +55,10 @@ const args = [
   '--input-format', 'stream-json',
   '--host-tools', toolsFile,
 ]
-if (process.env.JAN_MODEL) args.push('--model', process.env.JAN_MODEL)
+if (process.env.REY30_MODEL) args.push('--model', process.env.REY30_MODEL)
 args.push(task)
 
-const run = spawn(jan, args, { stdio: ['pipe', 'pipe', 'inherit'] })
+const run = spawn(runtimeBin, args, { stdio: ['pipe', 'pipe', 'inherit'] })
 const exited = new Promise((resolve) => run.on('close', resolve))
 const send = (message) => run.stdin.write(JSON.stringify(message) + '\n')
 
@@ -114,7 +114,7 @@ rmSync(scratch, { recursive: true, force: true })
 
 console.log()
 if (result === null) {
-  console.error(`jan exited with ${code} before printing a result`)
+  console.error(`rey30-idvj exited with ${code} before printing a result`)
   process.exit(1)
 }
 if (result.is_error) {

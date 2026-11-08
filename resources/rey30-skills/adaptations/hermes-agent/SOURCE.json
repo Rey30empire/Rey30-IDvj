@@ -1,0 +1,49 @@
+{
+  "name": "hermes-agent",
+  "language": "es",
+  "translationRole": "adaptación al runtime Rey30 en español; no equivalencia CLI",
+  "repository": "NousResearch/hermes-agent",
+  "commit": "0073fa98cfcf61c066a919df4b336924720f8463",
+  "license": "MIT",
+  "original": {
+    "url": "https://github.com/NousResearch/hermes-agent/blob/0073fa98cfcf61c066a919df4b336924720f8463/skills/autonomous-ai-agents/hermes-agent/SKILL.md",
+    "sha256": "c14f545a0a0dd00cb009408faedad563878d78039a7c7a80369aac847cdfb7f8",
+    "intendedBundledPath": "references/upstream-SKILL.md",
+    "preservedUnmodifiedInStaging": true
+  },
+  "adaptation": {
+    "path": "SKILL.md",
+    "sha256": "5614470cc6e61f8d48284d6efe0ec1c49029f714598f01ae1f8300b32e99b433",
+    "bytes": 7383,
+    "characters": 7298
+  },
+  "references": {
+    "reviewedStagingRoot": "../../staging/hermes-agent",
+    "linksAllPresent": true,
+    "links": [
+      "references/cli-reference.md",
+      "references/slash-commands.md",
+      "references/providers-and-models.md",
+      "references/portal-auth-for-third-party-apps.md",
+      "references/configuration.md",
+      "references/security-privacy.md",
+      "references/project-context-files.md",
+      "references/native-mcp.md",
+      "references/background-systems.md",
+      "references/webhooks.md",
+      "references/projects-and-folders.md",
+      "references/windows-quirks.md",
+      "references/troubleshooting.md",
+      "references/themes.md",
+      "references/desktop-plugins.md",
+      "references/tui-widgets.md",
+      "references/petdex.md"
+    ]
+  },
+  "thirdPartySoftwareInstalledByAdaptation": false,
+  "thirdPartySoftwareExecuted": false,
+  "modelsExecuted": false,
+  "hardwareChanged": false,
+  "originalLegalNoticesUnmodified": true,
+  "integrationNote": "Root incorporará referencias/licencias originales del staging y el original en references/upstream-SKILL.md. Estos cinco directorios de adaptación por sí solos no son el paquete final instalado."
+}

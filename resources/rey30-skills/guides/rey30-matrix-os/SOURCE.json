@@ -1,0 +1,32 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "HamedMP/matrix-os",
+  "sourceCommit": "78a29858496aab77ee62058b473debc424f7f75c",
+  "externalLicense": "AGPL-3.0 según LICENSE; API indica NOASSERTION",
+  "sources": [
+    {
+      "url": "https://github.com/HamedMP/matrix-os",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/commit/78a29858496aab77ee62058b473debc424f7f75c",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/blob/78a29858496aab77ee62058b473debc424f7f75c/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/blob/78a29858496aab77ee62058b473debc424f7f75c/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://matrix-os.com/docs/self-host",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

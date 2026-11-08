@@ -61,7 +61,7 @@ def main():
     node, npm = shutil.which("node"), shutil.which("npm")
     assert node and npm, "Node/npm required for the JS smoke"
     scripts = Path(__file__).resolve().parent
-    with tempfile.TemporaryDirectory(prefix="jan-adk-artifact-") as directory:
+    with tempfile.TemporaryDirectory(prefix="rey30-adk-artifact-") as directory:
         root = Path(directory)
         artifacts = {}
         for language in ["javascript", "python"]:
@@ -90,11 +90,30 @@ def main():
         for thread in threads:
             thread.start()
         try:
-            env = {k: v for k, v in os.environ.items() if not k.startswith(("JAN_", "PYTHON"))}
+            env = {k: v for k, v in os.environ.items() if not k.startswith(("REY30_", "JAN_", "PYTHON"))}
             home = root / "home"
             home.mkdir()
-            env.update(HOME=str(home), USERPROFILE=str(home), JAN_AGENT_HOME=str(root / "runtimes"),
-                       JAN_CLI_NO_UPDATE_CHECK="1", RUNTIME_VERSION=manifest["runtime"]["version"],
+            directories = {
+                "APPDATA": home / "AppData/Roaming",
+                "LOCALAPPDATA": home / "AppData/Local",
+                "XDG_DATA_HOME": home / ".local/share",
+                "XDG_CONFIG_HOME": home / ".config",
+                "XDG_STATE_HOME": home / ".local/state",
+                "XDG_CACHE_HOME": home / ".cache",
+                "REY30_CONFIG_HOME": root / "agent-config",
+                "REY30_DATA_ROOT": home / "AppData/Roaming",
+                "REY30_DATA_FOLDER": root / "data",
+                "REY30_AGENT_HOME": root / "runtimes",
+                "TMP": root / "tmp",
+                "TEMP": root / "tmp",
+                "TMPDIR": root / "tmp",
+            }
+            for key, directory in directories.items():
+                directory.mkdir(parents=True, exist_ok=True)
+                env[key] = str(directory)
+            env.update(HOME=str(home), USERPROFILE=str(home),
+                       REY30_AGENT_ENABLE_TELEMETRY="0", PIP_DISABLE_PIP_VERSION_CHECK="1",
+                       REY30_CLI_NO_UPDATE_CHECK="1", RUNTIME_VERSION=manifest["runtime"]["version"],
                        RUNTIME_MANIFEST=f"http://127.0.0.1:{runtime_server.server_port}/runtime.json",
                        PROVIDER_URL=f"http://127.0.0.1:{provider.server_port}/v1")
             js = root / "js"
@@ -106,7 +125,7 @@ def main():
             shutil.copyfile(scripts / "smoke.mjs", js / "smoke.mjs")
             subprocess.run([node, "smoke.mjs"], cwd=js, env=env, check=True, timeout=180)
             venv = root / "venv"
-            subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True, timeout=120)
+            subprocess.run([sys.executable, "-m", "venv", str(venv)], env=env, check=True, timeout=120)
             python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
             subprocess.run([str(python), "-m", "pip", "install", "--no-deps", str(artifacts["python"])],
                            cwd=root, env=env, check=True, timeout=120)

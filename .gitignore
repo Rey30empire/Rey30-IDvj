@@ -1,4 +1,7 @@
 .env
+/artifacts/
+/.rey30-idvj/
+REY30.md
 error.log
 # Runtime agent workspace scaffolded by ensure_project (not source)
 .jan/
@@ -73,7 +76,22 @@ src-tauri/plugins/tauri-plugin-foundation-models/swift-server/Package.resolved
 ## cargo
 target
 Cargo.lock
+!src-tauri/rey30-idvj-cli/Cargo.lock
+!docs/yarn.lock
 src-tauri/resources/
+!src-tauri/resources/
+src-tauri/resources/*
+!src-tauri/resources/pluma-llama/
+src-tauri/resources/pluma-llama/*
+!src-tauri/resources/pluma-llama/README.txt
+!src-tauri/resources/pluma-llama-tts/
+src-tauri/resources/pluma-llama-tts/*
+!src-tauri/resources/pluma-llama-tts/README.txt
+!src-tauri/resources/pluma-music/
+src-tauri/resources/pluma-music/*
+!src-tauri/resources/pluma-music/generate.ps1
+!src-tauri/resources/pluma-music/verify-singing.py
+!src-tauri/resources/rey30-skills.pack.json
 
 ## test
 test-data

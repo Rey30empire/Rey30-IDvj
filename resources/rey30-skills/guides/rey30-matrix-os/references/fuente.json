@@ -1,0 +1,40 @@
+{
+  "requested": "matrix os",
+  "matchStatus": "ambiguous-probable",
+  "repository": "HamedMP/matrix-os",
+  "commit": "78a29858496aab77ee62058b473debc424f7f75c",
+  "commitDate": "2026-11-04T16:42:49Z",
+  "type": "Espacio de trabajo de agentes y servidor",
+  "license": "AGPL-3.0 según LICENSE; API indica NOASSERTION",
+  "requirements": [
+    "Node24+, pnpm10 y Bun en desarrollo; Linux/systemd/Postgres/nginx para despliegue del servidor"
+  ],
+  "windowsAssessment": "El cliente web puede usarse en Windows; el despliegue del servidor está orientado a Linux.",
+  "amdAssessment": "Depende del proveedor y del entorno; no se validó AMD.",
+  "risks": "curl|sudo bash puede crear usuarios/servicios; expone espacio de trabajo remoto, autenticación e integraciones.",
+  "sourceLicenseMetadata": "NOASSERTION",
+  "sources": [
+    {
+      "url": "https://github.com/HamedMP/matrix-os",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/commit/78a29858496aab77ee62058b473debc424f7f75c",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/blob/78a29858496aab77ee62058b473debc424f7f75c/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/HamedMP/matrix-os/blob/78a29858496aab77ee62058b473debc424f7f75c/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://matrix-os.com/docs/self-host",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

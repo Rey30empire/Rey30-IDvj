@@ -1,0 +1,42 @@
+{
+  "name": "hyperframes",
+  "language": "es",
+  "translationRole": "adaptación al runtime Rey30 en español; no equivalencia CLI",
+  "repository": "heygen-com/hyperframes",
+  "commit": "3d78ac0fa6671c31ba69186d084951aeb8dc8e18",
+  "license": "Apache-2.0",
+  "original": {
+    "url": "https://github.com/heygen-com/hyperframes/blob/3d78ac0fa6671c31ba69186d084951aeb8dc8e18/skills/hyperframes/SKILL.md",
+    "sha256": "156e0835462975e6153140f8197b6ca75a1762e490bc02ab5be49c288e691dca",
+    "intendedBundledPath": "references/upstream-SKILL.md",
+    "preservedUnmodifiedInStaging": true
+  },
+  "adaptation": {
+    "path": "SKILL.md",
+    "sha256": "5d9f326e37d2110764028ef5d3066b169494c8ef3f88d643de1568e9d1b1d1f8",
+    "bytes": 7518,
+    "characters": 7418
+  },
+  "references": {
+    "reviewedStagingRoot": "../../staging/hyperframes",
+    "linksAllPresent": true,
+    "links": [
+      "references/film.md",
+      "references/story.md",
+      "references/spec.md",
+      "references/review.md",
+      "references/format.md",
+      "references/runtimes.md",
+      "references/motion.md",
+      "references/sound.md",
+      "references/captions.md",
+      "references/overlays.md"
+    ]
+  },
+  "thirdPartySoftwareInstalledByAdaptation": false,
+  "thirdPartySoftwareExecuted": false,
+  "modelsExecuted": false,
+  "hardwareChanged": false,
+  "originalLegalNoticesUnmodified": true,
+  "integrationNote": "Root incorporará referencias/licencias originales del staging y el original en references/upstream-SKILL.md. Estos cinco directorios de adaptación por sí solos no son el paquete final instalado."
+}

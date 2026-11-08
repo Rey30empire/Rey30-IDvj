@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 
-from jan_adk import HostTool, JanRuntime, install_runtime
+from rey30_idvj_adk import HostTool, Rey30Runtime, install_runtime
 
 assert shutil.which("node") is None, "Python smoke must not have Node available"
 installed = install_runtime(
@@ -21,7 +21,7 @@ def measure(args, call):
     return {"text": "sensor=42"}
 
 
-with JanRuntime.start(bin=installed.bin) as runtime:
+with Rey30Runtime.start(bin=installed.bin) as runtime:
     session = runtime.create_session(
         model="stub-model", ephemeral=True, builtins=False,
         tools=[HostTool(

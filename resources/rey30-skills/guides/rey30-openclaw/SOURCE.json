@@ -1,0 +1,32 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "openclaw/openclaw",
+  "sourceCommit": "aedae9dc410202f22504c6183823fd411699f723",
+  "externalLicense": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/openclaw/openclaw",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/openclaw/openclaw/commit/aedae9dc410202f22504c6183823fd411699f723",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/openclaw/openclaw/blob/aedae9dc410202f22504c6183823fd411699f723/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/openclaw/openclaw/blob/aedae9dc410202f22504c6183823fd411699f723/package.json",
+      "role": "package.json"
+    },
+    {
+      "url": "https://docs.openclaw.ai/start/getting-started",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

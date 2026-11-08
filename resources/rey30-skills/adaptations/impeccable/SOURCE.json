@@ -1,0 +1,49 @@
+{
+  "name": "impeccable",
+  "language": "es",
+  "translationRole": "adaptación al runtime Rey30 en español; no equivalencia CLI",
+  "repository": "pbakaus/impeccable",
+  "commit": "5af4319c4e7a7ee3e5e2b9fe899bcfb21c6190cb",
+  "license": "Apache-2.0",
+  "original": {
+    "url": "https://github.com/pbakaus/impeccable/blob/5af4319c4e7a7ee3e5e2b9fe899bcfb21c6190cb/.agents/skills/impeccable/SKILL.md",
+    "sha256": "fab04b31f946573b00a8559db1fc070f8ea5825254d491c2b13156e5661a86d7",
+    "intendedBundledPath": "references/upstream-SKILL.md",
+    "preservedUnmodifiedInStaging": true
+  },
+  "adaptation": {
+    "path": "SKILL.md",
+    "sha256": "fd82b2a2f9d72a92731ca196d42fbecfcaf1d0ad07608ab642284bddea7cb3fe",
+    "bytes": 6381,
+    "characters": 6301
+  },
+  "references": {
+    "reviewedStagingRoot": "../../staging/impeccable",
+    "linksAllPresent": true,
+    "links": [
+      "reference/craft-floor.md",
+      "reference/new-work.md",
+      "reference/shape.md",
+      "reference/critique.md",
+      "reference/audit.md",
+      "reference/polish.md",
+      "reference/distill.md",
+      "reference/harden.md",
+      "reference/clarify.md",
+      "reference/layout.md",
+      "reference/typeset.md",
+      "reference/colorize.md",
+      "reference/adapt.md",
+      "reference/animate.md",
+      "reference/optimize.md",
+      "reference/init.md",
+      "reference/document.md"
+    ]
+  },
+  "thirdPartySoftwareInstalledByAdaptation": false,
+  "thirdPartySoftwareExecuted": false,
+  "modelsExecuted": false,
+  "hardwareChanged": false,
+  "originalLegalNoticesUnmodified": true,
+  "integrationNote": "Root incorporará referencias/licencias originales del staging y el original en references/upstream-SKILL.md. Estos cinco directorios de adaptación por sí solos no son el paquete final instalado."
+}

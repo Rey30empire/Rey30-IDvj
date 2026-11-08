@@ -1,0 +1,28 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "Ariescar/anyCreature",
+  "sourceCommit": "88041c1efb316370dd78963f422decd854fd9067",
+  "externalLicense": "MIT y avisos de Three.js",
+  "sources": [
+    {
+      "url": "https://github.com/Ariescar/anyCreature",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Ariescar/anyCreature/commit/88041c1efb316370dd78963f422decd854fd9067",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Ariescar/anyCreature/blob/88041c1efb316370dd78963f422decd854fd9067/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://gobkit.com/harness/anycreature",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

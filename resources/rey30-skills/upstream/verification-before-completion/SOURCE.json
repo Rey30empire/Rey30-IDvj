@@ -1,0 +1,24 @@
+{
+  "name": "verification-before-completion",
+  "repository": "obra/superpowers",
+  "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+  "license": "MIT",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "url": "https://github.com/obra/superpowers/blob/22f0b463e7a5e579904dd6211a520321035526f7/skills/verification-before-completion/SKILL.md",
+      "bytes": 3646,
+      "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://github.com/obra/superpowers/blob/22f0b463e7a5e579904dd6211a520321035526f7/LICENSE",
+      "bytes": 1070,
+      "sha256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "requested": "mirofish",
+  "matchStatus": "found",
+  "repository": "666ghj/MiroFish",
+  "commit": "7657031ac01184afe2cb220f5ee3545573b5e843",
+  "commitDate": "2026-10-01T18:20:36Z",
+  "type": "Aplicación de simulación multiagente",
+  "license": "AGPL-3.0",
+  "requirements": [
+    "Node>=18; Python3.11-3.12; uv; LLM_API_KEY; ZEP_API_KEY"
+  ],
+  "windowsAssessment": "Describe instalación Node/Python/Docker; no se hizo aceptación nativa en Windows.",
+  "amdAssessment": "El flujo con LLM remoto no requiere GPU local; no se verificó la vía local.",
+  "risks": "Las simulaciones envían datos a LLM/Zep y pueden generar costes; no se validaron sus afirmaciones predictivas.",
+  "sourceLicenseMetadata": "AGPL-3.0",
+  "sources": [
+    {
+      "url": "https://github.com/666ghj/MiroFish",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/666ghj/MiroFish/commit/7657031ac01184afe2cb220f5ee3545573b5e843",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/666ghj/MiroFish/blob/7657031ac01184afe2cb220f5ee3545573b5e843/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://mirofish.ai",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

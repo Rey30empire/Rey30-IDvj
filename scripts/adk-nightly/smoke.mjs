@@ -1,7 +1,7 @@
 // Run from a clean npm project, not from the ADK source tree.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { JanRuntime, installRuntime } from '@janhq/adk'
+import { Rey30Runtime, installRuntime } from '@rey30-idvj/adk'
 
 const installed = await installRuntime({
   manifestUrl: process.env.RUNTIME_MANIFEST,
@@ -10,7 +10,7 @@ const installed = await installRuntime({
 execFileSync(installed.bin, ['config', 'set', '--provider', 'stub', '--api-key', 'smoke',
   '--base-url', process.env.PROVIDER_URL, '--model', 'stub-model'])
 let calls = 0
-const runtime = await JanRuntime.start({ bin: installed.bin })
+const runtime = await Rey30Runtime.start({ bin: installed.bin })
 const pid = runtime.pid
 try {
   const session = await runtime.createSession({

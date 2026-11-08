@@ -5,7 +5,7 @@ import os from 'os'
 import path from 'path'
 import unzipper from 'unzipper'
 import * as tar from 'tar'
-import { copySync } from 'cpx'
+import { copyFilesToDirectorySync } from './copy-files.mjs'
 
 function download(url, dest) {
   return new Promise((resolve, reject) => {
@@ -60,7 +60,7 @@ async function getJson(url, headers = {}) {
   return new Promise((resolve, reject) => {
     const opts = new URL(url)
     opts.headers = {
-      'User-Agent': 'jan-app',
+      'User-Agent': 'rey30-idvj-app',
       'Accept': 'application/vnd.github+json',
       ...headers,
     }
@@ -201,8 +201,8 @@ async function main() {
     await decompress(bunPath, tempBinDir)
   }
   try {
-    copySync(
-      path.join(tempBinDir, `bun-${bunPlatform}`, 'bun'),
+    copyFilesToDirectorySync(
+      [path.join(tempBinDir, `bun-${bunPlatform}`, 'bun')],
       path.join(binDir)
     )
     fs.chmod(path.join(binDir, 'bun'), 0o755, (err) => {
@@ -253,8 +253,8 @@ async function main() {
     // Expect EEXIST error
   }
   try {
-    copySync(
-      path.join(tempBinDir, `bun-${bunPlatform}`, 'bun.exe'),
+    copyFilesToDirectorySync(
+      [path.join(tempBinDir, `bun-${bunPlatform}`, 'bun.exe')],
       path.join(binDir)
     )
     if (platform === 'win32') {
@@ -283,7 +283,7 @@ async function main() {
     await decompress(uvPath, tempBinDir)
   }
   try {
-    copySync(path.join(tempBinDir, `uv-${uvPlatform}`, 'uv'), path.join(binDir))
+    copyFilesToDirectorySync([path.join(tempBinDir, `uv-${uvPlatform}`, 'uv')], path.join(binDir))
     fs.chmod(path.join(binDir, 'uv'), 0o755, (err) => {
       if (err) {
         console.log('Add execution permission failed!', err)
@@ -332,7 +332,7 @@ async function main() {
     // Expect EEXIST error
   }
   try {
-    copySync(path.join(tempBinDir, 'uv.exe'), path.join(binDir))
+    copyFilesToDirectorySync([path.join(tempBinDir, 'uv.exe')], path.join(binDir))
     if (platform === 'win32') {
       copyFile(
         path.join(binDir, 'uv.exe'),
@@ -361,8 +361,8 @@ async function main() {
     } else {
       let sqlvecUrl = await fetchLatestSqliteVecUrl(platform, os.arch())
       // Allow override via env if needed
-      if ((process.env.SQLVEC_URL || process.env.JAN_SQLITE_VEC_URL) && !sqlvecUrl) {
-        sqlvecUrl = process.env.SQLVEC_URL || process.env.JAN_SQLITE_VEC_URL
+      if ((process.env.SQLVEC_URL || process.env.REY30_SQLITE_VEC_URL) && !sqlvecUrl) {
+        sqlvecUrl = process.env.SQLVEC_URL || process.env.REY30_SQLITE_VEC_URL
       }
       if (!sqlvecUrl) {
         console.log('Could not determine sqlite-vec download URL; skipping (linear fallback will be used).')

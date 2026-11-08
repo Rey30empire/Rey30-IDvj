@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Rey30 IDvj
+Comment=Usar modelos locales o conectar proveedores de IA
+Exec=Rey30-IDvj %U
+Icon=com.rey30.idvj.app
+Terminal=false
+Categories=Utility;Education;Chat;
+StartupWMClass=Rey30 IDvj

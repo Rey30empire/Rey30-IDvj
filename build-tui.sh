@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ────────────────────────────────────────────────────────────
-# build-tui.sh — Build the Jan Agent CLI TUI binary and
+# build-tui.sh — Build the Rey30 IDvj Agent CLI TUI binary and
 #                install it to ~/.local/bin.
 #
 # Usage:
@@ -15,9 +15,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$SCRIPT_DIR/src-tauri"        # the app_lib library crate (check/test)
-CLI_DIR="$SCRIPT_DIR/src-tauri/jan-cli" # the standalone `jan` CLI crate (build)
+CLI_DIR="$SCRIPT_DIR/src-tauri/rey30-idvj-cli" # the standalone `rey30-idvj` CLI crate (build)
 INSTALL_DIR="${HOME}/.local/bin"
-BIN_NAME="jan"
+BIN_NAME="rey30-idvj"
 
 # Ensure install dir exists
 mkdir -p "$INSTALL_DIR"
@@ -33,10 +33,10 @@ build() {
     fi
 
     echo "==> Building CLI binary (${profile})..."
-    (cd "$CLI_DIR" && cargo build $flag --no-default-features --features cli)
+    (cd "$CLI_DIR" && cargo build $flag --target-dir "$CLI_DIR/target" --no-default-features --features cli)
 
-    # jan-cli's .cargo/config.toml redirects output into the app's target dir.
-    local artifact="$APP_DIR/target/$target_dir/jan"
+    # The CLI owns its target directory so it cannot overwrite the GUI on Windows.
+    local artifact="$CLI_DIR/target/$target_dir/rey30-idvj"
     if [ ! -f "$artifact" ]; then
         echo "ERROR: build artifact not found at $artifact"
         exit 1

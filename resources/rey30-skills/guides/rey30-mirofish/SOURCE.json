@@ -1,0 +1,28 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "666ghj/MiroFish",
+  "sourceCommit": "7657031ac01184afe2cb220f5ee3545573b5e843",
+  "externalLicense": "AGPL-3.0",
+  "sources": [
+    {
+      "url": "https://github.com/666ghj/MiroFish",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/666ghj/MiroFish/commit/7657031ac01184afe2cb220f5ee3545573b5e843",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/666ghj/MiroFish/blob/7657031ac01184afe2cb220f5ee3545573b5e843/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://mirofish.ai",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

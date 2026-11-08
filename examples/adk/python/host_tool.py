@@ -1,14 +1,14 @@
-"""Give Jan Agent a tool that your Python code executes.
+"""Give Rey30 IDvj Agent a tool that your Python code executes.
 
 Declares `get_weather` with `--host-tools`, checks the run advertised it,
 approves the permission prompt for it (the run is started with `--safe`, so
 your code decides every side effect), runs it when the model calls it, and
 sends the result back. Everything travels over the stream-json channel of
-`jan cli agent run`. Standard library only.
+`rey30-idvj cli agent run`. Standard library only.
 
     python3 host_tool.py "What's the weather in Hanoi?"
 
-Set JAN_BIN to use a jan binary that is not on PATH, and JAN_MODEL to pick a model.
+Set REY30_BIN to use a rey30-idvj binary that is not on PATH, and REY30_MODEL to pick a model.
 """
 
 import json
@@ -17,9 +17,9 @@ import subprocess
 import sys
 import tempfile
 
-JAN = os.environ.get("JAN_BIN", "jan")
+RUNTIME_BIN = os.environ.get("REY30_BIN", "rey30-idvj")
 
-# What the model sees, as `host__get_weather`. Jan validates the declaration
+# What the model sees, as `host__get_weather`. Rey30 IDvj validates the declaration
 # before the run starts; the arguments are validated by your code, below.
 TOOLS = [
     {
@@ -54,15 +54,15 @@ def main() -> int:
             json.dump(TOOLS, f)
 
         cmd = [
-            JAN, "cli", "agent", "run",
+            RUNTIME_BIN, "cli", "agent", "run",
             "--project", project,
             "--safe",
             "--output-format", "stream-json",
             "--input-format", "stream-json",
             "--host-tools", tools_file,
         ]
-        if os.environ.get("JAN_MODEL"):
-            cmd += ["--model", os.environ["JAN_MODEL"]]
+        if os.environ.get("REY30_MODEL"):
+            cmd += ["--model", os.environ["REY30_MODEL"]]
         cmd.append(task)
 
         run = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
@@ -116,7 +116,7 @@ def main() -> int:
 
     print()
     if result is None:
-        print(f"jan exited with {run.returncode} before printing a result", file=sys.stderr)
+        print(f"rey30-idvj exited with {run.returncode} before printing a result", file=sys.stderr)
         return 1
     if result["is_error"]:
         print(f"run failed: {result['error']['code']}: {result['error']['message']}", file=sys.stderr)

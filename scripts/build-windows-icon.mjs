@@ -46,8 +46,8 @@ export function packIco(entries) {
 
 function build(repoRoot) {
  const dir = join(repoRoot, 'src-tauri', 'icons-windows')
- const source = join(dir, 'icon.png')
- const scratch = mkdtempSync(join(tmpdir(), 'jan-ico-'))
+ const source = join(repoRoot, 'web-app', 'public', 'images', 'rey30-idvj.svg')
+ const scratch = mkdtempSync(join(tmpdir(), 'rey30-ico-'))
  try {
   // Run the CLI's JS entry with this node, not the `tauri` shim: on Windows the
   // shim is a .cmd that needs `shell: true`, and a shell splits a repo path

@@ -1,0 +1,48 @@
+{
+  "name": "nvidia-skill-finder",
+  "repository": "NVIDIA/skills",
+  "commit": "48323fc47698107ec105fbb9fc4f5dc883100948",
+  "license": "CC-BY-4.0 AND Apache-2.0",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "review": "Discovery guidance only. NVIDIA actions need explicit task scope; preserve AMD default. CLI catalog/install commands not executed, no GPU SDK installed.",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "sourcePath": "skills/nvidia-skill-finder/SKILL.md",
+      "url": "https://github.com/NVIDIA/skills/blob/48323fc47698107ec105fbb9fc4f5dc883100948/skills/nvidia-skill-finder/SKILL.md",
+      "bytes": 8343,
+      "sha256": "f59e5c2c9e89cd3563764225280f9a8f05ea1164efa9788fea5892f65b04df2c"
+    },
+    {
+      "path": "references/taxonomy-routing.md",
+      "sourcePath": "skills/nvidia-skill-finder/references/taxonomy-routing.md",
+      "url": "https://github.com/NVIDIA/skills/blob/48323fc47698107ec105fbb9fc4f5dc883100948/skills/nvidia-skill-finder/references/taxonomy-routing.md",
+      "bytes": 3546,
+      "sha256": "a24b594b06fa4e16c8937da54b9bfc2cbece8bcc66b9d02a6729434021a16848"
+    },
+    {
+      "path": "LICENSE-APACHE",
+      "sourcePath": "LICENSE-APACHE",
+      "url": "https://github.com/NVIDIA/skills/blob/48323fc47698107ec105fbb9fc4f5dc883100948/LICENSE-APACHE",
+      "bytes": 11432,
+      "sha256": "4f321b887d0350e672e06c8a8bc85cff17ee2d1f3c360617079041ceee324c81"
+    },
+    {
+      "path": "LICENSE-CC-BY-4.0",
+      "sourcePath": "LICENSE-CC-BY-4.0",
+      "url": "https://github.com/NVIDIA/skills/blob/48323fc47698107ec105fbb9fc4f5dc883100948/LICENSE-CC-BY-4.0",
+      "bytes": 18731,
+      "sha256": "8aca1bec720ca7a68f5e6a13e61eed6ca21c3925db15620bc39878be250af846"
+    }
+  ],
+  "adaptation": {
+    "language": "es",
+    "author": "Reinier Tamayo",
+    "date": "2026-11-04",
+    "type": "Adaptación al runtime de Rey30 IDvj; no traducción literal ni instalación de software externo",
+    "original": "references/upstream-SKILL.md"
+  }
+}

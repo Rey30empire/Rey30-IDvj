@@ -81,7 +81,7 @@ for (const bin of ['uv', 'bun']) {
   touch(path('src-tauri/resources/bin', `${bin}-${triple}${exe}`))
 }
 
-for (const bin of ['jan-llama-worker']) {
+for (const bin of ['rey30-idvj-llama-worker']) {
   touch(path('src-tauri/resources/bin', `${bin}${exe}`))
 }
 

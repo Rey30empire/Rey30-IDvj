@@ -1,0 +1,965 @@
+{
+  "version": "2026.11.05-1",
+  "items": [
+    {
+      "id": "rey30-redaccion-e-intencion",
+      "label": "Redacción e intención",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": ["redacción e intención"],
+      "triggers": [],
+      "skillNames": ["rey30-redaccion-e-intencion"],
+      "notes": "Guía que el chat y los agentes usan para entender peticiones y responder con claridad. Se puede invocar para mejorar una instrucción."
+    },
+    {
+      "id": "rey30-orquesta-master",
+      "label": "Orquesta Master",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "orquesta master",
+        "orquestador maestro",
+        "orchestrator master"
+      ],
+      "triggers": [
+        "orquestar agentes",
+        "coordina agentes",
+        "varios especialistas",
+        "multi agent"
+      ],
+      "skillNames": [
+        "rey30-orquesta-master"
+      ],
+      "agentName": "rey30-orquesta-master",
+      "notes": "Coordina tareas con varias habilidades o especialistas."
+    },
+    {
+      "id": "rey30-skill-master",
+      "label": "Skill Master",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "skill master",
+        "master skill"
+      ],
+      "triggers": [
+        "crear una skill",
+        "crear habilidad",
+        "crear agente",
+        "actualizar skill",
+        "skill.md"
+      ],
+      "skillNames": [
+        "rey30-skill-master"
+      ],
+      "agentName": "rey30-skill-master",
+      "notes": "Crea y mantiene habilidades y agentes."
+    },
+    {
+      "id": "rey30-ai-master",
+      "label": "AI Master",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "ai master"
+      ],
+      "triggers": [
+        "configurar ia local",
+        "gpu de ia",
+        "api local",
+        "modelo local",
+        "local ai"
+      ],
+      "skillNames": [
+        "rey30-ai-master"
+      ],
+      "agentName": "rey30-ai-master",
+      "notes": "Contratos de IA local, API y dispositivos."
+    },
+    {
+      "id": "rey30-mod-creator",
+      "label": "Creador de mods",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "creador de mods",
+        "mod creator"
+      ],
+      "triggers": [
+        "crear mod",
+        "crear un mod",
+        "mod de gta",
+        "scripthook",
+        "bepinex",
+        "rage plugin hook",
+        "fabric mod",
+        "fivem"
+      ],
+      "skillNames": [
+        "rey30-mod-creator"
+      ],
+      "agentName": "rey30-game-mods",
+      "notes": "Crea mods para el juego y cargador reales."
+    },
+    {
+      "id": "rey30-android-workflows",
+      "label": "Android / Waydroid — habilidad propia",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "waidroit",
+        "waydroid"
+      ],
+      "triggers": [
+        "android emulator",
+        "emulador android",
+        "probar apk",
+        "instalar apk"
+      ],
+      "skillNames": [
+        "rey30-android-workflows"
+      ],
+      "agentName": "rey30-development",
+      "notes": "Alternativa propia para el nombre ambiguo waidroit; diagnostica compatibilidad."
+    },
+    {
+      "id": "rey30-skill-hub",
+      "label": "Skill Hub de Rey30",
+      "kind": "original",
+      "origin": "rey30-original",
+      "source": "Reinier Tamayo / Rey30 IDvj",
+      "commit": null,
+      "license": "Apache-2.0",
+      "requires": [],
+      "aliases": [
+        "skill hub",
+        "skil hub"
+      ],
+      "triggers": [
+        "buscar skills",
+        "buscar habilidades",
+        "importar habilidad",
+        "instalar skill"
+      ],
+      "skillNames": [
+        "rey30-skill-hub"
+      ],
+      "agentName": "rey30-skill-master",
+      "notes": "Descubre e importa capacidades específicas con procedencia."
+    },
+    {
+      "id": "verification-before-completion",
+      "label": "Superpowers · verificación",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/obra/superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "license": "MIT",
+      "requires": [],
+      "aliases": [
+        "superpowers",
+        "superpawer",
+        "superpower"
+      ],
+      "triggers": [
+        "verificar antes de terminar",
+        "comprobar correccion",
+        "verify completion"
+      ],
+      "skillNames": [
+        "verification-before-completion"
+      ],
+      "agentName": "rey30-development",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "ponytail",
+      "label": "Ponytail",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/DietrichGebert/ponytail",
+      "commit": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846",
+      "license": "MIT",
+      "requires": [],
+      "aliases": [
+        "ponytail"
+      ],
+      "triggers": [
+        "evitar overengineering",
+        "simplificar arquitectura",
+        "sobreingenieria"
+      ],
+      "skillNames": [
+        "ponytail"
+      ],
+      "agentName": "rey30-development",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "find-skills",
+      "label": "Find Skills",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/vercel-labs/skills",
+      "commit": "9197d919034d19010ae303cf96bf19ad087dd4be",
+      "license": "MIT",
+      "requires": [
+        "Node.js y Skills CLI sólo para búsquedas o instalaciones externas; el procedimiento se puede leer sin ellos."
+      ],
+      "aliases": [
+        "find skill",
+        "find skills",
+        "find-skills"
+      ],
+      "triggers": [
+        "buscar skill",
+        "encontrar habilidad",
+        "find a skill"
+      ],
+      "skillNames": [
+        "find-skills"
+      ],
+      "agentName": "rey30-skill-master",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "antislop",
+      "label": "AntiSlop",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/miqdadbadjuber/anti-slop",
+      "commit": "941b1532f9cc8ffde766bca5921d75257c9e5762",
+      "license": "MIT",
+      "requires": [],
+      "aliases": [
+        "antislop",
+        "anti-slop"
+      ],
+      "triggers": [
+        "calidad visual",
+        "evitar ui generica",
+        "diseno de interfaz"
+      ],
+      "skillNames": [
+        "antislop"
+      ],
+      "agentName": "rey30-design",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "antislop-code",
+      "label": "AntiSlop · comentarios",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/miqdadbadjuber/anti-slop",
+      "commit": "941b1532f9cc8ffde766bca5921d75257c9e5762",
+      "license": "MIT",
+      "requires": [],
+      "aliases": [
+        "antislop code"
+      ],
+      "triggers": [
+        "limpiar comentarios",
+        "comentarios genericos",
+        "comment hygiene"
+      ],
+      "skillNames": [
+        "antislop-code"
+      ],
+      "agentName": "rey30-development",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "skill-inspector",
+      "label": "NVIDIA SkillSpector · Skill Inspector",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/NVIDIA/SkillSpector",
+      "commit": "1cd5a1d05ace88c661659d26a0f83a91af4522f4",
+      "license": "Apache-2.0",
+      "requires": [
+        "El escáner skillspector es un programa externo; esta habilidad permite revisión manual si no está instalado."
+      ],
+      "aliases": [
+        "nvidia skill spector",
+        "skillspector",
+        "skill spector",
+        "spector"
+      ],
+      "triggers": [
+        "auditar una skill",
+        "revisar seguridad de skill",
+        "skill maliciosa",
+        "safe to install"
+      ],
+      "skillNames": [
+        "skill-inspector"
+      ],
+      "agentName": "rey30-skill-auditor",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "nvidia-skill-finder",
+      "label": "NVIDIA · Skill Finder",
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/NVIDIA/skills",
+      "commit": "48323fc47698107ec105fbb9fc4f5dc883100948",
+      "license": "CC-BY-4.0 AND Apache-2.0",
+      "requires": [
+        "Los SDK y servicios NVIDIA dependen de la tarea; no se cambian GPU ni drivers al instalar esta habilidad."
+      ],
+      "aliases": [
+        "nvidia skill",
+        "nvidia skills"
+      ],
+      "triggers": [
+        "buscar skill nvidia",
+        "nvidia documentation",
+        "cuda programming"
+      ],
+      "skillNames": [
+        "nvidia-skill-finder"
+      ],
+      "agentName": "rey30-skill-master",
+      "notes": "Entrada adaptada al español para Rey30 IDvj. Original completo y licencia conservados; programas externos no instalados por esta habilidad."
+    },
+    {
+      "id": "rey30-matrix-os",
+      "label": "MatrixOS · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/HamedMP/matrix-os",
+      "commit": "78a29858496aab77ee62058b473debc424f7f75c",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Node24+, pnpm10 y Bun en desarrollo; Linux/systemd/Postgres/nginx para despliegue del servidor"
+      ],
+      "aliases": [
+        "matrix os",
+        "matrixos"
+      ],
+      "triggers": [
+        "integrar matrixos",
+        "workspace matrix os"
+      ],
+      "skillNames": [
+        "rey30-matrix-os"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa MatrixOS es externo y no se instala por agregar este procedimiento. Licencia del programa: AGPL-3.0 según LICENSE; API indica NOASSERTION."
+    },
+    {
+      "id": "rey30-freellmapi",
+      "label": "FreeLLMAPI · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/tashfeenahmed/freellmapi",
+      "commit": "fb07845faf7cf986ea9f3692e055076035dd8739",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Aplicación de escritorio o despliegue Node/Docker; claves de proveedores y aceptación de sus condiciones"
+      ],
+      "aliases": [
+        "freellmapi",
+        "free llm api"
+      ],
+      "triggers": [
+        "conectar freellmapi",
+        "router de llm gratuito"
+      ],
+      "skillNames": [
+        "rey30-freellmapi"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa FreeLLMAPI es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT."
+    },
+    {
+      "id": "rey30-mirofish",
+      "label": "MiroFish · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/666ghj/MiroFish",
+      "commit": "7657031ac01184afe2cb220f5ee3545573b5e843",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Node>=18; Python3.11-3.12; uv; LLM_API_KEY; ZEP_API_KEY"
+      ],
+      "aliases": [
+        "mirofish",
+        "mirofish simulation"
+      ],
+      "triggers": [
+        "simulacion multiagente",
+        "simular sociedad"
+      ],
+      "skillNames": [
+        "rey30-mirofish"
+      ],
+      "agentName": "rey30-ai-master",
+      "notes": "Habilidad propia en español. El programa MiroFish es externo y no se instala por agregar este procedimiento. Licencia del programa: AGPL-3.0."
+    },
+    {
+      "id": "rey30-omnirouter",
+      "label": "OmniRouter · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/Godde3s/omnirouter",
+      "commit": "b4c4ba697bbdbcb9f5e034a8a15eec1e92b82354",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Go>=1.22 o binario publicado; acceso configurado a proveedores/API/cookies"
+      ],
+      "aliases": [
+        "omniruter",
+        "omnirouter"
+      ],
+      "triggers": [
+        "integrar omnirouter"
+      ],
+      "skillNames": [
+        "rey30-omnirouter"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa OmniRouter es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT para Godde3s; otros servicios tienen condiciones propias."
+    },
+    {
+      "id": "rey30-openbot",
+      "label": "OpenBot · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/nightly-labs/openbot",
+      "commit": "23974531ec9809db78f390541e5bc2b7ed915156",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Aplicación y CLI/cuentas de agentes seleccionados; cua-driver opcional"
+      ],
+      "aliases": [
+        "open bot",
+        "openbot"
+      ],
+      "triggers": [
+        "integrar openbot"
+      ],
+      "skillNames": [
+        "rey30-openbot"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa OpenBot es externo y no se instala por agregar este procedimiento. Licencia del programa: PolyForm Noncommercial 1.0.0."
+    },
+    {
+      "id": "rey30-openclaw",
+      "label": "OpenClaw · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/openclaw/openclaw",
+      "commit": "aedae9dc410202f22504c6183823fd411699f723",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "package.json: Node >=24.16.0 <25 || >=26.1.0; el README recomienda Node más reciente; credenciales de modelos/canales"
+      ],
+      "aliases": [
+        "open clau",
+        "openclaw"
+      ],
+      "triggers": [
+        "gateway openclaw",
+        "canal openclaw"
+      ],
+      "skillNames": [
+        "rey30-openclaw"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa OpenClaw es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT."
+    },
+    {
+      "id": "rey30-agent-reach",
+      "label": "Agent Reach · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/Panniantong/Agent-Reach",
+      "commit": "c62128afe64c9bb624360d683db6036502535a3a",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "CLI uv/Python y configuración de navegadores/CLI/claves por canal"
+      ],
+      "aliases": [
+        "agent reach",
+        "agent-reach"
+      ],
+      "triggers": [
+        "buscar con agent reach"
+      ],
+      "skillNames": [
+        "rey30-agent-reach"
+      ],
+      "agentName": "rey30-integrations",
+      "notes": "Habilidad propia en español. El programa Agent Reach es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT."
+    },
+    {
+      "id": "rey30-agent-quest",
+      "label": "Agent Quest · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/FulAppiOS/Agent-Quest",
+      "commit": "44fb28fc89c14442979a8e29f160db8037bacbf0",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Bun>=1.1; Node20+ para comando opcional; registros de sesiones Claude/Codex existentes"
+      ],
+      "aliases": [
+        "agents quest",
+        "agent quest",
+        "agentquest"
+      ],
+      "triggers": [
+        "visualizar sesiones de agentes"
+      ],
+      "skillNames": [
+        "rey30-agent-quest"
+      ],
+      "agentName": "rey30-orquesta-master",
+      "notes": "Habilidad propia en español. El programa Agent Quest es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT."
+    },
+    {
+      "id": "rey30-anycreature",
+      "label": "AnyCreature · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/Ariescar/anyCreature",
+      "commit": "88041c1efb316370dd78963f422decd854fd9067",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Node18+; Python3.9+ para validación; setup instala three/numpy/Pillow/scipy"
+      ],
+      "aliases": [
+        "anycreature",
+        "any creature"
+      ],
+      "triggers": [
+        "criatura procedural",
+        "generar criatura"
+      ],
+      "skillNames": [
+        "rey30-anycreature"
+      ],
+      "agentName": "rey30-worldbuilder",
+      "notes": "Habilidad propia en español. El programa AnyCreature es externo y no se instala por agregar este procedimiento. Licencia del programa: MIT y avisos de Three.js."
+    },
+    {
+      "id": "rey30-sprite-gen",
+      "label": "SpriteGen · guía",
+      "kind": "integration-guide",
+      "origin": "rey30-original",
+      "source": "https://github.com/aldegad/sprite-gen",
+      "commit": "4f5ccd55c7cf06685a41f954acc1e476b7772ece",
+      "license": "Apache-2.0 (guía propia)",
+      "requires": [
+        "Python>=3.11; venv; Pillow/NumPy; FFmpeg/img2webp para vídeo; credenciales multimedia elegidas por el usuario"
+      ],
+      "aliases": [
+        "sprite gen",
+        "spritegen",
+        "sprite-gen"
+      ],
+      "triggers": [
+        "crear sprites",
+        "hoja de sprites",
+        "sprite sheet"
+      ],
+      "skillNames": [
+        "rey30-sprite-gen"
+      ],
+      "agentName": "rey30-media",
+      "notes": "Habilidad propia en español. El programa SpriteGen es externo y no se instala por agregar este procedimiento. Licencia del programa: Apache-2.0."
+    },
+    {
+      "id": "impeccable",
+      "label": "Impeccable",
+      "aliases": [
+        "impeccable",
+        "inpeccable"
+      ],
+      "triggers": [
+        "auditar diseno",
+        "mejorar interfaz",
+        "design critique"
+      ],
+      "agentName": "rey30-design",
+      "requires": [
+        "El launcher/CLI de Impeccable es externo y opcional para la revisión manual; no se ha instalado."
+      ],
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/pbakaus/impeccable",
+      "commit": "5af4319c4e7a7ee3e5e2b9fe899bcfb21c6190cb",
+      "license": "Apache-2.0",
+      "skillNames": [
+        "impeccable"
+      ],
+      "notes": "Entrada adaptada al español para Rey30 IDvj; fuente completa, referencias y licencias conservadas. No instala programas, scripts ni servicios externos."
+    },
+    {
+      "id": "hermes-agent",
+      "label": "Hermes · Skills Hub",
+      "aliases": [
+        "hermes",
+        "hermes skill hub"
+      ],
+      "triggers": [
+        "integrar hermes",
+        "habilidad hermes"
+      ],
+      "agentName": "rey30-integrations",
+      "requires": [
+        "Hermes runtime y credenciales sólo si la tarea necesita ejecutar Hermes; esta guía no lo instala."
+      ],
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/NousResearch/hermes-agent",
+      "commit": "0073fa98cfcf61c066a919df4b336924720f8463",
+      "license": "MIT",
+      "skillNames": [
+        "hermes-agent"
+      ],
+      "notes": "Entrada adaptada al español para Rey30 IDvj; fuente completa, referencias y licencias conservadas. No instala programas, scripts ni servicios externos."
+    },
+    {
+      "id": "archify",
+      "label": "Archify",
+      "aliases": [
+        "archify"
+      ],
+      "triggers": [
+        "diagrama de arquitectura",
+        "architecture diagram"
+      ],
+      "agentName": "rey30-design",
+      "requires": [
+        "CLI Archify/Node.js o una herramienta de diagramas ya disponible; no se instalan al agregar la guía."
+      ],
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/tt-a1i/archify",
+      "commit": "a4065941f12be7967436261d9934784e381d423c",
+      "license": "Apache-2.0",
+      "skillNames": [
+        "archify"
+      ],
+      "notes": "Entrada adaptada al español para Rey30 IDvj; fuente completa, referencias y licencias conservadas. No instala programas, scripts ni servicios externos."
+    },
+    {
+      "id": "hyperframes",
+      "label": "HyperFrames",
+      "aliases": [
+        "hyperframes",
+        "hyper frames"
+      ],
+      "triggers": [
+        "video programatico",
+        "animacion html",
+        "renderizar video html"
+      ],
+      "agentName": "rey30-media",
+      "requires": [
+        "El CLI HyperFrames y sus herramientas de render/FFmpeg son externos; no se instalan por copiar esta habilidad."
+      ],
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/heygen-com/hyperframes",
+      "commit": "3d78ac0fa6671c31ba69186d084951aeb8dc8e18",
+      "license": "Apache-2.0",
+      "skillNames": [
+        "hyperframes"
+      ],
+      "notes": "Entrada adaptada al español para Rey30 IDvj; fuente completa, referencias y licencias conservadas. No instala programas, scripts ni servicios externos."
+    },
+    {
+      "id": "scroll-world",
+      "label": "ScrollWorld",
+      "aliases": [
+        "scroll world",
+        "scrollworld",
+        "scroll-world"
+      ],
+      "triggers": [
+        "video scrollytelling",
+        "animacion de scroll",
+        "mundo con scroll"
+      ],
+      "agentName": "rey30-worldbuilder",
+      "requires": [
+        "Scripts y entorno multimedia del programa original; este paquete sólo incluye instrucciones y referencias de texto."
+      ],
+      "kind": "skill",
+      "origin": "upstream-adapted-es",
+      "source": "https://github.com/oso95/scroll-world",
+      "commit": "71cc36d3bb150248ae36a2c552f9cbf88802a79c",
+      "license": "MIT",
+      "skillNames": [
+        "scroll-world"
+      ],
+      "notes": "Entrada adaptada al español para Rey30 IDvj; fuente completa, referencias y licencias conservadas. No instala programas, scripts ni servicios externos."
+    }
+  ],
+  "units": [
+    {
+      "id": "skill-rey30-redaccion-e-intencion",
+      "kind": "skill",
+      "name": "rey30-redaccion-e-intencion",
+      "directory": "original/rey30-redaccion-e-intencion"
+    },
+    {
+      "id": "skill-rey30-orquesta-master",
+      "kind": "skill",
+      "name": "rey30-orquesta-master",
+      "directory": "original/rey30-orquesta-master"
+    },
+    {
+      "id": "skill-rey30-skill-master",
+      "kind": "skill",
+      "name": "rey30-skill-master",
+      "directory": "original/rey30-skill-master"
+    },
+    {
+      "id": "skill-rey30-ai-master",
+      "kind": "skill",
+      "name": "rey30-ai-master",
+      "directory": "original/rey30-ai-master"
+    },
+    {
+      "id": "skill-rey30-mod-creator",
+      "kind": "skill",
+      "name": "rey30-mod-creator",
+      "directory": "original/rey30-mod-creator"
+    },
+    {
+      "id": "skill-rey30-android-workflows",
+      "kind": "skill",
+      "name": "rey30-android-workflows",
+      "directory": "original/rey30-android-workflows"
+    },
+    {
+      "id": "skill-rey30-skill-hub",
+      "kind": "skill",
+      "name": "rey30-skill-hub",
+      "directory": "original/rey30-skill-hub"
+    },
+    {
+      "id": "agent-rey30-ai-master",
+      "kind": "agent",
+      "name": "rey30-ai-master",
+      "directory": "agents/ai"
+    },
+    {
+      "id": "agent-rey30-skill-auditor",
+      "kind": "agent",
+      "name": "rey30-skill-auditor",
+      "directory": "agents/audit"
+    },
+    {
+      "id": "agent-rey30-design",
+      "kind": "agent",
+      "name": "rey30-design",
+      "directory": "agents/design"
+    },
+    {
+      "id": "agent-rey30-development",
+      "kind": "agent",
+      "name": "rey30-development",
+      "directory": "agents/development"
+    },
+    {
+      "id": "agent-rey30-integrations",
+      "kind": "agent",
+      "name": "rey30-integrations",
+      "directory": "agents/integrations"
+    },
+    {
+      "id": "agent-rey30-orquesta-master",
+      "kind": "agent",
+      "name": "rey30-orquesta-master",
+      "directory": "agents/master"
+    },
+    {
+      "id": "agent-rey30-media",
+      "kind": "agent",
+      "name": "rey30-media",
+      "directory": "agents/media"
+    },
+    {
+      "id": "agent-rey30-game-mods",
+      "kind": "agent",
+      "name": "rey30-game-mods",
+      "directory": "agents/mods"
+    },
+    {
+      "id": "agent-rey30-skill-master",
+      "kind": "agent",
+      "name": "rey30-skill-master",
+      "directory": "agents/skills"
+    },
+    {
+      "id": "agent-rey30-worldbuilder",
+      "kind": "agent",
+      "name": "rey30-worldbuilder",
+      "directory": "agents/worlds"
+    },
+    {
+      "id": "skill-verification-before-completion",
+      "kind": "skill",
+      "name": "verification-before-completion",
+      "directory": "adaptations/verification-before-completion"
+    },
+    {
+      "id": "skill-ponytail",
+      "kind": "skill",
+      "name": "ponytail",
+      "directory": "adaptations/ponytail"
+    },
+    {
+      "id": "skill-find-skills",
+      "kind": "skill",
+      "name": "find-skills",
+      "directory": "adaptations/find-skills"
+    },
+    {
+      "id": "skill-antislop",
+      "kind": "skill",
+      "name": "antislop",
+      "directory": "adaptations/antislop"
+    },
+    {
+      "id": "skill-antislop-code",
+      "kind": "skill",
+      "name": "antislop-code",
+      "directory": "adaptations/antislop-code"
+    },
+    {
+      "id": "skill-skill-inspector",
+      "kind": "skill",
+      "name": "skill-inspector",
+      "directory": "adaptations/skill-inspector"
+    },
+    {
+      "id": "skill-nvidia-skill-finder",
+      "kind": "skill",
+      "name": "nvidia-skill-finder",
+      "directory": "adaptations/nvidia-skill-finder"
+    },
+    {
+      "id": "skill-rey30-matrix-os",
+      "kind": "skill",
+      "name": "rey30-matrix-os",
+      "directory": "guides/rey30-matrix-os"
+    },
+    {
+      "id": "skill-rey30-freellmapi",
+      "kind": "skill",
+      "name": "rey30-freellmapi",
+      "directory": "guides/rey30-freellmapi"
+    },
+    {
+      "id": "skill-rey30-mirofish",
+      "kind": "skill",
+      "name": "rey30-mirofish",
+      "directory": "guides/rey30-mirofish"
+    },
+    {
+      "id": "skill-rey30-omnirouter",
+      "kind": "skill",
+      "name": "rey30-omnirouter",
+      "directory": "guides/rey30-omnirouter"
+    },
+    {
+      "id": "skill-rey30-openbot",
+      "kind": "skill",
+      "name": "rey30-openbot",
+      "directory": "guides/rey30-openbot"
+    },
+    {
+      "id": "skill-rey30-openclaw",
+      "kind": "skill",
+      "name": "rey30-openclaw",
+      "directory": "guides/rey30-openclaw"
+    },
+    {
+      "id": "skill-rey30-agent-reach",
+      "kind": "skill",
+      "name": "rey30-agent-reach",
+      "directory": "guides/rey30-agent-reach"
+    },
+    {
+      "id": "skill-rey30-agent-quest",
+      "kind": "skill",
+      "name": "rey30-agent-quest",
+      "directory": "guides/rey30-agent-quest"
+    },
+    {
+      "id": "skill-rey30-anycreature",
+      "kind": "skill",
+      "name": "rey30-anycreature",
+      "directory": "guides/rey30-anycreature"
+    },
+    {
+      "id": "skill-rey30-sprite-gen",
+      "kind": "skill",
+      "name": "rey30-sprite-gen",
+      "directory": "guides/rey30-sprite-gen"
+    },
+    {
+      "id": "skill-impeccable",
+      "kind": "skill",
+      "name": "impeccable",
+      "directory": "adaptations/impeccable"
+    },
+    {
+      "id": "skill-hermes-agent",
+      "kind": "skill",
+      "name": "hermes-agent",
+      "directory": "adaptations/hermes-agent"
+    },
+    {
+      "id": "skill-archify",
+      "kind": "skill",
+      "name": "archify",
+      "directory": "adaptations/archify"
+    },
+    {
+      "id": "skill-hyperframes",
+      "kind": "skill",
+      "name": "hyperframes",
+      "directory": "adaptations/hyperframes"
+    },
+    {
+      "id": "skill-scroll-world",
+      "kind": "skill",
+      "name": "scroll-world",
+      "directory": "adaptations/scroll-world"
+    }
+  ]
+}

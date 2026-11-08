@@ -1,0 +1,32 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "nightly-labs/openbot",
+  "sourceCommit": "23974531ec9809db78f390541e5bc2b7ed915156",
+  "externalLicense": "PolyForm Noncommercial 1.0.0",
+  "sources": [
+    {
+      "url": "https://github.com/nightly-labs/openbot",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/commit/23974531ec9809db78f390541e5bc2b7ed915156",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/blob/23974531ec9809db78f390541e5bc2b7ed915156/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/blob/23974531ec9809db78f390541e5bc2b7ed915156/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://openbot.run/",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

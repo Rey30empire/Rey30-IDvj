@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.rey30.idvj.app</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer_name>Reinier Tamayo</developer_name>
+  <name>Rey30 IDvj</name>
+  <summary>Asistente de escritorio para modelos locales y proveedores externos</summary>
+  <icon type="stock">com.rey30.idvj.app</icon>
+  <launchable type="desktop-id">com.rey30.idvj.app.desktop</launchable>
+  <description>
+    <p>Distribución mantenida por Reinier Tamayo para administrar conversaciones, asistentes, modelos y herramientas.</p>
+    <p>Conserva la instalación del modelo Jan predeterminado y los avisos de los componentes bajo Apache 2.0.</p>
+  </description>
+  <categories><category>Utility</category><category>Education</category><category>Chat</category></categories>
+  <content_rating type="oars-1.1" />
+</component>

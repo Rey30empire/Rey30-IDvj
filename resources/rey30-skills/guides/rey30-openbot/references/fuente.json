@@ -1,0 +1,40 @@
+{
+  "requested": "open bot",
+  "matchStatus": "ambiguous-probable",
+  "repository": "nightly-labs/openbot",
+  "commit": "23974531ec9809db78f390541e5bc2b7ed915156",
+  "commitDate": "2026-11-04T19:28:21Z",
+  "type": "Espacio de trabajo de agentes de escritorio",
+  "license": "PolyForm Noncommercial 1.0.0",
+  "requirements": [
+    "Aplicación y CLI/cuentas de agentes seleccionados; cua-driver opcional"
+  ],
+  "windowsAssessment": "El README declara Windows10+ x64.",
+  "amdAssessment": "Depende del agente/proveedor; no se validó AMD.",
+  "risks": "Acceso amplio a archivos, navegador, equipo y sesiones. La licencia no comercial no permite asumir uso comercial.",
+  "sourceLicenseMetadata": "NOASSERTION",
+  "sources": [
+    {
+      "url": "https://github.com/nightly-labs/openbot",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/commit/23974531ec9809db78f390541e5bc2b7ed915156",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/blob/23974531ec9809db78f390541e5bc2b7ed915156/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/nightly-labs/openbot/blob/23974531ec9809db78f390541e5bc2b7ed915156/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://openbot.run/",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "executionVerified": false,
+  "softwareInstalled": false
+}

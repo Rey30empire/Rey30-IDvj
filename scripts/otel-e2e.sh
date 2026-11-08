@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
-# End-to-end OTel check: a real `jan` binary, a real OpenTelemetry Collector
+# End-to-end OTel check: a real `rey30` binary, a real OpenTelemetry Collector
 # (Docker), and a fake OpenAI-compatible model, so it needs no provider key.
 #
-#   scripts/otel-e2e.sh [path/to/jan]
+#   scripts/otel-e2e.sh [path/to/rey30-idvj]
 #
-# JAN_E2E_REAL_MODEL=1   use your own ~/.jan config and default model instead
+# REY30_E2E_REAL_MODEL=1   use your own ~/.rey30-idvj config and default model instead
 # LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASE_URL
 #                        also forward traces to Langfuse (keys never logged)
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-jan="${1:-$here/../src-tauri/target/debug/jan}"
-[ -x "$jan" ] || { echo "no jan binary at $jan (build src-tauri/jan-cli first)"; exit 2; }
+rey30="${1:-$here/../src-tauri/rey30-idvj-cli/target/debug/rey30-idvj}"
+[ -x "$rey30" ] || { echo "no rey30 binary at $rey30 (build src-tauri/rey30-idvj-cli first)"; exit 2; }
 command -v docker >/dev/null || { echo "docker required"; exit 2; }
 
 work="$(mktemp -d)"
-name="jan-otel-e2e-$$"
-port_otlp="${JAN_E2E_OTLP_PORT:-14318}"
-port_model="${JAN_E2E_MODEL_PORT:-18765}"
+name="rey30-otel-e2e-$$"
+port_otlp="${REY30_E2E_OTLP_PORT:-14318}"
+port_model="${REY30_E2E_MODEL_PORT:-18765}"
 cleanup() {
   docker rm -f "$name" >/dev/null 2>&1 || true
   [ -n "${model_pid:-}" ] && kill "$model_pid" 2>/dev/null || true
   rm -rf "$work"
 }
 trap cleanup EXIT
-mkdir -p "$work/out" "$work/proj" "$work/home/.jan"
+mkdir -p "$work/out" "$work/proj" "$work/home/.rey30-idvj"
 chmod 777 "$work/out"
 
 config="$here/otel-e2e/collector.yaml"
@@ -43,25 +43,25 @@ docker run -d --name "$name" -p "127.0.0.1:$port_otlp:4318" \
   otel/opentelemetry-collector-contrib:0.161.0 >/dev/null
 for _ in $(seq 50); do curl -s -o /dev/null "http://127.0.0.1:$port_otlp" && break; sleep 0.2; done
 
-export JAN_AGENT_ENABLE_TELEMETRY=1 OTEL_TRACES_EXPORTER=otlp
+export REY30_AGENT_ENABLE_TELEMETRY=1 OTEL_TRACES_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:$port_otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}"
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=otel-e2e"
 
 args=(cli agent run --output-format stream-json)
-if [ "${JAN_E2E_REAL_MODEL:-0}" = 1 ]; then
+if [ "${REY30_E2E_REAL_MODEL:-0}" = 1 ]; then
   prompt="Run the shell command: echo otel-e2e. Then reply done."
-  (cd "$work/proj" && "$jan" "${args[@]}" "$prompt" >"$work/run.jsonl" 2>"$work/run.err") || true
+  (cd "$work/proj" && "$rey30" "${args[@]}" "$prompt" >"$work/run.jsonl" 2>"$work/run.err") || true
 else
   python3 "$here/otel-e2e/fake_model.py" "$port_model" & model_pid=$!
-  cat > "$work/home/.jan/config.toml" <<TOML
+  cat > "$work/home/.rey30-idvj/config.toml" <<TOML
 default_model = "fake-model"
 [providers.fake]
 base_url = "http://127.0.0.1:$port_model/v1"
 models = ["fake-model"]
 TOML
   sleep 0.5
-  (cd "$work/proj" && HOME="$work/home" "$jan" "${args[@]}" "run echo" \
+  (cd "$work/proj" && HOME="$work/home" "$rey30" "${args[@]}" "run echo" \
     >"$work/run.jsonl" 2>"$work/run.err") || true
 fi
 sleep 3   # collector batch timeout + file flush

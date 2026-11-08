@@ -26,8 +26,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--build", required=True, help="GitHub run ID and attempt, e.g. 123456.1")
     parser.add_argument("--sha", required=True)
-    parser.add_argument("--base-url", default="https://delta.jan.ai/adk-nightly")
-    parser.add_argument("--runtime-manifest", default="https://delta.jan.ai/agent-nightly/manifest.json")
+    parser.add_argument("--base-url", required=True)
+    parser.add_argument("--runtime-manifest", required=True)
     args = parser.parse_args()
     if not re.fullmatch(r"[0-9]+\.[0-9]+", args.build) or not re.fullmatch(r"[0-9a-f]{40}", args.sha):
         parser.error("build must be run.attempt and sha must be a full lowercase commit SHA")
@@ -53,7 +53,7 @@ def main():
         "packages": {},
     }
     (output / "runtime.json").write_bytes(snapshot)
-    with tempfile.TemporaryDirectory(prefix="jan-adk-package-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="rey30-adk-package-") as temporary:
         stage = Path(temporary)
         js = stage / "javascript"
         shutil.copytree(ROOT / "packages/adk", js, ignore=shutil.ignore_patterns("node_modules"))
@@ -83,11 +83,11 @@ def main():
     # Also a pip --find-links index. Every link points to one immutable build.
     page = f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Jan ADK nightly</title>
+<title>Rey30 IDvj ADK nightly</title>
 <style>body{{max-width:72ch;margin:3rem auto;padding:0 1rem;font:17px/1.6 system-ui;overflow-wrap:anywhere}}pre{{overflow:auto;background:#eee;padding:1rem}}code{{font-size:14px}}</style>
-<h1>Jan ADK nightly</h1>
+<h1>Rey30 IDvj ADK nightly</h1>
 <p>Preview build <code>{html.escape(identity)}</code>. No registry publication,
-repository checkout, Jan Desktop or Rust compiler required.</p>
+repository checkout, Rey30 IDvj Desktop or Rust compiler required.</p>
 <h2>JavaScript (Node.js 20+)</h2>
 <pre>npm install {html.escape(js_package["url"])}</pre>
 <h2>Python (3.11+, no Node required)</h2>
@@ -99,10 +99,10 @@ repository checkout, Jan Desktop or Rust compiler required.</p>
 <code>installRuntime</code> / <code>install_runtime</code> with version
 <code>{html.escape(runtime["version"])}</code> and manifest URL
 <a href="{base_url}/runtime.json">{base_url}/runtime.json</a>.
-Pass the returned <code>bin</code> to <code>JanRuntime.start</code>.
+Pass the returned <code>bin</code> to <code>Rey30Runtime.start</code>.
 An existing compatible binary can also be passed explicitly.</p>
 <p><a href="{base_url}/manifest.json">Versioned manifest and SHA-256 digests</a> |
-<a href="https://jan.ai/docs/agent/adk">ADK guides</a></p>
+<a href="../../README.md">ADK guides</a></p>
 <p>Supported: Linux x64/ARM64, macOS Intel/Apple Silicon, Windows x64.
 Windows ARM64 is not declared supported by this nightly smoke matrix.</p>
 <p>Save this versioned page for repeatable installation. Versioned artifacts are not

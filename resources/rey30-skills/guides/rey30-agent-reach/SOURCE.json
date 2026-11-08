@@ -1,0 +1,36 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "Panniantong/Agent-Reach",
+  "sourceCommit": "c62128afe64c9bb624360d683db6036502535a3a",
+  "externalLicense": "MIT",
+  "sources": [
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/commit/c62128afe64c9bb624360d683db6036502535a3a",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/LICENSE",
+      "role": "LICENSE"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/c62128afe64c9bb624360d683db6036502535a3a/docs/install.md",
+      "role": "docs/install.md"
+    },
+    {
+      "url": "https://github.com/Panniantong/Agent-Reach/blob/main/docs/install.md",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

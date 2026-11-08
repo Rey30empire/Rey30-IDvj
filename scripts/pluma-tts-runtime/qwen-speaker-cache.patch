@@ -1,0 +1,131 @@
+diff --git a/tools/mtmd/mtmd-helper-gen.cpp b/tools/mtmd/mtmd-helper-gen.cpp
+index d0342b9bd..5c56ba374 100644
+--- a/tools/mtmd/mtmd-helper-gen.cpp
++++ b/tools/mtmd/mtmd-helper-gen.cpp
+@@ -3,6 +3,7 @@
+ #include "mtmd-helper-common.h"
+ #include "llama.h"
+ #include "../src/llama-ext.h"
++#include "hash/hash.h"
+ 
+ #include <algorithm>
+ #include <cctype>
+@@ -153,7 +154,9 @@ public:
+         n_prompt = 0;
+         prompt_pos = 0;
+         stream = false;
++        preview_enabled = false;
+         pcm_sent = 0;
++        preview_samples = 0;
+         wav_header_sent = false;
+     }
+ 
+@@ -174,9 +177,24 @@ public:
+ 
+         std::vector<float> speaker_embd;
+         if (inp->speaker_ref) {
+-            if (!encode_speaker(inp->speaker_ref, speaker_embd)) {
+-                return 1;
++            const int64_t started_us = ggml_time_us();
++            std::string key = hash_sha256_hex(mtmd_bitmap_get_data(inp->speaker_ref),
++                                              mtmd_bitmap_get_n_bytes(inp->speaker_ref));
++            const bool hit = key == speaker_ref_key;
++            if (!hit) {
++                if (!encode_speaker(inp->speaker_ref, speaker_embd)) {
++                    return 1;
++                }
++                speaker_ref_key = std::move(key);
++                speaker_ref_embd = speaker_embd;
++            } else {
++                speaker_embd = speaker_ref_embd;
+             }
++            LOG_DBG("mtmd_helper_gen_audio: speaker cache %s in %lld us\n",
++                    hit ? "hit" : "miss", (long long) (ggml_time_us() - started_us));
++        } else {
++            speaker_ref_key.clear();
++            speaker_ref_embd.clear();
+         }
+ 
+         const int n_e = n_embd;
+@@ -242,6 +260,7 @@ public:
+         top_p = inp->top_p > 0 ? inp->top_p : def.top_p;
+         out_type = inp->out_type;
+         stream = inp->stream;
++        preview_enabled = stream && inp->prompt_len <= preview_max_bytes;
+         if (!init_gen_state(inp->seed)) {
+             return 1;
+         }
+@@ -308,6 +327,10 @@ public:
+         }
+ 
+         codes_buf.insert(codes_buf.end(), out.codes, out.codes + out.n_codes);
++        if (preview_enabled && out.n_codes > 0 && audio_pcm.empty() &&
++                codes_buf.size() / out.n_codes == preview_frames) {
++            emit_preview();
++        }
+         if (out.n_codes > 0 && codes_buf.size() / out.n_codes >= window_frames) {
+             if (!flush_gen_wav()) {
+                 return 1;
+@@ -461,6 +484,27 @@ private:
+         return ok;
+     }
+ 
++    // The normal vocoder advances over the full padded window. Decode the causal
++    // first block separately so that padding cannot enter the continuing state.
++    void emit_preview() {
++        mtmd::gen_state_ptr preview(mtmd_gen_state_init(mctx, mtmd_gen_state_params_default()));
++        if (!preview) {
++            return;
++        }
++        mtmd_gen_inp inp = mtmd_gen_inp_default(mctx);
++        inp.type = MTMD_GEN_PROCESS_TYPE_GEN_WAV;
++        inp.codes = codes_buf.data();
++        inp.n_codes = codes_buf.size();
++        mtmd_gen_out out{};
++        if (mtmd_gen_audio_process(mctx, preview.get(), &inp, &out) != 0 ||
++                out.n_samples <= 0 || !std::any_of(out.audio, out.audio + out.n_samples,
++                    [](float sample) { return std::fabs(sample) >= 0.005f; })) {
++            return;
++        }
++        audio_pcm.insert(audio_pcm.end(), out.audio, out.audio + out.n_samples);
++        preview_samples = out.n_samples;
++    }
++
+     // one GEN_WAV process() call over the buffered codes, state is carried across batches
+     bool flush_gen_wav() {
+         if (codes_buf.empty()) {
+@@ -475,7 +519,9 @@ private:
+             LOG_ERR("mtmd_helper_gen_audio: gen_wav process failed\n");
+             return false;
+         }
+-        audio_pcm.insert(audio_pcm.end(), out.audio, out.audio + out.n_samples);
++        const size_t overlap = std::min<size_t>(preview_samples, out.n_samples);
++        audio_pcm.insert(audio_pcm.end(), out.audio + overlap, out.audio + out.n_samples);
++        preview_samples = 0;
+         codes_buf.clear();
+         return true;
+     }
+@@ -493,9 +539,13 @@ private:
+     llama_token tts_bos    = LLAMA_TOKEN_NULL;
+     llama_token tts_eos    = LLAMA_TOKEN_NULL;
+     std::vector<float> tok_embd; // whole token embedding matrix, n_vocab * n_embd
++    std::string speaker_ref_key;
++    std::vector<float> speaker_ref_embd;
+ 
+     // must match hparams.wav_tfm_swa hardcoded in clip.cpp
+     size_t window_frames = 72;
++    static constexpr size_t preview_frames = 6;
++    static constexpr size_t preview_max_bytes = 30;
+ 
+     // per-generation state, cleared by reset()
+     llama_seq_id seq_id = 0;
+@@ -515,7 +565,9 @@ private:
+     mtmd_helper_gen_audio_outtype out_type = MTMD_HELPER_GEN_AUDIO_OUTTYPE_WAV;
+     std::vector<char> out_buf;
+     bool   stream          = false;
++    bool   preview_enabled = false;
+     size_t pcm_sent        = 0; // samples already returned by get_output()
++    size_t preview_samples = 0;
+     bool   wav_header_sent = false;
+ };
+ 

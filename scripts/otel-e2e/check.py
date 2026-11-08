@@ -1,17 +1,17 @@
 """Validate the collector's JSON lines against the Claude Code-compatible
-names jan emits. Exit 1 listing every gap."""
+names rey30 emits. Exit 1 listing every gap."""
 import json, sys
 
-want_metrics = {"jan_agent.session.count", "jan_agent.prompt.count", "jan_agent.turn.count",
-                "jan_agent.api_request.count", "jan_agent.token.usage", "jan_agent.tool.count",
-                "jan_agent.active_time.total"}
-want_events = {"jan_agent.user_prompt": ["session.id", "prompt.id", "prompt_length"],
-               "jan_agent.api_request": ["session.id", "prompt.id", "model", "input_tokens", "output_tokens"],
-               "jan_agent.tool_decision": ["tool_name", "decision", "source"],
-               "jan_agent.tool_result": ["tool_name", "success", "duration_ms"]}
-want_spans = {"jan_agent.interaction": ["session.id", "prompt.id", "user_prompt_length", "interaction.sequence"],
-              "jan_agent.llm_request": ["gen_ai.request.model", "gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens"],
-              "jan_agent.tool": ["tool_name", "tool_use_id", "success"]}
+want_metrics = {"rey30_agent.session.count", "rey30_agent.prompt.count", "rey30_agent.turn.count",
+                "rey30_agent.api_request.count", "rey30_agent.token.usage", "rey30_agent.tool.count",
+                "rey30_agent.active_time.total"}
+want_events = {"rey30_agent.user_prompt": ["session.id", "prompt.id", "prompt_length"],
+               "rey30_agent.api_request": ["session.id", "prompt.id", "model", "input_tokens", "output_tokens"],
+               "rey30_agent.tool_decision": ["tool_name", "decision", "source"],
+               "rey30_agent.tool_result": ["tool_name", "success", "duration_ms"]}
+want_spans = {"rey30_agent.interaction": ["session.id", "prompt.id", "user_prompt_length", "interaction.sequence"],
+              "rey30_agent.llm_request": ["gen_ai.request.model", "gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens"],
+              "rey30_agent.tool": ["tool_name", "tool_use_id", "success"]}
 
 metrics, events, spans = set(), {}, []
 for line in open(sys.argv[1]):
@@ -45,9 +45,9 @@ for name, keys in want_spans.items():
     for k in keys:
         if not any(k in {a["key"] for a in s["attributes"]} for s in got):
             gaps.append(f"span {name}.{k}")
-roots = by_name.get("jan_agent.interaction", [])
+roots = by_name.get("rey30_agent.interaction", [])
 for s in spans:
-    if s["name"] != "jan_agent.interaction" and not any(
+    if s["name"] != "rey30_agent.interaction" and not any(
             s["traceId"] == r["traceId"] and s.get("parentSpanId") == r["spanId"] for r in roots):
         gaps.append(f"span {s['name']} {s['spanId']} is not under an interaction")
 print(f"metrics={len(metrics)} events={sum(map(len, events.values()))} spans={len(spans)}")

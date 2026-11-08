@@ -1,0 +1,28 @@
+{
+  "author": "Reinier Tamayo",
+  "language": "es",
+  "type": "Guía propia de integración. No incorpora el programa externo ni afirma haberlo instalado.",
+  "sourceRepository": "aldegad/sprite-gen",
+  "sourceCommit": "4f5ccd55c7cf06685a41f954acc1e476b7772ece",
+  "externalLicense": "Apache-2.0",
+  "sources": [
+    {
+      "url": "https://github.com/aldegad/sprite-gen",
+      "role": "primary-repository"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen/commit/4f5ccd55c7cf06685a41f954acc1e476b7772ece",
+      "role": "pinned-revision"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen/blob/4f5ccd55c7cf06685a41f954acc1e476b7772ece/README.md",
+      "role": "README.md"
+    },
+    {
+      "url": "https://github.com/aldegad/sprite-gen",
+      "role": "official-docs-or-project-site"
+    }
+  ],
+  "softwareInstalledBySkill": false,
+  "modelTestPerformed": false
+}

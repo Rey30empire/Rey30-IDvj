@@ -1,0 +1,31 @@
+{
+  "name": "antislop",
+  "repository": "miqdadbadjuber/anti-slop",
+  "commit": "941b1532f9cc8ffde766bca5921d75257c9e5762",
+  "license": "MIT",
+  "type": "declarative-skill",
+  "status": "staged-declarative-copy-not-installed",
+  "thirdPartyCodeExecuted": false,
+  "hardwareChanged": false,
+  "files": [
+    {
+      "path": "SKILL.md",
+      "url": "https://github.com/miqdadbadjuber/anti-slop/blob/941b1532f9cc8ffde766bca5921d75257c9e5762/skills/antislop/SKILL.md",
+      "bytes": 53758,
+      "sha256": "30bc532fb59d4c77a301dfdd5ab9f495f098f1085f31e09b3064078ba39a7b01"
+    },
+    {
+      "path": "LICENSE",
+      "url": "https://github.com/miqdadbadjuber/anti-slop/blob/941b1532f9cc8ffde766bca5921d75257c9e5762/LICENSE",
+      "bytes": 1083,
+      "sha256": "9fd83fb1fda52ca0094b96e2ed5a3d6c42a81b95a6c6326553f5bbe570f443de"
+    }
+  ],
+  "adaptation": {
+    "language": "es",
+    "author": "Reinier Tamayo",
+    "date": "2026-11-04",
+    "type": "Adaptación al runtime de Rey30 IDvj; no traducción literal ni instalación de software externo",
+    "original": "references/upstream-SKILL.md"
+  }
+}

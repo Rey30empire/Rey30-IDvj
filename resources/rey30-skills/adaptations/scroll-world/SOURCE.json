@@ -1,0 +1,34 @@
+{
+  "name": "scroll-world",
+  "language": "es",
+  "translationRole": "adaptación al runtime Rey30 en español; no equivalencia CLI",
+  "repository": "oso95/scroll-world",
+  "commit": "71cc36d3bb150248ae36a2c552f9cbf88802a79c",
+  "license": "MIT",
+  "original": {
+    "url": "https://github.com/oso95/scroll-world/blob/71cc36d3bb150248ae36a2c552f9cbf88802a79c/skills/scroll-world/SKILL.md",
+    "sha256": "e56fe396c1fa258278289cfa9cbf17253519f11f4856535f7709dd2368e3e65e",
+    "intendedBundledPath": "references/upstream-SKILL.md",
+    "preservedUnmodifiedInStaging": true
+  },
+  "adaptation": {
+    "path": "SKILL.md",
+    "sha256": "a1857d9ab1606b836390f1df3360583e1bd3060337ec2d89c63c23cc4445b684",
+    "bytes": 8533,
+    "characters": 8412
+  },
+  "references": {
+    "reviewedStagingRoot": "../../staging/scroll-world",
+    "linksAllPresent": true,
+    "links": [
+      "references/prompts.md",
+      "references/pipeline.md"
+    ]
+  },
+  "thirdPartySoftwareInstalledByAdaptation": false,
+  "thirdPartySoftwareExecuted": false,
+  "modelsExecuted": false,
+  "hardwareChanged": false,
+  "originalLegalNoticesUnmodified": true,
+  "integrationNote": "Root incorporará referencias/licencias originales del staging y el original en references/upstream-SKILL.md. Estos cinco directorios de adaptación por sí solos no son el paquete final instalado."
+}
