@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { openExternalUrl } from './core'
 import { joinPath } from './core'
 import { openFileExplorer } from './core'
-import { getJanDataFolderPath } from './core'
+import { getRey30DataFolderPath } from './core'
 import { executeOnMain } from './core'
 
 describe('test core apis', () => {
@@ -45,11 +45,11 @@ describe('test core apis', () => {
   it('should get jan data folder path', async () => {
     globalThis.core = {
       api: {
-        getJanDataFolderPath: vi.fn().mockResolvedValue('/path/to/jan/data'),
+        getRey30DataFolderPath: vi.fn().mockResolvedValue('/path/to/jan/data'),
       },
     }
-    const result = await getJanDataFolderPath()
-    expect(globalThis.core.api.getJanDataFolderPath).toHaveBeenCalled()
+    const result = await getRey30DataFolderPath()
+    expect(globalThis.core.api.getRey30DataFolderPath).toHaveBeenCalled()
     expect(result).toBe('/path/to/jan/data')
   })
 })

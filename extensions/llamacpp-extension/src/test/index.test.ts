@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import llamacpp_extension from '../index'
-import { fs, getJanDataFolderPath, joinPath } from '@janhq/core'
+import { fs, getRey30DataFolderPath, joinPath } from '@rey30-idvj/core'
 import { invoke } from '@tauri-apps/api/core'
 import {
   readGgufMetadata,
   reloadEngineModels,
   startEngine,
-} from '@janhq/tauri-plugin-llamacpp-api'
+} from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import type {
   ReloadReport,
   SessionInfo,
-} from '@janhq/tauri-plugin-llamacpp-api'
-import * as api from '@janhq/tauri-plugin-llamacpp-api'
+} from '@rey30-idvj/tauri-plugin-llamacpp-api'
+import * as api from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import { generatePreset } from '../preset'
 import * as store from '../settings-store'
+import { BaseExtension } from '../../../../core/src/browser/extension'
 
 import { getBackendSetting, setBackendSetting } from '../backend-settings'
 
@@ -28,10 +29,10 @@ const httpFetch = vi.hoisted(() => vi.fn())
 vi.mock('@tauri-apps/plugin-http', () => ({ fetch: httpFetch }))
 
 // Mock tauri-plugin-llamacpp-api (partial mock)
-vi.mock('@janhq/tauri-plugin-llamacpp-api', async () => {
+vi.mock('@rey30-idvj/tauri-plugin-llamacpp-api', async () => {
   const actual = await vi.importActual<
-    typeof import('@janhq/tauri-plugin-llamacpp-api')
-  >('@janhq/tauri-plugin-llamacpp-api')
+    typeof import('@rey30-idvj/tauri-plugin-llamacpp-api')
+  >('@rey30-idvj/tauri-plugin-llamacpp-api')
 
   return {
     ...actual,
@@ -78,7 +79,7 @@ describe('llamacpp_extension', () => {
     // Re-armed per test: afterEach's restoreAllMocks strips implementations
     // set in the vi.mock factories.
     const { startEngine, getEngineInfo } = await import(
-      '@janhq/tauri-plugin-llamacpp-api'
+      '@rey30-idvj/tauri-plugin-llamacpp-api'
     )
     vi.mocked(startEngine).mockResolvedValue({
       port: 39271,
@@ -106,6 +107,75 @@ describe('llamacpp_extension', () => {
       // autoUnload was removed in Phase 2 — replaced by `models_max` setting
       // applied at router start time.
       expect(extension.timeout).toBe(600)
+    })
+  })
+
+  describe('settings migration across the distribution rename', () => {
+    const currentName = '@rey30-idvj/llamacpp-extension'
+    const previousName = '@' + 'janhq/llamacpp-extension'
+    const snapshot = (value: number) => JSON.stringify([
+      { key: 'n_ctx', controllerProps: { value } },
+    ])
+    let entries: Map<string, string>
+
+    beforeEach(() => {
+      entries = new Map()
+      extension.name = currentName
+      // The suite mocks AIEngine; exercise the real inherited storage reader.
+      extension['readPersistedSettings'] = function () {
+        return BaseExtension.prototype['readPersistedSettings'].call(this)
+      }
+      vi.mocked(localStorage.getItem).mockImplementation((key) => entries.get(key) ?? null)
+      vi.mocked(localStorage.removeItem).mockImplementation((key) => entries.delete(key))
+      vi.spyOn(store, 'settingsFileExists').mockResolvedValue(false)
+      vi.spyOn(store, 'writeSettingsFile').mockResolvedValue(undefined)
+    })
+
+    afterEach(() => {
+      vi.mocked(localStorage.getItem).mockReset()
+      vi.mocked(localStorage.removeItem).mockReset()
+    })
+
+    it('moves previous-scope values to the file store and retains the original snapshot', async () => {
+      const original = snapshot(4096)
+      entries.set(previousName, original)
+      await extension['migrateLocalStorageToFile']()
+
+      expect(store.writeSettingsFile).toHaveBeenCalledWith(JSON.parse(original))
+      expect(entries.get(previousName)).toBe(original)
+      expect(localStorage.removeItem).not.toHaveBeenCalledWith(previousName)
+    })
+
+    it('prefers the new key and never overwrites or removes the previous key', async () => {
+      const original = snapshot(4096)
+      entries.set(previousName, original)
+      entries.set(currentName, snapshot(8192))
+      await extension['migrateLocalStorageToFile']()
+
+      expect(store.writeSettingsFile).toHaveBeenCalledWith(JSON.parse(snapshot(8192)))
+      expect(entries.get(previousName)).toBe(original)
+      expect(entries.has(currentName)).toBe(false)
+    })
+
+    it('leaves the snapshots in place when the file write fails', async () => {
+      entries.set(previousName, snapshot(4096))
+      entries.set(currentName, snapshot(8192))
+      vi.mocked(store.writeSettingsFile).mockRejectedValue(new Error('Disk full'))
+      await extension['migrateLocalStorageToFile']()
+
+      expect(entries.get(previousName)).toBe(snapshot(4096))
+      expect(entries.get(currentName)).toBe(snapshot(8192))
+      expect(localStorage.removeItem).not.toHaveBeenCalled()
+    })
+
+    it('uses an existing file without importing stale localStorage settings', async () => {
+      vi.mocked(store.settingsFileExists).mockResolvedValue(true)
+      entries.set(previousName, snapshot(4096))
+      await extension['migrateLocalStorageToFile']()
+
+      expect(store.writeSettingsFile).not.toHaveBeenCalled()
+      expect(localStorage.getItem).not.toHaveBeenCalled()
+      expect(entries.get(previousName)).toBe(snapshot(4096))
     })
   })
 
@@ -147,9 +217,9 @@ describe('llamacpp_extension', () => {
 
   describe('getProviderPath', () => {
     it('should return correct provider path', async () => {
-      const { getJanDataFolderPath, joinPath } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath } = await import('@rey30-idvj/core')
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp')
 
       const result = await extension.getProviderPath()
@@ -160,9 +230,9 @@ describe('llamacpp_extension', () => {
 
   describe('list', () => {
     it('should return empty array when models directory does not exist', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp/models')
       vi.mocked(fs.existsSync)
         .mockResolvedValueOnce(false) // models directory doesn't exist initially
@@ -176,7 +246,7 @@ describe('llamacpp_extension', () => {
     })
 
     it('should return model list when models exist', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
 
       // Set up providerPath first
@@ -184,7 +254,7 @@ describe('llamacpp_extension', () => {
 
       const modelsDir = '/path/to/jan/llamacpp/models'
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
 
       // Mock joinPath to handle the directory traversal logic
       vi.mocked(joinPath).mockImplementation((paths) => {
@@ -236,9 +306,9 @@ describe('llamacpp_extension', () => {
     })
 
     it('should throw error if model already exists', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockResolvedValue('/path/to/jan/llamacpp/models/test-model/model.yml')
       vi.mocked(fs.existsSync).mockResolvedValue(true)
 
@@ -247,9 +317,9 @@ describe('llamacpp_extension', () => {
     })
 
     it('should import model from URL', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
-      const apiModule = await import('@janhq/tauri-plugin-llamacpp-api')
+      const apiModule = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
       vi.mocked(apiModule.readGgufMetadata).mockResolvedValue({
         version: 3,
         tensor_count: 1,
@@ -262,7 +332,7 @@ describe('llamacpp_extension', () => {
 
       window.core.extensionManager.getByName = vi.fn().mockReturnValue(mockDownloadManager)
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(false)
       vi.mocked(fs.fileStat).mockResolvedValue({ size: 1000000 })
@@ -298,7 +368,7 @@ describe('llamacpp_extension', () => {
     })
 
     it('should load model successfully', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
       const { invoke } = await import('@tauri-apps/api/core')
 
       vi.mocked(fs.existsSync).mockResolvedValue(true)
@@ -336,7 +406,7 @@ describe('llamacpp_extension', () => {
       // Set up providerPath
       extension['providerPath'] = '/path/to/jan/llamacpp'
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
 
       const expectedSession = {
@@ -346,7 +416,7 @@ describe('llamacpp_extension', () => {
         api_key: 'test-api-key',
       }
 
-      const apiModule = await import('@janhq/tauri-plugin-llamacpp-api')
+      const apiModule = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
       vi.mocked(apiModule.loadLlamaModel).mockResolvedValue(expectedSession as any)
 
       vi.mocked(invoke).mockImplementation(async (cmd: string) => {
@@ -387,7 +457,7 @@ describe('llamacpp_extension', () => {
 
     it('should unload model successfully', async () => {
       const { invoke } = await import('@tauri-apps/api/core')
-      const apiModule = await import('@janhq/tauri-plugin-llamacpp-api')
+      const apiModule = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
 
       vi.mocked(invoke).mockImplementation(async (cmd: string) => {
         if (cmd === 'plugin:llamacpp|find_session_by_model') {
@@ -488,9 +558,9 @@ describe('llamacpp_extension', () => {
 
   describe('delete', () => {
     it('should throw error if model does not exist', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(false)
 
@@ -498,9 +568,9 @@ describe('llamacpp_extension', () => {
     })
 
     it('should delete model successfully', async () => {
-      const { getJanDataFolderPath, joinPath, fs } = await import('@janhq/core')
+      const { getRey30DataFolderPath, joinPath, fs } = await import('@rey30-idvj/core')
 
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/path/to/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/path/to/jan')
       vi.mocked(joinPath).mockImplementation((paths) => Promise.resolve(paths.join('/')))
       vi.mocked(fs.existsSync).mockResolvedValue(true)
       vi.mocked(fs.rm).mockResolvedValue(undefined)
@@ -654,7 +724,7 @@ describe('llamacpp_extension', () => {
   })
 
   it('reads the architecture-specific context limit without inventing an unknown limit', async () => {
-    vi.mocked(getJanDataFolderPath).mockResolvedValue('/jan')
+    vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
     vi.mocked(joinPath).mockImplementation(async (parts) => parts.join('/'))
     vi.mocked(invoke).mockResolvedValue({ model_path: 'model.gguf' })
     vi.mocked(readGgufMetadata).mockResolvedValueOnce({
@@ -694,7 +764,7 @@ describe('llamacpp_extension', () => {
         path: '/jan/llamacpp/router.preset.ini',
         embeddingCount: 0,
       })
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/jan')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
       vi.mocked(joinPath).mockImplementation(async (parts) => parts.join('/'))
       extension['config'] = { ...extension['config'], fit: false }
       extension['backgroundInit'] = Promise.resolve()
@@ -767,7 +837,7 @@ describe('llamacpp_extension', () => {
 })
 
 // The worker is a separate process precisely so a GGML_ASSERT or an OOM kill
-// costs the model rather than the app, which only pays off if Jan notices the
+// costs the model rather than the app, which only pays off if Rey30 IDvj notices the
 // death and respawns. get_engine_info is where that is noticed.
 describe('a dead worker is noticed rather than cached', () => {
   let extension: llamacpp_extension
@@ -778,7 +848,7 @@ describe('a dead worker is noticed rather than cached', () => {
   })
 
   it('re-asks the command even after a successful answer', async () => {
-    const { getEngineInfo } = await import('@janhq/tauri-plugin-llamacpp-api')
+    const { getEngineInfo } = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
     vi.mocked(getEngineInfo).mockResolvedValue({
       port: 39271,
       api_key: 'k',
@@ -797,7 +867,7 @@ describe('a dead worker is noticed rather than cached', () => {
   })
 
   it('respawns instead of handing out the closed port', async () => {
-    const { getEngineInfo } = await import('@janhq/tauri-plugin-llamacpp-api')
+    const { getEngineInfo } = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
     vi.mocked(getEngineInfo).mockResolvedValue({
       port: 39271,
       api_key: 'k',
@@ -831,7 +901,7 @@ describe('refreshEnginePreset embedding slot reservation', () => {
       // A running worker is what get_engine_info reports, not what the
       // extension last cached: that command is where a worker that died is
       // noticed, so getEngineInfo() always asks it.
-      const { getEngineInfo } = await import('@janhq/tauri-plugin-llamacpp-api')
+      const { getEngineInfo } = await import('@rey30-idvj/tauri-plugin-llamacpp-api')
       vi.mocked(getEngineInfo).mockResolvedValue({
         port: 12345,
         api_key: 'key',
@@ -843,14 +913,14 @@ describe('refreshEnginePreset embedding slot reservation', () => {
         path: '/p/router.preset.ini',
         embeddingCount: opts.embeddingCount,
       })
-      const { getJanDataFolderPath } = await import('@janhq/core')
-      vi.mocked(getJanDataFolderPath).mockResolvedValue('/jan')
+      const { getRey30DataFolderPath } = await import('@rey30-idvj/core')
+      vi.mocked(getRey30DataFolderPath).mockResolvedValue('/jan')
       vi.spyOn(extension, 'getProviderPath').mockResolvedValue('/jan/llamacpp')
       const startEngine = vi
         .spyOn(extension as never, 'startEngine' as never)
         .mockResolvedValue(undefined as never)
       const { reloadEngineModels } = await import(
-        '@janhq/tauri-plugin-llamacpp-api'
+        '@rey30-idvj/tauri-plugin-llamacpp-api'
       )
       vi.mocked(reloadEngineModels).mockResolvedValue({
         added: [],
@@ -1100,7 +1170,7 @@ describe('verifyGpuOffload', () => {
     extension = new llamacpp_extension()
     extension['config'] = {} as never
     vi.spyOn(extension, 'getDevices').mockResolvedValue(devices as never)
-    const { getSystemInfo } = await import('@janhq/tauri-plugin-hardware-api')
+    const { getSystemInfo } = await import('@rey30-idvj/tauri-plugin-hardware-api')
     vi.mocked(getSystemInfo).mockResolvedValue(
       (gpus === undefined ? undefined : { gpus }) as never
     )
@@ -1240,7 +1310,7 @@ describe('reportMissingLibrariesFromError', () => {
   })
 
   const emitted = async () => {
-    const { events } = await import('@janhq/core')
+    const { events } = await import('@rey30-idvj/core')
     return vi.mocked(events.emit)
   }
 
@@ -1328,21 +1398,21 @@ describe('createDownloadTaskId', () => {
 
   // The id becomes the Tauri event name `download-<taskId>`, which rejects dots.
   it('contains no dots', () => {
-    expect(taskId('Jan-v3.5-4B-Q4_K_XL')).not.toContain('.')
+    expect(taskId('Rey30 IDvj-v3.5-4B-Q4_K_XL')).not.toContain('.')
   })
 
   // Truncating at the first dot collapsed every quant of a dotted model name onto
   // one id. Rust cancels an in-flight task whose id repeats and deletes its
   // partial file, so downloading one quant destroyed another's.
   it('keeps quants of the same dotted model distinct', () => {
-    expect(taskId('Jan-v3.5-4B-Q4_K_XL')).not.toBe(
-      taskId('Jan-v3.5-4B-Q8_0')
+    expect(taskId('Rey30 IDvj-v3.5-4B-Q4_K_XL')).not.toBe(
+      taskId('Rey30 IDvj-v3.5-4B-Q8_0')
     )
   })
 
   it('keeps different versions of the same family distinct', () => {
-    expect(taskId('Jan-v3.5-4B-Q4_K_XL')).not.toBe(
-      taskId('Jan-v3.6-4B-Q4_K_XL')
+    expect(taskId('Rey30 IDvj-v3.5-4B-Q4_K_XL')).not.toBe(
+      taskId('Rey30 IDvj-v3.6-4B-Q4_K_XL')
     )
   })
 
@@ -1351,7 +1421,7 @@ describe('createDownloadTaskId', () => {
   })
 
   it('is stable for the same model id', () => {
-    expect(taskId('Jan-v3.5-4B-Q4_K_XL')).toBe(taskId('Jan-v3.5-4B-Q4_K_XL'))
+    expect(taskId('Rey30 IDvj-v3.5-4B-Q4_K_XL')).toBe(taskId('Rey30 IDvj-v3.5-4B-Q4_K_XL'))
   })
 })
 
@@ -1486,15 +1556,15 @@ describe('forgetThreadCache', () => {
   // path is extended (`\\?\C:\...`), where a `/` is a literal name character
   // rather than a separator.
   it('erases from the directory the preset names, on a Windows provider path', async () => {
-    const { getJanDataFolderPath, joinPath } = await import('@janhq/core')
+    const { getRey30DataFolderPath, joinPath } = await import('@rey30-idvj/core')
     const { eraseThreadSlotState } = await import(
-      '@janhq/tauri-plugin-llamacpp-api'
+      '@rey30-idvj/tauri-plugin-llamacpp-api'
     )
     const { threadCacheDir } = await import('../preset')
-    const providerPath = '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Jan-nightly\\data\\llamacpp'
+    const providerPath = '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj-nightly\\data\\llamacpp'
 
-    vi.mocked(getJanDataFolderPath).mockResolvedValue(
-      '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Jan-nightly\\data'
+    vi.mocked(getRey30DataFolderPath).mockResolvedValue(
+      '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj-nightly\\data'
     )
     vi.mocked(joinPath).mockResolvedValue(providerPath)
 
@@ -1948,7 +2018,7 @@ describe('reconcileEngineDevices', () => {
   })
 })
 
-// Jan's requests to its own engine must not be captured by a proxy. reqwest
+// Rey30 IDvj's requests to its own engine must not be captured by a proxy. reqwest
 // reads HTTP(S)_PROXY and the OS proxy and only skips loopback when NO_PROXY
 // names it, so each request names a proxy of its own whose no-proxy list
 // covers every loopback host (#9352).

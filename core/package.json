@@ -1,12 +1,11 @@
 {
-  "name": "@janhq/core",
+  "name": "@rey30-idvj/core",
   "version": "0.1.10",
-  "description": "Core library for the Jan AI application framework",
+  "description": "Core library for the Rey30 IDvj AI application framework",
   "keywords": [
-    "jan",
+    "rey30-idvj",
     "core"
   ],
-  "homepage": "https://jan.ai",
   "license": "Apache-2.0",
   "main": "dist/index.js",
   "typings": "dist/types/index.d.ts",
@@ -14,7 +13,7 @@
     "dist",
     "types"
   ],
-  "author": "Jan <service@jan.ai>",
+  "author": "Reinier Tamayo (Rey30 IDvj distribution)",
   "scripts": {
     "lint": "tslint --project tsconfig.json -t codeFrame 'src/**/*.ts' 'test/**/*.ts'",
     "test": "vitest run",
@@ -33,7 +32,7 @@
     "happy-dom": "^21.0.4",
     "react": "19.0.0",
     "rimraf": "^6.0.1",
-    "rolldown": "1.0.0-beta.1",
+    "rolldown": "1.2.16",
     "tslib": "^2.6.2",
     "typescript": "^5.8.3",
     "vitest": "^3.2.7"

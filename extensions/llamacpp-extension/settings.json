@@ -266,7 +266,7 @@
   {
     "key": "parallel",
     "title": "Parallel Sequences",
-    "description": "Number of parallel sequences to decode (0 = llama.cpp default). Jan reserves no slot of its own: chat, Cowork and background requests all share slot 0 and their KV caches are parked and restored per conversation.",
+    "description": "Number of parallel sequences to decode (0 = llama.cpp default). Rey30 IDvj reserves no slot of its own: chat, Cowork and background requests all share slot 0 and their KV caches are parked and restored per conversation.",
     "controllerType": "input",
     "controllerProps": {
       "value": 0,

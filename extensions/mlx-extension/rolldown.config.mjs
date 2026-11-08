@@ -13,13 +13,15 @@ export default defineConfig({
   // macOS-only plugin API; declared external so non-mac builds don't warn about
   // an unresolved import. The web bundle only pulls in mlx (and thus this dep)
   // on macOS, where it resolves.
-  external: ['@janhq/tauri-plugin-mlx-api'],
-  define: {
-    SETTINGS: JSON.stringify(settingJson),
-    ENGINE: JSON.stringify(pkgJson.engine),
-    IS_MAC: JSON.stringify(process.platform === 'darwin'),
-  },
-  inject: process.env.IS_DEV ? {} : {
+  external: ['@rey30-idvj/tauri-plugin-mlx-api'],
+  transform: {
+    define: {
+      SETTINGS: JSON.stringify(settingJson),
+      ENGINE: JSON.stringify(pkgJson.engine),
+      IS_MAC: JSON.stringify(process.platform === 'darwin'),
+    },
+    inject: process.env.IS_DEV ? {} : {
       fetch: ['@tauri-apps/plugin-http', 'fetch'],
+    },
   },
 })

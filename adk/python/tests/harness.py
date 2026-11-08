@@ -1,5 +1,5 @@
 """The harness the ADK suite drives: a stub provider on loopback and a scratch
-home, so the tests need no credentials, no network and no Jan Desktop.
+home, so the tests need no credentials, no network and no Rey30 IDvj Desktop.
 
 The provider is the same shape the Rust CLI tests use: the first request is
 answered with a tool call, the second with prose, and the bodies are kept so a
@@ -266,15 +266,37 @@ class Scratch:
 
     def __init__(self, bin: str) -> None:
         self.bin = bin
-        self.root = Path(tempfile.mkdtemp(prefix="jan-adk-py-"))
+        self.root = Path(tempfile.mkdtemp(prefix="rey30-idvj-adk-py-"))
         self.home = self.root / "home"
         self.project = self.root / "project"
         self.home.mkdir(parents=True, exist_ok=True)
         self.project.mkdir(parents=True, exist_ok=True)
+        for suffix in ("AppData/Roaming", "AppData/Local", "tmp", ".local/share", ".config", ".cache", ".local/state", "data", "config"):
+            (self.home / suffix).mkdir(parents=True, exist_ok=True)
 
     @property
     def env(self) -> Dict[str, str]:
-        return {**os.environ, "HOME": str(self.home), "JAN_CLI_NO_UPDATE_CHECK": "1"}
+        # HOME alone does not redirect dirs::home_dir() on Windows.
+        env = {key: value for key, value in os.environ.items() if not key.startswith(("JAN_", "REY30_"))}
+        env.update({
+            "HOME": str(self.home),
+            "USERPROFILE": str(self.home),
+            "APPDATA": str(self.home / "AppData/Roaming"),
+            "LOCALAPPDATA": str(self.home / "AppData/Local"),
+            "XDG_DATA_HOME": str(self.home / ".local/share"),
+            "XDG_CONFIG_HOME": str(self.home / ".config"),
+            "XDG_CACHE_HOME": str(self.home / ".cache"),
+            "XDG_STATE_HOME": str(self.home / ".local/state"),
+            "TMP": str(self.home / "tmp"),
+            "TEMP": str(self.home / "tmp"),
+            "TMPDIR": str(self.home / "tmp"),
+            "REY30_DATA_ROOT": str(self.home / "AppData/Roaming"),
+            "REY30_DATA_FOLDER": str(self.home / "data"),
+            "REY30_CONFIG_HOME": str(self.home / "config"),
+            "REY30_CLI_NO_UPDATE_CHECK": "1",
+            "REY30_AGENT_ENABLE_TELEMETRY": "0",
+        })
+        return env
 
     def configure(self, base_url: str) -> None:
         """Point the runtime at the stub provider, so a session resolves a model."""
@@ -298,9 +320,9 @@ class Scratch:
         )
 
     def start(self, **options: Any):
-        from jan_adk import JanRuntime
+        from rey30_idvj_adk import Rey30Runtime
 
-        return JanRuntime.start(bin=self.bin, env=self.env, **options)
+        return Rey30Runtime.start(bin=self.bin, env=self.env, **options)
 
     def cleanup(self) -> None:
         import shutil

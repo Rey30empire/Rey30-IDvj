@@ -108,6 +108,20 @@ export abstract class BaseExtension implements ExtensionType {
   }
 
   /**
+   * Reads the current settings first, retaining the previous scope as a
+   * read-only fallback for profiles created before the distribution rename.
+   */
+  protected readPersistedSettings(): string | null {
+    if (!this.name) return null
+    const current = localStorage.getItem(this.name)
+    if (current !== null) return current
+    const scope = '@rey30-idvj/'
+    if (!this.name.startsWith(scope)) return null
+    const previousName = '@' + 'janhq/' + this.name.slice(scope.length)
+    return localStorage.getItem(previousName)
+  }
+
+  /**
    * Register settings for the extension.
    * @param settings
    * @returns
@@ -122,7 +136,7 @@ export abstract class BaseExtension implements ExtensionType {
       setting.extensionName = this.name
     })
     try {
-      const oldSettingsJson = localStorage.getItem(this.name)
+      const oldSettingsJson = this.readPersistedSettings()
       // Persists new settings
       if (oldSettingsJson) {
         const oldSettings = JSON.parse(oldSettingsJson)
@@ -189,7 +203,7 @@ export abstract class BaseExtension implements ExtensionType {
     if (!this.name) return []
 
     try {
-      const settingsString = localStorage.getItem(this.name)
+      const settingsString = this.readPersistedSettings()
       if (!settingsString) return []
       const settings: SettingComponentProps[] = JSON.parse(settingsString)
       return settings

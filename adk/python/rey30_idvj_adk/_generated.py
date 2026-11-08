@@ -123,7 +123,7 @@ class ClientInfo(TypedDict):
     name: str
     version: str
 
-# `Deserialize` as well as `Serialize`: a consumer validates what it received against these shapes, and `JsonSchema` is what `jan cli agent schema` publishes them as -- a consumer generates its own types from `protocol/schema.json` rather than copying this declaration. The wire has to survive a round trip, not just a write, so `#[serde(tag = "type")]` keeps the tag on both sides. Where a [`StreamEvent::Compaction`] is in its round trip.
+# `Deserialize` as well as `Serialize`: a consumer validates what it received against these shapes, and `JsonSchema` is what `rey30-idvj cli agent schema` publishes them as -- a consumer generates its own types from `protocol/schema.json` rather than copying this declaration. The wire has to survive a round trip, not just a write, so `#[serde(tag = "type")]` keeps the tag on both sides. Where a [`StreamEvent::Compaction`] is in its round trip.
 CompactionPhase = Union[Literal["started", "finished"], Literal["failed"]]
 
 # Which path asked for a [`StreamEvent::Compaction`].
@@ -156,7 +156,7 @@ class PendingSubagent(TypedDict):
     name: str
     phase: int
 
-# Who gates host tool calls. `jan` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Jan never asks about a host tool.
+# Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Rey30 IDvj never asks about a host tool.
 PermissionOwner = Literal["jan", "host"]
 
 # One image in an outbound request, as [`StreamEvent::RequestProvenance`] reports it: identity, not content.
@@ -228,7 +228,7 @@ class SessionStartParams(TypedDict):
     builtins: NotRequired[bool]
     # Whether the session may delegate to subagents; defaults to `builtins`. With `builtins: false` it adds only `dispatch_subagent`, `list_subagents`, `message_subagent` and `stop_subagent`, and every child is held to the session's host tools. `false` withholds subagent tools even from a session with built-ins.
     subagents: NotRequired[Union[bool, None]]
-    # The session's whole system prompt, sent byte for byte in place of the one Jan composes: no Jan identity, guides, environment, date, git state or recalled project memory. Its answers are still indexed for later sessions unless it is `ephemeral`. Jan may still append runtime notices to the conversation. Children keep their own prompts.
+    # The session's whole system prompt, sent byte for byte in place of the one Rey30 IDvj composes: no Rey30 IDvj identity, guides, environment, date, git state or recalled project memory. Its answers are still indexed for later sessions unless it is `ephemeral`. Rey30 IDvj may still append runtime notices to the conversation. Children keep their own prompts.
     systemPrompt: NotRequired[Union[str, None]]
     permissions: NotRequired[PermissionOwner]
 
@@ -515,7 +515,7 @@ class RequestProvenanceEvent(TypedDict):
     model: str
     # The wire API the request is built for (`anthropic`, `google`, `openai-responses`), absent for chat/completions.
     api_type: NotRequired[Union[str, None]]
-    # SHA-256 of the request body as Jan built it, as canonical JSON: every object's keys sorted, recursively, so re-encoding the same members in another order gives the same digest. It is the value that makes two runs comparable even when a field this record does not itemize has changed. The body hashed is the one Jan built, before the provider adapter appends its transport fields (`stream`, `stream_options`), so it is not byte-for-byte what the provider received: a harness recomputes it by sorting keys and dropping those two fields.
+    # SHA-256 of the request body as Rey30 IDvj built it, as canonical JSON: every object's keys sorted, recursively, so re-encoding the same members in another order gives the same digest. It is the value that makes two runs comparable even when a field this record does not itemize has changed. The body hashed is the one Rey30 IDvj built, before the provider adapter appends its transport fields (`stream`, `stream_options`), so it is not byte-for-byte what the provider received: a harness recomputes it by sorting keys and dropping those two fields.
     request_sha256: str
     # The canonical body's serialized length. Key order does not change it, so it describes the built body either way.
     body_bytes: int

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import * as vecdb from '@janhq/tauri-plugin-vector-db-api'
-import * as ragApi from '@janhq/tauri-plugin-rag-api'
+import * as vecdb from '@rey30-idvj/tauri-plugin-vector-db-api'
+import * as ragApi from '@rey30-idvj/tauri-plugin-rag-api'
 import VectorDBExt from './index'
 
 const mockVecdb = vecdb as unknown as Record<string, ReturnType<typeof vi.fn>>

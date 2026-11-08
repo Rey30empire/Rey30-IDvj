@@ -1,11 +1,11 @@
 import { SystemInformation } from '../types'
 
 /**
- * Gets Jan's data folder path.
+ * Gets Rey30 IDvj's data folder path.
  *
- * @returns {Promise<string>} A Promise that resolves with Jan's data folder path.
+ * @returns {Promise<string>} A Promise that resolves with Rey30 IDvj's data folder path.
  */
-const getJanDataFolderPath = (): Promise<string> => globalThis.core.api?.getJanDataFolderPath()
+const getRey30DataFolderPath = (): Promise<string> => globalThis.core.api?.getRey30DataFolderPath()
 
 /**
  * Opens the file explorer at a specific path.
@@ -101,7 +101,7 @@ export type RegisterExtensionPoint = (
  * Functions exports
  */
 export {
-  getJanDataFolderPath,
+  getRey30DataFolderPath,
   openFileExplorer,
   getResourcePath,
   joinPath,

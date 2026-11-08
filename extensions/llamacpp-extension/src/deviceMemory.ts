@@ -1,4 +1,4 @@
-import type { DeviceList } from '@janhq/tauri-plugin-llamacpp-api'
+import type { DeviceList } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 
 /** The subset of the hardware plugin's `GpuInfo` this module reads. */
 export interface HardwareGpu {

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { logger } from '@janhq/core'
+import { logger } from '@rey30-idvj/core'
 
 /**
  * Read/write persisted settings through the Rust settings store

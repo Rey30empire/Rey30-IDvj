@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jan-adk"
+name = "rey30-idvj-adk"
 version = "0.1.0"
-description = "Python client for the Jan agent runtime: sessions, streamed turns, and host tools over `jan cli agent rpc`"
+description = "Python client for the Rey30 IDvj agent runtime: sessions, streamed turns, and host tools over `rey30-idvj cli agent rpc`"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-authors = [{ name = "Jan", email = "service@jan.ai" }]
-keywords = ["jan", "agent", "adk", "json-rpc"]
+authors = [{ name = "Reinier Tamayo" }]
+keywords = ["rey30-idvj", "agent", "adk", "json-rpc"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
@@ -21,12 +21,8 @@ classifiers = [
 # a host that has to install a tree to embed an agent will not.
 dependencies = []
 
-[project.urls]
-Homepage = "https://jan.ai"
-Repository = "https://github.com/janhq/jan"
-
 [tool.setuptools]
-packages = ["jan_adk"]
+packages = ["rey30_idvj_adk"]
 
 [tool.setuptools.package-data]
-jan_adk = ["py.typed"]
+rey30_idvj_adk = ["py.typed"]

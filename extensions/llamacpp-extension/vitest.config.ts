@@ -12,7 +12,7 @@ export default defineConfig({
       // Resolve the plugin to its guest-js source rather than the built
       // package: Node resolution picks dist-js/index.cjs, so the tests ran
       // against whatever was last built and could not observe the wrappers.
-      '@janhq/tauri-plugin-llamacpp-api': resolveHere(
+      '@rey30-idvj/tauri-plugin-llamacpp-api': resolveHere(
         '../../src-tauri/plugins/tauri-plugin-llamacpp/guest-js/index.ts'
       ),
       // The plugin carries its own @tauri-apps/api install, so aliasing

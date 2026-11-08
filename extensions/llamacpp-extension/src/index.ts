@@ -1,7 +1,7 @@
 /**
- * @file This file exports a class that implements the InferenceExtension interface from the @janhq/core package.
+ * @file This file exports a class that implements the InferenceExtension interface from the @rey30-idvj/core package.
  * The class provides methods for initializing and stopping a model, and for making inference requests.
- * It also subscribes to events emitted by the @janhq/core package and handles new message requests.
+ * It also subscribes to events emitted by the @rey30-idvj/core package and handles new message requests.
  * @version 1.0.0
  * @module llamacpp-extension/src/index
  */
@@ -9,7 +9,7 @@
 import {
  AIEngine,
  type EmbeddingEngine,
- getJanDataFolderPath,
+ getRey30DataFolderPath,
  fs,
  joinPath,
  modelInfo,
@@ -27,7 +27,7 @@ import {
  SettingComponentProps,
  DropdownComponentProps,
  logger,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import {
  readSettingsFile,
  writeSettingsFile,
@@ -57,8 +57,7 @@ import {
 } from './preset'
 import {
  evaluateEmbeddingVector,
- evaluateGpuOffload,
- backendFromDeviceIds,
+ evaluateConfiguredGpuOffload,
  type EmbeddingVectorProblem,
  type GpuOffloadCheck,
  type ReadinessStatus,
@@ -97,9 +96,9 @@ import {
  ModelProps,
  DeviceList,
  EngineVersion,
-} from '@janhq/tauri-plugin-llamacpp-api'
+} from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import { overrideAmdVulkanMemory } from './deviceMemory'
-import { getSystemUsage, getSystemInfo } from '@janhq/tauri-plugin-hardware-api'
+import { getSystemUsage, getSystemInfo } from '@rey30-idvj/tauri-plugin-hardware-api'
 
 const EMBEDDING_CHECK_VERSION = 3
 const MTP_CHECK_VERSION = 1
@@ -161,9 +160,9 @@ const PRESET_AFFECTING_KEYS = new Set<string>([
 
 
 /**
- * A class that implements the InferenceExtension interface from the @janhq/core package.
+ * A class that implements the InferenceExtension interface from the @rey30-idvj/core package.
  * The class provides methods for initializing and stopping a model, and for making inference requests.
- * It also subscribes to events emitted by the @janhq/core package and handles new message requests.
+ * It also subscribes to events emitted by the @rey30-idvj/core package and handles new message requests.
  */
 
 type YamlSettingValue = string | number | boolean | null
@@ -201,7 +200,7 @@ const DEFAULT_TIMEOUT = 600
 
 // Short and non-empty: enough to exercise tokenize plus pooling without making
 // setup wait on a long prompt.
-const EMBEDDING_PROBE_TEXT = 'jan setup embedding probe'
+const EMBEDDING_PROBE_TEXT = 'rey30 setup embedding probe'
 
 export interface EmbeddingModelReport {
  status: ReadinessStatus
@@ -376,7 +375,7 @@ async function readPersistedLlamacppModels(): Promise<PersistedModelState[]> {
  * Breadth-first search of `rootDir` for the directory directly containing
  * a file named `serverName`. Returns the absolute path of that directory,
  * or null if not found. Used by manual backend install to tolerate
- * different archive layouts (Jan-built `build/bin/...` vs upstream
+ * different archive layouts (Rey30 IDvj-built `build/bin/...` vs upstream
  * llama.cpp's flat `llama-bXXXX/...`).
  */
 async function findLlamaServerDir(
@@ -415,7 +414,7 @@ async function findLlamaServerDir(
 }
 
 // Folder structure for llamacpp extension:
-// <Jan's data folder>/llamacpp
+// <Rey30 IDvj's data folder>/llamacpp
 //  - models/<modelId>/
 //    - model.yml (required)
 //    - model.gguf (optional, present if downloaded from URL)
@@ -732,13 +731,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    logger.warn('Hardware GPU probe failed during setup verification:', e)
   }
 
-  return {
-   backend: backendFromDeviceIds(devices.map((d) => d.id)),
-   ...evaluateGpuOffload({
-    engineDeviceCount: devices.length,
-    hardwareGpuCount,
-   }),
-  }
+  return evaluateConfiguredGpuOffload(devices, this.config.device, hardwareGpuCount)
  }
 
  override async getSettings(): Promise<SettingComponentProps[]> {
@@ -842,7 +835,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   if (!this.name) return
   let raw: string | null = null
   try {
-   raw = localStorage.getItem(this.name) // localstorage-migration-allowed
+   raw = this.readPersistedSettings() // localstorage-migration-allowed
   } catch {
    raw = null
   }
@@ -859,6 +852,8 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    logger.warn('Failed to migrate localStorage settings to file:', e)
    return
   }
+  // A previous-scope snapshot belongs to the existing profile and is retained.
+  if (this.name.startsWith('@' + 'janhq/')) return
   try {
    localStorage.removeItem(this.name) // localstorage-migration-allowed
   } catch (e) {
@@ -886,10 +881,10 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
  private async runStartEngine(): Promise<void> {
   const providerPath = await this.getProviderPath()
-  const janDataFolderPath = await getJanDataFolderPath()
+  const rey30DataFolderPath = await getRey30DataFolderPath()
   const { path: presetPath, embeddingCount } = await generatePreset(
    providerPath,
-   janDataFolderPath,
+   rey30DataFolderPath,
    this.config
   )
 
@@ -998,10 +993,10 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   }
 
   const providerPath = await this.getProviderPath()
-  const janDataFolderPath = await getJanDataFolderPath()
+  const rey30DataFolderPath = await getRey30DataFolderPath()
   const { path: presetPath, embeddingCount } = await generatePreset(
    providerPath,
-   janDataFolderPath,
+   rey30DataFolderPath,
    this.config
   )
   this.presetPath = presetPath
@@ -1119,8 +1114,8 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   mmprojPath: string
  ): Promise<{ vision: boolean; audio: boolean }> {
   try {
-   const janDataFolderPath = await getJanDataFolderPath()
-   const fullPath = await joinPath([janDataFolderPath, mmprojPath])
+   const rey30DataFolderPath = await getRey30DataFolderPath()
+   const fullPath = await joinPath([rey30DataFolderPath, mmprojPath])
    const meta = (await readGgufMetadata(fullPath)).metadata ?? {}
    const truthy = (v: string | undefined) =>
     typeof v === 'string' && v.toLowerCase() === 'true'
@@ -1167,7 +1162,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   await setBackendSetting(MIGRATION_KEY, '1')
  }
 
- // The old default was 1 plus two slots Jan reserved for background work and
+ // The old default was 1 plus two slots Rey30 IDvj reserved for background work and
  // Cowork; both now share slot 0, so the reservation is gone and a persisted
  // 1 would pin the engine to a single slot rather than letting it resolve its
  // own count. Only the old default value is moved.
@@ -1332,7 +1327,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
  async getProviderPath(): Promise<string> {
   if (!this.providerPath) {
    this.providerPath = await joinPath([
-    await getJanDataFolderPath(),
+    await getRey30DataFolderPath(),
     this.providerId,
    ])
   }
@@ -1425,6 +1420,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    providerId: this.provider,
    port: 0, // port is not known until the model is loaded
    sizeBytes: modelConfig.size_bytes ?? 0,
+   path: modelConfig.model_path,
    embedding: isEmbedding,
    template_kwargs: templateKwargs,
   } as modelInfo
@@ -1434,7 +1430,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   const config = await invoke<ModelConfig>('read_yaml', {
    path: await joinPath([await this.getProviderPath(), 'models', modelId, 'model.yml']),
   })
-  const path = await joinPath([await getJanDataFolderPath(), config.model_path])
+  const path = await joinPath([await getRey30DataFolderPath(), config.model_path])
   const { metadata } = await readGgufMetadata(path)
   const limit = Number(metadata?.[`${metadata?.['general.architecture']}.context_length`])
   return Number.isInteger(limit) && limit > 0 ? limit : undefined
@@ -1460,9 +1456,9 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   let isEmbedding = false
   try {
-   const janDataFolderPath = await getJanDataFolderPath()
+   const rey30DataFolderPath = await getRey30DataFolderPath()
    const fullModelPath = await joinPath([
-    janDataFolderPath,
+    rey30DataFolderPath,
     modelConfig.model_path,
    ])
 
@@ -1532,9 +1528,9 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   let expertCount = 0
   try {
-   const janDataFolderPath = await getJanDataFolderPath()
+   const rey30DataFolderPath = await getRey30DataFolderPath()
    const fullModelPath = await joinPath([
-    janDataFolderPath,
+    rey30DataFolderPath,
     modelConfig.model_path,
    ])
    if (await fs.existsSync(fullModelPath)) {
@@ -1583,9 +1579,9 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   let mtpLayers = 0
   try {
-   const janDataFolderPath = await getJanDataFolderPath()
+   const rey30DataFolderPath = await getRey30DataFolderPath()
    const fullModelPath = await joinPath([
-    janDataFolderPath,
+    rey30DataFolderPath,
     modelConfig.model_path,
    ])
    if (await fs.existsSync(fullModelPath)) {
@@ -1639,9 +1635,9 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   let kwargs: TemplateKwarg[] = []
   try {
-   const janDataFolderPath = await getJanDataFolderPath()
+   const rey30DataFolderPath = await getRey30DataFolderPath()
    const fullModelPath = await joinPath([
-    janDataFolderPath,
+    rey30DataFolderPath,
     modelConfig.model_path,
    ])
    if (await fs.existsSync(fullModelPath)) {
@@ -1757,7 +1753,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
     }
 
     const mp = modelConfig.model_path ?? ''
-    const isAbsolute = mp.startsWith('/') || /^[A-Za-z]:[\\/]/.test(mp)
+    const isAbsolute = mp.startsWith('/') || mp.startsWith('\\\\') || /^[A-Za-z]:[\\/]/.test(mp)
 
     const modelInfo = {
      id: modelId,
@@ -1784,8 +1780,8 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   // Attempt to migrate only once
   if ((await getBackendSetting('cortex_models_migrated')) === 'true') return
 
-  const janDataFolderPath = await getJanDataFolderPath()
-  const modelsDir = await joinPath([janDataFolderPath, 'models'])
+  const rey30DataFolderPath = await getRey30DataFolderPath()
+  const modelsDir = await joinPath([rey30DataFolderPath, 'models'])
   if (!(await fs.existsSync(modelsDir))) return
 
   // DFS
@@ -1833,12 +1829,12 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
        ])
        if (await fs.existsSync(configPath)) continue // Don't reimport
 
-       // this is relative to Jan's data folder
+       // this is relative to Rey30 IDvj's data folder
        const modelDir = `${this.providerId}/models/${modelId}`
 
        let size_bytes = (
         await fs.fileStat(
-         await joinPath([janDataFolderPath, legacyModelPath])
+         await joinPath([rey30DataFolderPath, legacyModelPath])
         )
        ).size
 
@@ -1848,7 +1844,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
         name: modelName,
         size_bytes,
        } as ModelConfig
-       await fs.mkdir(await joinPath([janDataFolderPath, modelDir]))
+       await fs.mkdir(await joinPath([rey30DataFolderPath, modelDir]))
        await invoke<void>('write_yaml', {
         data: modelConfig,
         savePath: configPath,
@@ -1982,7 +1978,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   if (await fs.existsSync(configPath))
    throw new Error(`Model ${modelId} already exists`)
 
-  // this is relative to Jan's data folder
+  // this is relative to Rey30 IDvj's data folder
   const modelDir = `${this.providerId}/models/${modelId}`
 
   // we only use these from opts
@@ -2046,7 +2042,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
      })
     }
     const downloadManager = window.core.extensionManager.getByName(
-     '@janhq/download-extension'
+     '@rey30-idvj/download-extension'
     )
     await downloadManager.downloadFiles(
      downloadItems,
@@ -2111,8 +2107,8 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   }
 
   // Validate GGUF files
-  const janDataFolderPath = await getJanDataFolderPath()
-  const fullModelPath = await joinPath([janDataFolderPath, modelPath])
+  const rey30DataFolderPath = await getRey30DataFolderPath()
+  const fullModelPath = await joinPath([rey30DataFolderPath, modelPath])
   let isEmbedding = false
   let mtpLayers = 0
   let expertCount = 0
@@ -2144,7 +2140,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
    // Validate mmproj file if present
    if (mmprojPath) {
-    const fullMmprojPath = await joinPath([janDataFolderPath, mmprojPath])
+    const fullMmprojPath = await joinPath([rey30DataFolderPath, mmprojPath])
     const mmprojMetadata = await readGgufMetadata(fullMmprojPath)
     logger.info(
      `Mmproj GGUF validation successful: version ${mmprojMetadata.version}, tensors: ${mmprojMetadata.tensor_count}`
@@ -2155,7 +2151,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    // its head count (the main gguf usually lacks nextn_predict_layers when
    // MTP ships as a separate file).
    if (draftModelPath) {
-    const fullDraftPath = await joinPath([janDataFolderPath, draftModelPath])
+    const fullDraftPath = await joinPath([rey30DataFolderPath, draftModelPath])
     const draftMetadata = await readGgufMetadata(fullDraftPath)
     // Only asked for a DFlash-architecture draft, since that is the one
     // case a tensor decides (DSpark = DFlash + Markov head).
@@ -2185,12 +2181,12 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   let size_bytes = (await fs.fileStat(fullModelPath)).size
   if (mmprojPath) {
    size_bytes += (
-    await fs.fileStat(await joinPath([janDataFolderPath, mmprojPath]))
+    await fs.fileStat(await joinPath([rey30DataFolderPath, mmprojPath]))
    ).size
   }
   if (draftModelPath) {
    size_bytes += (
-    await fs.fileStat(await joinPath([janDataFolderPath, draftModelPath]))
+    await fs.fileStat(await joinPath([rey30DataFolderPath, draftModelPath]))
    ).size
   }
 
@@ -2231,7 +2227,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
     ? { pooling: 'mean', ubatch_size: 2048, batch_size: 2048 }
     : {}),
   } as ModelConfig
-  await fs.mkdir(await joinPath([janDataFolderPath, modelDir]))
+  await fs.mkdir(await joinPath([rey30DataFolderPath, modelDir]))
   await invoke<void>('write_yaml', {
    data: modelConfig,
    savePath: configPath,
@@ -2288,7 +2284,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   // prepend provider name to avoid name collision
   const taskId = this.createDownloadTaskId(modelId)
   const downloadManager = window.core.extensionManager.getByName(
-   '@janhq/download-extension'
+   '@rey30-idvj/download-extension'
   )
 
   try {
@@ -2304,7 +2300,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
  override async pauseImport(modelId: string): Promise<void> {
   const taskId = this.createDownloadTaskId(modelId)
   const downloadManager = window.core.extensionManager.getByName(
-   '@janhq/download-extension'
+   '@rey30-idvj/download-extension'
   )
   // Pause keeps the partial .tmp for resume; the model folder is preserved.
   await downloadManager.pauseDownload(taskId)
@@ -2473,7 +2469,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
  /**
   * The id becomes a Tauri event name (`download-<taskId>`), which cannot contain
   * a dot. Dots are replaced rather than truncated at: truncating collapsed every
-  * `Jan-v3.*` quant onto one id, and Rust cancels an in-flight task whose id
+  * `Rey30 IDvj-v3.*` quant onto one id, and Rust cancels an in-flight task whose id
   * repeats -- deleting its partial file -- so downloading one quant destroyed
   * another's, and pause/cancel hit whichever quant happened to be registered.
   */
@@ -2842,7 +2838,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   * and rejects so the caller can report the error.
   *
   * Sidebar keys are mapped to the canonical `model.yml` / preset keys here.
-  * Keys not in the mapping are silently ignored because they are Jan-side
+  * Keys not in the mapping are silently ignored because they are Rey30 IDvj-side
   * concerns or are not emitted by `preset.ts`.
   */
  async updateModelSettings(
@@ -3256,7 +3252,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
   * @returns
   */
  async isToolSupported(modelId: string): Promise<boolean> {
-  const janDataFolderPath = await getJanDataFolderPath()
+  const rey30DataFolderPath = await getRey30DataFolderPath()
   const modelConfigPath = await joinPath([
    this.providerPath,
    'models',
@@ -3267,9 +3263,9 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    path: modelConfigPath,
   })
   // model option is required
-  // NOTE: model_path and mmproj_path can be either relative to Jan's data folder or absolute path
+  // NOTE: model_path and mmproj_path can be either relative to Rey30 IDvj's data folder or absolute path
   const modelPath = await joinPath([
-   janDataFolderPath,
+   rey30DataFolderPath,
    modelConfig.model_path,
   ])
   return (await readGgufMetadata(modelPath)).metadata?.[
@@ -3349,7 +3345,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   if (hasImages) {
    try {
-    const janDataFolderPath = await getJanDataFolderPath()
+    const rey30DataFolderPath = await getRey30DataFolderPath()
     const modelConfigPath = await joinPath([
      this.providerPath,
      'models',
@@ -3361,7 +3357,7 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
     })
     if (modelConfig.mmproj_path) {
      const mmprojPath = await joinPath([
-      janDataFolderPath,
+      rey30DataFolderPath,
       modelConfig.mmproj_path,
      ])
      const metadata = await readGgufMetadata(mmprojPath)

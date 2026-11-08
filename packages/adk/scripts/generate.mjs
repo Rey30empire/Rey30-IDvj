@@ -2,7 +2,7 @@
 //! Generate the ADK wire types from the committed RPC schema.
 //!
 //! `protocol/rpc-schema.json` is the artifact CI regenerates from the Rust
-//! dispatcher (`jan cli agent rpc-schema --out protocol/rpc-schema.json`), so a
+//! dispatcher (`rey30-idvj cli agent rpc-schema --out protocol/rpc-schema.json`), so a
 //! verb cannot change without the document moving with it. This script is the
 //! other half of that guarantee: the JavaScript and Python ADKs derive their
 //! request, event and enum types from the same document, and `--check` fails
@@ -33,7 +33,7 @@ const check = argv.includes('--check')
 const schemaPath = resolve(flag('schema', join(repo, 'protocol/rpc-schema.json')))
 const tsPath = resolve(flag('ts', join(repo, 'packages/adk/src/generated/rpc-types.d.ts')))
 const jsPath = resolve(flag('js', join(repo, 'packages/adk/src/generated/rpc-types.js')))
-const pyPath = resolve(flag('py', join(repo, 'adk/python/jan_adk/_generated.py')))
+const pyPath = resolve(flag('py', join(repo, 'adk/python/rey30_idvj_adk/_generated.py')))
 
 const doc = JSON.parse(readFileSync(schemaPath, 'utf8'))
 

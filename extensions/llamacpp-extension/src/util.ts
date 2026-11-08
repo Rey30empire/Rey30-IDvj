@@ -1,9 +1,9 @@
-import { logger } from '@janhq/core'
-import type { SpecDraftKind } from '@janhq/core'
+import { logger } from '@rey30-idvj/core'
+import type { SpecDraftKind } from '@rey30-idvj/core'
 import type {
   TemplateKwarg,
   TemplateKwargType,
-} from '@janhq/tauri-plugin-llamacpp-api'
+} from '@rey30-idvj/tauri-plugin-llamacpp-api'
 import { getBackendSetting, setBackendSetting } from './backend-settings'
 
 // Zustand proxy state structure

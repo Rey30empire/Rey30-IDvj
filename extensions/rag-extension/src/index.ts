@@ -9,10 +9,10 @@ import {
   embedTexts,
   type AttachmentFileInfo,
   logger,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 import './env.d'
 import { getRAGTools, RETRIEVE, LIST_ATTACHMENTS, GET_CHUNKS } from './tools'
-import * as ragApi from '@janhq/tauri-plugin-rag-api'
+import * as ragApi from '@rey30-idvj/tauri-plugin-rag-api'
 
 export default class RagExtension extends RAGExtension {
   private config = {

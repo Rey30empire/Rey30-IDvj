@@ -105,7 +105,7 @@
           "default": null
         },
         "systemPrompt": {
-          "description": "The session's whole system prompt, sent byte for byte in place of the\none Jan composes: no Jan identity, guides, environment, date, git state\nor recalled project memory. Its answers are still indexed for later\nsessions unless it is `ephemeral`. Jan may still append runtime notices\nto the conversation.\nChildren keep their own prompts.",
+          "description": "The session's whole system prompt, sent byte for byte in place of the\none Rey30 IDvj composes: no Rey30 IDvj identity, guides, environment, date, git state\nor recalled project memory. Its answers are still indexed for later\nsessions unless it is `ephemeral`. Rey30 IDvj may still append runtime notices\nto the conversation.\nChildren keep their own prompts.",
           "type": [
             "string",
             "null"
@@ -175,7 +175,7 @@
           ]
         },
         "PermissionOwner": {
-          "description": "Who gates host tool calls. `jan` prompts through `permission_request` the\nway any opaque tool is prompted; `host` means the host's own callback is\nthe gate, so Jan never asks about a host tool.",
+          "description": "Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the\nway any opaque tool is prompted; `host` means the host's own callback is\nthe gate, so Rey30 IDvj never asks about a host tool.",
           "type": "string",
           "enum": [
             "jan",
@@ -1192,7 +1192,7 @@
         ]
       },
       {
-        "description": "What the run is about to send a provider, emitted immediately before\neach request goes out -- the hook an experiment harness needs to hold two\nruns comparable (pi's `onPayload` is the shape Robot Studio already\nrecords).\n\nEvery outbound request gets one, including the side calls a turn makes\n(compaction, a session title) and every child run's own requests; the\nhashes describe the body Jan built for the adapter, so two runs can be\ncompared field by field. Nothing here is model input or output: it never\njoins the transcript, and a consumer may render it, store it or ignore\nit.",
+        "description": "What the run is about to send a provider, emitted immediately before\neach request goes out -- the hook an experiment harness needs to hold two\nruns comparable (pi's `onPayload` is the shape Robot Studio already\nrecords).\n\nEvery outbound request gets one, including the side calls a turn makes\n(compaction, a session title) and every child run's own requests; the\nhashes describe the body Rey30 IDvj built for the adapter, so two runs can be\ncompared field by field. Nothing here is model input or output: it never\njoins the transcript, and a consumer may render it, store it or ignore\nit.",
         "type": "object",
         "properties": {
           "run_id": {
@@ -1228,7 +1228,7 @@
             ]
           },
           "request_sha256": {
-            "description": "SHA-256 of the request body as Jan built it, as canonical JSON:\nevery object's keys sorted, recursively, so re-encoding the same\nmembers in another order gives the same digest. It is the value that\nmakes two runs comparable even when a field this record does not\nitemize has changed.\n\nThe body hashed is the one Jan built, before the provider adapter\nappends its transport fields (`stream`, `stream_options`), so it is\nnot byte-for-byte what the provider received: a harness recomputes it\nby sorting keys and dropping those two fields.",
+            "description": "SHA-256 of the request body as Rey30 IDvj built it, as canonical JSON:\nevery object's keys sorted, recursively, so re-encoding the same\nmembers in another order gives the same digest. It is the value that\nmakes two runs comparable even when a field this record does not\nitemize has changed.\n\nThe body hashed is the one Rey30 IDvj built, before the provider adapter\nappends its transport fields (`stream`, `stream_options`), so it is\nnot byte-for-byte what the provider received: a harness recomputes it\nby sorting keys and dropping those two fields.",
             "type": "string"
           },
           "body_bytes": {
@@ -1284,7 +1284,7 @@
         ]
       },
       "CompactionPhase": {
-        "description": "`Deserialize` as well as `Serialize`: a consumer validates what it received\nagainst these shapes, and `JsonSchema` is what `jan cli agent schema`\npublishes them as -- a consumer generates its own types from\n`protocol/schema.json` rather than copying this declaration. The wire has to\nsurvive a round trip, not just a write, so `#[serde(tag = \"type\")]` keeps the\ntag on both sides.\nWhere a [`StreamEvent::Compaction`] is in its round trip.",
+        "description": "`Deserialize` as well as `Serialize`: a consumer validates what it received\nagainst these shapes, and `JsonSchema` is what `rey30-idvj cli agent schema`\npublishes them as -- a consumer generates its own types from\n`protocol/schema.json` rather than copying this declaration. The wire has to\nsurvive a round trip, not just a write, so `#[serde(tag = \"type\")]` keeps the\ntag on both sides.\nWhere a [`StreamEvent::Compaction`] is in its round trip.",
         "oneOf": [
           {
             "type": "string",

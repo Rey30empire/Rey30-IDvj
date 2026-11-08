@@ -4,11 +4,11 @@
 // it - the handshake, a turn's events, a host tool's answer becoming the tool
 // message the model sees on the next request, an interrupt settling a parked
 // call exactly once. A unit test with a fake runtime would assert the client
-// agrees with itself; this asserts it agrees with `jan`.
+// agrees with itself; this asserts it agrees with `rey30-idvj`.
 //
 // The provider is a stub on loopback, so the suite needs no credentials and no
-// network. Set `JAN_BIN` to the runtime binary to run it (the ADK's CI job
-// builds one; locally, `make agent` or a cargo build of `jan-cli`).
+// network. Set `REY30_BIN` to the runtime binary to run it (the ADK's CI job
+// builds one; locally, `make agent` or a cargo build of `rey30-idvj-cli`).
 
 import { execFile } from 'node:child_process'
 import { createServer } from 'node:http'
@@ -19,11 +19,11 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { promisify } from 'node:util'
 
-import { JanRuntime, JanRuntimeError, PROTOCOL_VERSION } from '../src/index.js'
+import { Rey30Runtime, Rey30RuntimeError, PROTOCOL_VERSION } from '../src/index.js'
 
 const run = promisify(execFile)
-const bin = process.env.JAN_BIN
-const missingRuntime = bin ? false : 'set JAN_BIN to the jan binary to run the ADK suite'
+const bin = process.env.REY30_BIN
+const missingRuntime = bin ? false : 'set REY30_BIN to the rey30-idvj binary to run the ADK suite'
 
 // A chunk the model asks for the host tool with. `host__` is the advertised
 // name; the host is told the bare one.
@@ -164,9 +164,10 @@ class Provider {
 // A private home and project, removed after the test.
 class Scratch {
   static async create(name) {
-    const root = await mkdtemp(join(tmpdir(), `jan-adk-${name}-`))
+    const root = await mkdtemp(join(tmpdir(), `rey30-adk-${name}-`))
     const scratch = new Scratch(root)
     await mkdir(scratch.home, { recursive: true })
+    await mkdir(join(scratch.home, 'agent-config'), { recursive: true })
     await mkdir(scratch.project, { recursive: true })
     return scratch
   }
@@ -187,7 +188,24 @@ class Scratch {
   }
 
   get env() {
-    return { ...process.env, HOME: this.home, JAN_CLI_NO_UPDATE_CHECK: '1' }
+    const env = { ...process.env }
+    for (const key of Object.keys(env)) {
+      if (key.startsWith('JAN_') || key.startsWith('REY30_')) delete env[key]
+    }
+    return {
+      ...env,
+      HOME: this.home,
+      USERPROFILE: this.home,
+      APPDATA: this.home,
+      LOCALAPPDATA: this.home,
+      XDG_CONFIG_HOME: this.home,
+      XDG_DATA_HOME: this.home,
+      XDG_CACHE_HOME: this.home,
+      REY30_DATA_ROOT: this.home,
+      REY30_DATA_FOLDER: join(this.home, 'data'),
+      REY30_CONFIG_HOME: join(this.home, 'agent-config'),
+      REY30_CLI_NO_UPDATE_CHECK: '1',
+    }
   }
 
   get projectPath() {
@@ -195,7 +213,7 @@ class Scratch {
   }
 
   start(options = {}) {
-    return JanRuntime.start({ bin, env: this.env, ...options })
+    return Rey30Runtime.start({ bin, env: this.env, ...options })
   }
 
   async cleanup() {
@@ -212,13 +230,13 @@ async function connect(t, { replies, runtime = {} } = {}) {
   const baseUrl = await provider.start()
   const scratch = await Scratch.create('case')
   await scratch.configure(baseUrl)
-  const jan = await scratch.start(runtime)
+  const rey30 = await scratch.start(runtime)
   t.after(async () => {
-    await jan.close({ force: true }).catch(() => {})
+    await rey30.close({ force: true }).catch(() => {})
     await provider.stop()
     await scratch.cleanup()
   })
-  return { provider, scratch, runtime: jan }
+  return { provider, scratch, runtime: rey30 }
 }
 
 // The events of a turn, collected while it runs.
@@ -231,7 +249,7 @@ async function collect(turn) {
 test('a runtime handshakes and reports its caps', { skip: missingRuntime }, async (t) => {
   const { runtime } = await connect(t, { replies: [PROSE('unused')] })
   assert.equal(runtime.protocolVersion, PROTOCOL_VERSION)
-  assert.equal(runtime.serverInfo.name, 'jan')
+  assert.equal(runtime.serverInfo.name, 'rey30-idvj')
   assert.equal(runtime.capabilities.session, true)
   // The caps are the handshake's business: a client that sends an image learns
   // the limits here rather than from a rejection.
@@ -244,8 +262,8 @@ test('a runtime handshakes and reports its caps', { skip: missingRuntime }, asyn
 
 test('a runtime that is not there fails before any work starts', { skip: missingRuntime }, async (t) => {
   await assert.rejects(
-    JanRuntime.start({ bin: join(tmpdir(), 'jan-does-not-exist'), env: process.env }),
-    (error) => error instanceof JanRuntimeError,
+    Rey30Runtime.start({ bin: join(tmpdir(), 'rey30-does-not-exist'), env: process.env }),
+    (error) => error instanceof Rey30RuntimeError,
   )
 })
 
@@ -602,7 +620,7 @@ test('closing the runtime settles an open turn instead of hanging', { skip: miss
   // Closing stdin is the runtime's own shutdown signal, and a turn that was
   // running is closed on the channel before the process exits.
   assert.equal(code, 0)
-  await assert.rejects(turn.result(), (error) => error instanceof JanRuntimeError)
+  await assert.rejects(turn.result(), (error) => error instanceof Rey30RuntimeError)
 })
 
 test('a turn nobody drains stays bounded, and still reports its outcome', { skip: missingRuntime }, async (t) => {
@@ -695,7 +713,7 @@ test('a request with no runtime behind it is refused, not hung', { skip: missing
   )
   await assert.rejects(
     runtime.request('turn/start', { sessionId: 'not-a-session', input: 'hi' }),
-    (error) => error.name === 'JanRpcError',
+    (error) => error.name === 'Rey30RpcError',
   )
 })
 
@@ -788,7 +806,7 @@ test('structured prompt inputs reach the model as content parts', { skip: missin
   assert.match(JSON.stringify(lastUser(provider.bodies[2]).content), /record form/)
 
   // A refusal from the runtime stays an answer the caller can read.
-  await assert.rejects(session.prompt([{ type: 'audio', data: 'x' }]), (error) => error.name === 'JanRpcError')
+  await assert.rejects(session.prompt([{ type: 'audio', data: 'x' }]), (error) => error.name === 'Rey30RpcError')
 })
 
 const echoTool = (calls, label) => ({
@@ -867,7 +885,7 @@ test('resuming an open session does not orphan its turn when the runtime closes'
   await runtime.resumeSession(original.id)
 
   await runtime.close()
-  await assert.rejects(within(turn.result()), (error) => error instanceof JanRuntimeError)
+  await assert.rejects(within(turn.result()), (error) => error instanceof Rey30RuntimeError)
 })
 
 test('a resumed session keeps the handlers of its host tools', { skip: missingRuntime }, async (t) => {
@@ -894,9 +912,9 @@ test('a resumed session keeps the handlers of its host tools', { skip: missingRu
 // that names the listener's. This runs in its own Node process because the bug
 // it pins is the process exiting.
 const LISTENER_SCRIPT = `
-import { JanRuntime, JanRuntimeError } from ${JSON.stringify(new URL('../src/index.js', import.meta.url).href)}
+import { Rey30Runtime, Rey30RuntimeError } from ${JSON.stringify(new URL('../src/index.js', import.meta.url).href)}
 const mode = process.argv[1]
-const runtime = await JanRuntime.start({ bin: process.env.JAN_BIN })
+const runtime = await Rey30Runtime.start({ bin: process.env.REY30_BIN })
 const session = await runtime.createSession({ cwd: process.env.PROJECT, model: 'stub-model', ephemeral: true })
 // Anything can be thrown, and reading it can throw: \`-null\` modes throw an
 // object with no prototype, \`-getter\` modes an Error whose \`message\` getter
@@ -919,7 +937,7 @@ await new Promise((resolve) => setTimeout(resolve, 300))
 let alive = true
 try { process.kill(runtime.pid, 0) } catch { alive = false }
 console.log(JSON.stringify({
-  runtimeError: outcome instanceof JanRuntimeError,
+  runtimeError: outcome instanceof Rey30RuntimeError,
   message: outcome?.message,
   cause: (() => {
     const cause = outcome?.cause
@@ -948,7 +966,7 @@ for (const [mode, article, message, cause] of [
   test(`${article} ${mode} listener that throws fails the runtime, not the host`, { skip: missingRuntime }, async (t) => {
     const { scratch } = await connect(t, { replies: [PROSE('hello')] })
     const { stdout } = await run(process.execPath, ['--input-type=module', '-e', LISTENER_SCRIPT, mode], {
-      env: { ...scratch.env, JAN_BIN: bin, PROJECT: scratch.projectPath },
+      env: { ...scratch.env, REY30_BIN: bin, PROJECT: scratch.projectPath },
       timeout: 20_000,
     })
     const report = JSON.parse(stdout.trim().split('\n').at(-1))
@@ -1027,7 +1045,7 @@ test('a turn started as the runtime fails is failed, not left pending', { skip: 
   }
 
   const turn = await session.prompt('hi')
-  await assert.rejects(within(turn.result()), (error) => error instanceof JanRuntimeError && /QA_FAILS_FIRST/.test(error.message))
+  await assert.rejects(within(turn.result()), (error) => error instanceof Rey30RuntimeError && /QA_FAILS_FIRST/.test(error.message))
 })
 
 test('a terminal record already received wins over a runtime failure', { skip: missingRuntime }, async (t) => {

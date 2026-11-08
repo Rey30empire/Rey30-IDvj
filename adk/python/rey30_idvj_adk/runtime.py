@@ -1,4 +1,4 @@
-"""The runtime process: one long-lived ``jan cli agent rpc``, spawned and owned.
+"""The runtime process: one long-lived ``rey30-idvj cli agent rpc``, spawned and owned.
 
 Everything a client does goes through the JSON-RPC channel this object holds:
 the handshake, one request at a time with an answer, and the notifications a
@@ -17,20 +17,20 @@ from collections import deque
 from typing import Any, Callable, Deque, Dict, List, Optional, Sequence, Union
 
 from ._generated import PROTOCOL_VERSION
-from .errors import JanRpcError, JanRuntimeError, describe_error
-from .session import HostTool, JanSession
+from .errors import Rey30RpcError, Rey30RuntimeError, describe_error
+from .session import HostTool, Rey30Session
 
 try:  # The version is for the handshake's clientInfo; a source checkout has no metadata.
     from importlib.metadata import PackageNotFoundError, version as _package_version
 
     try:
-        CLIENT_VERSION = _package_version("jan-adk")
+        CLIENT_VERSION = _package_version("rey30-idvj-adk")
     except PackageNotFoundError:  # pragma: no cover - source checkout
         CLIENT_VERSION = "0.0.0+source"
 except ImportError:  # pragma: no cover - Python < 3.8 has no importlib.metadata
     CLIENT_VERSION = "0.0.0+source"
 
-CLIENT_NAME = "jan-adk"
+CLIENT_NAME = "rey30-idvj-adk"
 
 
 class _Pending:
@@ -54,14 +54,14 @@ class _Pending:
 
     def wait(self, timeout: Optional[float]) -> Any:
         if not self.done.wait(timeout):
-            raise JanRuntimeError(f"{self.method!r} was not answered in time")
+            raise Rey30RuntimeError(f"{self.method!r} was not answered in time")
         if self.error is not None:
             raise self.error
         return self.result
 
 
-class JanRuntime:
-    """A Jan runtime process.
+class Rey30Runtime:
+    """A Rey30 IDvj runtime process.
 
     :meth:`start` resolves once the handshake is done, so a runtime that cannot
     speak this protocol version fails before any work starts rather than
@@ -81,7 +81,7 @@ class JanRuntime:
         max_buffered_events: int = 100_000,
         on_stderr: Optional[Callable[[str], None]] = None,
     ) -> None:
-        self.binary = bin or os.environ.get("JAN_BIN") or "jan"
+        self.binary = bin or os.environ.get("REY30_BIN") or os.environ.get("JAN_BIN") or "rey30-idvj"
         self.cwd = str(cwd) if cwd is not None else None
         self.max_buffered_events = max_buffered_events
         self._client_info = client_info or {"name": CLIENT_NAME, "version": CLIENT_VERSION}
@@ -93,12 +93,12 @@ class JanRuntime:
         # `queue` here is the standard library's, not `._queue` - the ADK's own
         # event queue - which is why no module of this package shadows it.
         self._dispatch_queue: "queue.Queue[Optional[Any]]" = queue.Queue()
-        self._dispatch_thread = threading.Thread(target=self._run_dispatch, name="jan-adk-events", daemon=True)
+        self._dispatch_thread = threading.Thread(target=self._run_dispatch, name="rey30-idvj-adk-events", daemon=True)
         self._pending: Dict[int, _Pending] = {}
         self._next_id = 1
-        self._sessions: Dict[str, JanSession] = {}
+        self._sessions: Dict[str, Rey30Session] = {}
         self._listeners: Dict[str, List[Callable[[Any], None]]] = {}
-        self._failure: Optional[JanRuntimeError] = None
+        self._failure: Optional[Rey30RuntimeError] = None
         self._closing = False
         self._protocol_version: Optional[int] = None
         self._server_info: Optional[Dict[str, str]] = None
@@ -109,7 +109,7 @@ class JanRuntime:
             **os.environ,
             # The ADK owns this process and its lifetime; an update check nobody
             # asked for is a network call inside a caller's turn.
-            "JAN_CLI_NO_UPDATE_CHECK": "1",
+            "REY30_CLI_NO_UPDATE_CHECK": "1",
             **(env or {}),
         }
         try:
@@ -125,21 +125,21 @@ class JanRuntime:
             )
         except OSError as error:
             # A binary that is not there is the channel failing to exist, which
-            # is what `JanRuntimeError` is for - not a stray `FileNotFoundError`
+            # is what `Rey30RuntimeError` is for - not a stray `FileNotFoundError`
             # from the spawn. No thread has been started yet, so nothing leaks.
-            raise JanRuntimeError(f"could not start '{self.binary}': {error.strerror or error}") from None
+            raise Rey30RuntimeError(f"could not start '{self.binary}': {error.strerror or error}") from None
         # Threads start only once the process exists: a failed spawn leaves
         # nothing behind to join, and the dispatcher never runs without events.
         self._dispatch_thread.start()
-        self._reader = threading.Thread(target=self._read_stdout, name="jan-rpc-reader", daemon=True)
+        self._reader = threading.Thread(target=self._read_stdout, name="rey30-idvj-rpc-reader", daemon=True)
         self._reader.start()
-        self._stderr_reader = threading.Thread(target=self._read_stderr, name="jan-rpc-stderr", daemon=True)
+        self._stderr_reader = threading.Thread(target=self._read_stderr, name="rey30-idvj-rpc-stderr", daemon=True)
         self._stderr_reader.start()
 
     # -- construction ------------------------------------------------------
 
     @classmethod
-    def start(cls, **options: Any) -> "JanRuntime":
+    def start(cls, **options: Any) -> "Rey30Runtime":
         """Spawn a runtime and complete the handshake."""
         runtime = cls(**options)
         try:
@@ -149,7 +149,7 @@ class JanRuntime:
             raise
         return runtime
 
-    def __enter__(self) -> "JanRuntime":
+    def __enter__(self) -> "Rey30Runtime":
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -209,14 +209,14 @@ class JanRuntime:
         system_prompt: Optional[str] = None,
         permissions: Optional[str] = None,
         tools: Sequence[HostTool] = (),
-    ) -> JanSession:
+    ) -> Rey30Session:
         """Start a session. ``tools`` are host tools this session may call.
 
         ``subagents`` lets the model delegate (default: same as ``builtins``);
         with ``builtins=False`` every child is limited to these host tools.
-        ``system_prompt`` is sent exactly as given in place of Jan's prompt;
+        ``system_prompt`` is sent exactly as given in place of Rey30 IDvj's prompt;
         no project memory is recalled into it (answers are still indexed
-        unless ``ephemeral``), and Jan may still append runtime notices to the
+        unless ``ephemeral``), and Rey30 IDvj may still append runtime notices to the
         conversation.
 
         ``permissions`` says who gates a host tool call: ``"host"`` when this
@@ -249,7 +249,7 @@ class JanRuntime:
         """Sessions this process is serving, as the runtime sees them."""
         return self.request("session/list", {})["sessions"]
 
-    def resume_session(self, session_id: str) -> JanSession:
+    def resume_session(self, session_id: str) -> Rey30Session:
         """Reopen a session of this process from its id.
 
         A session this client already holds is returned as it is, not rebuilt:
@@ -266,7 +266,7 @@ class JanRuntime:
             return known
         return self._session(view)
 
-    def fork_session(self, session_id: str, tools: Optional[Sequence[HostTool]] = None) -> JanSession:
+    def fork_session(self, session_id: str, tools: Optional[Sequence[HostTool]] = None) -> Rey30Session:
         """A new session with another session's history.
 
         Without ``tools`` it takes the source's host tools and handlers; with
@@ -274,7 +274,7 @@ class JanRuntime:
         """
         source = self._sessions.get(session_id)
 
-        def work() -> JanSession:
+        def work() -> Rey30Session:
             forked = self.request("session/fork", {"sessionId": session_id})["sessionId"]
             view = self.request("session/tools/get", {"sessionId": forked})
             # The tools view carries the tools and nothing else: the id and the
@@ -302,7 +302,7 @@ class JanRuntime:
         if self._failure is not None:
             raise self._failure
         if self._closing:
-            raise JanRuntimeError("the runtime is closing")
+            raise Rey30RuntimeError("the runtime is closing")
         # Encoded before anything is registered: a value that cannot be encoded (a
         # Path, a circular reference) is the caller's to hear about as it is, and
         # must neither leave a pending entry behind nor read as a failed write.
@@ -320,7 +320,7 @@ class JanRuntime:
                 self._process.stdin.flush()
             except (BrokenPipeError, ValueError, OSError) as error:
                 self._pending.pop(request_id, None)
-                raise JanRuntimeError(f"could not write to the runtime: {error}", stderr=self.stderr) from None
+                raise Rey30RuntimeError(f"could not write to the runtime: {error}", stderr=self.stderr) from None
         try:
             return pending.wait(timeout)
         finally:
@@ -336,7 +336,7 @@ class JanRuntime:
         if self._closing:
             return self._wait_or_kill()
         self._closing = True
-        gone = JanRuntimeError("the runtime was closed")
+        gone = Rey30RuntimeError("the runtime was closed")
         for session in list(self._sessions.values()):
             session._fail(gone)
         self._sessions.clear()
@@ -366,13 +366,13 @@ class JanRuntime:
                 },
                 timeout=self._handshake_timeout,
             )
-        except JanRpcError as error:
-            raise JanRuntimeError(
+        except Rey30RpcError as error:
+            raise Rey30RuntimeError(
                 f"{self.binary!r} refused the handshake: {error}" + (f": {self.stderr.strip()}" if self.stderr else ""),
                 stderr=self.stderr,
             ) from error
         if result.get("protocolVersion") != PROTOCOL_VERSION:
-            raise JanRuntimeError(
+            raise Rey30RuntimeError(
                 f"the runtime speaks protocol version {result.get('protocolVersion')}, "
                 f"this client speaks {PROTOCOL_VERSION}",
                 stderr=self.stderr,
@@ -400,12 +400,12 @@ class JanRuntime:
         except (ProcessLookupError, OSError):
             pass
 
-    def _session(self, view: Dict[str, Any]) -> JanSession:
-        session = JanSession(self, view)
+    def _session(self, view: Dict[str, Any]) -> Rey30Session:
+        session = Rey30Session(self, view)
         self._sessions[session.id] = session
         return session
 
-    def _release(self, session: JanSession) -> None:
+    def _release(self, session: Rey30Session) -> None:
         self._sessions.pop(session.id, None)
 
     def _read_stdout(self) -> None:
@@ -417,19 +417,19 @@ class JanRuntime:
             try:
                 frame = json.loads(line)
             except ValueError:
-                self._fail(JanRuntimeError(f"the runtime wrote a line that is not JSON: {line[:200]}", stderr=self.stderr))
+                self._fail(Rey30RuntimeError(f"the runtime wrote a line that is not JSON: {line[:200]}", stderr=self.stderr))
                 return
             try:
                 self._dispatch(frame)
             except Exception as error:  # noqa: BLE001 - one bad frame must not stop the reader
-                self._fail(JanRuntimeError(f"the ADK could not route a frame: {error}", stderr=self.stderr))
+                self._fail(Rey30RuntimeError(f"the ADK could not route a frame: {error}", stderr=self.stderr))
                 return
         # EOF: the process is gone or going. Anything still parked has no answer
         # coming, which is exactly what the failure below says.
         code = self._process.wait()
         self._fail(
-            JanRuntimeError(
-                f"the jan runtime exited with code {code}" + (f": {self.stderr.strip()}" if self.stderr else ""),
+            Rey30RuntimeError(
+                f"the Rey30 IDvj runtime exited with code {code}" + (f": {self.stderr.strip()}" if self.stderr else ""),
                 exit_code=code,
                 stderr=self.stderr,
             ),
@@ -451,7 +451,7 @@ class JanRuntime:
             error = frame.get("error")
             if error:
                 pending.reject(
-                    JanRpcError(
+                    Rey30RpcError(
                         error.get("message") or "the runtime refused the request",
                         code=error.get("code"),
                         data=error.get("data"),
@@ -500,10 +500,10 @@ class JanRuntime:
             try:
                 listener(payload)
             except Exception as error:  # noqa: BLE001 - a listener chose to raise
-                self._fail(JanRuntimeError(f"an event listener raised: {describe_error(error)}", stderr=self.stderr))
+                self._fail(Rey30RuntimeError(f"an event listener raised: {describe_error(error)}", stderr=self.stderr))
                 return
 
-    def _fail(self, error: JanRuntimeError, *, notify_exit: bool = False) -> None:
+    def _fail(self, error: Rey30RuntimeError, *, notify_exit: bool = False) -> None:
         if self._failure is not None:
             if notify_exit:
                 self._emit("exit", {"code": error.exit_code})

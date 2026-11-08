@@ -1,83 +1,25 @@
-# @janhq/adk
+# @rey30-idvj/adk
 
-JavaScript and TypeScript client for the Jan agent runtime: sessions, streamed
-turns, and the host tools your own process runs. It speaks the JSON-RPC channel
-of `jan cli agent rpc`, so an embedding application gets one long-lived runtime
-process serving many addressable sessions.
+Cliente JavaScript y TypeScript del runtime de agentes de Rey30 IDvj. Requiere Node.js 20 o posterior. El runtime es un proceso separado; el cliente administra sesiones, eventos y herramientas del host por JSON-RPC.
 
-- No build step, no runtime dependencies, Node 20+.
-- The runtime is spawned and owned: a crash, an EOF or a `close()` settles every
-  parked turn and tool call, and the process is reaped.
-- Types are generated from `protocol/rpc-schema.json`, the same document the
-  Rust dispatcher publishes.
+## Uso desde este workspace
 
-## Install
+Instala las dependencias con `corepack yarn install` desde la raíz y compila el runtime:
 
-It is a preview and not on npm yet. Install the latest nightly build; no
-repository clone is required:
-
-```bash
-npm install "$(node -e "fetch('https://delta.jan.ai/adk-nightly/manifest.json').then(r => r.json()).then(m => console.log(m.packages.javascript.url))")"
+```powershell
+cargo build --locked --manifest-path src-tauri/rey30-idvj-cli/Cargo.toml --no-default-features --features cli --bin rey30-idvj
 ```
 
-The URL is versioned, so `package.json` pins that exact build. That build's
-manifest also pins its matching runtime:
-`installRuntime({ manifestUrl: manifest.runtime.manifestUrl, version: manifest.runtime.version })`.
-See [nightly installation](https://jan.ai/docs/agent/adk-nightly) for PowerShell
-and the source-install fallback.
+El paquete local se resuelve como `@rey30-idvj/adk`. No hay un paquete propio publicado en npm ni un canal de descarga predeterminado. Pasa la ruta del ejecutable a `Rey30Runtime.start({ bin })`, configura `REY30_BIN` o añade `rey30-idvj` a PATH.
 
-The runtime binary is separate, and there are three ways to have one: on `PATH`,
-named by `process.env.JAN_BIN` (the `bin` option overrides both), or installed by
-this package from the channel Jan publishes. That channel is a manifest naming,
-per platform, the artifact and its SHA-256, so an install is reproducible rather
-than whatever the URL serves today:
-
-```js
-import { JanRuntime, installRuntime } from '@janhq/adk'
-
-const runtime = await installRuntime()            // downloaded once, then cached
-const jan = await JanRuntime.start({ bin: runtime.bin })
-```
-
-`installRuntime()` maps this platform to its artifact (`darwin-universal`,
-`linux-x86_64`, `linux-aarch64`, `windows-x86_64`, `windows-aarch64`), verifies
-the published digest before extracting anything, and only then renames the
-install into `JAN_AGENT_HOME` or the per-user cache directory. An install that
-failed its digest, or that was interrupted mid-extract, is never visible as one:
-`findRuntime()` answers `null` for it.
-
-Each successful download gets an immutable generation directory. Only the small
-lookup marker is atomically replaced, so concurrent installs and republished
-versions cannot delete or change a binary path already returned to a caller.
-Old generations remain until the cache is manually removed while no runtimes
-are using it. Relative cache roots are resolved to absolute paths.
-
-`version` and `sha256` pin. A matching cached install is returned without network
-access; otherwise both are checked against the manifest. A mismatch is an error
-rather than a substitution. `manifestUrl` names another channel;
-the default is the nightly one. The macOS artifact is notarized, and getting a
-runtime this way needs no Rust toolchain and no Jan Desktop.
-
-```js
-const pinned = await installRuntime({ version: '0.8.4-50' })   // must be what the manifest publishes
-const found = await findRuntime({ version: '0.8.4-50' })       // reads the cache, no network
-```
-
-The nightly channel also publishes a shell installer, which is what the
-[jan.ai ADK pages](https://jan.ai/docs/agent/adk) use:
-
-```bash
-curl -fsSL https://delta.jan.ai/jan-cli/install-jan-agent.sh | bash
-```
-
-To build your own instead, `make agent` in the Jan repository.
+`installRuntime({ manifestUrl })` requiere un manifiesto explícito o `REY30_AGENT_MANIFEST`. Comprueba el SHA-256 y crea generaciones de caché inmutables antes de devolver un ejecutable. No sustituye silenciosamente este runtime por el de otra distribución. La instalación del modelo Jan de escritorio se conserva por separado.
 
 ## Quickstart
 
 ```js
-import { JanRuntime } from '@janhq/adk'
+import { Rey30Runtime } from '@rey30-idvj/adk'
 
-const runtime = await JanRuntime.start()
+const runtime = await Rey30Runtime.start()
 const session = await runtime.createSession({ model: 'gpt-4o-mini', ephemeral: true })
 
 const turn = await session.prompt('Summarise this table in one line.')
@@ -188,7 +130,7 @@ for, in either mode.
 
 With `builtins: false`, `subagents: true` still lets the model delegate: each
 subagent is held to these host tools, and its calls arrive here with its
-`run_id`. `systemPrompt` replaces Jan's whole system prompt with yours.
+`run_id`. `systemPrompt` replaces Rey30 IDvj's whole system prompt with yours.
 
 ## Process ownership
 
@@ -204,8 +146,8 @@ await runtime.close({ force: true }) // skip the grace period and kill
 `runtime.limits` is what the handshake advertised - `max_images`,
 `max_image_bytes`, `max_message_image_bytes` and the accepted `mime_types` - so
 a client that sends an image can check it before sending rather than discover
-the cap by being rejected. `JanRpcError` is an answer (`code`, `retryable`), and
-`JanRuntimeError` is the channel (spawn failure, protocol mismatch, exit), with
+the cap by being rejected. `Rey30RpcError` is an answer (`code`, `retryable`), and
+`Rey30RuntimeError` is the channel (spawn failure, protocol mismatch, exit), with
 the runtime's own stderr attached.
 
 A session's host tools follow it. `fork()` answers for the source's tools with
@@ -217,7 +159,7 @@ same id. A host tool's name is trimmed, as the runtime trims it.
 Listeners registered with `session.on(...)` and `runtime.on(...)` run on the
 client's reader. One that throws, or returns a promise that rejects, does not
 crash your application: it fails the runtime. Every open turn and call settles
-with a `JanRuntimeError` (its `cause` is what the listener raised) and the
+with a `Rey30RuntimeError` (its `cause` is what the listener raised) and the
 process is stopped, so a listener that was answering permission requests cannot
 leave a turn parked behind it.
 
@@ -228,8 +170,8 @@ generated from `protocol/rpc-schema.json` - request params, the event union, and
 the method and event-tag literals:
 
 ```bash
-yarn workspace @janhq/adk generate        # rewrite the generated files
-yarn workspace @janhq/adk check-types     # regenerate, diff, type-check
+yarn workspace @rey30-idvj/adk generate        # rewrite the generated files
+yarn workspace @rey30-idvj/adk check-types     # regenerate, diff, type-check
 ```
 
 The artifact covers request params and events, not responses; `RpcResponses` in
@@ -241,7 +183,7 @@ The suite drives a real runtime against a stub provider on loopback - no
 credentials, no network:
 
 ```bash
-JAN_BIN=/path/to/jan yarn workspace @janhq/adk test
+REY30_BIN=/path/to/rey30-idvj yarn workspace @rey30-idvj/adk test
 ```
 
-It is skipped, not failed, when `JAN_BIN` is unset.
+It is skipped, not failed, when `REY30_BIN` is unset.

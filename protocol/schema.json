@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Jan agent protocol v1",
-  "description": "Every record a `jan cli agent run` writes to stdout, and every line a client may write to stdin. The `x-protocol-version` keyword names the contract version this document describes.",
+  "title": "Rey30 IDvj agent protocol v1",
+  "description": "Every record a `rey30-idvj cli agent run` writes to stdout, and every line a client may write to stdin. The `x-protocol-version` keyword names the contract version this document describes.",
   "type": "object",
   "properties": {
     "output": {
@@ -750,7 +750,7 @@
           ]
         },
         {
-          "description": "What the run is about to send a provider, emitted immediately before\neach request goes out -- the hook an experiment harness needs to hold two\nruns comparable (pi's `onPayload` is the shape Robot Studio already\nrecords).\n\nEvery outbound request gets one, including the side calls a turn makes\n(compaction, a session title) and every child run's own requests; the\nhashes describe the body Jan built for the adapter, so two runs can be\ncompared field by field. Nothing here is model input or output: it never\njoins the transcript, and a consumer may render it, store it or ignore\nit.",
+          "description": "What the run is about to send a provider, emitted immediately before\neach request goes out -- the hook an experiment harness needs to hold two\nruns comparable (pi's `onPayload` is the shape Robot Studio already\nrecords).\n\nEvery outbound request gets one, including the side calls a turn makes\n(compaction, a session title) and every child run's own requests; the\nhashes describe the body Rey30 IDvj built for the adapter, so two runs can be\ncompared field by field. Nothing here is model input or output: it never\njoins the transcript, and a consumer may render it, store it or ignore\nit.",
           "type": "object",
           "properties": {
             "run_id": {
@@ -786,7 +786,7 @@
               ]
             },
             "request_sha256": {
-              "description": "SHA-256 of the request body as Jan built it, as canonical JSON:\nevery object's keys sorted, recursively, so re-encoding the same\nmembers in another order gives the same digest. It is the value that\nmakes two runs comparable even when a field this record does not\nitemize has changed.\n\nThe body hashed is the one Jan built, before the provider adapter\nappends its transport fields (`stream`, `stream_options`), so it is\nnot byte-for-byte what the provider received: a harness recomputes it\nby sorting keys and dropping those two fields.",
+              "description": "SHA-256 of the request body as Rey30 IDvj built it, as canonical JSON:\nevery object's keys sorted, recursively, so re-encoding the same\nmembers in another order gives the same digest. It is the value that\nmakes two runs comparable even when a field this record does not\nitemize has changed.\n\nThe body hashed is the one Rey30 IDvj built, before the provider adapter\nappends its transport fields (`stream`, `stream_options`), so it is\nnot byte-for-byte what the provider received: a harness recomputes it\nby sorting keys and dropping those two fields.",
               "type": "string"
             },
             "body_bytes": {
@@ -842,7 +842,7 @@
       ]
     },
     "CompactionPhase": {
-      "description": "`Deserialize` as well as `Serialize`: a consumer validates what it received\nagainst these shapes, and `JsonSchema` is what `jan cli agent schema`\npublishes them as -- a consumer generates its own types from\n`protocol/schema.json` rather than copying this declaration. The wire has to\nsurvive a round trip, not just a write, so `#[serde(tag = \"type\")]` keeps the\ntag on both sides.\nWhere a [`StreamEvent::Compaction`] is in its round trip.",
+      "description": "`Deserialize` as well as `Serialize`: a consumer validates what it received\nagainst these shapes, and `JsonSchema` is what `rey30-idvj cli agent schema`\npublishes them as -- a consumer generates its own types from\n`protocol/schema.json` rather than copying this declaration. The wire has to\nsurvive a round trip, not just a write, so `#[serde(tag = \"type\")]` keeps the\ntag on both sides.\nWhere a [`StreamEvent::Compaction`] is in its round trip.",
       "oneOf": [
         {
           "type": "string",
@@ -1354,7 +1354,7 @@
           "format": "double"
         },
         "execution_ids": {
-          "description": "Provider execution ids for the requests this run made, when the upstream\nreturned them. `jan usage generation <id>` turns one into the recorded\ncharge -- the authoritative counterpart to `estimated_cost_usd`. Omitted\nrather than empty when none were reported, so its absence is never read\nas \"no requests were made\".",
+          "description": "Provider execution ids for the requests this run made, when the upstream\nreturned them. `rey30-idvj usage generation <id>` turns one into the recorded\ncharge -- the authoritative counterpart to `estimated_cost_usd`. Omitted\nrather than empty when none were reported, so its absence is never read\nas \"no requests were made\".",
           "type": [
             "array",
             "null"
@@ -1421,7 +1421,7 @@
       ]
     },
     "InputLine": {
-      "description": "One input line, as the wire shape: the [`INPUT_KINDS`], with the fields\neach carries. The wire shape is a serde type rather than a hand-rolled walk\nover a `Value` so the protocol schema can be derived from it -- `jan cli\nagent schema` publishes this shape, and a hand-written copy of it would be\ncorrect only until the parser moved.\n\nThe `type` field is read separately, before deserializing: an unknown kind is\nreported against [`INPUT_KINDS`], which is the list `init` advertises.",
+      "description": "One input line, as the wire shape: the [`INPUT_KINDS`], with the fields\neach carries. The wire shape is a serde type rather than a hand-rolled walk\nover a `Value` so the protocol schema can be derived from it -- `rey30-idvj cli\nagent schema` publishes this shape, and a hand-written copy of it would be\ncorrect only until the parser moved.\n\nThe `type` field is read separately, before deserializing: an unknown kind is\nreported against [`INPUT_KINDS`], which is the list `init` advertises.",
       "oneOf": [
         {
           "description": "A follow-up turn for the run in flight: `text`, or `content` as an\nOpenAI content-part array. Exactly one of the two, which JSON Schema\ncannot state, so the doc says it and the parser enforces it. A\ncontent-part message carries text parts and `image_url` parts, whose URL\nis a base64 `data:` URL -- the run shares no filesystem with a client.",

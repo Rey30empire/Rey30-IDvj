@@ -11,9 +11,11 @@ export default defineConfig([
     },
     platform: 'browser',
     external: ['path', 'react', 'react-dom', 'react/jsx-runtime'],
-    define: {
-      NODE: JSON.stringify(`${pkgJson.name}/${pkgJson.node}`),
-      VERSION: JSON.stringify(pkgJson.version),
+    transform: {
+      define: {
+        NODE: JSON.stringify(`${pkgJson.name}/${pkgJson.node}`),
+        VERSION: JSON.stringify(pkgJson.version),
+      },
     },
   }
 ])

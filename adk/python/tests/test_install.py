@@ -3,7 +3,7 @@
 Nothing here touches the network: an HTTP server in this process publishes a
 manifest and a tarball this test builds with :mod:`tarfile`, so the whole path -
 manifest, platform key, download, digest, extract, rename - runs for real. What
-is faked is only the channel. No runtime and no ``JAN_BIN`` are needed, which is
+is faked is only the channel. No runtime and no ``REY30_BIN`` are needed, which is
 the point: getting a runtime is what is under test.
 """
 
@@ -26,10 +26,10 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from jan_adk import (  # noqa: E402
+from rey30_idvj_adk import (  # noqa: E402
     MANIFEST_URL,
     PLATFORM_KEYS,
-    JanInstallError,
+    Rey30InstallError,
     bin_name,
     find_runtime,
     install_runtime,
@@ -51,7 +51,7 @@ def make_archive(directory: Path, *, member: Optional[str] = None, content: str 
     staged.mkdir(parents=True, exist_ok=True)
     name = bin_name()
     (staged / name).write_text(f"#!/bin/sh\necho {content}\n")
-    archive = directory / "jan-runtime.tar.gz"
+    archive = directory / "rey30-idvj-runtime.tar.gz"
     with tarfile.open(archive, "w:gz") as bundle:
         bundle.add(staged / name, arcname=member or name)
     return archive
@@ -88,7 +88,7 @@ class _Channel:
                 if self.path == "/manifest.json":
                     platforms: Dict[str, Dict[str, str]] = {
                         platform_key(): {
-                            "url": f"http://127.0.0.1:{self.server.server_port}/jan-runtime.tar.gz",
+                            "url": f"http://127.0.0.1:{self.server.server_port}/rey30-idvj-runtime.tar.gz",
                             "sha256": channel.digest,
                         }
                     }
@@ -126,8 +126,8 @@ class _Channel:
 
 class InstallTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.root = Path(tempfile.mkdtemp(prefix="jan-install-"))
-        self.source = Path(tempfile.mkdtemp(prefix="jan-install-src-"))
+        self.root = Path(tempfile.mkdtemp(prefix="rey30-idvj-install-"))
+        self.source = Path(tempfile.mkdtemp(prefix="rey30-idvj-install-src-"))
 
     def tearDown(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
@@ -143,19 +143,24 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(platform_key("Linux", "aarch64"), "linux-aarch64")
         self.assertEqual(platform_key("Windows", "AMD64"), "windows-x86_64")
         self.assertEqual(platform_key("Windows", "ARM64"), "windows-aarch64")
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             platform_key("SunOS", "sparc")
         self.assertIn("sunos/sparc", str(caught.exception))
         self.assertIn("darwin-universal", str(caught.exception))
         for key in PLATFORM_KEYS:
-            self.assertIn(bin_name(key), ("jan", "jan.exe"))
+            self.assertIn(bin_name(key), ("rey30-idvj", "rey30-idvj.exe"))
 
-    def test_the_runtime_root_follows_jan_agent_home(self) -> None:
-        self.assertEqual(runtime_root({"JAN_AGENT_HOME": str(self.root)}), str(self.root))
+    def test_the_runtime_root_follows_rey30_agent_home(self) -> None:
+        self.assertEqual(runtime_root({"REY30_AGENT_HOME": str(self.root)}), str(self.root))
         default = runtime_root({})
         self.assertNotEqual(default, str(self.root))
-        self.assertTrue(default.endswith(os.path.join("jan-agent", "runtimes")), default)
-        self.assertEqual(MANIFEST_URL, "https://delta.jan.ai/agent-nightly/manifest.json")
+        self.assertTrue(default.endswith(os.path.join("rey30-idvj-agent", "runtimes")), default)
+        self.assertEqual(MANIFEST_URL, "")
+
+    def test_an_unconfigured_distribution_has_no_implicit_download_channel(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(Rey30InstallError, "No Rey30 IDvj runtime channel configured"):
+                install_runtime(root=str(self.root))
 
     # -- install, cache, verify ---------------------------------------------
 
@@ -223,7 +228,7 @@ class InstallTests(unittest.TestCase):
             self.assertEqual(again.version, VERSION)
             self.assertFalse(again.cached, "a republished digest is not the install on disk")
             self.assertNotEqual(again.sha256, installed.sha256)
-            self.assertEqual(again.sha256, sha256((rebuilt / "jan-runtime.tar.gz").read_bytes()))
+            self.assertEqual(again.sha256, sha256((rebuilt / "rey30-idvj-runtime.tar.gz").read_bytes()))
             self.assertEqual(Path(installed.bin).read_text(), f"#!/bin/sh\necho {VERSION}\n")
             self.assertEqual(Path(again.bin).read_text(), "#!/bin/sh\necho replacement\n")
         finally:
@@ -232,7 +237,7 @@ class InstallTests(unittest.TestCase):
     def test_a_digest_that_does_not_match_is_an_error_and_leaves_nothing_behind(self) -> None:
         published = _Channel(make_archive(self.source), digest="f" * 64)
         self.addCleanup(published.close)
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             install_runtime(manifest_url=published.url, root=str(self.root))
         error = caught.exception
         self.assertEqual(error.expected, "f" * 64)
@@ -245,10 +250,10 @@ class InstallTests(unittest.TestCase):
     def test_a_version_or_digest_the_manifest_does_not_publish_is_refused_not_substituted(self) -> None:
         published = _Channel(make_archive(self.source))
         self.addCleanup(published.close)
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             install_runtime(version="0.0.0-other", manifest_url=published.url, root=str(self.root))
         self.assertIn("publishes 0.0.0-test, not 0.0.0-other", str(caught.exception))
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             install_runtime(sha256="a" * 64, manifest_url=published.url, root=str(self.root))
         self.assertIn(f"not the {'a' * 64} this install pins", str(caught.exception))
         self.assertEqual(published.artifacts, 0, "nothing was downloaded for a refused pin")
@@ -256,7 +261,7 @@ class InstallTests(unittest.TestCase):
     def test_a_manifest_without_this_platform_is_an_error_naming_what_it_has(self) -> None:
         published = _Channel(make_archive(self.source), omit_platform=True)
         self.addCleanup(published.close)
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             install_runtime(manifest_url=published.url, root=str(self.root))
         self.assertIn(f"no entry for {platform_key()}", str(caught.exception))
         self.assertEqual(caught.exception.platform, platform_key())
@@ -292,7 +297,7 @@ class InstallTests(unittest.TestCase):
     def test_untrusted_version_path_is_refused_before_download(self) -> None:
         published = _Channel(make_archive(self.source), version="../escaped")
         self.addCleanup(published.close)
-        with self.assertRaises(JanInstallError):
+        with self.assertRaises(Rey30InstallError):
             install_runtime(root=str(self.root / "cache"), manifest_url=published.url)
         self.assertEqual(published.artifacts, 0)
 
@@ -300,7 +305,7 @@ class InstallTests(unittest.TestCase):
         published = _Channel(make_archive(self.source))
         self.addCleanup(published.close)
         with patch.object(tarfile.TarFile, "extractall", side_effect=TypeError("no filter")) as extract:
-            with self.assertRaises(JanInstallError):
+            with self.assertRaises(Rey30InstallError):
                 install_runtime(root=str(self.root), manifest_url=published.url)
         self.assertEqual(extract.call_count, 1)
 
@@ -317,7 +322,7 @@ class InstallTests(unittest.TestCase):
         archive = make_archive(self.source, member="../escaped")
         published = _Channel(archive)
         self.addCleanup(published.close)
-        with self.assertRaises(JanInstallError) as caught:
+        with self.assertRaises(Rey30InstallError) as caught:
             install_runtime(manifest_url=published.url, root=str(self.root))
         self.assertIn("could not extract", str(caught.exception))
         self.assertFalse((self.root / VERSION / "escaped").exists())

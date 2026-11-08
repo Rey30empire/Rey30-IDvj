@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 
-class JanRpcError(Exception):
+class Rey30RpcError(Exception):
     """A method the runtime answered with a JSON-RPC error.
 
     ``code`` is the protocol's: ``-32602`` for malformed params, ``-32001``
@@ -40,12 +40,12 @@ class JanRpcError(Exception):
         return isinstance(self.data, dict) and self.data.get("retryable") is True
 
 
-class JanRuntimeError(Exception):
+class Rey30RuntimeError(Exception):
     """The runtime process failed.
 
     It could not be spawned, it did not complete the handshake, it speaks a
     protocol version this client does not, or it exited - a channel failure,
-    where :class:`JanRpcError` is an answer.
+    where :class:`Rey30RpcError` is an answer.
     """
 
     def __init__(

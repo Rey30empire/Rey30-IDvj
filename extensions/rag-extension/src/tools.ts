@@ -1,4 +1,4 @@
-import { MCPTool, RAG_INTERNAL_SERVER } from '@janhq/core'
+import { MCPTool, RAG_INTERNAL_SERVER } from '@rey30-idvj/core'
 
 // Tool names
 export const RETRIEVE = 'retrieve'

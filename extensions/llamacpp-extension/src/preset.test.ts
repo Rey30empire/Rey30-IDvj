@@ -4,7 +4,7 @@ const writtenFiles: Record<string, string> = {}
 const modelYamls: Record<string, unknown> = {}
 const existingPaths = new Set<string>()
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -1010,12 +1010,12 @@ describe('generatePreset spec type', () => {
 })
 
 describe('threadCacheDir separator handling', () => {
-  const WIN_EXT = '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Jan-nightly\\data\\llamacpp'
+  const WIN_EXT = '\\\\?\\C:\\Users\\u\\AppData\\Roaming\\Rey30 IDvj-nightly\\data\\llamacpp'
 
   it('joins a POSIX path with a forward slash', () => {
     expect(threadCacheDir('/p')).toBe('/p/thread-cache')
-    expect(threadCacheDir('/home/u/.local/share/Jan/data/llamacpp')).toBe(
-      '/home/u/.local/share/Jan/data/llamacpp/thread-cache'
+    expect(threadCacheDir('/home/u/.local/share/Rey30 IDvj/data/llamacpp')).toBe(
+      '/home/u/.local/share/Rey30 IDvj/data/llamacpp/thread-cache'
     )
   })
 

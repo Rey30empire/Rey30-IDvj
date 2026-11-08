@@ -1,7 +1,7 @@
 import { fetch as httpFetch } from '@tauri-apps/plugin-http'
 
 /**
- * Requests to Jan's own engine, sent so that no proxy can capture them.
+ * Requests to Rey30 IDvj's own engine, sent so that no proxy can capture them.
  *
  * `@tauri-apps/plugin-http` sends from Rust's reqwest, which reads
  * `HTTP(S)_PROXY` and the OS proxy setting and does not exempt loopback unless

@@ -3,13 +3,13 @@ import {
   Thread,
   ThreadAssistantInfo,
   ThreadMessage,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 
 /**
- * JanConversationalExtension is a ConversationalExtension implementation that provides
+ * Rey30ConversationalExtension is a ConversationalExtension implementation that provides
  * functionality for managing threads.
  */
-export default class JanConversationalExtension extends ConversationalExtension {
+export default class Rey30ConversationalExtension extends ConversationalExtension {
   /**
    * Called when the extension is loaded.
    */

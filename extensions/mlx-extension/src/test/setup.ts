@@ -35,12 +35,12 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
-vi.mock('@janhq/tauri-plugin-mlx-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-mlx-api', () => ({
   loadMlxModel: vi.fn(),
   unloadMlxModel: vi.fn(),
 }))
 
-vi.mock('@janhq/tauri-plugin-llamacpp-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-llamacpp-api', () => ({
   readGgufMetadata: vi.fn(),
 }))
 
@@ -53,14 +53,14 @@ class AIEngineMock {
   onLoad = vi.fn()
 }
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
   },
-  getJanDataFolderPath: vi.fn(),
+  getRey30DataFolderPath: vi.fn(),
   fs: {
     existsSync: vi.fn(),
     readdirSync: vi.fn(),

@@ -15,7 +15,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   emit: vi.fn(),
 }))
 
-vi.mock('@janhq/core', () => {
+vi.mock('@rey30-idvj/core', () => {
   class BaseExtension {
     registerSettings = vi.fn()
     getSetting = vi.fn().mockResolvedValue(undefined)

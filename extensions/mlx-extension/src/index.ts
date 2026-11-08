@@ -10,7 +10,7 @@
 
 import {
   AIEngine,
-  getJanDataFolderPath,
+  getRey30DataFolderPath,
   fs,
   joinPath,
   modelInfo,
@@ -24,19 +24,19 @@ import {
   AppEvent,
   DownloadEvent,
   logger,
-} from '@janhq/core'
+} from '@rey30-idvj/core'
 
 import { invoke } from '@tauri-apps/api/core'
 import {
   loadMlxModel,
   unloadMlxModel,
   MlxConfig,
-} from '@janhq/tauri-plugin-mlx-api'
+} from '@rey30-idvj/tauri-plugin-mlx-api'
 import {
   readGgufMetadata,
   generateApiKey,
   ModelConfig,
-} from '@janhq/tauri-plugin-llamacpp-api'
+} from '@rey30-idvj/tauri-plugin-llamacpp-api'
 
 // Error message constant
 const OUT_OF_CONTEXT_SIZE = 'the request exceeds the available context size.'
@@ -62,7 +62,7 @@ export default class mlx_extension extends AIEngine {
 
   private config: any = {}
   private providerPath!: string
-  private apiSecret: string = 'JanMLX'
+  private apiSecret: string = 'Rey30MLX'
   private loadingModels = new Map<string, Promise<SessionInfo>>()
 
   override async onLoad(): Promise<void> {
@@ -90,7 +90,7 @@ export default class mlx_extension extends AIEngine {
   async getProviderPath(): Promise<string> {
     if (!this.providerPath) {
       // Use mlx folder for models
-      this.providerPath = await joinPath([await getJanDataFolderPath(), 'mlx'])
+      this.providerPath = await joinPath([await getRey30DataFolderPath(), 'mlx'])
     }
     return this.providerPath
   }
@@ -143,7 +143,7 @@ export default class mlx_extension extends AIEngine {
     })
     const modelPath = isAbsoluteModelPath(modelConfig.model_path)
       ? modelConfig.model_path
-      : await joinPath([await getJanDataFolderPath(), modelConfig.model_path])
+      : await joinPath([await getRey30DataFolderPath(), modelConfig.model_path])
     let value: unknown
     if (modelPath.endsWith('.gguf')) {
       const { metadata } = await readGgufMetadata(modelPath)
@@ -296,7 +296,7 @@ export default class mlx_extension extends AIEngine {
 
     const cfg = { ...this.config, ...(overrideSettings ?? {}) }
 
-    const janDataFolderPath = await getJanDataFolderPath()
+    const rey30DataFolderPath = await getRey30DataFolderPath()
     const modelConfigPath = await joinPath([
       this.providerPath,
       'models',
@@ -318,7 +318,7 @@ export default class mlx_extension extends AIEngine {
     if (isAbsoluteModelPath(modelConfig.model_path)) {
       modelPath = modelConfig.model_path
     } else {
-      modelPath = await joinPath([janDataFolderPath, modelConfig.model_path])
+      modelPath = await joinPath([rey30DataFolderPath, modelConfig.model_path])
     }
 
     const mlxConfig: MlxConfig = {
@@ -548,11 +548,11 @@ export default class mlx_extension extends AIEngine {
 
     // Check if model_path is a relative path within mlx folder
     if (!isAbsoluteModelPath(modelConfig.model_path)) {
-      // Model file is at {janDataFolder}/{model_path}
+      // Model file is at {rey30DataFolder}/{model_path}
       // Delete the parent folder containing the actual model file
-      const janDataFolderPath = await getJanDataFolderPath()
+      const rey30DataFolderPath = await getRey30DataFolderPath()
       const modelPath = await joinPath([
-        janDataFolderPath,
+        rey30DataFolderPath,
         modelConfig.model_path,
       ])
       const parentDir = modelPath.substring(0, modelPath.lastIndexOf('/'))
@@ -621,9 +621,9 @@ export default class mlx_extension extends AIEngine {
 
     if (sourcePath.startsWith('https://')) {
       // Download from URL to mlx models folder
-      const janDataFolderPath = await getJanDataFolderPath()
+      const rey30DataFolderPath = await getRey30DataFolderPath()
       const modelDir = await joinPath([
-        janDataFolderPath,
+        rey30DataFolderPath,
         'mlx',
         'models',
         modelId,
@@ -631,7 +631,7 @@ export default class mlx_extension extends AIEngine {
       const localPath = await joinPath([modelDir, 'model.safetensors'])
 
       const downloadManager = window.core.extensionManager.getByName(
-        '@janhq/download-extension'
+        '@rey30-idvj/download-extension'
       )
 
       // Build download items list
@@ -804,7 +804,7 @@ export default class mlx_extension extends AIEngine {
     // prepend provider name to avoid name collision
     const taskId = this.createDownloadTaskId(modelId)
     const downloadManager = window.core.extensionManager.getByName(
-      '@janhq/download-extension'
+      '@rey30-idvj/download-extension'
     )
 
     try {
@@ -820,7 +820,7 @@ export default class mlx_extension extends AIEngine {
   override async pauseImport(modelId: string): Promise<void> {
     const taskId = this.createDownloadTaskId(modelId)
     const downloadManager = window.core.extensionManager.getByName(
-      '@janhq/download-extension'
+      '@rey30-idvj/download-extension'
     )
     // Pause keeps the partial .tmp for resume; the model folder is preserved.
     await downloadManager.pauseDownload(taskId)
@@ -972,8 +972,8 @@ export default class mlx_extension extends AIEngine {
     if (isAbsoluteModelPath(modelConfig.model_path)) {
       modelPath = modelConfig.model_path
     } else {
-      const janDataFolderPath = await getJanDataFolderPath()
-      modelPath = await joinPath([janDataFolderPath, modelConfig.model_path])
+      const rey30DataFolderPath = await getRey30DataFolderPath()
+      modelPath = await joinPath([rey30DataFolderPath, modelConfig.model_path])
     }
 
     // Check if model is safetensors or GGUF

@@ -1,6 +1,6 @@
-import { VectorDBExtension, type SearchMode, type VectorDBStatus, type VectorChunkInput, type VectorSearchResult, type AttachmentFileInfo, type VectorDBFileInput, type VectorDBIngestOptions, type EmbeddingEngine, getEmbeddingEngine, embedTexts } from '@janhq/core'
-import * as vecdb from '@janhq/tauri-plugin-vector-db-api'
-import * as ragApi from '@janhq/tauri-plugin-rag-api'
+import { VectorDBExtension, type SearchMode, type VectorDBStatus, type VectorChunkInput, type VectorSearchResult, type AttachmentFileInfo, type VectorDBFileInput, type VectorDBIngestOptions, type EmbeddingEngine, getEmbeddingEngine, embedTexts } from '@rey30-idvj/core'
+import * as vecdb from '@rey30-idvj/tauri-plugin-vector-db-api'
+import * as ragApi from '@rey30-idvj/tauri-plugin-rag-api'
 
 // Conservative average for English/dense text; real tokenizers vary (CJK
 // runs closer to 1-2 chars/token), so this stays a deliberate underestimate

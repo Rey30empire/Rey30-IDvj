@@ -4,7 +4,7 @@ import { vi } from 'vitest'
 // members are implemented by the subclass, so an empty class suffices.
 class AssistantExtension {}
 
-vi.mock('@janhq/core', () => ({
+vi.mock('@rey30-idvj/core', () => ({
   AssistantExtension,
   logger: {
     debug: vi.fn(),

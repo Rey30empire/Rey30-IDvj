@@ -13,9 +13,9 @@
  * `common/common.h` at the pinned build.
  */
 
-import { fs, joinPath } from '@janhq/core'
+import { fs, joinPath } from '@rey30-idvj/core'
 import { invoke } from '@tauri-apps/api/core'
-import type { LlamacppConfig, ModelConfig } from '@janhq/tauri-plugin-llamacpp-api'
+import type { LlamacppConfig, ModelConfig } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 
 // ModelConfig is intentionally widened — model.yml may carry extra fields like
 // `chat_template` that aren't yet in the strict typing.
@@ -175,7 +175,7 @@ function escapeIniValue(v: string): string {
  */
 export async function generatePreset(
   providerPath: string,
-  janDataFolderPath: string,
+  rey30DataFolderPath: string,
   config: LlamacppConfig
 ): Promise<{ path: string; embeddingCount: number }> {
   const modelsDir = await joinPath([providerPath, 'models'])
@@ -285,7 +285,7 @@ export async function generatePreset(
     lines.push(`cache-type-v = ${escapeIniValue(config.cache_type_v)}`)
   }
   // parallel default = 0 (llama.cpp's own auto resolution); a positive user
-  // value is intent and is emitted verbatim. Jan adds no hidden slot of its
+  // value is intent and is emitted verbatim. Rey30 IDvj adds no hidden slot of its
   // own: every pinned surface shares slot 0 and is told apart by `thread_id`
   // (web-app/src/constants/models.ts), so no slot has to be reserved for one.
   const globalParallel = explicitParallel(config.parallel)
@@ -419,7 +419,7 @@ export async function generatePreset(
   }
   // `--mlock`, `--mmap`/`--no-mmap` and `--direct-io` were deprecated aliases of
   // the single params.load_mode field and were deleted outright in 0.4.1, so
-  // `load-mode` is now the only spelling llama.cpp understands. Jan keeps the two
+  // `load-mode` is now the only spelling llama.cpp understands. Rey30 IDvj keeps the two
   // familiar toggles in its settings and derives that one key from them.
   const wantsMlock = config.mlock === true
   const wantsNoMmap = config.no_mmap === true
@@ -515,7 +515,7 @@ export async function generatePreset(
   // reasoning-preserve defaults to on since 0.4.0, for any template advertising
   // `supports_preserve_reasoning`. Emitted only to turn it off, which restores
   // the template's own default and keeps a per-request `chat_template_kwargs`
-  // (Jan's per-model `preserve_thinking`) the authoritative control.
+  // (Rey30 IDvj's per-model `preserve_thinking`) the authoritative control.
   if (config.reasoning_preserve === false) {
     lines.push('reasoning-preserve = false')
   }
@@ -548,14 +548,19 @@ export async function generatePreset(
 
     if (!mc?.model_path) continue
 
-    const modelAbs = await joinPath([janDataFolderPath, mc.model_path])
+    const modelAbs = await joinPath([rey30DataFolderPath, mc.model_path])
 
     lines.push(`[${modelId}]`)
     lines.push(`model = ${escapeIniValue(modelAbs)}`)
 
     if (mc.mmproj_path) {
-      const mmprojAbs = await joinPath([janDataFolderPath, mc.mmproj_path])
+      const mmprojAbs = await joinPath([rey30DataFolderPath, mc.mmproj_path])
       lines.push(`mmproj = ${escapeIniValue(mmprojAbs)}`)
+    }
+
+    // The Windows WSL file share needs ordinary reads instead of mapped weights.
+    if (/^(?:\\\\(?:\?\\UNC\\)?|\/\/)(?:wsl\.localhost|wsl\$)[\\/]/i.test(modelAbs)) {
+      lines.push('load-mode = none', 'lazy-mode = off')
     }
 
     // A template body cannot survive the ini: values have no line
@@ -662,9 +667,9 @@ export async function generatePreset(
       // Every slot of a hybrid model (qwen35) carries (1 + spec-draft-n-max)
       // rows of recurrent state for draft rollback -- about 600 MiB each on a
       // 27B -- so llama.cpp's auto resolution to 4 slots costs ~1.2 GB more
-      // VRAM than the 2 Jan used before 0.8.5. On Windows the NVIDIA driver
+      // VRAM than the 2 Rey30 IDvj used before 0.8.5. On Windows the NVIDIA driver
       // then spills into shared system RAM instead of failing, and decode
-      // drops 4x (59 -> 14 tok/s on a 12 GB card). Jan's own surfaces share
+      // drops 4x (59 -> 14 tok/s on a 12 GB card). Rey30 IDvj's own surfaces share
       // slot 0 anyway. Only a positive value, global or per-model, counts as
       // the user's: auto (0) is also what the 0.8.5 migration wrote, so the
       // two cannot be told apart. A legacy numeric string still counts, and is
@@ -739,7 +744,7 @@ export async function generatePreset(
           : DEFAULT_SPEC_TYPE
       lines.push(`spec-type = ${specType}`)
       if (hasMtpModel) {
-        const mtpAbs = await joinPath([janDataFolderPath, mc.mtp_model_path!])
+        const mtpAbs = await joinPath([rey30DataFolderPath, mc.mtp_model_path!])
         lines.push(`spec-draft-model = ${escapeIniValue(mtpAbs)}`)
       }
       if (

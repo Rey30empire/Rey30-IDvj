@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import mlx_extension from './index'
-import { fs, getJanDataFolderPath, events } from '@janhq/core'
+import { fs, getRey30DataFolderPath, events } from '@rey30-idvj/core'
 import { invoke } from '@tauri-apps/api/core'
-import { unloadMlxModel } from '@janhq/tauri-plugin-mlx-api'
-import { readGgufMetadata } from '@janhq/tauri-plugin-llamacpp-api'
+import { unloadMlxModel } from '@rey30-idvj/tauri-plugin-mlx-api'
+import { readGgufMetadata } from '@rey30-idvj/tauri-plugin-llamacpp-api'
 
 const mockInvoke = vi.mocked(invoke)
 const mockExistsSync = vi.mocked(fs.existsSync)
 const mockRm = vi.mocked(fs.rm)
 const mockFileStat = vi.mocked(fs.fileStat)
-const mockJanData = vi.mocked(getJanDataFolderPath)
+const mockRey30Data = vi.mocked(getRey30DataFolderPath)
 const mockUnload = vi.mocked(unloadMlxModel)
 const mockReadGguf = vi.mocked(readGgufMetadata)
 
@@ -21,7 +21,7 @@ function newExt(): any {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockJanData.mockResolvedValue('/data')
+  mockRey30Data.mockResolvedValue('/data')
 })
 
 describe('getProviderPath', () => {
@@ -30,10 +30,10 @@ describe('getProviderPath', () => {
     const path = await ext.getProviderPath()
     expect(path).toBe('/data/mlx')
 
-    mockJanData.mockClear()
+    mockRey30Data.mockClear()
     const again = await ext.getProviderPath()
     expect(again).toBe('/data/mlx')
-    expect(mockJanData).not.toHaveBeenCalled()
+    expect(mockRey30Data).not.toHaveBeenCalled()
   })
 })
 

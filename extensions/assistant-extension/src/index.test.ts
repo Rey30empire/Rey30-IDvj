@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fs } from '@janhq/core'
-import JanAssistantExtension from './index'
+import { fs } from '@rey30-idvj/core'
+import Rey30AssistantExtension from './index'
 
-// In-memory filesystem backing the mocked @janhq/core fs. Keys are the
+// In-memory filesystem backing the mocked @rey30-idvj/core fs. Keys are the
 // virtual paths the extension builds (joinPath joins with '/').
 const ROOT = 'file://assistants'
 
@@ -46,8 +46,8 @@ function installFs() {
 
 // The mocked base class ignores constructor args; the two positional args
 // satisfy BaseExtension's real type signature under tsc.
-function makeExt(): JanAssistantExtension {
-  return new JanAssistantExtension('', '')
+function makeExt(): Rey30AssistantExtension {
+  return new Rey30AssistantExtension('', '')
 }
 
 function seedAssistant(id: string, data: Record<string, unknown>) {
@@ -71,7 +71,7 @@ describe('getAssistants', () => {
     const result = await ext.getAssistants()
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe('jan')
-    expect(result[0].name).toBe('Jan')
+    expect(result[0].name).toBe('Rey30 IDvj')
   })
 
   it('falls back to the default assistant when the dir exists but is empty', async () => {
@@ -159,7 +159,7 @@ describe('onLoad', () => {
   it('records the current migration version', async () => {
     const ext = makeExt()
     await ext.onLoad()
-    expect(files.get(`${ROOT}/.migration_version`)).toBe('3')
+    expect(files.get(`${ROOT}/.migration_version`)).toBe('4')
   })
 
   it('seeds the default assistant with parameters when none are persisted', async () => {
@@ -240,9 +240,30 @@ describe('migrations', () => {
     expect(readAssistant('d').instructions).toBe(custom)
   })
 
-  it('does not re-run migrations when already at the current version', async () => {
+  it('renames only the inherited default assistant and preserves its model and ID', async () => {
     dirs.add(ROOT)
     files.set(`${ROOT}/.migration_version`, '3')
+    seedAssistant('jan', {
+      id: 'jan', name: 'Jan', model: 'Jan-v3.5-4B-Q4_K_XL', instructions: 'My prompt',
+    })
+    await makeExt().onLoad()
+    expect(readAssistant('jan')).toMatchObject({
+      id: 'jan', name: 'Rey30 IDvj', model: 'Jan-v3.5-4B-Q4_K_XL', instructions: 'My prompt',
+    })
+    expect(getVersion()).toBe('4')
+  })
+
+  it('keeps a user-renamed default assistant during the branding migration', async () => {
+    dirs.add(ROOT)
+    files.set(`${ROOT}/.migration_version`, '3')
+    seedAssistant('jan', { id: 'jan', name: 'Mi asistente', instructions: 'Personal' })
+    await makeExt().onLoad()
+    expect(readAssistant('jan').name).toBe('Mi asistente')
+  })
+
+  it('does not re-run migrations when already at the current version', async () => {
+    dirs.add(ROOT)
+    files.set(`${ROOT}/.migration_version`, '4')
     seedAssistant('e', {
       id: 'e',
       instructions: 'You are a helpful AI assistant. legacy',
@@ -259,6 +280,6 @@ describe('migrations', () => {
     files.set(`${ROOT}/.migration_version`, 'garbage')
     const ext = makeExt()
     await ext.onLoad()
-    expect(getVersion()).toBe('3')
+    expect(getVersion()).toBe('4')
   })
 })

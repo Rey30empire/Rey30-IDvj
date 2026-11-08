@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { logger } from '@janhq/core'
+import { logger } from '@rey30-idvj/core'
 import DownloadManager, { Settings } from './index'
 
 const mockInvoke = vi.mocked(invoke)

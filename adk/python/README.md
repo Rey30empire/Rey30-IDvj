@@ -1,87 +1,26 @@
-# jan-adk
+# rey30-idvj-adk
 
-Python client for the Jan agent runtime: sessions, streamed turns, and the host
-tools your own process runs. It speaks the JSON-RPC channel of
-`jan cli agent rpc`, so an embedding application gets one long-lived runtime
-process serving many addressable sessions.
+Cliente Python del runtime de agentes de Rey30 IDvj. Requiere Python 3.11 o posterior y usa la biblioteca estándar para sesiones, eventos y herramientas del host.
 
-- Python 3.11+, standard library only - no Node, no third-party packages.
-- The runtime is spawned and owned: a crash, an EOF or `close()` settles every
-  parked turn and tool call, and the process is reaped.
-- Types are generated from `protocol/rpc-schema.json`, the same document the
-  Rust dispatcher publishes.
+## Instalación local
 
-## Install
+Desde la raíz del repositorio, dentro de un entorno virtual:
 
-It is a preview and not on PyPI yet. Install the latest nightly wheel; no
-repository clone or Node is required:
-
-```bash
-python -m pip install "$(python -c "import json, urllib.request as r; p = json.load(r.urlopen('https://delta.jan.ai/adk-nightly/manifest.json'))['packages']['python']; print(p['url'] + '#sha256=' + p['sha256'])")"
+```powershell
+python -m pip install -e ./adk/python
+cargo build --locked --manifest-path src-tauri/rey30-idvj-cli/Cargo.toml --no-default-features --features cli --bin rey30-idvj
 ```
 
-The URL is versioned and digest-pinned. That build's manifest also pins its
-matching runtime:
-`install_runtime(manifest_url=manifest["runtime"]["manifestUrl"], version=manifest["runtime"]["version"])`.
-See [nightly installation](https://jan.ai/docs/agent/adk-nightly) for PowerShell
-and the source-install fallback.
+No hay paquete propio publicado en PyPI ni canal de descarga predeterminado. Pasa el ejecutable compilado a `Rey30Runtime.start(bin=...)`, pon `rey30-idvj` en PATH o configura `REY30_BIN`. El alias `JAN_BIN` se admite para compatibilidad.
 
-The runtime binary is separate, and there are three ways to have one: on `PATH`,
-named by `$JAN_BIN` (the `bin` argument overrides both), or installed by this
-package from the channel Jan publishes. That channel is a manifest naming, per
-platform, the artifact and its SHA-256, so an install is reproducible rather
-than whatever the URL serves today:
-
-```python
-from jan_adk import JanRuntime, install_runtime
-
-runtime_bin = install_runtime()            # downloaded once, then cached
-with JanRuntime.start(bin=runtime_bin.bin) as runtime:
-    ...
-```
-
-`install_runtime()` maps this platform to its artifact (`darwin-universal`,
-`linux-x86_64`, `linux-aarch64`, `windows-x86_64`, `windows-aarch64`), verifies
-the published digest before extracting anything, and only then renames the
-install into `JAN_AGENT_HOME` or the per-user cache directory. An install that
-failed its digest, or that was interrupted mid-extract, is never visible as one:
-`find_runtime()` answers `None` for it. No Node and no third-party package are
-involved.
-
-Each successful download gets an immutable generation directory. Only the small
-lookup marker is atomically replaced, so concurrent installs and republished
-versions cannot delete or change a binary path already returned to a caller.
-Old generations remain until the cache is manually removed while no runtimes
-are using it. Relative cache roots are resolved to absolute paths.
-Tar extraction requires Python's safe data filter (Python 3.11.4+); an older
-interpreter is refused rather than falling back to unsafe extraction.
-
-`version` and `sha256` pin. A matching cached install is returned without network
-access; otherwise both are checked against the manifest. A mismatch is an error
-rather than a substitution. `manifest_url` names another channel;
-the default is the nightly one. The macOS artifact is notarized, and getting a
-runtime this way needs no Rust toolchain and no Jan Desktop.
-
-```python
-pinned = install_runtime(version="0.8.4-50")   # must be what the manifest publishes
-found = find_runtime("0.8.4-50")               # reads the cache, no network
-```
-
-The nightly channel also publishes a shell installer, which is what the
-[jan.ai ADK pages](https://jan.ai/docs/agent/adk) use:
-
-```bash
-curl -fsSL https://delta.jan.ai/jan-cli/install-jan-agent.sh | bash
-```
-
-To build your own instead, `make agent` in the Jan repository.
+`install_runtime(manifest_url=...)` acepta un manifiesto explícito o `REY30_AGENT_MANIFEST`. Verifica el SHA-256, extrae de forma segura y conserva generaciones inmutables en `REY30_AGENT_HOME` o en la caché de usuario. Sin canal configurado falla con un error claro. No descarga el ejecutable del proyecto base por defecto; esto es independiente de la instalación del modelo Jan 4B de escritorio.
 
 ## Quickstart
 
 ```python
-from jan_adk import JanRuntime
+from rey30_idvj_adk import Rey30Runtime
 
-with JanRuntime.start() as runtime:
+with Rey30Runtime.start() as runtime:
     session = runtime.create_session(model="gpt-4o-mini", ephemeral=True)
     turn = session.prompt("Summarise this table in one line.")
 
@@ -105,7 +44,7 @@ A host tool is declared with the schema the model sees, what it does, and the
 handler that runs it here:
 
 ```python
-from jan_adk import HostTool, JanRuntime
+from rey30_idvj_adk import HostTool, Rey30Runtime
 
 def observe(args, call):
     return {"text": "the bench holds a red bin", "images": [frame_path]}
@@ -114,7 +53,7 @@ def move(args, call):
     arm.move(args["position"], abort=call.aborted)   # a threading.Event
     return {"text": f"moved to {args['position']}", "details": {"joints": 3}}
 
-with JanRuntime.start() as runtime:
+with Rey30Runtime.start() as runtime:
     session = runtime.create_session(
         model="gpt-4o-mini",
         builtins=False,                               # only the tools below
@@ -192,7 +131,7 @@ for, in either mode.
 
 With `builtins=False`, `subagents=True` still lets the model delegate: each
 subagent is held to these host tools, and its calls arrive here with its
-`run_id`. `system_prompt=` replaces Jan's whole system prompt with yours.
+`run_id`. `system_prompt=` replaces Rey30 IDvj's whole system prompt with yours.
 
 ## Process ownership
 
@@ -208,8 +147,8 @@ runtime.close(force=True)         # skip the grace period and kill
 `runtime.limits` is what the handshake advertised - `max_images`,
 `max_image_bytes`, `max_message_image_bytes` and the accepted `mime_types` - so
 a client that sends an image can check it before sending rather than discover
-the cap by being rejected. `JanRpcError` is an answer (`code`, `retryable`), and
-`JanRuntimeError` is the channel (spawn failure, protocol mismatch, exit), with
+the cap by being rejected. `Rey30RpcError` is an answer (`code`, `retryable`), and
+`Rey30RuntimeError` is the channel (spawn failure, protocol mismatch, exit), with
 the runtime's own stderr attached.
 
 A session's host tools follow it. `fork()` answers for the source's tools with
@@ -225,12 +164,12 @@ into the runtime - answering a permission request from one is the case that
 matters - but it must not block for long: the dispatch thread is shared.
 
 A listener that raises fails the runtime rather than being skipped: every open
-turn settles with a `JanRuntimeError` naming what it raised, so a listener that
+turn settles with a `Rey30RuntimeError` naming what it raised, so a listener that
 was answering permission requests cannot leave a turn parked behind it.
 
 ## Types
 
-`jan_adk/_generated.py` is generated from `protocol/rpc-schema.json` -
+`rey30_idvj_adk/_generated.py` is generated from `protocol/rpc-schema.json` -
 request params, the event union, and the method and event-tag literals - by the
 same generator the JavaScript ADK uses:
 
@@ -248,7 +187,7 @@ The suite drives a real runtime against a stub provider on loopback - no
 credentials, no network, no Node:
 
 ```bash
-JAN_BIN=/path/to/jan python3 -m unittest discover -s adk/python/tests -t adk/python
+REY30_BIN=/path/to/rey30-idvj python3 -m unittest discover -s adk/python/tests -t adk/python
 ```
 
-It is skipped, not failed, when `JAN_BIN` is unset.
+It is skipped, not failed, when `REY30_BIN` is unset.

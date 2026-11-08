@@ -8,7 +8,9 @@ export default defineConfig({
     file: 'dist/index.js',
   },
   platform: 'browser',
-  define: {
-    SETTINGS: JSON.stringify(settingJson),
+  transform: {
+    define: {
+      SETTINGS: JSON.stringify(settingJson),
+    },
   },
 })

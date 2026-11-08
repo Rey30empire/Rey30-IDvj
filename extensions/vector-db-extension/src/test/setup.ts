@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 
-vi.mock('@janhq/tauri-plugin-vector-db-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-vector-db-api', () => ({
   getStatus: vi.fn(),
   createCollection: vi.fn().mockResolvedValue(undefined),
   insertChunks: vi.fn().mockResolvedValue(undefined),
@@ -14,15 +14,15 @@ vi.mock('@janhq/tauri-plugin-vector-db-api', () => ({
   chunkText: vi.fn().mockResolvedValue([]),
 }))
 
-vi.mock('@janhq/tauri-plugin-rag-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-rag-api', () => ({
   parseDocument: vi.fn().mockResolvedValue(''),
 }))
 
 // The embedding helpers are taken from the real module rather than stubbed:
 // they are the shared implementation this extension delegates to, so stubbing
 // them would leave the delegation untested on both sides.
-vi.mock('@janhq/core', async () => {
-  const actual = await vi.importActual<typeof import('@janhq/core')>('@janhq/core')
+vi.mock('@rey30-idvj/core', async () => {
+  const actual = await vi.importActual<typeof import('@rey30-idvj/core')>('@rey30-idvj/core')
   return {
     VectorDBExtension: class {},
     embedTexts: actual.embedTexts,
@@ -33,7 +33,7 @@ vi.mock('@janhq/core', async () => {
 
 const getByName = vi.fn()
 
-// `@janhq/core` reads `globalThis.core`; the extension code reads `window.core`.
+// `@rey30-idvj/core` reads `globalThis.core`; the extension code reads `window.core`.
 // They are the same object in the browser, so both names point at one here.
 const core = { extensionManager: { getByName } }
 

@@ -1,9 +1,9 @@
-// Installing a pinned Jan runtime, without a Rust toolchain and without Jan
+// Installing a pinned Rey30 IDvj runtime, without a Rust toolchain and without Rey30 IDvj
 // Desktop.
 //
-// The ADK spawns and owns a `jan` process, and where that process comes from is
+// The ADK spawns and owns a `rey30-idvj` process, and where that process comes from is
 // the caller's business: a PATH install, a build of their own, or this - the
-// runtime Jan publishes, downloaded for this platform and checked against the
+// runtime Rey30 IDvj publishes, downloaded for this platform and checked against the
 // digest the manifest carries.
 //
 // The manifest is the only source of truth, deliberately. It names, per
@@ -26,10 +26,9 @@ import { basename, dirname, join, resolve, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
-// The channel the runtime is published on today. A release channel is the same
-// shape at another URL, which is why the URL is an argument and this is only a
-// default.
-export const MANIFEST_URL = 'https://delta.jan.ai/agent-nightly/manifest.json'
+// No distribution channel is configured for this fork. Callers supply their own
+// manifest instead of silently installing an upstream binary under our name.
+export const MANIFEST_URL = ''
 
 // Every platform key the current manifest publishes. macOS is one universal
 // artifact, so both of its architectures map to `darwin-universal`.
@@ -44,12 +43,12 @@ export const PLATFORM_KEYS = Object.freeze([
 // Where a runtime could not be installed: no artifact for this platform, a
 // manifest that does not name what was asked for, a digest that does not match,
 // or an archive that does not hold a binary. Distinct from
-// [`JanRuntimeError`](./index.js), which is a runtime that will not run - this
+// [`Rey30RuntimeError`](./index.js), which is a runtime that will not run - this
 // is a runtime that could not be fetched.
-export class JanInstallError extends Error {
+export class Rey30InstallError extends Error {
   constructor(message, { url, expected, actual, platform } = {}) {
     super(message)
-    this.name = 'JanInstallError'
+    this.name = 'Rey30InstallError'
     this.url = url
     this.expected = expected
     this.actual = actual
@@ -65,27 +64,27 @@ export function platformKey(platform = process.platform, arch = process.arch) {
   if (platform === 'linux' && arch === 'arm64') return 'linux-aarch64'
   if (platform === 'win32' && arch === 'x64') return 'windows-x86_64'
   if (platform === 'win32' && arch === 'arm64') return 'windows-aarch64'
-  throw new JanInstallError(
-    `the Jan runtime publishes no artifact for ${platform}/${arch}; it publishes ${PLATFORM_KEYS.join(', ')}`,
+  throw new Rey30InstallError(
+    `the Rey30 IDvj runtime publishes no artifact for ${platform}/${arch}; it publishes ${PLATFORM_KEYS.join(', ')}`,
     { platform: `${platform}/${arch}` },
   )
 }
 
-// Where installed runtimes live: `JAN_AGENT_HOME` when set, otherwise the
+// Where installed runtimes live: `REY30_AGENT_HOME` when set, otherwise the
 // per-user cache directory each OS already has a convention for.
 export function runtimeRoot(env = process.env) {
-  if (env.JAN_AGENT_HOME) return env.JAN_AGENT_HOME
+  if (env.REY30_AGENT_HOME) return env.REY30_AGENT_HOME
   const home = homedir()
   if (process.platform === 'win32') {
-    return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'jan-agent', 'runtimes')
+    return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'rey30-idvj-agent', 'runtimes')
   }
-  if (process.platform === 'darwin') return join(home, 'Library', 'Caches', 'jan-agent', 'runtimes')
-  return join(env.XDG_CACHE_HOME ?? join(home, '.cache'), 'jan-agent', 'runtimes')
+  if (process.platform === 'darwin') return join(home, 'Library', 'Caches', 'rey30-idvj-agent', 'runtimes')
+  return join(env.XDG_CACHE_HOME ?? join(home, '.cache'), 'rey30-idvj-agent', 'runtimes')
 }
 
 // The binary's name inside an installed runtime.
 export function binName(platform = platformKey()) {
-  return platform.startsWith('windows-') ? 'jan.exe' : 'jan'
+  return platform.startsWith('windows-') ? 'rey30-idvj.exe' : 'rey30-idvj'
 }
 
 function validVersion(version) {
@@ -127,7 +126,7 @@ export async function findRuntime({ version, root = runtimeRoot() } = {}) {
 
 // Install the runtime for this platform and return the path to its binary.
 //
-// `manifestUrl` names the channel (default: the one above). `version` and
+// `manifestUrl` names the caller's distribution channel. `version` and
 // `sha256` pin: either is checked against the manifest and a mismatch is an
 // error, never a silent fallback. `onProgress(received, total)` reports the
 // download; `total` is 0 when the server sends no length.
@@ -135,7 +134,7 @@ export async function installRuntime(options = {}) {
   const {
     version,
     sha256,
-    manifestUrl = process.env.JAN_AGENT_MANIFEST ?? MANIFEST_URL,
+    manifestUrl = process.env.REY30_AGENT_MANIFEST ?? MANIFEST_URL,
     root: requestedRoot = runtimeRoot(),
     fetch: fetchImpl = globalThis.fetch,
     signal,
@@ -144,7 +143,7 @@ export async function installRuntime(options = {}) {
 
   const root = resolve(requestedRoot)
   if (version !== undefined && !validVersion(version)) {
-    throw new JanInstallError('version must be a single safe path component')
+    throw new Rey30InstallError('version must be a single safe path component')
   }
   const platform = platformKey()
   if (version) {
@@ -152,9 +151,10 @@ export async function installRuntime(options = {}) {
     if (hit && (!sha256 || hit.sha256 === sha256)) return hit
   }
 
+  if (!manifestUrl) throw new Rey30InstallError('Set REY30_AGENT_MANIFEST or pass manifestUrl for your Rey30 IDvj runtime distribution.')
   const manifest = await readManifest(manifestUrl, fetchImpl, signal)
   if (version && manifest.version !== version) {
-    throw new JanInstallError(
+    throw new Rey30InstallError(
       `the manifest at ${manifestUrl} publishes ${manifest.version}, not ${version}: ` +
         'point `manifestUrl` at the manifest that names the version you are pinning, or drop it',
       { url: manifestUrl },
@@ -162,13 +162,13 @@ export async function installRuntime(options = {}) {
   }
   const entry = manifest.platforms?.[platform]
   if (!entry?.url || !entry?.sha256) {
-    throw new JanInstallError(
+    throw new Rey30InstallError(
       `the manifest at ${manifestUrl} (version ${manifest.version}) has no entry for ${platform}`,
       { url: manifestUrl, platform },
     )
   }
   if (sha256 && sha256 !== entry.sha256) {
-    throw new JanInstallError(
+    throw new Rey30InstallError(
       `the manifest publishes ${entry.sha256} for ${platform}, not the ${sha256} this install pins`,
       { url: entry.url, expected: sha256, actual: entry.sha256, platform },
     )
@@ -188,10 +188,10 @@ export async function installRuntime(options = {}) {
   const installedDir = join(dirname(dir), directory)
   const markerTemp = join(dir, `.${randomUUID()}.json`)
   try {
-    const archive = join(stage, basename(new URL(entry.url).pathname) || 'jan-runtime')
+    const archive = join(stage, basename(new URL(entry.url).pathname) || 'rey30-runtime')
     const actual = await download(entry.url, archive, { fetchImpl, onProgress, signal })
     if (actual !== entry.sha256) {
-      throw new JanInstallError(
+      throw new Rey30InstallError(
         `the artifact downloaded from ${entry.url} hashes to ${actual}, not the ${entry.sha256} the manifest publishes`,
         { url: entry.url, expected: entry.sha256, actual, platform },
       )
@@ -204,7 +204,7 @@ export async function installRuntime(options = {}) {
     try {
       if (!(await lstat(bin)).isFile()) throw new Error('not a regular file')
     } catch {
-      throw new JanInstallError(
+      throw new Rey30InstallError(
         `the ${platform} archive from ${entry.url} holds no ${name} at its root`,
         { url: entry.url, platform },
       )
@@ -255,19 +255,19 @@ async function readManifest(url, fetchImpl, signal) {
   try {
     response = await fetchImpl(url, { signal, headers: { accept: 'application/json' } })
   } catch (error) {
-    throw new JanInstallError(`could not read the runtime manifest at ${url}: ${error.message}`, { url })
+    throw new Rey30InstallError(`could not read the runtime manifest at ${url}: ${error.message}`, { url })
   }
   if (!response.ok) {
-    throw new JanInstallError(`the runtime manifest at ${url} answered ${response.status}`, { url })
+    throw new Rey30InstallError(`the runtime manifest at ${url} answered ${response.status}`, { url })
   }
   let manifest
   try {
     manifest = await response.json()
   } catch (error) {
-    throw new JanInstallError(`the runtime manifest at ${url} is not JSON: ${error.message}`, { url })
+    throw new Rey30InstallError(`the runtime manifest at ${url} is not JSON: ${error.message}`, { url })
   }
   if (!validVersion(manifest?.version) || typeof manifest.platforms !== 'object' || manifest.platforms === null) {
-    throw new JanInstallError(`the runtime manifest at ${url} names no version and no platforms`, { url })
+    throw new Rey30InstallError(`the runtime manifest at ${url} names no version and no platforms`, { url })
   }
   return manifest
 }
@@ -278,10 +278,10 @@ async function readManifest(url, fetchImpl, signal) {
 async function download(url, target, { fetchImpl, onProgress, signal }) {
   const response = await fetchImpl(url, { signal })
   if (!response.ok) {
-    throw new JanInstallError(`the artifact at ${url} answered ${response.status}`, { url })
+    throw new Rey30InstallError(`the artifact at ${url} answered ${response.status}`, { url })
   }
   if (!response.body) {
-    throw new JanInstallError(`the artifact at ${url} arrived with no body`, { url })
+    throw new Rey30InstallError(`the artifact at ${url} arrived with no body`, { url })
   }
   const total = Number(response.headers?.get?.('content-length') ?? 0)
   const hash = createHash('sha256')
@@ -322,7 +322,7 @@ async function extract(archive, into) {
   for (const name of listing.split(/\r?\n/).filter((line) => line.length > 0)) {
     const resolved = resolve(into, name)
     if (resolved !== into && !resolved.startsWith(into + sep)) {
-      throw new JanInstallError(
+      throw new Rey30InstallError(
         `${basename(archive)} holds a member outside the install directory (${name}); refusing to extract it`,
         { url: archive },
       )
@@ -340,7 +340,7 @@ async function run(command, args, archive, action) {
       stdout += chunk
       if (stdout.length > 1 << 20) {
         child.kill()
-        reject(new JanInstallError(`archive listing exceeds 1 MiB: ${archive}`, { url: archive }))
+        reject(new Rey30InstallError(`archive listing exceeds 1 MiB: ${archive}`, { url: archive }))
       }
     })
     child.stderr.on('data', (chunk) => {
@@ -348,7 +348,7 @@ async function run(command, args, archive, action) {
     })
     child.once('error', (error) => {
       reject(
-        new JanInstallError(
+        new Rey30InstallError(
           `could not ${action} ${basename(archive)}: ${error.message} (${TAR} is required to install a runtime)`,
           { url: archive },
         ),
@@ -356,7 +356,7 @@ async function run(command, args, archive, action) {
     })
     child.once('close', (code) => {
       if (code === 0) resolve_(stdout)
-      else reject(new JanInstallError(`could not ${action} ${basename(archive)}: tar exited ${code}${stderr ? `: ${stderr.trim()}` : ''}`, { url: archive }))
+      else reject(new Rey30InstallError(`could not ${action} ${basename(archive)}: tar exited ${code}${stderr ? `: ${stderr.trim()}` : ''}`, { url: archive }))
     })
   })
 }

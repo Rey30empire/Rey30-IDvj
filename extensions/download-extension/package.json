@@ -1,21 +1,20 @@
 {
-  "name": "@janhq/download-extension",
+  "name": "@rey30-idvj/download-extension",
   "productName": "Download Manager",
   "version": "1.0.0",
-  "description": "Download and manage files and AI models in Jan.",
+  "description": "Download and manage files and AI models in Rey30 IDvj.",
   "main": "dist/index.js",
-  "author": "Jan <service@jan.ai>",
+  "author": "Reinier Tamayo (Rey30 IDvj distribution)",
   "license": "Apache-2.0",
   "scripts": {
     "test": "vitest run",
     "build": "rolldown -c rolldown.config.mjs",
-    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && cpx *.tgz ../../pre-install"
+    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && node ../../scripts/copy-files.mjs archives"
   },
   "devDependencies": {
-    "cpx": "1.5.0",
     "jsdom": "^26.1.0",
     "rimraf": "6.0.1",
-    "rolldown": "1.0.0-beta.1",
+    "rolldown": "1.2.16",
     "run-script-os": "1.1.6",
     "typescript": "5.8.3",
     "vitest": "3.2.7"
@@ -26,7 +25,7 @@
     "README.md"
   ],
   "dependencies": {
-    "@janhq/core": "workspace:*",
+    "@rey30-idvj/core": "workspace:*",
     "@tauri-apps/api": "2.8.0"
   },
   "bundleDependencies": [],

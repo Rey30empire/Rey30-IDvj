@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Union
 
-from .errors import JanRpcError, JanRuntimeError, describe_error
+from .errors import Rey30RpcError, Rey30RuntimeError, describe_error
 from ._queue import EventQueue
 
 #: What a host tool is told about the call it is running.
@@ -22,7 +22,7 @@ class HostToolCall:
     """The name the host declared, not the ``host__``-prefixed name the model calls."""
     run_id: Optional[str]
     """The child that called it, or ``None`` for the main run."""
-    session: "JanSession"
+    session: "Rey30Session"
     aborted: threading.Event
     """Set when the runtime withdraws the request; a late answer is refused."""
 
@@ -74,7 +74,7 @@ class TurnResult:
     error: Optional[str] = None
 
 
-class JanTurn:
+class Rey30Turn:
     """One turn of a session: what ``session.prompt()`` returns.
 
     Iterate it for the events as they stream, and call :meth:`result` for the
@@ -82,7 +82,7 @@ class JanTurn:
     buffered until read.
     """
 
-    def __init__(self, session: "JanSession", turn_id: str) -> None:
+    def __init__(self, session: "Rey30Session", turn_id: str) -> None:
         self.session = session
         self.id = turn_id
         #: Events dropped because nobody was draining this turn, oldest first.
@@ -99,11 +99,11 @@ class JanTurn:
     def result(self, timeout: Optional[float] = None) -> TurnResult:
         """Block for ``{stop_reason, usage, error}``.
 
-        Raises :class:`JanRuntimeError` when the channel dies first: a turn with
+        Raises :class:`Rey30RuntimeError` when the channel dies first: a turn with
         no terminal record has no outcome to report.
         """
         if not self._terminal.wait(timeout):
-            raise JanRuntimeError(f"the turn {self.id} did not finish within {timeout}s")
+            raise Rey30RuntimeError(f"the turn {self.id} did not finish within {timeout}s")
         if self._failure is not None:
             raise self._failure
         assert self._result is not None
@@ -137,7 +137,7 @@ class JanTurn:
         self._terminal.set()
 
 
-class JanSession:
+class Rey30Session:
     """A session on a runtime: a conversation, its model, and its host tools."""
 
     def __init__(self, runtime: Any, view: Dict[str, Any]) -> None:
@@ -149,7 +149,7 @@ class JanSession:
         self.tools: List[str] = list(view.get("tools") or [])
         self.tool_specs: List[Dict[str, Any]] = list(view.get("toolSpecs") or [])
         self.max_buffered_events = runtime.max_buffered_events
-        self._turns: Dict[str, JanTurn] = {}
+        self._turns: Dict[str, Rey30Turn] = {}
         self._tools: Dict[str, HostTool] = {}
         self._listeners: Dict[str, List[Callable[[Dict[str, Any]], None]]] = {}
         self._calls: Dict[str, threading.Event] = {}
@@ -187,7 +187,7 @@ class JanSession:
 
         return off
 
-    def prompt(self, content: Union[str, List[Dict[str, Any]], Dict[str, Any]]) -> JanTurn:
+    def prompt(self, content: Union[str, List[Dict[str, Any]], Dict[str, Any]]) -> Rey30Turn:
         """Start a turn and return it for iteration.
 
         ``content`` is a string, or content parts for the images a vision model
@@ -231,7 +231,7 @@ class JanSession:
         self.model = current
         return current
 
-    def fork(self, tools: Optional[Sequence[HostTool]] = None) -> "JanSession":
+    def fork(self, tools: Optional[Sequence[HostTool]] = None) -> "Rey30Session":
         """A new session with this one's history.
 
         It answers for the same host tools with the same handlers: the runtime
@@ -246,7 +246,7 @@ class JanSession:
         self.runtime.request("session/archive", {"sessionId": self.id})
         self.runtime._release(self)
         self._closed = True
-        self._abort(JanRuntimeError("the session was archived"))
+        self._abort(Rey30RuntimeError("the session was archived"))
         self._listeners.clear()
 
     def respond_permission(self, request_id: str, decision: str) -> None:
@@ -303,7 +303,7 @@ class JanSession:
 
     # -- internals ---------------------------------------------------------
 
-    def _turn(self, turn_id: Optional[str], *, create: bool = False) -> Optional[JanTurn]:
+    def _turn(self, turn_id: Optional[str], *, create: bool = False) -> Optional[Rey30Turn]:
         if not turn_id:
             return None
         existing = self._turns.get(turn_id)
@@ -311,7 +311,7 @@ class JanSession:
             return existing
         if not create:
             return None
-        turn = JanTurn(self, turn_id)
+        turn = Rey30Turn(self, turn_id)
         # A terminal record the runtime already sent is the turn's outcome,
         # whatever happened to the runtime after it.
         late = self._late.pop(turn_id, None)
@@ -375,7 +375,7 @@ class JanSession:
                 response = {"content": describe_error(error), "isError": True}
             self._respond(request_id, response)
 
-        threading.Thread(target=run, name=f"jan-tool-{call.tool_name}", daemon=True).start()
+        threading.Thread(target=run, name=f"rey30-idvj-tool-{call.tool_name}", daemon=True).start()
 
     def _abandon(self, event: Dict[str, Any]) -> None:
         request_id = event.get("request_id") or ""
@@ -399,7 +399,7 @@ class JanSession:
             # nesting past the recursion limit): which of them it was does not
             # change what the model needs.
             if not self._request_is_gone(error) and not flag.is_set():
-                why = "the runtime refused this tool result" if isinstance(error, JanRpcError) else "the tool result could not be encoded"
+                why = "the runtime refused this tool result" if isinstance(error, Rey30RpcError) else "the tool result could not be encoded"
                 try:
                     self.runtime.request(
                         "tool/respond",
@@ -415,9 +415,9 @@ class JanSession:
         """Whether a failed ``tool/respond`` means the request is no longer waiting
         on the runtime: the channel is gone, or the runtime says nothing is
         pending. Any other failure leaves it waiting."""
-        if isinstance(error, JanRuntimeError):
+        if isinstance(error, Rey30RuntimeError):
             return True
-        return isinstance(error, JanRpcError) and isinstance(error.data, dict) and error.data.get("kind") == "not_pending"
+        return isinstance(error, Rey30RpcError) and isinstance(error.data, dict) and error.data.get("kind") == "not_pending"
 
     def _abort(self, error: BaseException) -> None:
         for flag in self._calls.values():

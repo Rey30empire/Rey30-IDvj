@@ -1,29 +1,28 @@
 {
-  "name": "@janhq/rag-extension",
+  "name": "@rey30-idvj/rag-extension",
   "productName": "RAG Tools",
   "version": "0.1.0",
   "description": "Registers RAG tools and orchestrates retrieval across parser, embeddings, and vector DB",
   "main": "dist/index.js",
   "module": "dist/module.js",
-  "author": "Jan <service@jan.ai>",
+  "author": "Reinier Tamayo (Rey30 IDvj distribution)",
   "license": "Apache-2.0",
   "scripts": {
     "build": "rolldown -c rolldown.config.mjs",
-    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && cpx *.tgz ../../pre-install",
+    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && node ../../scripts/copy-files.mjs archives",
     "test": "vitest run"
   },
   "devDependencies": {
-    "cpx": "1.5.0",
     "jsdom": "^26.1.0",
     "rimraf": "6.0.1",
-    "rolldown": "1.0.0-beta.1",
+    "rolldown": "1.2.16",
     "typescript": "5.9.2",
     "vitest": "3.2.7"
   },
   "dependencies": {
-    "@janhq/core": "workspace:*",
-    "@janhq/tauri-plugin-rag-api": "link:../../src-tauri/plugins/tauri-plugin-rag",
-    "@janhq/tauri-plugin-vector-db-api": "link:../../src-tauri/plugins/tauri-plugin-vector-db"
+    "@rey30-idvj/core": "workspace:*",
+    "@rey30-idvj/tauri-plugin-rag-api": "link:../../src-tauri/plugins/tauri-plugin-rag",
+    "@rey30-idvj/tauri-plugin-vector-db-api": "link:../../src-tauri/plugins/tauri-plugin-vector-db"
   },
   "files": [
     "dist/*",

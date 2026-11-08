@@ -1,14 +1,14 @@
-import { Assistant, AssistantExtension, fs, joinPath, logger } from '@janhq/core'
+import { Assistant, AssistantExtension, fs, joinPath, logger } from '@rey30-idvj/core'
 
 const V2_IDENTITY_LINE =
   'You are Jan, a helpful AI assistant who assists users with their requests. Jan is trained by Menlo Research (https://www.menlo.ai).'
 
 /**
- * JanAssistantExtension is an AssistantExtension implementation that provides
+ * Rey30AssistantExtension is an AssistantExtension implementation that provides
  * functionality for managing assistants.
  */
-export default class JanAssistantExtension extends AssistantExtension {
-  private readonly CURRENT_MIGRATION_VERSION = 3
+export default class Rey30AssistantExtension extends AssistantExtension {
+  private readonly CURRENT_MIGRATION_VERSION = 4
   private readonly MIGRATION_FILE = 'file://assistants/.migration_version'
 
   /**
@@ -78,8 +78,8 @@ export default class JanAssistantExtension extends AssistantExtension {
     }
 
     if (currentVersion < 2) {
-      logger.info('Running migration v2: Update to Menlo Research instructions')
-      await this.migrateToMenloInstructions()
+      logger.info('Running migration v2: Update legacy assistant instructions')
+      await this.migrateLegacyInstructions()
       await this.saveMigrationVersion(2)
     }
 
@@ -87,6 +87,21 @@ export default class JanAssistantExtension extends AssistantExtension {
       logger.info('Running migration v3: Strip identity preamble from default assistant')
       await this.migrateStripIdentityPreamble()
       await this.saveMigrationVersion(3)
+    }
+
+    if (currentVersion < 4) {
+      const assistants = await this.readAssistantsFromDisk()
+      for (const assistant of assistants) {
+        // Keep saved IDs and customized names so existing threads still resolve.
+        if (assistant.id === 'jan' && assistant.name === 'Jan') {
+          assistant.name = this.defaultAssistant.name
+          if (assistant.description === 'Jan is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user’s behalf.') {
+            assistant.description = this.defaultAssistant.description
+          }
+          await this.createAssistant(assistant)
+        }
+      }
+      await this.saveMigrationVersion(4)
     }
 
     logger.info(
@@ -99,7 +114,7 @@ export default class JanAssistantExtension extends AssistantExtension {
    */
   private async migrateAssistantInstructions(): Promise<void> {
     const OLD_INSTRUCTION = 'You are a helpful AI assistant.'
-    const NEW_INSTRUCTION = 'You are Jan, a helpful AI assistant.' // TODO: Update with new instruction
+    const NEW_INSTRUCTION = 'You are Jan, a helpful AI assistant.' // Historical v1 value, retained for migration compatibility.
 
     if (!(await fs.existsSync('file://assistants'))) {
       return
@@ -137,9 +152,9 @@ export default class JanAssistantExtension extends AssistantExtension {
   }
 
   /**
-   * Migration v2: Update assistant instructions to Menlo Research format and set default parameters
+   * Migration v2: Update legacy assistant instruction format and set default parameters
    */
-  private async migrateToMenloInstructions(): Promise<void> {
+  private async migrateLegacyInstructions(): Promise<void> {
     const OLD_INSTRUCTION_PREFIX = 'You are Jan, a helpful AI assistant.'
     const NEW_INSTRUCTION = `${V2_IDENTITY_LINE}
 
@@ -199,7 +214,7 @@ Current date: {{current_date}}`
             JSON.stringify(assistantWithParams, null, 2)
           )
           logger.info(
-            `Migrated to Menlo instructions for assistant: ${assistant.id}`
+            `Migrated legacy instructions for assistant: ${assistant.id}`
           )
         } catch (error) {
           logger.error(`Failed to migrate assistant ${assistant.id}:`, error)
@@ -308,9 +323,9 @@ Current date: {{current_date}}`
     id: 'jan',
     object: 'assistant',
     created_at: Date.now() / 1000,
-    name: 'Jan',
+    name: 'Rey30 IDvj',
     description:
-      'Jan is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user’s behalf.',
+      'Rey30 IDvj is a helpful desktop assistant that can reason through complex tasks and use tools to complete them on the user’s behalf.',
     model: '*',
     instructions: `You must output your response in the exact language used in the latest user message. Do not provide translations or switch languages unless explicitly instructed to do so. If the input is mostly English, respond in English.
 

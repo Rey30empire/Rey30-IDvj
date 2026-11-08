@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   backendFromDeviceIds,
+  evaluateConfiguredGpuOffload,
   evaluateGpuOffload,
   evaluateEmbeddingVector,
 } from './readiness'
@@ -16,8 +17,9 @@ describe('backendFromDeviceIds', () => {
     expect(backendFromDeviceIds(['ROCm1'])).toBe('rocm')
   })
 
-  it('uses the first device when several are present', () => {
+  it('lists distinct backends when several are present', () => {
     expect(backendFromDeviceIds(['CUDA0', 'CUDA1'])).toBe('cuda')
+    expect(backendFromDeviceIds(['CUDA0', 'Vulkan0', 'Vulkan1'])).toBe('cuda, vulkan')
   })
 
   it('is empty when no device was enumerated', () => {
@@ -28,6 +30,31 @@ describe('backendFromDeviceIds', () => {
   // A multi-digit index must not eat part of the name.
   it('only strips trailing digits', () => {
     expect(backendFromDeviceIds(['Vulkan10'])).toBe('vulkan')
+  })
+})
+
+describe('configured GPU readiness', () => {
+  const nvidia = { id: 'CUDA0', name: 'NVIDIA GeForce RTX 3060 Ti' }
+  const amd = { id: 'Vulkan1', name: 'AMD Radeon AI PRO R9700' }
+
+  it('reports the configured AMD even when CUDA appears first', () => {
+    expect(evaluateConfiguredGpuOffload([nvidia, amd], 'Vulkan1', 2)).toMatchObject({
+      backend: 'vulkan', status: 'ok', engineDeviceCount: 1, devices: [amd],
+    })
+  })
+
+  it('warns if the configured AMD is missing and does not count the NVIDIA as selected', () => {
+    expect(evaluateConfiguredGpuOffload([nvidia], 'Vulkan1', 2)).toMatchObject({
+      backend: '', status: 'warning', reason: 'selectedDevicesUnavailable',
+      engineDeviceCount: 0, devices: [], missingDeviceIds: ['Vulkan1'],
+    })
+  })
+
+  it('reports automatic inventory and respects an explicit offload opt-out', () => {
+    expect(evaluateConfiguredGpuOffload([nvidia, amd], '', 2)).toMatchObject({ devices: [nvidia, amd] })
+    expect(evaluateConfiguredGpuOffload([nvidia, amd], 'none', 2)).toMatchObject({
+      backend: 'cpu', status: 'ok', engineDeviceCount: 0, offloadDisabled: true,
+    })
   })
 })
 

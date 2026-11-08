@@ -1,8 +1,8 @@
-# Contributing to Jan Core
+# Contributing to Rey30 IDvj Core
 
 [← Back to Main Contributing Guide](../CONTRIBUTING.md)
 
-TypeScript SDK providing extension system, APIs, and type definitions for all Jan components.
+TypeScript SDK providing extension system, APIs, and type definitions for all Rey30 IDvj components.
 
 ## Key Directories
 
@@ -16,7 +16,7 @@ TypeScript SDK providing extension system, APIs, and type definitions for all Ja
 ### Key Principles
 
 1. **Platform Agnostic** - Works everywhere (browser, Node.js)
-2. **Extension-Based** - New features = new extensions  
+2. **Extension-Based** - New features = new extensions
 3. **Type Everything** - TypeScript required
 4. **Event-Driven** - Components communicate via events
 
@@ -26,7 +26,7 @@ TypeScript SDK providing extension system, APIs, and type definitions for all Ja
 # Build the SDK
 yarn build
 
-# Run tests  
+# Run tests
 yarn test
 
 # Watch mode

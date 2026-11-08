@@ -1,8 +1,8 @@
-# Contributing to Jan Extensions
+# Contributing to Rey30 IDvj Extensions
 
 [← Back to Main Contributing Guide](../CONTRIBUTING.md)
 
-Extensions add specific features to Jan as self-contained modules.
+Extensions add specific features to Rey30 IDvj as self-contained modules.
 
 ## Current Extensions
 
@@ -10,7 +10,7 @@ Extensions add specific features to Jan as self-contained modules.
 - Assistant CRUD operations
 - `src/index.ts` - Main implementation
 
-### `/conversational-extension` 
+### `/conversational-extension`
 - Message handling, conversation state
 - `src/index.ts` - Chat logic
 
@@ -43,7 +43,7 @@ Extensions add specific features to Jan as self-contained modules.
 
 ```bash
 mkdir my-extension
-cd my-extension  
+cd my-extension
 yarn init
 ```
 
@@ -60,13 +60,13 @@ my-extension/
 ### Basic Extension
 
 ```typescript
-import { Extension } from '@janhq/core'
+import { Extension } from '@rey30-idvj/core'
 
 export default class MyExtension extends Extension {
   async onLoad() {
     // Extension initialization
   }
-  
+
   async onUnload() {
     // Cleanup
   }
@@ -94,7 +94,7 @@ async onLoad() {
 }
 ```
 
-### Event Handling  
+### Event Handling
 ```typescript
 async onLoad() {
   this.on('model:loaded', (model) => {
@@ -105,8 +105,8 @@ async onLoad() {
 
 ## Extension Lifecycle
 
-1. **Jan starts** → Discovers extensions
-2. **Loading** → Calls `onLoad()` method  
+1. **Rey30 IDvj starts** → Discovers extensions
+2. **Loading** → Calls `onLoad()` method
 3. **Active** → Extension responds to events
 4. **Unloading** → Calls `onUnload()` on shutdown
 
@@ -126,7 +126,7 @@ console.log(window.core.api)
 ## Common Issues
 
 **Extension not loading?**
-- Check package.json format: `@janhq/extension-name`
+- Check package.json format: `@rey30-idvj/extension-name`
 - Ensure `onLoad()` doesn't throw errors
 - Verify exports in index.ts
 
@@ -144,6 +144,6 @@ console.log(window.core.api)
 
 ## Dependencies
 
-- **@janhq/core** - Core SDK and extension system
+- **@rey30-idvj/core** - Core SDK and extension system
 - **TypeScript** - Type safety
 - **Rolldown** - Bundling

@@ -51,7 +51,7 @@ export interface HostToolCall {
   toolName: string
   /** The child that called it, or `null` for the main run. */
   runId: string | null
-  session: JanSession
+  session: Rey30Session
   /** Aborted when the runtime withdraws the request. */
   signal: AbortSignal
 }
@@ -73,7 +73,7 @@ export interface HostTool {
 }
 
 /** A method the runtime answered with a JSON-RPC error. */
-export declare class JanRpcError extends Error {
+export declare class Rey30RpcError extends Error {
   code?: number
   data?: unknown
   method?: string
@@ -82,7 +82,7 @@ export declare class JanRpcError extends Error {
 }
 
 /** The runtime process failed: spawn, handshake, protocol version, or exit. */
-export declare class JanRuntimeError extends Error {
+export declare class Rey30RuntimeError extends Error {
   /** What a listener raised, when this error is the runtime failing on it. */
   cause?: unknown
   exitCode?: number | null
@@ -90,8 +90,8 @@ export declare class JanRuntimeError extends Error {
   stderr?: string
 }
 
-export interface JanRuntimeOptions {
-  /** The runtime binary. Defaults to `$JAN_BIN`, then `jan` on `PATH`. */
+export interface Rey30RuntimeOptions {
+  /** The runtime binary. Defaults to `$REY30_BIN`, then `rey30-idvj` on `PATH`. */
   bin?: string
   /** Arguments after the binary. Defaults to `['cli', 'agent', 'rpc']`. */
   args?: string[]
@@ -133,9 +133,9 @@ export interface CreateSessionOptions {
    */
   subagents?: boolean
   /**
-   * The whole system prompt, sent exactly as given in place of Jan's: no Jan
+   * The whole system prompt, sent exactly as given in place of Rey30 IDvj's: no Rey30 IDvj
    * identity, guides, environment, date, git state or recalled project memory.
-   * Answers are still indexed for later sessions unless `ephemeral`. Jan may
+   * Answers are still indexed for later sessions unless `ephemeral`. Rey30 IDvj may
    * still append runtime notices to the conversation. Subagents keep their own
    * prompts. Must not be blank.
    */
@@ -201,8 +201,8 @@ export interface RpcResponses {
 }
 
 /** One turn of a session: what `prompt()` returns. */
-export declare class JanTurn implements AsyncIterable<StreamEvent> {
-  readonly session: JanSession
+export declare class Rey30Turn implements AsyncIterable<StreamEvent> {
+  readonly session: Rey30Session
   readonly id: string
   /** Events dropped because nobody drained this turn, oldest first. */
   readonly dropped: number
@@ -214,8 +214,8 @@ export declare class JanTurn implements AsyncIterable<StreamEvent> {
 }
 
 /** A session on a runtime. */
-export declare class JanSession {
-  readonly runtime: JanRuntime
+export declare class Rey30Session {
+  readonly runtime: Rey30Runtime
   readonly id: string
   model: string | null
   /** The names the runtime advertises, as it reports them: the declared ones
@@ -227,9 +227,9 @@ export declare class JanSession {
    * everything the session reports, or one event tag (`'token'`,
    * `'tool_request'`, `'permission_request'`, ...). A listener that throws, or
    * returns a promise that rejects, fails the runtime: open turns settle with a
-   * `JanRuntimeError` whose `cause` is what it raised. */
+   * `Rey30RuntimeError` whose `cause` is what it raised. */
   on(kind: EventTag | 'event' | '*', listener: (event: StreamEvent) => void): () => void
-  prompt(input: string | unknown[] | { text: string } | { content: unknown[] }): Promise<JanTurn>
+  prompt(input: string | unknown[] | { text: string } | { content: unknown[] }): Promise<Rey30Turn>
   steer(input: string | { text: string }): Promise<null>
   interrupt(): Promise<null>
   reset(): Promise<null>
@@ -239,14 +239,14 @@ export declare class JanSession {
   /** A new session with this one's history. Without `tools` it answers for the
    * source's host tools with the same handlers; `tools` replaces them, and
    * `[]` drops them. */
-  fork(options?: { tools?: HostTool[] }): Promise<JanSession>
+  fork(options?: { tools?: HostTool[] }): Promise<Rey30Session>
   archive(): Promise<void>
   respondPermission(requestId: string, decision: PermissionDecision): Promise<null>
 }
 
-/** A Jan runtime process, spawned and owned by this object. */
-export declare class JanRuntime {
-  static start(options?: JanRuntimeOptions): Promise<JanRuntime>
+/** A Rey30 IDvj runtime process, spawned and owned by this object. */
+export declare class Rey30Runtime {
+  static start(options?: Rey30RuntimeOptions): Promise<Rey30Runtime>
   readonly cwd?: string
   readonly maxBufferedEvents: number
   readonly protocolVersion: number | null
@@ -257,13 +257,13 @@ export declare class JanRuntime {
   readonly pid?: number
   readonly stderr: string
   on(kind: 'exit' | 'event' | 'notification', listener: (payload: unknown) => void): () => void
-  createSession(options?: CreateSessionOptions): Promise<JanSession>
+  createSession(options?: CreateSessionOptions): Promise<Rey30Session>
   listSessions(): Promise<SessionSummary[]>
   /** A session this client already holds is returned as it is, with its turns,
    * listeners and handlers; the runtime only knows this process's sessions. */
-  resumeSession(sessionId: string): Promise<JanSession>
-  /** As `JanSession.fork`. */
-  forkSession(sessionId: string, options?: { tools?: HostTool[] }): Promise<JanSession>
+  resumeSession(sessionId: string): Promise<Rey30Session>
+  /** As `Rey30Session.fork`. */
+  forkSession(sessionId: string, options?: { tools?: HostTool[] }): Promise<Rey30Session>
   request<M extends RpcMethod>(method: M, params?: RpcParams<M>, options?: { timeoutMs?: number }): Promise<RpcResponses[M]>
   close(options?: { force?: boolean }): Promise<{ code: number | null; signal: string | null }>
 }
@@ -271,7 +271,7 @@ export declare class JanRuntime {
 /** Where a runtime could not be installed: no artifact for this platform, a
  * manifest that does not name what was asked for, a digest that does not match,
  * or an archive that holds no binary. */
-export declare class JanInstallError extends Error {
+export declare class Rey30InstallError extends Error {
   constructor(
     message: string,
     options?: { url?: string; expected?: string; actual?: string; platform?: string },
@@ -290,7 +290,7 @@ export interface InstalledRuntime {
   url: string
   sha256: string
   installedAt: string
-  /** Absolute path to the runtime binary, for `JanRuntime.start({ bin })`. */
+  /** Absolute path to the runtime binary, for `Rey30Runtime.start({ bin })`. */
   bin: string
   dir: string
   root: string
@@ -303,9 +303,9 @@ export interface InstallRuntimeOptions {
   version?: string
   /** Pin: the manifest's digest for this platform must be exactly this. */
   sha256?: string
-  /** The channel's manifest. Defaults to `JAN_AGENT_MANIFEST` or the published one. */
+  /** The channel's manifest. Defaults to `REY30_AGENT_MANIFEST` or the published one. */
   manifestUrl?: string
-  /** Where runtimes live. Defaults to `JAN_AGENT_HOME` or the per-user cache. */
+  /** Where runtimes live. Defaults to `REY30_AGENT_HOME` or the per-user cache. */
   root?: string
   /** The `fetch` to use, for a caller with its own proxy or instrumentation. */
   fetch?: typeof globalThis.fetch
@@ -322,7 +322,7 @@ export declare const PLATFORM_KEYS: readonly string[]
 export declare function platformKey(platform?: string, arch?: string): string
 /** The binary's name inside an installed runtime. */
 export declare function binName(platform?: string): string
-/** Where installed runtimes live: `JAN_AGENT_HOME`, or the per-user cache. */
+/** Where installed runtimes live: `REY30_AGENT_HOME`, or the per-user cache. */
 export declare function runtimeRoot(env?: Record<string, string | undefined>): string
 /** An already-installed runtime for `version`, or `null`. No network. */
 export declare function findRuntime(options?: { version?: string; root?: string }): Promise<InstalledRuntime | null>

@@ -1,5 +1,5 @@
-import { fs, joinPath, getJanDataFolderPath } from '@janhq/core'
-import type { SettingComponentProps } from '@janhq/core'
+import { fs, joinPath, getRey30DataFolderPath } from '@rey30-idvj/core'
+import type { SettingComponentProps } from '@rey30-idvj/core'
 
 const DIR_NAME = 'llamacpp'
 const FILE_NAME = 'settings.json'
@@ -8,7 +8,7 @@ const TMP_NAME = 'settings.json.tmp'
 let writeChain: Promise<unknown> = Promise.resolve()
 
 async function paths(): Promise<{ dir: string; file: string; tmp: string }> {
-  const root = await getJanDataFolderPath()
+  const root = await getRey30DataFolderPath()
   const dir = await joinPath([root, DIR_NAME])
   const file = await joinPath([dir, FILE_NAME])
   const tmp = await joinPath([dir, TMP_NAME])

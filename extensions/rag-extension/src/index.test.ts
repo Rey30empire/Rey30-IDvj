@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import * as ragApi from '@janhq/tauri-plugin-rag-api'
+import * as ragApi from '@rey30-idvj/tauri-plugin-rag-api'
 import RagExtension from './index'
 
 function parsePayload(result: { content: Array<{ text: string }> }) {

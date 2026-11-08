@@ -10,14 +10,16 @@ export default defineConfig({
     file: 'dist/index.js',
   },
   platform: 'browser',
-  define: {
-    SETTINGS: JSON.stringify(settingJson),
-    ENGINE: JSON.stringify(pkgJson.engine),
-    IS_WINDOWS: JSON.stringify(process.platform === 'win32'),
-    IS_MAC: JSON.stringify(process.platform === 'darwin'),
-    IS_LINUX: JSON.stringify(process.platform === 'linux'),
-  },
-  inject: process.env.IS_DEV ? {} : {
+  transform: {
+    define: {
+      SETTINGS: JSON.stringify(settingJson),
+      ENGINE: JSON.stringify(pkgJson.engine),
+      IS_WINDOWS: JSON.stringify(process.platform === 'win32'),
+      IS_MAC: JSON.stringify(process.platform === 'darwin'),
+      IS_LINUX: JSON.stringify(process.platform === 'linux'),
+    },
+    inject: process.env.IS_DEV ? {} : {
       fetch: ['@tauri-apps/plugin-http', 'fetch'],
+    },
   },
 })

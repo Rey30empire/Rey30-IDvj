@@ -1,6 +1,6 @@
-// JavaScript/TypeScript client for the Jan agent runtime.
+// JavaScript/TypeScript client for the Rey30 IDvj agent runtime.
 //
-// One long-lived `jan cli agent rpc` process serves many addressable sessions
+// One long-lived `rey30-idvj cli agent rpc` process serves many addressable sessions
 // over LF-delimited JSON-RPC; this module is the client half of that channel -
 // the handshake, the session and turn lifecycle, streamed events, and the host
 // tools the caller's own process runs.
@@ -24,7 +24,7 @@ import { EVENT_TAGS, PROTOCOL_VERSION } from './generated/rpc-types.js'
 // digest, the platform table - so it lives in its own module and is re-exported
 // here as the package's one entry point.
 export {
-  JanInstallError,
+  Rey30InstallError,
   MANIFEST_URL,
   PLATFORM_KEYS,
   binName,
@@ -37,7 +37,7 @@ export {
 const require = createRequire(import.meta.url)
 const { version: ADK_VERSION } = require('../package.json')
 
-const CLIENT_NAME = '@janhq/adk'
+const CLIENT_NAME = '@rey30-idvj/adk'
 
 // The types a host may hand back as an image without naming one. The runtime
 // enforces the same set (and the byte caps) on arrival; this is only what the
@@ -54,10 +54,10 @@ const IMAGE_MIME = {
 // protocol's: `-32602` for malformed params, `-32001` while another turn is
 // active, `-32002` before the handshake, `-32601` for a method this runtime
 // does not have.
-export class JanRpcError extends Error {
+export class Rey30RpcError extends Error {
   constructor(message, { code, data, method } = {}) {
     super(message)
-    this.name = 'JanRpcError'
+    this.name = 'Rey30RpcError'
     this.code = code
     this.data = data
     this.method = method
@@ -72,12 +72,12 @@ export class JanRpcError extends Error {
 
 // The runtime process failed: it could not be spawned, it did not complete the
 // handshake, it is not the protocol version this client speaks, or it exited.
-// Distinct from [`JanRpcError`] on purpose - one is an answer, this is the
+// Distinct from [`Rey30RpcError`] on purpose - one is an answer, this is the
 // channel.
-export class JanRuntimeError extends Error {
+export class Rey30RuntimeError extends Error {
   constructor(message, { exitCode, signal, stderr, cause } = {}) {
     super(message, cause === undefined ? undefined : { cause })
-    this.name = 'JanRuntimeError'
+    this.name = 'Rey30RuntimeError'
     this.exitCode = exitCode
     this.signal = signal
     this.stderr = stderr
@@ -146,7 +146,7 @@ class EventQueue {
 // Iterate it for the events as they stream, and await `result()` for the
 // terminal record. Both are safe in any order and more than once; events are
 // buffered until read.
-export class JanTurn {
+export class Rey30Turn {
   constructor(session, id) {
     this.session = session
     this.id = id
@@ -216,7 +216,7 @@ export class JanTurn {
 }
 
 // A session on a runtime: a conversation, its model, and its host tools.
-export class JanSession {
+export class Rey30Session {
   constructor(runtime, { id, model, tools, toolSpecs }) {
     this.runtime = runtime
     this.id = id
@@ -297,7 +297,7 @@ export class JanSession {
   }
 
   // Replace the host tools of a session between turns. Refused while a turn is
-  // active (`JanRpcError.code === -32001`).
+  // active (`Rey30RpcError.code === -32001`).
   async setTools(tools) {
     // One at a time with a fork of this session: the runtime clones the tools it
     // holds when it reads `session/fork`, so a replacement that lands between
@@ -351,7 +351,7 @@ export class JanSession {
     await this.runtime.request('session/archive', { sessionId: this.id })
     this.runtime._release(this)
     this.#closed = true
-    this.#abort(new JanRuntimeError('the session was archived'))
+    this.#abort(new Rey30RuntimeError('the session was archived'))
     this.#listeners.clear()
   }
 
@@ -383,7 +383,7 @@ export class JanSession {
     // hear what they were told they would.
     this.#notify(tag, event)
     // A listener that raised has failed the runtime, and this session with it
-    // (see `JanRuntime._callListener`): no turn is left to push to.
+    // (see `Rey30Runtime._callListener`): no turn is left to push to.
     if (this.#failure) return
     const turn = this.#turn(turnId, true)
     turn?._push(event)
@@ -420,7 +420,7 @@ export class JanSession {
     const existing = this.#turns.get(turnId)
     if (existing) return existing
     if (!create) return null
-    const turn = new JanTurn(this, turnId)
+    const turn = new Rey30Turn(this, turnId)
     // A terminal record the runtime already sent is the turn's outcome, whatever
     // happened to the runtime after it.
     const late = this.#late.get(turnId)
@@ -519,7 +519,7 @@ export class JanSession {
       // that throws): which of them it was does not change what the model needs.
       if (!requestIsGone(error) && !controller.signal.aborted) {
         const why =
-          error instanceof JanRpcError ? 'the runtime refused this tool result' : 'the tool result could not be encoded'
+          error instanceof Rey30RpcError ? 'the runtime refused this tool result' : 'the tool result could not be encoded'
         await this.runtime
           .request('tool/respond', { requestId, content: `${why}: ${describeError(error)}`, isError: true })
           .catch(() => {})
@@ -535,12 +535,12 @@ export class JanSession {
   }
 }
 
-// A Jan runtime process, spawned and owned by this object.
+// A Rey30 IDvj runtime process, spawned and owned by this object.
 ///
-// `await JanRuntime.start()` resolves once the handshake is done, so a runtime
+// `await Rey30Runtime.start()` resolves once the handshake is done, so a runtime
 // that cannot speak this protocol version fails before any work starts rather
 // than mid-turn.
-export class JanRuntime {
+export class Rey30Runtime {
   #child;
   #stdin;
   #reading;
@@ -563,7 +563,7 @@ export class JanRuntime {
 
   constructor(options = {}) {
     const {
-      bin = process.env.JAN_BIN ?? 'jan',
+      bin = process.env.REY30_BIN ?? 'rey30-idvj',
       args = ['cli', 'agent', 'rpc'],
       cwd,
       env,
@@ -588,7 +588,7 @@ export class JanRuntime {
         ...process.env,
         // The ADK owns this process and its lifetime; an update check nobody
         // asked for is a network call inside a caller's turn.
-        JAN_CLI_NO_UPDATE_CHECK: '1',
+        REY30_CLI_NO_UPDATE_CHECK: '1',
         ...env,
       },
     })
@@ -608,13 +608,13 @@ export class JanRuntime {
 
     this.#exited = new Promise((resolve) => {
       child.once('error', (error) => {
-        this.#fail(new JanRuntimeError(`could not start '${bin}': ${error.message}`, { stderr: this.#stderr }))
+        this.#fail(new Rey30RuntimeError(`could not start '${bin}': ${error.message}`, { stderr: this.#stderr }))
         resolve({ code: null, signal: null })
       })
       child.once('exit', (code, signal) => {
         this.#fail(
-          new JanRuntimeError(
-            `the jan runtime exited with ${signal ? `signal ${signal}` : `code ${code}`}${this.#stderr ? `: ${this.#stderr.trim()}` : ''}`,
+          new Rey30RuntimeError(
+            `the Rey30 IDvj runtime exited with ${signal ? `signal ${signal}` : `code ${code}`}${this.#stderr ? `: ${this.#stderr.trim()}` : ''}`,
             { exitCode: code, signal, stderr: this.#stderr },
           ),
         )
@@ -627,7 +627,7 @@ export class JanRuntime {
   // Spawn a runtime and complete the handshake: `initialize`, then the
   // `initialized` notification every other method sits behind.
   static async start(options = {}) {
-    const runtime = new JanRuntime(options)
+    const runtime = new Rey30Runtime(options)
     await runtime.#handshake()
     return runtime
   }
@@ -739,14 +739,14 @@ export class JanRuntime {
   // this client has no wrapper for.
   request(method, params = {}, { timeoutMs } = {}) {
     if (this.#failure) return Promise.reject(this.#failure)
-    if (this.#closing) return Promise.reject(new JanRuntimeError('the runtime is closing'))
+    if (this.#closing) return Promise.reject(new Rey30RuntimeError('the runtime is closing'))
     const id = this.#nextId++
     return new Promise((resolve, reject) => {
       const entry = { method, resolve, reject, timer: null }
       if (timeoutMs) {
         entry.timer = setTimeout(() => {
           this.#pending.delete(id)
-          reject(new JanRuntimeError(`'${method}' was not answered within ${timeoutMs}ms`))
+          reject(new Rey30RuntimeError(`'${method}' was not answered within ${timeoutMs}ms`))
         }, timeoutMs)
       }
       this.#pending.set(id, entry)
@@ -766,7 +766,7 @@ export class JanRuntime {
   async close({ force = false } = {}) {
     if (this.#closing) return this.#exited
     this.#closing = true
-    const gone = new JanRuntimeError('the runtime was closed')
+    const gone = new Rey30RuntimeError('the runtime was closed')
     for (const session of this.#sessions.values()) session._fail(gone)
     this.#sessions.clear()
     if (!this.#stdin.destroyed) this.#stdin.end()
@@ -792,8 +792,8 @@ export class JanRuntime {
       )
     } catch (error) {
       await this.#killQuietly()
-      if (error instanceof JanRpcError) {
-        throw new JanRuntimeError(
+      if (error instanceof Rey30RpcError) {
+        throw new Rey30RuntimeError(
           `'${this.#bin}' refused the handshake: ${error.message}${this.#stderr ? `: ${this.#stderr.trim()}` : ''}`,
           { stderr: this.#stderr },
         )
@@ -802,7 +802,7 @@ export class JanRuntime {
     }
     if (result?.protocolVersion !== PROTOCOL_VERSION) {
       await this.#killQuietly()
-      throw new JanRuntimeError(
+      throw new Rey30RuntimeError(
         `the runtime speaks protocol version ${result?.protocolVersion}, this client speaks ${PROTOCOL_VERSION}`,
         { stderr: this.#stderr },
       )
@@ -822,7 +822,7 @@ export class JanRuntime {
   }
 
   #session(view) {
-    const session = new JanSession(this, {
+    const session = new Rey30Session(this, {
       id: view.sessionId,
       model: view.model ?? null,
       tools: view.tools ?? [],
@@ -839,7 +839,7 @@ export class JanRuntime {
 
   // Run one listener. A listener that throws, or returns a promise that
   // rejects, fails the runtime: every open turn and call settles with a
-  // `JanRuntimeError` naming the cause (`error.cause`), and the process is
+  // `Rey30RuntimeError` naming the cause (`error.cause`), and the process is
   // stopped. The embedding application is not crashed by it, and it is not
   // left with a runtime that silently stopped delivering to a listener that
   // may have been the one answering a permission request.
@@ -859,7 +859,7 @@ export class JanRuntime {
     // listener's complaint changes nothing.
     if (this.#failure) return
     this.#fail(
-      new JanRuntimeError(`an event listener raised: ${describeError(error)}`, {
+      new Rey30RuntimeError(`an event listener raised: ${describeError(error)}`, {
         stderr: this.#stderr,
         cause: error,
       }),
@@ -876,7 +876,7 @@ export class JanRuntime {
       frame = JSON.parse(line)
     } catch {
       this.#fail(
-        new JanRuntimeError(`the runtime wrote a line that is not JSON: ${line.slice(0, 200)}`, {
+        new Rey30RuntimeError(`the runtime wrote a line that is not JSON: ${line.slice(0, 200)}`, {
           stderr: this.#stderr,
         }),
       )
@@ -908,7 +908,7 @@ export class JanRuntime {
     clearTimeout(entry.timer)
     if (frame.error) {
       const { code, message, data } = frame.error
-      entry.reject(new JanRpcError(message ?? 'the runtime refused the request', { code, data, method: entry.method }))
+      entry.reject(new Rey30RpcError(message ?? 'the runtime refused the request', { code, data, method: entry.method }))
       return
     }
     entry.resolve(frame.result ?? null)
@@ -916,7 +916,7 @@ export class JanRuntime {
 
   #write(frame) {
     if (this.#stdin.destroyed || !this.#stdin.writable) {
-      return Promise.reject(new JanRuntimeError('the runtime channel is closed', { stderr: this.#stderr }))
+      return Promise.reject(new Rey30RuntimeError('the runtime channel is closed', { stderr: this.#stderr }))
     }
     return new Promise((resolve, reject) => {
       this.#stdin.write(`${JSON.stringify(frame)}\n`, (error) => (error ? reject(error) : resolve()))
@@ -944,8 +944,8 @@ export class JanRuntime {
 // runtime: the channel is gone, or the runtime says nothing is pending. Any
 // other failure leaves it waiting.
 function requestIsGone(error) {
-  if (error instanceof JanRuntimeError) return true
-  return error instanceof JanRpcError && error.data?.kind === 'not_pending'
+  if (error instanceof Rey30RuntimeError) return true
+  return error instanceof Rey30RpcError && error.data?.kind === 'not_pending'
 }
 
 // What a handler or listener threw, as text. Anything can be thrown, and reading

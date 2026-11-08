@@ -8,7 +8,7 @@
 // The wire-shaped literals below are the same ones the runtime sends; the
 // behavioral suite in `adk.test.mjs` is what proves they are real.
 
-import { EVENT_TAGS, PROTOCOL_VERSION, JanRuntime, type EventTag, type RpcResponses, type StreamEvent } from '../src/index.js'
+import { EVENT_TAGS, PROTOCOL_VERSION, Rey30Runtime, type EventTag, type RpcResponses, type StreamEvent } from '../src/index.js'
 import type { RpcParams } from '../src/generated/rpc-types.js'
 
 declare function expectType<T>(value: T): T
@@ -58,9 +58,9 @@ expectType<RpcParams<'tool/respond'>>({ requestId: 'host-1', content: 7 })
 
 // Responses, which the schema does not describe: declared in `index.d.ts` and
 // pinned by the suite against a real runtime.
-declare const runtime: JanRuntime
+declare const runtime: Rey30Runtime
 expectType<Promise<RpcResponses['turn/start']>>(runtime.request('turn/start', { sessionId: 's', input: 'hi' }))
 expectType<Promise<RpcResponses['session/tools/get']>>(runtime.request('session/tools/get', { sessionId: 's' }))
 
 // The public classes are constructible only the way the README shows.
-expectType<Promise<JanRuntime>>(JanRuntime.start({ bin: 'jan' }))
+expectType<Promise<Rey30Runtime>>(Rey30Runtime.start({ bin: 'rey30-idvj' }))

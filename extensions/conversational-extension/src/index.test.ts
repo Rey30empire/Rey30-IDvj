@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import JanConversationalExtension from './index'
+import Rey30ConversationalExtension from './index'
 
 type ApiMock = Record<string, ReturnType<typeof vi.fn>>
 
@@ -20,12 +20,12 @@ function makeApi(): ApiMock {
 }
 
 let api: ApiMock
-let ext: JanConversationalExtension
+let ext: Rey30ConversationalExtension
 
 beforeEach(() => {
   api = makeApi()
   ;(globalThis as any).window = { core: { api } }
-  ext = new JanConversationalExtension()
+  ext = new Rey30ConversationalExtension()
 })
 
 afterEach(() => {

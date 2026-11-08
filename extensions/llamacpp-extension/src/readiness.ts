@@ -14,7 +14,9 @@ export type ReadinessStatus = 'ok' | 'warning'
  * which the bundled engine cannot be in -- no GPU means no GPU expected, which
  * is simply `ok`.
  */
-export type GpuOffloadReason = 'runtimeUnreachable' | 'missingLibrary'
+export type GpuOffloadReason = 'runtimeUnreachable' | 'missingLibrary' | 'selectedDevicesUnavailable'
+
+type OffloadDevice = { id: string; name: string }
 
 export interface GpuOffloadCheck {
   status: ReadinessStatus
@@ -23,6 +25,9 @@ export interface GpuOffloadCheck {
   reason?: GpuOffloadReason
   /** Set only for `missingLibrary`, to drive install advice. */
   missingLibraries?: string[]
+  devices?: OffloadDevice[]
+  missingDeviceIds?: string[]
+  offloadDisabled?: boolean
 }
 
 export type EmbeddingVectorProblem =
@@ -46,9 +51,31 @@ export interface EmbeddingVectorCheck {
  * configured `cuda` told us nothing about whether CUDA loaded.
  */
 export function backendFromDeviceIds(deviceIds: string[]): string {
-  const first = deviceIds.find((id) => id.trim() !== '')
-  if (!first) return ''
-  return first.trim().replace(/\d+$/, '').toLowerCase()
+  return [...new Set(deviceIds.map((id) => id.trim().replace(/\d+$/, '').toLowerCase()).filter(Boolean))].join(', ')
+}
+
+export function evaluateConfiguredGpuOffload(
+  devices: OffloadDevice[],
+  setting: unknown,
+  hardwareGpuCount: number
+): GpuOffloadCheck & { backend: string } {
+  const configured = typeof setting === 'string' ? setting.trim() : ''
+  if (configured.toLowerCase() === 'none') {
+    return { backend: 'cpu', status: 'ok', gpuExpected: false, engineDeviceCount: 0, offloadDisabled: true }
+  }
+  const requested = [...new Set(configured.split(',').map((id) => id.trim()).filter(Boolean))]
+  const selected = (requested.length ? devices.filter(({ id }) => requested.includes(id)) : devices)
+    .map(({ id, name }) => ({ id, name }))
+  const missingDeviceIds = requested.filter((id) => !selected.some((device) => device.id === id))
+  const backend = backendFromDeviceIds(selected.map(({ id }) => id))
+  if (missingDeviceIds.length) {
+    return { backend, status: 'warning', gpuExpected: true, engineDeviceCount: selected.length, reason: 'selectedDevicesUnavailable', missingDeviceIds, devices: selected }
+  }
+  return {
+    backend,
+    ...evaluateGpuOffload({ engineDeviceCount: selected.length, hardwareGpuCount: Math.max(hardwareGpuCount, selected.length) }),
+    devices: selected,
+  }
 }
 
 /**

@@ -5,7 +5,7 @@ import { AIEngine, EmbeddingEngine, canEmbed, isEmbeddingEngine } from './AIEngi
  * each consumer because the RAG and vector-db extensions both reached for it by
  * string literal, so a rename had three places to miss.
  */
-export const EMBEDDING_ENGINE_EXTENSION = '@janhq/llamacpp-extension'
+export const EMBEDDING_ENGINE_EXTENSION = '@rey30-idvj/llamacpp-extension'
 
 function lookup(extensionName: string): unknown {
   return globalThis.core?.extensionManager?.getByName(extensionName)

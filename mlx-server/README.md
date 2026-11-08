@@ -169,7 +169,7 @@ python server_benchmark.py --url http://localhost:8080/v1/chat/completions --mod
 
 ## License
 
-This project is part of Jan - an open-source desktop AI application.
+This server is used by Rey30 IDvj for local model inference on Apple Silicon.
 
 ## Contributing
 

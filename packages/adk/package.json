@@ -1,16 +1,15 @@
 {
-  "name": "@janhq/adk",
+  "name": "@rey30-idvj/adk",
   "version": "0.1.0",
-  "description": "JavaScript and TypeScript client for the Jan agent runtime: sessions, streamed turns, and host tools over `jan cli agent rpc`",
+  "description": "JavaScript and TypeScript client for the Rey30 IDvj agent runtime: sessions, streamed turns, and host tools over `rey30-idvj cli agent rpc`",
   "keywords": [
-    "jan",
+    "rey30-idvj",
     "agent",
     "adk",
     "json-rpc"
   ],
-  "homepage": "https://jan.ai",
   "license": "Apache-2.0",
-  "author": "Jan <service@jan.ai>",
+  "author": "Reinier Tamayo (Rey30 IDvj distribution)",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",

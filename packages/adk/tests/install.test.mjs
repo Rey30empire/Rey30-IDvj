@@ -16,7 +16,7 @@ import { join, relative, isAbsolute } from 'node:path'
 import test from 'node:test'
 
 import {
-  JanInstallError,
+  Rey30InstallError,
   PLATFORM_KEYS,
   binName,
   findRuntime,
@@ -27,14 +27,14 @@ import {
 
 const VERSION = '0.0.0-test'
 
-// A tarball holding a `jan` that is executable and does nothing. The installer
+// A tarball holding a `rey30-idvj` that is executable and does nothing. The installer
 // only has to put a binary there; whether it runs is the runtime's business.
 async function makeArchive(dir, content = VERSION) {
   const staged = join(dir, 'staged')
   await mkdir(staged, { recursive: true })
   const name = binName()
   await writeFile(join(staged, name), `#!/bin/sh\necho ${content}\n`)
-  const archive = join(dir, 'jan-runtime.tar.gz')
+  const archive = join(dir, 'rey30-runtime.tar.gz')
   execFileSync('tar', ['-czf', archive, '-C', staged, name])
   return archive
 }
@@ -52,7 +52,7 @@ async function channel({ archive, version = VERSION, digest, omitPlatform = fals
   const server = createServer((req, res) => {
     requests.push(req.url)
     if (req.url === '/manifest.json') {
-      entry.url = `http://127.0.0.1:${server.address().port}/jan-runtime.tar.gz`
+      entry.url = `http://127.0.0.1:${server.address().port}/rey30-runtime.tar.gz`
       const platforms = { [platformKey()]: entry }
       if (omitPlatform) delete platforms[platformKey()]
       res.writeHead(200, { 'content-type': 'application/json' })
@@ -79,17 +79,17 @@ test('a platform maps to the artifact the manifest publishes for it', () => {
   assert.equal(platformKey('win32', 'x64'), 'windows-x86_64')
   assert.equal(platformKey('win32', 'arm64'), 'windows-aarch64')
   assert.throws(() => platformKey('sunos', 'sparc'), (error) => {
-    assert.ok(error instanceof JanInstallError)
+    assert.ok(error instanceof Rey30InstallError)
     assert.match(error.message, /sunos\/sparc/)
     assert.match(error.message, /darwin-universal/)
     return true
   })
-  for (const key of PLATFORM_KEYS) assert.match(binName(key), /^jan(\.exe)?$/)
+  for (const key of PLATFORM_KEYS) assert.match(binName(key), /^rey30-idvj(\.exe)?$/)
 })
 
 test('an install lands a verified, executable binary and is cached after that', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-src-'))
   const archive = await makeArchive(source)
   const published = await channel({ archive })
   try {
@@ -106,7 +106,12 @@ test('an install lands a verified, executable binary and is cached after that', 
     // The digest is the archive's, which is what the manifest pins and what a
     // caller recomputes from the published artifact.
     assert.equal(installed.sha256, sha256(await readFile(archive)))
-    assert.equal((await stat(installed.bin)).mode & 0o111, 0o111, 'the binary is executable')
+    if (process.platform === 'win32') {
+      assert.ok((await stat(installed.bin)).isFile())
+      assert.equal(await readFile(installed.bin, 'utf8'), `#!/bin/sh\necho ${VERSION}\n`)
+    } else {
+      assert.equal((await stat(installed.bin)).mode & 0o111, 0o111, 'the binary is executable')
+    }
     assert.ok(progress.length > 0, 'progress was reported')
     assert.equal(progress.at(-1)[0], progress.at(-1)[1])
 
@@ -141,14 +146,14 @@ test('an install lands a verified, executable binary and is cached after that', 
 })
 
 test('a digest that does not match is an error, and leaves nothing behind', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-bad-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-bad-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-bad-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-bad-src-'))
   const published = await channel({ archive: await makeArchive(source), digest: 'f'.repeat(64) })
   try {
     await assert.rejects(
       installRuntime({ manifestUrl: published.url, root }),
       (error) => {
-        assert.ok(error instanceof JanInstallError)
+        assert.ok(error instanceof Rey30InstallError)
         assert.equal(error.expected, 'f'.repeat(64))
         assert.notEqual(error.actual, error.expected)
         assert.match(error.message, /hashes to/)
@@ -165,14 +170,14 @@ test('a digest that does not match is an error, and leaves nothing behind', asyn
 })
 
 test('a version or digest that the manifest does not publish is refused, not substituted', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-pin-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-pin-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-pin-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-pin-src-'))
   const published = await channel({ archive: await makeArchive(source) })
   try {
     await assert.rejects(
       installRuntime({ version: '0.0.0-other', manifestUrl: published.url, root }),
       (error) => {
-        assert.ok(error instanceof JanInstallError)
+        assert.ok(error instanceof Rey30InstallError)
         assert.match(error.message, /publishes 0\.0\.0-test, not 0\.0\.0-other/)
         return true
       },
@@ -180,7 +185,7 @@ test('a version or digest that the manifest does not publish is refused, not sub
     await assert.rejects(
       installRuntime({ sha256: 'a'.repeat(64), manifestUrl: published.url, root }),
       (error) => {
-        assert.ok(error instanceof JanInstallError)
+        assert.ok(error instanceof Rey30InstallError)
         assert.match(error.message, /not the a{64} this install pins/)
         return true
       },
@@ -194,12 +199,12 @@ test('a version or digest that the manifest does not publish is refused, not sub
 })
 
 test('a manifest without this platform is an error naming what it has', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-missing-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-missing-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-missing-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-missing-src-'))
   const published = await channel({ archive: await makeArchive(source), omitPlatform: true })
   try {
     await assert.rejects(installRuntime({ manifestUrl: published.url, root }), (error) => {
-      assert.ok(error instanceof JanInstallError)
+      assert.ok(error instanceof Rey30InstallError)
       assert.match(error.message, new RegExp(`no entry for ${platformKey()}`))
       assert.equal(error.platform, platformKey())
       return true
@@ -212,8 +217,8 @@ test('a manifest without this platform is an error naming what it has', async ()
 })
 
 test('a channel that republishes a version under a new digest installs again', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-repub-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-repub-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-repub-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-repub-src-'))
   const first = await channel({ archive: await makeArchive(source) })
   try {
     const installed = await installRuntime({ manifestUrl: first.url, root })
@@ -229,7 +234,7 @@ test('a channel that republishes a version under a new digest installs again', a
       assert.equal(again.version, VERSION)
       assert.equal(again.cached, false, 'a republished digest is not the install on disk')
       assert.notEqual(again.sha256, installed.sha256)
-      assert.equal(again.sha256, sha256(await readFile(join(rebuilt, 'jan-runtime.tar.gz'))))
+      assert.equal(again.sha256, sha256(await readFile(join(rebuilt, 'rey30-runtime.tar.gz'))))
       assert.equal(await readFile(installed.bin, 'utf8'), `#!/bin/sh\necho ${VERSION}\n`)
       assert.equal(await readFile(again.bin, 'utf8'), '#!/bin/sh\necho replacement\n')
     } finally {
@@ -243,19 +248,19 @@ test('a channel that republishes a version under a new digest installs again', a
 })
 
 test('an archive that names a member outside the staging directory is refused', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-escape-'))
-  const source = await mkdtemp(join(tmpdir(), 'jan-install-escape-src-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-escape-'))
+  const source = await mkdtemp(join(tmpdir(), 'rey30-install-escape-src-'))
   // An absolute member: `tar -P` stores the path as given, which is the shape a
   // hostile channel would use. The listing is checked before anything is
   // extracted, so the install is refused rather than written outside the root.
   const outside = join(source, 'outside')
   await writeFile(outside, 'x')
-  const archive = join(source, 'jan-runtime.tar.gz')
+  const archive = join(source, 'rey30-runtime.tar.gz')
   execFileSync('tar', ['-czPf', archive, outside])
   const published = await channel({ archive })
   try {
     await assert.rejects(installRuntime({ manifestUrl: published.url, root }), (error) => {
-      assert.ok(error instanceof JanInstallError)
+      assert.ok(error instanceof Rey30InstallError)
       assert.match(error.message, /member outside the install directory/)
       return true
     })
@@ -268,12 +273,12 @@ test('an archive that names a member outside the staging directory is refused', 
   }
 })
 
-test('the runtime root follows JAN_AGENT_HOME, and a marker without a binary is not an install', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-install-root-'))
+test('the runtime root follows REY30_AGENT_HOME, and a marker without a binary is not an install', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'rey30-install-root-'))
   try {
-    assert.equal(runtimeRoot({ JAN_AGENT_HOME: root }), root)
+    assert.equal(runtimeRoot({ REY30_AGENT_HOME: root }), root)
     assert.notEqual(runtimeRoot({}), root)
-    assert.match(runtimeRoot({}), /jan-agent[\\/]runtimes$/)
+    assert.match(runtimeRoot({}), /rey30-idvj-agent[\\/]runtimes$/)
 
     // A directory that looks installed but holds no binary answers `null`: a
     // half-removed install must not be reported as usable.
@@ -287,7 +292,7 @@ test('the runtime root follows JAN_AGENT_HOME, and a marker without a binary is 
 })
 
 test('concurrent installs use isolated staging even within one clock tick', async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-concurrent-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-concurrent-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const published = await channel({ archive: await makeArchive(root) })
   t.after(published.close)
@@ -302,7 +307,7 @@ test('concurrent installs use isolated staging even within one clock tick', asyn
 })
 
 test('relative cache roots return runnable absolute binary paths', async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-relative-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-relative-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const published = await channel({ archive: await makeArchive(root) })
   t.after(published.close)
@@ -312,10 +317,10 @@ test('relative cache roots return runnable absolute binary paths', async (t) => 
 })
 
 test('untrusted version paths are refused before downloading', async (t) => {
-  const root = await mkdtemp(join(tmpdir(), 'jan-version-'))
+  const root = await mkdtemp(join(tmpdir(), 'rey30-version-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const published = await channel({ archive: await makeArchive(root), version: '../escaped' })
   t.after(published.close)
-  await assert.rejects(installRuntime({ root: join(root, 'cache'), manifestUrl: published.url }), JanInstallError)
+  await assert.rejects(installRuntime({ root: join(root, 'cache'), manifestUrl: published.url }), Rey30InstallError)
   assert.equal(published.artifacts(), 0)
 })

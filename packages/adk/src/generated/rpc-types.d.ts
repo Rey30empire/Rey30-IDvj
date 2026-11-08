@@ -70,7 +70,7 @@ export interface ClientInfo {
   "version": string
 }
 
-/** `Deserialize` as well as `Serialize`: a consumer validates what it received against these shapes, and `JsonSchema` is what `jan cli agent schema` publishes them as -- a consumer generates its own types from `protocol/schema.json` rather than copying this declaration. The wire has to survive a round trip, not just a write, so `#[serde(tag = "type")]` keeps the tag on both sides. Where a [`StreamEvent::Compaction`] is in its round trip. */
+/** `Deserialize` as well as `Serialize`: a consumer validates what it received against these shapes, and `JsonSchema` is what `rey30-idvj cli agent schema` publishes them as -- a consumer generates its own types from `protocol/schema.json` rather than copying this declaration. The wire has to survive a round trip, not just a write, so `#[serde(tag = "type")]` keeps the tag on both sides. Where a [`StreamEvent::Compaction`] is in its round trip. */
 export type CompactionPhase = "started" | "finished" | "failed"
 
 /** Which path asked for a [`StreamEvent::Compaction`]. */
@@ -107,7 +107,7 @@ export interface PendingSubagent {
   "phase": number
 }
 
-/** Who gates host tool calls. `jan` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Jan never asks about a host tool. */
+/** Who gates host tool calls. `rey30-idvj` prompts through `permission_request` the way any opaque tool is prompted; `host` means the host's own callback is the gate, so Rey30 IDvj never asks about a host tool. */
 export type PermissionOwner = "jan" | "host"
 
 /** One image in an outbound request, as [`StreamEvent::RequestProvenance`] reports it: identity, not content. */
@@ -183,7 +183,7 @@ export interface SessionStartParams {
   "builtins"?: boolean
   /** Whether the session may delegate to subagents; defaults to `builtins`. With `builtins: false` it adds only `dispatch_subagent`, `list_subagents`, `message_subagent` and `stop_subagent`, and every child is held to the session's host tools. `false` withholds subagent tools even from a session with built-ins. */
   "subagents"?: boolean | null
-  /** The session's whole system prompt, sent byte for byte in place of the one Jan composes: no Jan identity, guides, environment, date, git state or recalled project memory. Its answers are still indexed for later sessions unless it is `ephemeral`. Jan may still append runtime notices to the conversation. Children keep their own prompts. */
+  /** The session's whole system prompt, sent byte for byte in place of the one Rey30 IDvj composes: no Rey30 IDvj identity, guides, environment, date, git state or recalled project memory. Its answers are still indexed for later sessions unless it is `ephemeral`. Rey30 IDvj may still append runtime notices to the conversation. Children keep their own prompts. */
   "systemPrompt"?: string | null
   "permissions"?: PermissionOwner
 }
@@ -471,7 +471,7 @@ export interface ToolDetailsEvent {
   "type": "tool_details"
 }
 
-/** What the run is about to send a provider, emitted immediately before each request goes out -- the hook an experiment harness needs to hold two runs comparable (pi's `onPayload` is the shape Robot Studio already records). Every outbound request gets one, including the side calls a turn makes (compaction, a session title) and every child run's own requests; the hashes describe the body Jan built for the adapter, so two runs can be compared field by field. Nothing here is model input or output: it never joins the transcript, and a consumer may render it, store it or ignore it. */
+/** What the run is about to send a provider, emitted immediately before each request goes out -- the hook an experiment harness needs to hold two runs comparable (pi's `onPayload` is the shape Robot Studio already records). Every outbound request gets one, including the side calls a turn makes (compaction, a session title) and every child run's own requests; the hashes describe the body Rey30 IDvj built for the adapter, so two runs can be compared field by field. Nothing here is model input or output: it never joins the transcript, and a consumer may render it, store it or ignore it. */
 export interface RequestProvenanceEvent {
   /** Which run made the request: `None` for the main run, the child's run id for a subagent. */
   "run_id"?: string | null
@@ -483,7 +483,7 @@ export interface RequestProvenanceEvent {
   "model": string
   /** The wire API the request is built for (`anthropic`, `google`, `openai-responses`), absent for chat/completions. */
   "api_type"?: string | null
-  /** SHA-256 of the request body as Jan built it, as canonical JSON: every object's keys sorted, recursively, so re-encoding the same members in another order gives the same digest. It is the value that makes two runs comparable even when a field this record does not itemize has changed. The body hashed is the one Jan built, before the provider adapter appends its transport fields (`stream`, `stream_options`), so it is not byte-for-byte what the provider received: a harness recomputes it by sorting keys and dropping those two fields. */
+  /** SHA-256 of the request body as Rey30 IDvj built it, as canonical JSON: every object's keys sorted, recursively, so re-encoding the same members in another order gives the same digest. It is the value that makes two runs comparable even when a field this record does not itemize has changed. The body hashed is the one Rey30 IDvj built, before the provider adapter appends its transport fields (`stream`, `stream_options`), so it is not byte-for-byte what the provider received: a harness recomputes it by sorting keys and dropping those two fields. */
   "request_sha256": string
   /** The canonical body's serialized length. Key order does not change it, so it describes the built body either way. */
   "body_bytes": number

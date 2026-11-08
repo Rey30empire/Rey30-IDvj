@@ -7,7 +7,7 @@ image-bearing result, a handler that fails, an interrupt that settles once, two
 sessions that never hear each other, and a channel that closes under a turn
 instead of hanging.
 
-Set ``JAN_BIN`` to the runtime binary; without it the suite skips rather than
+Set ``REY30_BIN`` to the runtime binary; without it the suite skips rather than
 fails. Nothing here needs Node.
 """
 
@@ -23,13 +23,13 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from jan_adk import PROTOCOL_VERSION, HostTool, JanRpcError, JanRuntime, JanRuntimeError  # noqa: E402
+from rey30_idvj_adk import PROTOCOL_VERSION, HostTool, Rey30RpcError, Rey30Runtime, Rey30RuntimeError  # noqa: E402
 from tests.harness import Provider, Scratch, holding, prose, settle, streamed, tool_call  # noqa: E402
 
-BIN = os.environ.get("JAN_BIN")
+BIN = os.environ.get("REY30_BIN")
 
 
-@unittest.skipUnless(BIN, "set JAN_BIN to the jan binary to run the ADK suite")
+@unittest.skipUnless(BIN, "set REY30_BIN to the rey30-idvj binary to run the ADK suite")
 class AdkTest(unittest.TestCase):
     def setUp(self) -> None:
         self.provider: Provider | None = None
@@ -56,7 +56,7 @@ class AdkTest(unittest.TestCase):
         scratch = self.prepare([prose("unused")])
         with scratch.start() as runtime:
             self.assertEqual(runtime.protocol_version, PROTOCOL_VERSION)
-            self.assertEqual(runtime.server_info["name"], "jan")
+            self.assertEqual(runtime.server_info["name"], "rey30-idvj")
             self.assertTrue(runtime.capabilities["session"])
             # The caps are the handshake's business: a client that sends an
             # image learns the limits here rather than from a rejection.
@@ -66,13 +66,13 @@ class AdkTest(unittest.TestCase):
             self.assertGreater(runtime.pid or 0, 0)
 
     def test_a_runtime_that_is_not_there_fails_before_any_work_starts(self) -> None:
-        with self.assertRaises(JanRuntimeError):
-            JanRuntime.start(bin=os.path.join(self._tmp(), "jan-does-not-exist"), env=os.environ)
+        with self.assertRaises(Rey30RuntimeError):
+            Rey30Runtime.start(bin=os.path.join(self._tmp(), "rey30-idvj-does-not-exist"), env=os.environ)
 
     def test_a_request_with_no_runtime_behind_it_is_refused_not_hung(self) -> None:
         scratch = self.prepare([prose("unused")])
         with scratch.start() as runtime:
-            with self.assertRaises(JanRpcError) as refusal:
+            with self.assertRaises(Rey30RpcError) as refusal:
                 runtime.request("session/tools/get", {"sessionId": "not-a-session"})
             self.assertEqual(refusal.exception.code, -32602)
             self.assertIn("unknown session", str(refusal.exception))
@@ -462,7 +462,7 @@ class AdkTest(unittest.TestCase):
         # Closing stdin is the runtime's own shutdown signal, and a turn that
         # was running is closed on the channel before the process exits.
         self.assertEqual(code, 0)
-        with self.assertRaises(JanRuntimeError):
+        with self.assertRaises(Rey30RuntimeError):
             turn.result(timeout=5)
 
     # -- host tools, inputs, forks and resumes --------------------------------
@@ -550,7 +550,7 @@ class AdkTest(unittest.TestCase):
             self.assertIn("record form", json.dumps(self._last_user(self.provider.bodies[2])["content"]))
 
             # A refusal from the runtime stays an answer the caller can read.
-            with self.assertRaises(JanRpcError):
+            with self.assertRaises(Rey30RpcError):
                 session.prompt([{"type": "audio", "data": "x"}])
 
     def test_a_fork_answers_for_its_sources_host_tools(self) -> None:
@@ -620,9 +620,9 @@ class AdkTest(unittest.TestCase):
 
         runtime.close()
         # The runtime's own failure, not `result()` giving up on a turn that was
-        # never settled: that is also a JanRuntimeError, so the message tells
+        # never settled: that is also a Rey30RuntimeError, so the message tells
         # the two apart.
-        with self.assertRaises(JanRuntimeError) as failed:
+        with self.assertRaises(Rey30RuntimeError) as failed:
             turn.result(timeout=4)
         self.assertNotIn("did not finish", str(failed.exception))
 
@@ -722,12 +722,12 @@ class AdkTest(unittest.TestCase):
             def request_then_fail(method, params=None, timeout=None):
                 answer = request(method, params, timeout)
                 if method == "turn/start":
-                    runtime._fail(JanRuntimeError("QA_FAILS_FIRST"))
+                    runtime._fail(Rey30RuntimeError("QA_FAILS_FIRST"))
                 return answer
 
             runtime.request = request_then_fail
             turn = session.prompt("hi")
-            with self.assertRaises(JanRuntimeError) as failed:
+            with self.assertRaises(Rey30RuntimeError) as failed:
                 turn.result(timeout=4)
             self.assertIn("QA_FAILS_FIRST", str(failed.exception))
 
@@ -743,7 +743,7 @@ class AdkTest(unittest.TestCase):
                 answer = request(method, params, timeout)
                 if method == "turn/start":
                     session._complete({"turnId": answer["turnId"], "stopReason": "interrupted"})
-                    runtime._fail(JanRuntimeError("QA_CLOSED_AFTER"))
+                    runtime._fail(Rey30RuntimeError("QA_CLOSED_AFTER"))
                 return answer
 
             runtime.request = answered_then_closed
@@ -814,7 +814,7 @@ class AdkTest(unittest.TestCase):
     def _tmp(self) -> str:
         import tempfile
 
-        return tempfile.mkdtemp(prefix="jan-adk-missing-")
+        return tempfile.mkdtemp(prefix="rey30-idvj-adk-missing-")
 
 
 if __name__ == "__main__":

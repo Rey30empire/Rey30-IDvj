@@ -9,9 +9,11 @@ export default defineConfig([
       file: 'dist/index.js',
     },
     platform: 'browser',
-    define: {
-      NODE: JSON.stringify(`${pkgJson.name}/${pkgJson.node}`),
-      VERSION: JSON.stringify(pkgJson.version),
+    transform: {
+      define: {
+        NODE: JSON.stringify(`${pkgJson.name}/${pkgJson.node}`),
+        VERSION: JSON.stringify(pkgJson.version),
+      },
     },
   }
 ])

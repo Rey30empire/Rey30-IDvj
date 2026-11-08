@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { logger } from '@janhq/core'
+import { logger } from '@rey30-idvj/core'
 import {
   buildEmbedBatches,
   detectMtpLayersFromGgufMeta,

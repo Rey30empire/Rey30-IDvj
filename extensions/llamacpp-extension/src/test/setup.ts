@@ -52,7 +52,7 @@ Object.defineProperty(globalThis, 'window', {
   },
 })
 
-vi.mock('@janhq/tauri-plugin-hardware-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-hardware-api', () => ({
   getSystemInfo: vi.fn(),
 }));
 
@@ -74,15 +74,15 @@ vi.mock('@tauri-apps/api/path', () => ({
   resolve: vi.fn(),
 }))
 
-// Mock @janhq/core
-vi.mock('@janhq/core', () => ({
+// Mock @rey30-idvj/core
+vi.mock('@rey30-idvj/core', () => ({
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
   },
-  getJanDataFolderPath: vi.fn(),
+  getRey30DataFolderPath: vi.fn(),
   fs: {
     existsSync: vi.fn(),
     readdirSync: vi.fn(),

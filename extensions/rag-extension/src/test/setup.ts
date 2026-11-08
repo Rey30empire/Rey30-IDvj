@@ -8,7 +8,7 @@ Object.defineProperty(globalThis, 'SETTINGS', {
 })
 
 // window.core.extensionManager is the bridge RagExtension resolves dependencies
-// through. `@janhq/core` reads `globalThis.core`, so both names must reach the
+// through. `@rey30-idvj/core` reads `globalThis.core`, so both names must reach the
 // same object -- in the browser they are the same object, and a setup that set
 // only one made the core helpers silently see no extensions.
 const core = {
@@ -34,15 +34,15 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }))
 
-vi.mock('@janhq/tauri-plugin-rag-api', () => ({
+vi.mock('@rey30-idvj/tauri-plugin-rag-api', () => ({
   parseDocument: vi.fn(),
 }))
 
 // The embedding helpers are taken from the real module rather than stubbed:
 // they are the shared implementation this extension delegates to, so stubbing
 // them would leave the delegation untested on both sides.
-vi.mock('@janhq/core', async () => {
-  const actual = await vi.importActual<typeof import('@janhq/core')>('@janhq/core')
+vi.mock('@rey30-idvj/core', async () => {
+  const actual = await vi.importActual<typeof import('@rey30-idvj/core')>('@rey30-idvj/core')
   class BaseExtension {
     registerSettings = vi.fn().mockResolvedValue(undefined)
     getSetting = vi.fn(async (_key: string, defaultValue: unknown) => defaultValue)

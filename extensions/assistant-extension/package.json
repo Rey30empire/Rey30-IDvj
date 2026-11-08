@@ -1,28 +1,27 @@
 {
-  "name": "@janhq/assistant-extension",
-  "productName": "Jan Assistant",
+  "name": "@rey30-idvj/assistant-extension",
+  "productName": "Rey30 IDvj Assistant",
   "version": "1.0.2",
   "description": "Powers the default AI assistant that works with all your installed models.",
   "main": "dist/index.js",
   "node": "dist/node/index.js",
-  "author": "Jan <service@jan.ai>",
+  "author": "Reinier Tamayo (Rey30 IDvj distribution)",
   "license": "Apache-2.0",
   "scripts": {
     "build": "rolldown -c rolldown.config.mjs",
-    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && cpx *.tgz ../../pre-install",
+    "build:publish": "rimraf *.tgz --glob || true && yarn build && npm pack && node ../../scripts/copy-files.mjs archives",
     "test": "vitest run"
   },
   "devDependencies": {
-    "cpx": "1.5.0",
     "jsdom": "^26.1.0",
     "rimraf": "6.0.1",
-    "rolldown": "1.0.0-beta.1",
+    "rolldown": "1.2.16",
     "run-script-os": "1.1.6",
     "typescript": "5.9.2",
     "vitest": "3.2.7"
   },
   "dependencies": {
-    "@janhq/core": "workspace:*"
+    "@rey30-idvj/core": "workspace:*"
   },
   "files": [
     "dist/*",

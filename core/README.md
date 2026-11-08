@@ -1,4 +1,4 @@
-## @janhq/core
+## @rey30-idvj/core
 
 > This module includes functions for communicating with core APIs, registering app extensions, and exporting type definitions.
 
@@ -8,12 +8,12 @@
 
 ```js
 // Web / extension runtime
-import * as core from '@janhq/core'
+import * as core from '@rey30-idvj/core'
 ```
 
 ## Build an Extension
 
-1. Download an extension template, for example, [https://github.com/janhq/extension-template](https://github.com/janhq/extension-template).
+1. Start from one of the local [extensions](../extensions) and follow the [extension guide](../extensions/CONTRIBUTING.md).
 
 2. Update the source code:
 
@@ -21,13 +21,13 @@ import * as core from '@janhq/core'
    2. Rename the extension class from `SampleExtension` to your preferred extension name.
    3. Import modules from the core package.
       ```ts
-      import * as core from '@janhq/core'
+      import * as core from '@rey30-idvj/core'
       ```
    4. In the `onLoad()` method, add your code:
 
       ```ts
       // Example of listening to app events and providing customized inference logic:
-      import * as core from '@janhq/core'
+      import * as core from '@rey30-idvj/core'
 
       export default class MyExtension extends BaseExtension {
         // On extension load
@@ -41,7 +41,7 @@ import * as core from '@janhq/core'
           const content: ThreadContent = {
             type: ContentType.Text,
             text: {
-              value: "I'm Jan Assistant!",
+              value: "I'm Rey30 IDvj Assistant!",
               annotations: [],
             },
           }
@@ -65,4 +65,4 @@ import * as core from '@janhq/core'
       ```bash
       yarn build
       ```
-   4. Select the generated .tgz from Jan > Settings > Extension > Manual Installation.
+   4. Select the generated .tgz from Rey30 IDvj > Settings > Extension > Manual Installation.
