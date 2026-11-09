@@ -17,6 +17,7 @@ import {
   useState,
 } from 'react'
 import { Streamdown } from 'streamdown'
+import { safeStreamdownPlugins } from '@/lib/markdownImages'
 import type { Components } from 'react-markdown'
 import { ExternalAnchor } from '@/components/ExternalAnchor'
 import { Shimmer } from './shimmer'
@@ -197,6 +198,7 @@ export const ReasoningContent = memo(
         <Streamdown
           className="streamdown-animate"
           {...props}
+          rehypePlugins={safeStreamdownPlugins}
           components={REASONING_COMPONENTS}
         >
           {children}

@@ -1,6 +1,7 @@
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { useToolApproval } from '@/hooks/useToolApproval'
 import type { MCPTool } from '@/types/completion'
+import { loadPlumaProject, plumaProjectPrompt, projectReadToolNames, projectToolNames, projectTools, runProjectTool } from './pluma-project'
 
 /**
  * Tools Pluma can use to act during a voice call, beyond talking:
@@ -9,12 +10,22 @@ import type { MCPTool } from '@/types/completion'
  * - MCP tools from servers the person already trusts in every conversation
  *   (Settings → MCP). A call has no screen to approve each use, so only that
  *   standing trust counts; nothing new is unlocked here.
+ * - one project folder, when the person chose it and switched editing on
+ *   (see `pluma-project.ts`).
  */
 export type PlumaToolCall = { id: string; function: { name: string; arguments: string } }
 export type PlumaActions = {
   tools: object[]
   owns(name: string): boolean
   run(call: PlumaToolCall, signal?: AbortSignal): Promise<string>
+  /** Extra system-prompt rule for these tools. */
+  prompt?: string
+  /** Model rounds a turn may take; the default suits one or two tool calls. */
+  maxRounds?: number
+  /** Whether this tool hands project text, which nobody vetted, to the model. */
+  readsProject?(name: string): boolean
+  /** Whether this tool can carry data out of the app. */
+  reachesOutside?(name: string): boolean
 }
 
 const MAX_MCP_TOOLS = 8
@@ -152,12 +163,20 @@ export async function plumaActions(): Promise<PlumaActions> {
     mcp = []
   }
   const byName = new Map(mcp.map(entry => [entry.name, entry.tool]))
+  const project = await loadPlumaProject()
+  const folder = project.canEdit ? project.folder : null
+  // The tools' scratch space; the work itself happens in `folder`.
+  const projectSession = crypto.randomUUID()
   return {
-    tools: [...documentTools, ...mcp.map(entry => mcpDefinition(entry.name, entry.tool))],
-    owns: name => documentToolNames.has(name) || byName.has(name),
+    tools: [...documentTools, ...(folder ? projectTools : []), ...mcp.map(entry => mcpDefinition(entry.name, entry.tool))],
+    owns: name => documentToolNames.has(name) || byName.has(name) || (!!folder && projectToolNames.has(name)),
     run: (call, signal) => {
+      if (folder && projectToolNames.has(call.function.name)) return runProjectTool(call, folder, projectSession)
       const item = byName.get(call.function.name)
       return item ? runMcpTool(item, call, signal) : runDocumentTool(call)
     },
+    readsProject: name => !!folder && projectReadToolNames.has(name),
+    reachesOutside: name => byName.has(name),
+    ...(folder ? { prompt: plumaProjectPrompt(folder), maxRounds: 8 } : {}),
   }
 }

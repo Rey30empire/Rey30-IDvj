@@ -76,7 +76,8 @@ export function validateCharacterProfile(value: unknown): CharacterProfile {
   if (Object.prototype.hasOwnProperty.call(voiceRecord, 'plumaDirect')) voiceKeys.push('plumaDirect')
   if (Object.prototype.hasOwnProperty.call(voiceRecord, 'plumaClone')) voiceKeys.push('plumaClone')
   const voice = shape(voiceRecord, voiceKeys, 'voz')
-  const avatar = shape(v.avatar, ['enabled', 'primary', 'secondary', 'accent', 'skin', 'hair', 'motion', 'gestures'], 'avatar')
+  // Saves from before the sphere/hologram choice have no `display`.
+  const avatar = shape(v.avatar, ['enabled', 'primary', 'secondary', 'accent', 'skin', 'hair', 'motion', 'gestures', ...(Object.prototype.hasOwnProperty.call(record(v.avatar, 'avatar'), 'display') ? ['display'] : [])], 'avatar')
   const color = (value: unknown) => typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value : fail('color hexadecimal')
   if (!Array.isArray(v.examples) || v.examples.length < 1 || v.examples.length > 12) return fail('ejemplos')
   if (!Array.isArray(avatar.gestures) || avatar.gestures.length > gestures.length || new Set(avatar.gestures).size !== avatar.gestures.length) return fail('gestos')
@@ -90,7 +91,7 @@ export function validateCharacterProfile(value: unknown): CharacterProfile {
     examples: v.examples.map(example => { const e = shape(example, ['situation', 'response'], 'ejemplo'); return { situation: text(e.situation, 300, 'situación'), response: text(e.response, 1_200, 'respuesta de ejemplo') } }),
     settings: validateCharacterSettings(v.settings),
     voice: { provider: oneOf(voice.provider, ['native-local'], 'proveedor de voz'), enabled: bool(voice.enabled, 'voz activa'), voiceURI: voice.voiceURI === null ? null : text(voice.voiceURI, 512, 'voz disponible'), lang: text(voice.lang, 35, 'idioma de voz'), rate: number(voice.rate, 0.5, 1.8, 'velocidad de voz'), pitch: number(voice.pitch, 0.5, 2, 'tono de voz'), volume: number(voice.volume, 0, 1, 'volumen'), localOnly: bool(voice.localOnly, 'voz local'), ...(voiceKeys.includes('plumaDirect') ? { plumaDirect: bool(voice.plumaDirect, 'voz directa de Pluma') } : {}), ...(voiceKeys.includes('plumaClone') ? { plumaClone: bool(voice.plumaClone, 'voz clonada de Pluma') } : {}) },
-    avatar: { enabled: bool(avatar.enabled, 'avatar activo'), primary: color(avatar.primary), secondary: color(avatar.secondary), accent: color(avatar.accent), skin: color(avatar.skin), hair: color(avatar.hair), motion: intensity(avatar.motion, 'movimiento'), gestures: avatar.gestures.map(gesture => oneOf(gesture, gestures, 'gesto')) as CharacterProfile['avatar']['gestures'] },
+    avatar: { enabled: bool(avatar.enabled, 'avatar activo'), primary: color(avatar.primary), secondary: color(avatar.secondary), accent: color(avatar.accent), skin: color(avatar.skin), hair: color(avatar.hair), motion: intensity(avatar.motion, 'movimiento'), gestures: avatar.gestures.map(gesture => oneOf(gesture, gestures, 'gesto')) as CharacterProfile['avatar']['gestures'], ...(avatar.display === undefined ? {} : { display: oneOf(avatar.display, ['sphere', 'hologram'] as const, 'vista del avatar') }) },
     modelBinding: model ? { providerId: text(model.providerId, 200, 'identificador de proveedor'), modelId: text(model.modelId, 300, 'identificador de modelo') } : null,
   }
   if (ORIGINAL_CHARACTER_IDS.includes(result.id as CharacterProfile['baseId']) && result.baseId !== result.id) return fail('identidad original')

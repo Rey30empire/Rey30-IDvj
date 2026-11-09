@@ -17,6 +17,7 @@ import {
 } from '../chain-of-thought'
 
 vi.mock('streamdown', () => ({
+  defaultRehypePlugins: {},
   Streamdown: ({ children }: { children: string }) => <span>{children}</span>,
 }))
 

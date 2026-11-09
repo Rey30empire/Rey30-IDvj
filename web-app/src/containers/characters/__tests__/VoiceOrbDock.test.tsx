@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
 import { createDefaultCharacterData } from '@/lib/characters/profiles'
-const h = vi.hoisted(() => ({ saved: null as string | null, activeId: 'kairo', threadId: 'thread-qa' as string | undefined, notifyMessages: new Set<() => void>(), notifyStatus: new Set<() => void>(), chatStatus: 'ready', onText: undefined as ((text: string) => void) | undefined, resolveSpeech: undefined as (() => void) | undefined, listen: vi.fn(), speak: vi.fn(), stop: vi.fn(), catalog: vi.fn(), messages: [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }] }))
-vi.mock('@/lib/characters/persistence', async original => ({ ...(await original<typeof import('@/lib/characters/persistence')>()), characterStorage: { read: async () => h.saved, write: async (value: string) => { h.saved = value } } }))
+const h = vi.hoisted(() => ({ saved: null as string | null, failWrite: false, activeId: 'kairo', threadId: 'thread-qa' as string | undefined, notifyMessages: new Set<() => void>(), notifyStatus: new Set<() => void>(), chatStatus: 'ready', onText: undefined as ((text: string) => void) | undefined, resolveSpeech: undefined as (() => void) | undefined, listen: vi.fn(), speak: vi.fn(), stop: vi.fn(), catalog: vi.fn(), messages: [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }] }))
+vi.mock('@/lib/characters/persistence', async original => ({ ...(await original<typeof import('@/lib/characters/persistence')>()), characterStorage: { read: async () => h.saved, write: async (value: string) => { if (h.failWrite) throw new Error('disco lleno'); h.saved = value } } }))
 
 vi.mock('@/hooks/useAvailableAssistants', async () => { const { useCharacterStore } = await import('@/stores/useCharacterStore'); return { useActiveCharacter: () => useCharacterStore(state => state.profiles.find(profile => profile.id === h.activeId)) } })
 vi.mock('@/hooks/useThreads', () => {
@@ -55,7 +55,7 @@ async function transcribe() {
   if (h.threadId) submitVoiceTurn()
 }
 beforeEach(async () => {
-  vi.clearAllMocks(); h.saved = null; h.activeId = 'kairo'; h.threadId = 'thread-qa'; h.onText = undefined; h.resolveSpeech = undefined; h.chatStatus = 'ready'; h.notifyMessages.clear(); h.notifyStatus.clear(); window.history.replaceState({}, '', '/')
+  vi.clearAllMocks(); h.saved = null; h.failWrite = false; h.activeId = 'kairo'; h.threadId = 'thread-qa'; h.onText = undefined; h.resolveSpeech = undefined; h.chatStatus = 'ready'; h.notifyMessages.clear(); h.notifyStatus.clear(); window.history.replaceState({}, '', '/')
   h.messages = [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }]
   useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: true, saving: false, error: null }); useCharacterAudio.setState({ status: 'idle', error: null, dictation: true, catalogLoaded: true })
   h.catalog.mockResolvedValue(undefined)
@@ -66,6 +66,93 @@ beforeEach(async () => {
 })
 afterEach(() => { vi.useRealTimers(); act(() => useAvatarVoiceSession.getState().close()) })
 describe('avatar y voz con motores sustituidos por fixtures funcionales sin dispositivos', () => {
+  const editPluma = (change: (profile: ReturnType<typeof useCharacterStore.getState>['profiles'][number]) => object) =>
+    act(() => useCharacterStore.setState(state => ({ profiles: state.profiles.map(item => item.id === 'literatura' ? { ...item, ...change(item) } : item) })))
+  it('muestra holograma o esfera, nunca los dos', () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'literatura'
+    const view = mount()
+    expect(screen.getByTestId('hologram-avatar').className).toContain('w-[150px]')
+    expect(document.querySelector('.voice-orb-core')).toBeNull()
+    editPluma(item => ({ avatar: { ...item.avatar, display: 'sphere' } }))
+    view.rerender(<VoiceOrbDock onVoiceMessage={vi.fn()} />)
+    expect(screen.queryByTestId('hologram-avatar')).toBeNull()
+    expect(document.querySelector('.voice-orb-core')).not.toBeNull()
+  })
+  it('lleva el holograma al escenario de la pantalla cuando existe', async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'literatura'
+    const stage = document.createElement('div')
+    stage.id = 'hologram-stage'
+    document.body.append(stage)
+    try {
+      mount()
+      await waitFor(() => expect(stage.querySelector('[data-testid="hologram-avatar"]')).not.toBeNull())
+      expect(stage.querySelector('[data-testid="hologram-caption"]')?.textContent).toBeTruthy()
+    } finally { stage.remove() }
+  })
+  it('escucha sola con la voz activada y no vuelve a abrirse tras pausar', async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'literatura'
+    live.start.mockReturnValue({ stop: live.stop, setMuted: live.mute, finishTurn: live.finish })
+    editPluma(item => ({ voice: { ...item.voice, enabled: true } }))
+    mount()
+    await waitFor(() => expect(live.start).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByTestId('voice-orb-toggle'))
+    act(() => useAvatarVoiceSession.getState().close())
+    await act(async () => { await Promise.resolve() })
+    expect(useAvatarVoiceSession.getState().open).toBe(false)
+    expect(live.start).toHaveBeenCalledTimes(1)
+  })
+  // Enters a local call that started by itself, with the options menu open.
+  const callPluma = async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'nara'
+    mount().unmount()
+    h.activeId = 'literatura'
+    live.start.mockReturnValue({ stop: live.stop, setMuted: live.mute, finishTurn: live.finish })
+    editPluma(item => ({ voice: { ...item.voice, enabled: true } }))
+    mount()
+    await waitFor(() => expect(useAvatarVoiceSession.getState().active).toBe(true))
+    expect(live.start).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('voice-orb-options'))
+    return await screen.findByTestId('voice-orb-exit')
+  }
+  const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 50)) })
+  const savedPluma = () => useCharacterStore.getState().profiles.find(item => item.id === 'literatura')!
+  it('«Solo chat» apaga la llamada local y el micrófono no se vuelve a abrir', async () => {
+    fireEvent.click(await callPluma())
+    await waitFor(() => expect(savedPluma().voice.enabled).toBe(false))
+    await settle()
+    expect(live.start).toHaveBeenCalledTimes(1)
+    expect(useAvatarVoiceSession.getState()).toMatchObject({ open: false, active: false })
+  })
+  it('«Solo chat» tampoco reabre el micrófono si no se pudo guardar', async () => {
+    const exit = await callPluma()
+    h.failWrite = true
+    fireEvent.click(exit)
+    await settle()
+    expect(savedPluma().voice.enabled).toBe(true)
+    expect(live.start).toHaveBeenCalledTimes(1)
+    expect(useAvatarVoiceSession.getState()).toMatchObject({ open: false, active: false })
+  })
+  it('vuelve a escuchar sola cuando la voz se apaga con «Solo chat» y se enciende después', async () => {
+    fireEvent.click(await callPluma())
+    await waitFor(() => expect(savedPluma().voice.enabled).toBe(false))
+    await settle()
+    editPluma(item => ({ voice: { ...item.voice, enabled: true } }))
+    await waitFor(() => expect(live.start).toHaveBeenCalledTimes(2))
+  })
+  it('no escucha sola con la voz apagada', async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'nara'
+    mount()
+    h.activeId = 'literatura'
+    const view = mount()
+    await act(async () => { await Promise.resolve() })
+    expect(live.start).not.toHaveBeenCalled()
+    view.unmount()
+  })
   it('pide una muestra para Gemma y arranca la llamada clonada tras guardarla', async () => {
     h.activeId = 'literatura'
     useAvatarVoiceSession.getState().openFor(h.activeId, h.threadId!)

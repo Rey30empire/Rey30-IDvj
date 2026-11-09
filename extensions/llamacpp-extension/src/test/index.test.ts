@@ -976,6 +976,73 @@ describe('refreshEnginePreset embedding slot reservation', () => {
   })
 })
 
+describe('embedder registered without its weights', () => {
+  const id = 'sentence-transformer-mini'
+  let extension: llamacpp_extension
+  let importSpy: ReturnType<typeof vi.spyOn>
+  let deleteSpy: ReturnType<typeof vi.spyOn>
+  let loadSpy: ReturnType<typeof vi.spyOn>
+  const arm = (modelPath: string, exists: boolean) => {
+    vi.mocked(invoke).mockResolvedValue({ model_path: modelPath } as never)
+    vi.mocked(fs.existsSync).mockResolvedValue(exists as never)
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    extension = new llamacpp_extension()
+    vi.mocked(getBackendSetting).mockResolvedValue(null)
+    vi.spyOn(extension, 'list').mockResolvedValue([{ id, embedding: true }] as never)
+    vi.spyOn(extension as never, 'findSessionByModel' as never).mockResolvedValue(undefined as never)
+    importSpy = vi.spyOn(extension, 'import').mockResolvedValue(undefined as never)
+    deleteSpy = vi.spyOn(extension, 'delete').mockResolvedValue(undefined as never)
+    loadSpy = vi.spyOn(extension, 'load').mockResolvedValue({ model_id: id, port: 1 } as never)
+  })
+
+  it('removes the broken entry and downloads the embedder again', async () => {
+    arm('llamacpp/models/sentence-transformer-mini/model.gguf', false)
+    await extension['ensureEmbeddingModelLoaded']()
+    expect(deleteSpy).toHaveBeenCalledWith(id)
+    expect(importSpy).toHaveBeenCalledWith(id, expect.objectContaining({ modelPath: expect.stringContaining('MiniLM') }))
+    expect(deleteSpy.mock.invocationCallOrder[0]).toBeLessThan(importSpy.mock.invocationCallOrder[0])
+    expect(loadSpy).toHaveBeenCalled()
+  })
+
+  it('still downloads when the entry was already removed by a parallel call', async () => {
+    arm('llamacpp/models/sentence-transformer-mini/model.gguf', false)
+    deleteSpy.mockRejectedValueOnce(new Error(`Model ${id} does not exist`))
+    await extension['ensureEmbeddingModelLoaded']()
+    expect(importSpy).toHaveBeenCalled()
+  })
+
+  it('joins a download already running instead of deleting what it is writing', async () => {
+    arm('llamacpp/models/sentence-transformer-mini/model.gguf', false)
+    extension['pendingImports'].set(id, Promise.resolve())
+    await extension['ensureEmbeddingModelLoaded']()
+    expect(deleteSpy).not.toHaveBeenCalled()
+    expect(importSpy).toHaveBeenCalled()
+  })
+
+  it('leaves an embedder whose weights are present alone', async () => {
+    arm('llamacpp/models/sentence-transformer-mini/model.gguf', true)
+    await extension['ensureEmbeddingModelLoaded']()
+    expect(deleteSpy).not.toHaveBeenCalled()
+    expect(importSpy).not.toHaveBeenCalled()
+    expect(loadSpy).toHaveBeenCalled()
+  })
+
+  it.each(['C:\\Modelos IA Rey30\\mini\\model.gguf', 'D:/modelos/mini.gguf', '/opt/models/mini.gguf'])(
+    'never deletes an embedder kept at the absolute path %s',
+    async (modelPath) => {
+      // The app may not be allowed to see outside its data folder, so "not
+      // found" there says nothing about the file.
+      arm(modelPath, false)
+      await extension['ensureEmbeddingModelLoaded']()
+      expect(deleteSpy).not.toHaveBeenCalled()
+      expect(importSpy).not.toHaveBeenCalled()
+    }
+  )
+})
+
 describe('bootstrapDefaultEmbedder', () => {
   let extension: llamacpp_extension
 

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCharacterStore } from '@/stores/useCharacterStore'
+import { HOLOGRAM_PORTRAITS, usesHologram } from './HologramAvatar'
 import { useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
 import { plumaDirectVoice, supportsPlumaCall, usesPlumaCall } from '@/lib/characters/pluma-realtime'
 import { plumaCloneVoice, plumaReferenceStatus, usesPlumaClone } from '@/lib/characters/pluma-clone'
@@ -15,6 +16,8 @@ import type { CharacterProfile, CharacterMode, Intensity } from '@/lib/character
 import { getCharacterChatRole, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
 import { isLiteraryModelProvider, loadLiteraryLibraryStatus, setLiteraryLibraryRoot, type LiteraryLibraryStatus } from '@/lib/literaryLibrary'
 import { clearPlumaMemory, forgetPlumaNote, loadPlumaMemory, MAX_PLUMA_NOTES } from '@/lib/characters/pluma-memory'
+import { loadPlumaProject, pickPlumaProjectFolder, savePlumaProject, type PlumaProject } from '@/lib/characters/pluma-project'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
 const fieldClass = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
@@ -75,6 +78,49 @@ function LiteraryLibrarySettings() {
       {!busy && status && (
         <p role="status">{status.indexedFiles.toLocaleString('es')} archivos indexados · {status.skippedFiles.toLocaleString('es')} omitidos{status.limitReached ? ' · Se alcanzó el límite de indexación.' : ''}</p>
       )}
+      {error && <p role="alert" className="text-destructive">{error}</p>}
+    </section>
+  )
+}
+
+/** The project folder Pluma may edit during a voice call, off by default. */
+function PlumaProjectSettings() {
+  const [project, setProject] = useState<PlumaProject>()
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let live = true
+    void loadPlumaProject().then(value => { if (live) setProject(value) })
+    return () => { live = false }
+  }, [])
+  async function save(next: PlumaProject) {
+    setError('')
+    try {
+      setProject(await savePlumaProject(next))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }
+  async function choose() {
+    setError('')
+    try {
+      const folder = await pickPlumaProjectFolder()
+      if (folder) await save({ folder, canEdit: project?.canEdit ?? false })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }
+  return (
+    <section className="space-y-2 rounded-md border px-3 py-2 text-sm" aria-label="Proyecto de Plumita">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium">Editar un proyecto por voz</p>
+        <Switch aria-label="Permitir que Plumita edite el proyecto" checked={!!project?.canEdit} disabled={!project?.folder} onCheckedChange={canEdit => { if (project) void save({ ...project, canEdit }) }} />
+      </div>
+      <p className="text-muted-foreground">Con la voz clonada, Plumita puede leer, buscar, crear y cambiar archivos de esta carpeta. No puede borrar archivos ni ejecutar comandos. Se aplica desde la siguiente llamada.</p>
+      <p className="break-all">{project?.folder ?? 'Ninguna carpeta elegida'}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={() => void choose()}>Elegir carpeta</Button>
+        {project?.folder && <Button type="button" size="sm" variant="ghost" onClick={() => void save({ folder: null, canEdit: false })}>Quitar</Button>}
+      </div>
       {error && <p role="alert" className="text-destructive">{error}</p>}
     </section>
   )
@@ -216,6 +262,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
           <select aria-label="Modo del personaje" className={cn(fieldClass, 'w-auto py-1 text-xs')} disabled={saving} value={activeProfile.settings.mode} onChange={(e) => update({ ...activeProfile, settings: { ...activeProfile.settings, mode: e.target.value as CharacterMode } })}>{Object.entries(modeLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
           <Button type="button" size="sm" variant="ghost" aria-pressed={activeProfile.avatar.enabled} disabled={saving} onClick={() => { if (activeProfile.avatar.enabled) { useCharacterAudio.getState().stop(); useAvatarVoiceSession.getState().close() } update({ ...activeProfile, avatar: { ...activeProfile.avatar, enabled: !activeProfile.avatar.enabled } }) }}>Indicador {activeProfile.avatar.enabled ? 'visible' : 'oculto'}</Button>
           <Button type="button" size="sm" variant="ghost" aria-pressed={activeProfile.avatar.motion > 0} disabled={saving || !activeProfile.avatar.enabled} onClick={() => update({ ...activeProfile, avatar: { ...activeProfile.avatar, motion: activeProfile.avatar.motion > 0 ? 0 : 1 } })}>Animación {activeProfile.avatar.motion > 0 ? 'activada' : 'desactivada'}</Button>
+          {activeProfile.baseId in HOLOGRAM_PORTRAITS && <Button data-testid="avatar-display-toggle" type="button" size="sm" variant="ghost" disabled={saving || !activeProfile.avatar.enabled} onClick={() => update({ ...activeProfile, avatar: { ...activeProfile.avatar, display: usesHologram(activeProfile) ? 'sphere' : 'hologram' } })}>Vista: {usesHologram(activeProfile) ? 'holograma' : 'esfera'}</Button>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button data-testid="voice-orb-open" type="button" size="sm" disabled={saving || (!onVoiceMessage && !activeLocalCall) || busy} onClick={() => {
@@ -280,6 +327,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <Field label="Modelo del personaje"><select className={fieldClass} value={draft.modelBinding ? JSON.stringify(draft.modelBinding) : ''} onChange={(e) => setDraft({ ...draft, modelBinding: e.target.value ? JSON.parse(e.target.value) : null })}><option value="">Asignar automáticamente un modelo local pequeño</option>{!bindingAvailable && draft.modelBinding && <option value={JSON.stringify(draft.modelBinding)}>No disponible: {draft.modelBinding.providerId} · {draft.modelBinding.modelId}</option>}{availableModels.map(model => <option key={`${model.providerId}/${model.modelId}`} value={JSON.stringify({ providerId: model.providerId, modelId: model.modelId })}>{model.label}</option>)}</select></Field>
               {!bindingAvailable && <p className="text-sm text-destructive" role="status">El modelo guardado no está disponible. Elige otro modelo para utilizar este asistente.</p>}
               {isLiterary && open && <LiteraryLibrarySettings />}
+              {isLiterary && open && <PlumaProjectSettings />}
               {isLiterary && open && <PlumaLearnedMemory />}
               <div className="flex flex-wrap gap-3">{(['primary', 'secondary', 'accent'] as const).map((key) => <Field key={key} label={({ primary: 'Esfera', secondary: 'Aro', accent: 'Detalles' })[key]}><input type="color" value={draft.avatar[key]} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, [key]: e.target.value } })} /></Field>)}</div>
               <Field label={`Animación del aro · ${draft.avatar.motion}`}><input type="range" min={0} max={3} step={1} value={draft.avatar.motion} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, motion: Number(e.target.value) as Intensity } })} /></Field>

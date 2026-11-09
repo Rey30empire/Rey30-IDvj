@@ -3106,7 +3106,10 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
 
   let sInfo = await this.findSessionByModel(targetModelId)
   if (!sInfo) {
-   if (targetModelId === FALLBACK_EMBEDDING_MODEL_ID && !hasMini) {
+   if (
+    targetModelId === FALLBACK_EMBEDDING_MODEL_ID &&
+    (!hasMini || (await this.discardFallbackEmbedderWithoutWeights()))
+   ) {
     await this.import(FALLBACK_EMBEDDING_MODEL_ID, {
      modelPath: FALLBACK_EMBEDDING_MODEL_URL,
     })
@@ -3114,6 +3117,34 @@ export default class llamacpp_extension extends AIEngine implements EmbeddingEng
    sInfo = await this.load(targetModelId, undefined, true)
   }
   return sInfo as SessionInfo
+ }
+
+ /**
+  * A `model.yml` whose weights are gone (a copy that skipped them, an interrupted
+  * move) still lists as installed, can never load, and makes `import` refuse to
+  * replace it, so the embedder stays broken for good. Removes such an entry and
+  * says whether the embedder has to be fetched again.
+  */
+ private async discardFallbackEmbedderWithoutWeights(): Promise<boolean> {
+  const id = FALLBACK_EMBEDDING_MODEL_ID
+  if (this.pendingImports.has(id)) return true
+  let modelPath: string | undefined
+  try {
+   const config = await invoke<ModelConfig>('read_yaml', {
+    path: await joinPath([await this.getProviderPath(), 'models', id, 'model.yml']),
+   })
+   modelPath = config.model_path
+  } catch {
+   // Removed by a parallel call since the listing: nothing left to clean up.
+   return true
+  }
+  // Outside the data folder a negative answer may only mean "not allowed to
+  // look", which is no reason to delete anything.
+  if (!modelPath || /^(?:[a-zA-Z]:[\\/]|[\\/])/.test(modelPath)) return false
+  if (await fs.existsSync(await joinPath([await getRey30DataFolderPath(), modelPath]))) return false
+  logger.warn(`Embedding model "${id}" has no weights at ${modelPath}; downloading it again`)
+  await this.delete(id).catch((e) => logger.warn(`Could not remove the broken "${id}" entry:`, e))
+  return true
  }
 
  /**

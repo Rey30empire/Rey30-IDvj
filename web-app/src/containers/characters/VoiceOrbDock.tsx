@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CS
 import type { UIMessage } from 'ai'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { MoreHorizontal } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { cn } from '@/lib/utils'
+import { Mic, MoreHorizontal } from 'lucide-react'
 import { useActiveCharacter } from '@/hooks/useAvailableAssistants'
 import { useThreads } from '@/hooks/useThreads'
 import { defaultVoiceId, useCharacterAudio } from '@/lib/characters/audio'
@@ -15,10 +17,13 @@ import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { toast } from 'sonner'
-import { HologramAvatar, HOLOGRAM_PORTRAITS } from './HologramAvatar'
+import { HologramAvatar, HOLOGRAM_PORTRAITS, HOLOGRAM_STAGE_ID, usesHologram } from './HologramAvatar'
 import './VoiceOrbDock.css'
 
+const micSilenceMs = 6000
 let mountedViews = 0
+/** The character whose call the person paused: it must not reopen by itself on the next screen. */
+let autoListenDeclined: string | null = null
 let orphanTimer: ReturnType<typeof setTimeout> | undefined
 let orphanRouteCheck: ReturnType<typeof setInterval> | undefined
 const noMessages: UIMessage[] = []
@@ -59,6 +64,10 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const plumaSelector = supportsPlumaCall(profile?.id)
   const reference = usePlumaCloneReference(cloneCall)
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const [stage, setStage] = useState<HTMLElement | null>(null)
+  const [micSilent, setMicSilent] = useState(false)
+  const lastSound = useRef(0)
+  const startCall = useRef<() => void>(undefined)
   const nativeVoices = useCharacterAudio(state => state.voices)
   const [callPhase, setCallPhase] = useState<PlumaCallPhase>('connecting')
   const [callLevel, setCallLevel] = useState(0)
@@ -83,6 +92,7 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const busyRef = useRef(busy)
   busyRef.current = processing
   const stop = (close = false) => {
+    if (close && profile) autoListenDeclined = profile.id
     plumaCall.current?.stop()
     useCharacterAudio.getState().stop()
     if (close) useAvatarVoiceSession.getState().close()
@@ -117,6 +127,34 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   }, [])
 
   useEffect(() => { if (profile?.avatar.enabled) void useCharacterAudio.getState().loadCatalog() }, [profile?.id, profile?.avatar.enabled])
+
+  useEffect(() => { setStage(document.getElementById(HOLOGRAM_STAGE_ID)) }, [threadId])
+
+  useEffect(() => {
+    if (callLevel > 0) { lastSound.current = Date.now(); setMicSilent(false) }
+  }, [callLevel])
+
+  // A working microphone always carries some noise: a level of exactly zero
+  // means it is muted or off, and otherwise the call would just seem deaf.
+  useEffect(() => {
+    if (!localCall || !session.active || callPhase !== 'listening') { setMicSilent(false); return }
+    lastSound.current = Date.now()
+    const timer = setInterval(() => setMicSilent(Date.now() - lastSound.current > micSilenceMs), 1000)
+    return () => clearInterval(timer)
+  }, [localCall, session.active, callPhase])
+
+  // A local call listens as soon as its character is on screen. «Solo chat» holds
+  // the microphone closed even if turning the voice off could not be saved, and
+  // pausing holds until the character changes. Once the voice is really off the
+  // profile remembers it, so switching it back on listens again.
+  useEffect(() => {
+    if (autoListenDeclined && autoListenDeclined !== activeProfile?.id) autoListenDeclined = null
+    if (autoListenDeclined && autoListenDeclined === profile?.id && !profile.voice.enabled && !saving) autoListenDeclined = null
+    if (!localCall || session.open || saving || processing || !profile?.voice.enabled || !profile.avatar.enabled) return
+    if (activeProfile?.id !== profile.id || autoListenDeclined === profile.id) return
+    if (cloneCall && (!reference.reference?.ready || reference.busy)) return
+    startCall.current?.()
+  }, [localCall, cloneCall, session.open, saving, processing, profile?.id, profile?.voice.enabled, profile?.avatar.enabled, activeProfile?.id, reference.reference?.ready, reference.busy])
 
   useEffect(() => {
     if (!session.open) return
@@ -251,14 +289,18 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
       if (useAvatarVoiceSession.getState().generation === nonce) useAvatarVoiceSession.getState().pause('No se pudo guardar la activación de voz. Revisa la configuración antes de continuar.')
     })
   }
+  startCall.current = start
   const inputLevel = localCall ? callLevel : amplitude
   const level = Number.isFinite(inputLevel) ? Math.max(0, Math.min(1, inputLevel)) : 0
   const color = (value: string) => /^#[a-f\d]{6}$/i.test(value) ? value : '#45404A'
   const spanishVoices = nativeVoices.filter(voice => /^es(?:-|$)/i.test(voice.language))
   const selectedVoice = !plumaSelector ? undefined : cloneCall ? plumaCloneVoice : directCall ? plumaDirectVoice : profile.voice.voiceURI ?? defaultVoiceId(profile)
   const error = session.error || (!localCall && audioError)
-  return <aside data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className="voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1" data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
-    <button data-testid="voice-orb-toggle" type="button" title={`${profile.name} · ${status}`} aria-label={session.active ? 'Pausar voz' : cloneNeedsReference ? 'Configurar muestra de voz' : 'Iniciar voz'} aria-pressed={session.active} disabled={!session.active && (saving || processing || (!localCall && (!onVoiceMessage || !catalogLoaded || !dictation)))} className="voice-orb focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { if (session.active) stop(); else start() }}><span className="voice-orb-core" /><span className="sr-only">{profile.name} · {status}</span></button>
+  const hologram = usesHologram(profile)
+  const notice = error || (micSilent ? 'Tu micrófono no envía sonido. Revisa que el headset esté encendido y sin silenciar.' : undefined)
+  const hologramAt = (size: 'stage' | 'call' | 'corner') => <HologramAvatar portrait={HOLOGRAM_PORTRAITS[profile.baseId]} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} />
+  return <aside data-view={hologram ? 'hologram' : 'sphere'} data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className="voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1" data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
+    <button data-testid="voice-orb-toggle" type="button" title={`${profile.name} · ${status}`} aria-label={session.active ? 'Pausar voz' : cloneNeedsReference ? 'Configurar muestra de voz' : 'Iniciar voz'} aria-pressed={session.active} disabled={!session.active && (saving || processing || (!localCall && (!onVoiceMessage || !catalogLoaded || !dictation)))} className="voice-orb focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { if (session.active) { autoListenDeclined = profile.id; stop() } else { autoListenDeclined = null; start() } }}>{hologram ? <Mic className="size-5" aria-hidden="true" /> : <span className="voice-orb-core" />}<span className="sr-only">{profile.name} · {status}</span></button>
     <Popover open={optionsOpen} onOpenChange={setOptionsOpen}>
       <PopoverTrigger asChild><Button data-testid="voice-orb-options" aria-label="Opciones de voz" type="button" size="icon-sm" variant="ghost"><MoreHorizontal className="size-4" /></Button></PopoverTrigger>
       <PopoverContent align="end" className="w-72 max-w-[calc(100vw-2rem)] space-y-2">
@@ -302,10 +344,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
         {!catalogLoaded && audioError && <Button size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Consultar audio local</Button>}
       </PopoverContent>
     </Popover>
-    {session.open && HOLOGRAM_PORTRAITS[profile.baseId] && (
-      <div className="absolute right-0 top-full mt-2">
-        <HologramAvatar portrait={HOLOGRAM_PORTRAITS[profile.baseId]} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} />
-      </div>
-    )}
+    {hologram && (stage
+      ? createPortal(<div className="absolute inset-x-3 inset-y-2 flex items-center justify-center overflow-hidden rounded-2xl bg-[#040810] sm:inset-x-6">{hologramAt('stage')}<p data-testid="hologram-caption" role="status" className={cn('pointer-events-none absolute inset-x-4 bottom-3 text-center text-sm font-medium', notice ? 'text-amber-300' : 'text-cyan-100/80')}>{notice ?? status}</p></div>, stage)
+      : <div className="absolute right-0 top-full mt-2 flex w-[240px] flex-col items-end gap-1">{hologramAt(session.open ? 'call' : 'corner')}{notice && <p role="status" className="rounded-md bg-background/90 px-2 py-1 text-xs font-medium text-destructive">{notice}</p>}</div>)}
   </aside>
 }

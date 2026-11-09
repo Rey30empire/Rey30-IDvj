@@ -811,14 +811,15 @@ mod platform {
 
     /// Pluma's own tools, plus MCP tools the person trusts in every
     /// conversation, which the window names `mcp_<server>_<tool>`. Each name
-    /// at most once, sixteen tools at most.
+    /// at most once, twenty-four tools at most.
     pub(super) fn tools_allowed(tools: &[Value]) -> bool {
-        const OWN: [&str; 8] = [
+        const OWN: [&str; 13] = [
             "buscar_biblioteca", "cantar_cancion", "recordar", "olvidar",
             "listar_documentos", "leer_documento", "crear_documento", "editar_documento",
+            "proyecto_listar", "proyecto_buscar", "proyecto_leer", "proyecto_crear", "proyecto_editar",
         ];
         let mut seen = std::collections::HashSet::new();
-        tools.len() <= 16
+        tools.len() <= 24
             && tools.iter().all(|tool| {
                 let Some(name) = tool.pointer("/function/name").and_then(Value::as_str) else {
                     return false;
@@ -847,7 +848,7 @@ mod platform {
             // more room than a spoken answer.
             if tools.iter().any(|tool| {
                 tool.pointer("/function/name").and_then(Value::as_str).is_some_and(|name| {
-                    name == "crear_documento" || name == "editar_documento"
+                    matches!(name, "crear_documento" | "editar_documento" | "proyecto_crear" | "proyecto_editar")
                 })
             }) {
                 body["max_tokens"] = json!(1536);
@@ -987,6 +988,9 @@ mod platform {
                     if event.get("error").is_some() {
                         return Err("Gemma no pudo completar la respuesta en voz.".into());
                     }
+                    if let Some(timings) = event.get("timings") {
+                        log::info!("Tiempos de Gemma en la llamada de Pluma: {timings}");
+                    }
                     if let Some(delta) = event.pointer("/choices/0/delta") {
                         if let Some(text) = reply.apply(delta)? {
                             events
@@ -1117,7 +1121,9 @@ mod tool_tests {
         assert!(!tools_allowed(&[tool("ejecutar_comando")]));
         assert!(!tools_allowed(&[tool("mcp_Fetch-Tool")]));
         assert!(!tools_allowed(&[tool("mcp_")]));
-        let many: Vec<_> = (0..17).map(|i| tool(&format!("mcp_t{i}"))).collect();
+        assert!(tools_allowed(&[tool("proyecto_leer"), tool("proyecto_editar")]));
+        assert!(!tools_allowed(&[tool("proyecto_borrar")]));
+        let many: Vec<_> = (0..25).map(|i| tool(&format!("mcp_t{i}"))).collect();
         assert!(!tools_allowed(&many));
     }
 }

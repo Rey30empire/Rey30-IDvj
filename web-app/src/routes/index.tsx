@@ -2,9 +2,8 @@
 import { createFileRoute, useSearch } from '@tanstack/react-router'
 import ChatInput from '@/containers/ChatInput'
 import HeaderPage from '@/containers/HeaderPage'
-import { useTranslation } from '@/i18n/react-i18next-compat'
 import { useTools } from '@/hooks/useTools'
-import { cn } from '@/lib/utils'
+import { HOLOGRAM_STAGE_ID } from '@/containers/characters/HologramAvatar'
 
 import { useModelProvider } from '@/hooks/useModelProvider'
 import SetupScreen from '@/containers/SetupScreen'
@@ -35,7 +34,6 @@ export const Route = createFileRoute('/')({
 })
 
 function Index() {
-  const { t } = useTranslation()
   const { providers } = useModelProvider()
   const search = useSearch({ from: route.home as any })
   const threadModel = search.threadModel
@@ -60,19 +58,7 @@ function Index() {
           <DropdownModelProvider model={threadModel} />
         </div>
       </HeaderPage>
-      <div data-testid="home-welcome" className="relative flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-6">
-        <div className="flex max-w-xl flex-col items-center text-center">
-            <img src="/images/rey30-idvj.svg" alt="" aria-hidden="true" className="mb-3 size-14" width={56} height={56} />
-            <p className="mb-2 font-studio text-sm font-medium">Rey30 IDvj</p>
-            <h1
-              className={cn(
-                'text-2xl mt-2 font-studio font-medium',
-              )}
-            >
-              {t('chat:description')}
-            </h1>
-        </div>
-      </div>
+      <div data-testid="home-welcome" id={HOLOGRAM_STAGE_ID} className="relative min-h-0 flex-1" />
       <div data-testid="home-composer-shell" className="relative mx-auto w-full shrink-0 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 md:w-4/5 xl:w-4/6">
         <ChatInput
           showSpeedToken={false}

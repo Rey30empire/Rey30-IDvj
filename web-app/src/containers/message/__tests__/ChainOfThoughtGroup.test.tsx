@@ -12,6 +12,7 @@ vi.mock('@/hooks/useToolApprovalRequests', () => ({
 }))
 
 vi.mock('streamdown', () => ({
+  defaultRehypePlugins: {},
   Streamdown: ({ children }: { children: string }) => <span>{children}</span>,
 }))
 

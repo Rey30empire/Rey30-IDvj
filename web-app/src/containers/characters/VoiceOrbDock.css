@@ -11,6 +11,7 @@
   cursor: pointer;
   transition: border-color 180ms ease, color 180ms ease;
 }
+.voice-orb-dock[data-view='hologram'] .voice-orb { width: 44px; height: 44px; }
 .voice-orb-dock { --voice-color: var(--muted-foreground); }
 .voice-orb-dock[data-state='listening'] { --voice-color: #19715e; }
 .voice-orb-dock[data-state='thinking'] { --voice-color: #95611e; }

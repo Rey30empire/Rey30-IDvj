@@ -2,6 +2,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import ChatInput from '@/containers/ChatInput'
 import HeaderPage from '@/containers/HeaderPage'
+import { HologramAvatar, HOLOGRAM_PORTRAITS, usesHologram } from '@/containers/characters/HologramAvatar'
+import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { route } from '@/constants/routes'
 import { ensureCoworkEnabled } from '@/lib/coworkAccess'
@@ -249,6 +251,7 @@ function CoworkPage() {
   const planMode = session?.planMode ?? false
 
   const running = useCoworkRun((s) => !!(currentId && s.runId[currentId]))
+  const coder = useCharacterStore((s) => s.profiles.find((item) => item.id === 'coder'))
   const contextRecovery = useRef({ mounted: true, pending: false })
   useEffect(() => {
     const recovery = contextRecovery.current
@@ -1557,6 +1560,11 @@ function CoworkPage() {
       data-testid="cowork-surface"
       className="flex flex-col h-[calc(100dvh-(env(safe-area-inset-bottom)+env(safe-area-inset-top)))]"
     >
+      {coder && usesHologram(coder) && (
+        <div className="fixed top-16 right-4 z-30">
+          <HologramAvatar portrait={HOLOGRAM_PORTRAITS.coder} state={running ? 'thinking' : 'idle'} level={0} color="#5CE1E6" label={`Holograma de ${coder.name}`} size="corner" />
+        </div>
+      )}
       <HeaderPage>
         <div className="flex items-center justify-between w-full pr-2">
           <DropdownModelProvider

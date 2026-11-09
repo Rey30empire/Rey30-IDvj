@@ -37,6 +37,8 @@ export type CharacterAvatar = {
   hair: string
   motion: Intensity
   gestures: AvatarGesture[]
+  /** How a character with a portrait appears; absent means the hologram. */
+  display?: 'sphere' | 'hologram'
 }
 export type CharacterModelBinding = { providerId: string; modelId: string }
 export type CharacterProfile = {

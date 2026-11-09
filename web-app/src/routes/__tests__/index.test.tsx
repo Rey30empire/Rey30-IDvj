@@ -122,7 +122,8 @@ describe('Index route', () => {
     expect(screen.getByTestId('chat-input')).toBeInTheDocument()
     expect(screen.getByTestId('header-page')).toBeInTheDocument()
     expect(screen.getByTestId('dropdown')).toBeInTheDocument()
-    expect(screen.getByText('chat:description')).toBeInTheDocument()
+    expect(screen.queryByText('chat:description')).toBeNull()
+    expect(screen.getByTestId('home-welcome').id).toBe('hologram-stage')
   })
 
   it('renders chat UI when llamacpp provider has models', () => {

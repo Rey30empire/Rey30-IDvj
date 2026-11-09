@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ invoke: vi.fn(), answer: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ Channel: class { onmessage: (event: unknown) => void = () => {} } }))
 vi.mock('@/hooks/useServiceHub', () => ({ getServiceHub: () => ({ core: () => ({ invoke: mock.invoke }) }) }))
-vi.mock('../pluma-gemma', async original => ({ ...await original<typeof import('../pluma-gemma')>(), answerWithGemma: mock.answer }))
+vi.mock('../pluma-gemma', async original => ({ ...await original<typeof import('../pluma-gemma')>(), answerWithGemma: mock.answer, warmPlumaGemma: vi.fn(async () => undefined) }))
 vi.mock('../pluma-realtime', () => ({ supportsPlumaCall: () => true, describeStartError: (cause: unknown) => String(cause) }))
 
 import { decodePlumaCloneAudio, startPlumaClone } from '../pluma-clone'
@@ -27,6 +27,7 @@ class FakeAudioContext {
   get currentTime() { return audioClock }
   destination = {}
   createGain = () => ({ gain: { value: 1 }, connect: vi.fn() })
+  createAnalyser = () => ({ fftSize: 0, getFloatTimeDomainData: vi.fn() })
   createMediaStreamSource = () => ({ connect: vi.fn(), disconnect: vi.fn() })
   createScriptProcessor = () => processor
   createBuffer = (_channels: number, size: number, rate: number) => ({ duration: size / rate, getChannelData: () => new Float32Array(size) })
@@ -70,7 +71,7 @@ function captureBreath(gain: number) {
 
 function simulateTurn() {
   for (let index = 0; index < 3; index++) captureVoice()
-  for (let index = 0; index < 7; index++) capture(new Float32Array(frameLength))
+  for (let index = 0; index < 24; index++) capture(new Float32Array(frameLength))
 }
 
 beforeEach(() => {
@@ -197,6 +198,7 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
       simulateTurn()
       await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
+      expect(mock.invoke).toHaveBeenCalledWith('character_audio_transcribe', expect.objectContaining({ pcmBase64: expect.any(String) }))
       expect(mock.invoke).toHaveBeenCalledWith('character_audio_transcribe', expect.objectContaining({ pcmBase64: expect.any(String) }))
       expect(mock.answer).toHaveBeenNthCalledWith(2, expect.objectContaining({ transcript: 'Hola, Pluma' }))
     } finally { call.stop() }
@@ -385,7 +387,7 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       staleEvents!.onmessage({ sampleRate: 24000, data: output })
       staleEvents!.onmessage({ done: true })
       finishCanceled?.()
-      for (let index = 0; index < 7; index++) capture(new Float32Array(frameLength))
+      for (let index = 0; index < 24; index++) capture(new Float32Array(frameLength))
       await vi.waitFor(() => expect(mock.answer).toHaveBeenNthCalledWith(2, expect.objectContaining({ turnId: 2, previousMessages: [] })))
       await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
       staleEnded?.()
@@ -412,6 +414,20 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
       expect(callbacks.onError).not.toHaveBeenCalled()
       expect(mock.invoke).not.toHaveBeenCalledWith('pluma_clone_stop', expect.anything())
+    } finally { call.stop() }
+  })
+
+  it('no descarta la respuesta por un sonido mientras todavía la prepara', async () => {
+    mock.answer.mockImplementation(() => new Promise(() => undefined))
+    const callbacks = { isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn() }
+    const call = startPlumaClone(callbacks, 0.8)
+    try {
+      await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+      simulateTurn()
+      await vi.waitFor(() => expect(mock.answer).toHaveBeenCalled())
+      for (let index = 0; index < 16; index++) captureTone(720, 0, 0.12)
+      expect(mock.invoke).not.toHaveBeenCalledWith('pluma_clone_cancel_turn', expect.anything())
+      expect(callbacks.onPhase).toHaveBeenLastCalledWith('thinking')
     } finally { call.stop() }
   })
 

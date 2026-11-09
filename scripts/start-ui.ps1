@@ -1,6 +1,8 @@
 param(
     [switch]$Dev,
-    [switch]$Check
+    [switch]$Check,
+    # Open the existing copy even if the code is newer.
+    [switch]$NoBuild
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,7 +13,30 @@ $candidates = @(
     (Join-Path $projectRoot 'src-tauri\target\debug\Rey30-IDvj.exe')
 )
 
+# The copy this launcher opens is a snapshot, so a commit to the app's code
+# leaves it behind. Bring it up to date first, or say why it could not be.
+function Update-PublishedApp {
+    $published = $candidates[0]
+    $seconds = & git -C $projectRoot log -1 --format=%ct -- web-app src-tauri core extensions package.json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $seconds) { return }
+    $changed = [DateTimeOffset]::FromUnixTimeSeconds([long]$seconds).UtcDateTime
+    if ((Test-Path -LiteralPath $published -PathType Leaf) -and (Get-Item -LiteralPath $published).LastWriteTimeUtc -ge $changed) { return }
+
+    Write-Host 'Hay cambios nuevos en el codigo: actualizando Rey30 IDvj.'
+    try {
+        $built = Join-Path $projectRoot 'src-tauri\target\release\Rey30-IDvj.exe'
+        $fresh = (Test-Path -LiteralPath $built -PathType Leaf) -and (Get-Item -LiteralPath $built).LastWriteTimeUtc -ge $changed
+        & (Join-Path $PSScriptRoot 'build-desktop.ps1') -PublishOnly:$fresh
+    } catch {
+        Write-Warning "No se pudo actualizar: $($_.Exception.Message)"
+        Write-Warning 'Se abrira la version anterior.'
+        # The window closes as soon as the app opens; leave time to read this.
+        Start-Sleep -Seconds 10
+    }
+}
+
 if (-not $Dev) {
+    if (-not $Check -and -not $NoBuild) { Update-PublishedApp }
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate -PathType Leaf) {
             if ($Check) {

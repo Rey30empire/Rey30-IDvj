@@ -1,7 +1,7 @@
 import { Channel } from '@tauri-apps/api/core'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { createPlumaTurnDetector, encodePlumaDictation, isVoiceLike, plumaDictationWav } from './pluma-audio'
-import { answerWithGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, plumaMicrophoneMessage, plumaMusicTasteStyle, plumaSongStyle, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
+import { answerWithGemma, warmPlumaGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, plumaMicrophoneMessage, plumaMusicTasteStyle, plumaSongStyle, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
 import { startPlumaFast } from './pluma-fast'
 import { plumaActions, type PlumaActions } from './pluma-actions'
 import { loadPlumaMemory } from './pluma-memory'
@@ -48,14 +48,18 @@ export function usesPlumaClone(profile: CharacterProfile | undefined) {
   return supportsPlumaCall(profile?.id) && profile?.voice.plumaClone === true
 }
 
+/** A clause this long can be voiced on its own, so the voice starts while Gemma keeps writing. */
+const minOpeningClause = 18
+
 function firstSpokenSentence(text: string) {
   let start = 0
-  for (const punctuation of text.matchAll(/[.!?…]+(?=\s|$)/gu)) {
+  for (const punctuation of text.matchAll(/[.!?…,;:]+(?=\s)|[.!?…]+$/gu)) {
     const end = punctuation.index + punctuation[0].length
     const speech = normalizePlumaSpeech(text.slice(start, end))
     if (!speech || emptyLead.test(speech)) { start = end; continue }
     if (isPlumaAudioMisunderstanding(speech)) return undefined
-    if (speech.length >= 8 && !abbreviation.test(speech)) return { end, speech }
+    const wholeSentence = /[.!?…]$/u.test(punctuation[0])
+    if (speech.length >= (wholeSentence ? 8 : minOpeningClause) && !abbreviation.test(speech)) return { end, speech }
   }
 }
 
@@ -156,6 +160,9 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
   let activeTurn: CloneTurn | undefined
   let nextTurnId = 0
   let timeout: ReturnType<typeof setTimeout> | undefined
+  let levelTimer: ReturnType<typeof setInterval> | undefined
+  let warmed = false
+  let prepared: Promise<void> = Promise.resolve()
   const playing = new Set<AudioBufferSourceNode>()
   let nextPlayback = 0
   let echoCancellation = false
@@ -196,6 +203,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     if (abort.signal.aborted) return
     abort.abort()
     clearTimeout(timeout)
+    clearInterval(levelTimer)
     if (activeTurn) abortTurn(activeTurn)
     fast?.stop()
     lifecycle.onmessage = () => {}
@@ -475,7 +483,9 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
   function considerInterruption(frame: MicFrame, rate: number, audioTime: number, echo: boolean) {
     const turn = activeTurn
     if (!turn || !sessionId || !echoCancellation) return
-    if (echo) { clearBarge(); return }
+    // Only her own voice can be interrupted. Until it plays, a sound in the room
+    // would throw away the answer being prepared and she would seem not to reply.
+    if (echo || !playing.size) { clearBarge(); return }
     const ms = frame.samples.length * 1000 / rate
     const power = frame.samples.reduce((sum, sample) => sum + sample * sample, 0) / frame.samples.length
     // A song is long, continuous and voice-like, so speaker bleed the echo
@@ -545,12 +555,31 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     setPhase('listening')
   }
 
+  /** Reads her instructions once before the first turn, so that turn does not pay for it. */
+  async function warmUp() {
+    if (warmed || !sessionId || !nativeReady) return
+    warmed = true
+    const id = sessionId
+    await prepared
+    if (usable()) await warmPlumaGemma({ sessionId: id, canSing, memory, actions }).catch(() => undefined)
+  }
+
   async function open() {
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('No se puede acceder al micrófono en esta ventana de Rey30.')
     context = new AudioContext()
     gain = context.createGain()
     gain.gain.value = volume
     gain.connect(context.destination)
+    const meter = context.createAnalyser()
+    meter.fftSize = 1024
+    gain.connect(meter)
+    const wave = new Float32Array(meter.fftSize)
+    // What moves the avatar's lips: the level of the voice actually playing.
+    levelTimer = setInterval(() => {
+      if (phase !== 'speaking' && phase !== 'singing') return
+      meter.getFloatTimeDomainData(wave)
+      onAmplitude(Math.min(1, Math.sqrt(wave.reduce((sum, sample) => sum + sample * sample, 0) / wave.length) * 6))
+    }, 33)
     await context.resume()
     if (!usable()) return
     if (!(await plumaReferenceStatus()).ready) throw new Error('Elige una muestra WAV o MP3 para usar la voz clonada.')
@@ -564,15 +593,19 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
         onSongCapability?.(canSing)
         nativeReady = true
         void startMicrophone().catch(cause => fail(describePlumaAudioError(cause)))
+        void warmUp()
       }
     }
-    void loadPlumaMemory().then(notes => { if (usable()) memory = notes })
-    void plumaActions().then(tools => { if (usable()) actions = tools }).catch(() => undefined)
+    prepared = Promise.all([
+      loadPlumaMemory().then(notes => { if (usable()) memory = notes }),
+      plumaActions().then(tools => { if (usable()) actions = tools }).catch(() => undefined),
+    ]).then(() => undefined)
     fast = startPlumaFast()
     const id = await invoke<string>('pluma_clone_start', { events: lifecycle })
     if (!usable()) { stopNative(id); return }
     sessionId = id
     await startMicrophone()
+    void warmUp()
   }
 
   timeout = setTimeout(() => fail('Gemma y Qwen no terminaron de iniciar. Revisa el estado de los modelos y vuelve a intentar.'), 240000)

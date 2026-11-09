@@ -4,6 +4,7 @@ import '@testing-library/jest-dom'
 import type { ReactNode } from 'react'
 
 vi.mock('streamdown', () => ({
+  defaultRehypePlugins: {},
   Streamdown: ({ children }: { children: string }) => <span>{children}</span>,
 }))
 vi.mock('../shimmer', () => ({

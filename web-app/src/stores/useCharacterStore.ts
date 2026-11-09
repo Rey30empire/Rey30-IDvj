@@ -71,6 +71,7 @@ export function createCharacterStore(
 ) {
   let loading: Promise<void> | undefined
   let queue: Promise<unknown> = Promise.resolve()
+  let pendingWrites = 0
   return create<CharacterStore>((set, get) => {
     const requireProfile = (id: string) => {
       validateCharacterId(id)
@@ -84,6 +85,10 @@ export function createCharacterStore(
     const mutate = <T>(
       change: (value: CharacterData) => { value: CharacterData; result: T }
     ): Promise<T> => {
+      // Raised before the queue runs: whoever renders right after a change is
+      // requested must not act on the values it is about to replace.
+      pendingWrites += 1
+      set({ saving: true })
       const operation = queue.then(async () => {
         await get().load()
         set({ saving: true, error: null })
@@ -91,7 +96,7 @@ export function createCharacterStore(
           const next = change(dataOf(get()))
           const value = validateCharacterData(next.value)
           await storage.write(JSON.stringify(value))
-          set({ ...value, saving: false, loaded: true, error: null })
+          set({ ...value, saving: pendingWrites > 1, loaded: true, error: null })
           return next.result
         } catch (cause) {
           const error =
@@ -100,7 +105,7 @@ export function createCharacterStore(
               ? cause.message
               : 'No se pudo guardar la configuración de personajes. El cambio no se aplicó.'
           set({
-            saving: false,
+            saving: pendingWrites > 1,
             error,
             ...(cause instanceof CharacterStorageError && cause.recoveryRequired
               ? { loaded: false, enabled: false }
@@ -108,6 +113,9 @@ export function createCharacterStore(
           })
           throw new Error(error)
         }
+      }).finally(() => {
+        pendingWrites -= 1
+        if (!pendingWrites && get().saving) set({ saving: false })
       })
       queue = operation.catch(() => {})
       return operation

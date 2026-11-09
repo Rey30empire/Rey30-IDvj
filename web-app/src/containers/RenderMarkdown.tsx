@@ -30,6 +30,7 @@ import { WebCitationChip } from '@/components/WebCitationChip'
 import { MarkdownTable } from '@/components/MarkdownTable'
 import { externalHref, openExternalUrl } from '@/lib/externalLink'
 import { stripExplicitChatSkillMarker } from '@/lib/skillCommands'
+import { blockRemoteImages } from '@/lib/markdownImages'
 
 // Do not resolve model-generated links against the app's own origin.
 function isWebLink(href: string | undefined): boolean {
@@ -108,7 +109,7 @@ interface MarkdownProps {
 // with a shallow prop compare, and fresh literals here would defeat it, forcing
 // a full re-parse + re-highlight on every streamed token.
 const REMARK_PLUGINS = [remarkGfm, remarkMath, disableIndentedCodeBlockPlugin]
-const REHYPE_PLUGINS = [rehypeKatex, restrictChatLinks, defaultRehypePlugins.harden]
+const REHYPE_PLUGINS = [rehypeKatex, restrictChatLinks, defaultRehypePlugins.harden, blockRemoteImages]
 const STREAMDOWN_PLUGINS = { code, mermaid, cjk }
 const STREAMDOWN_CONTROLS = { mermaid: { fullscreen: false } }
 const LINK_SAFETY = { enabled: false }

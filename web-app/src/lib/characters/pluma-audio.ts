@@ -1,5 +1,6 @@
 const minVoiceMs = 120
-const endSilenceMs = 260
+// Long enough for most commas, short enough that the reply starts right away.
+const endSilenceMs = 450
 const preRollMs = 140
 const maxTurnMs = 20000
 

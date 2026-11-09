@@ -26,6 +26,7 @@ const streamdown = vi.hoisted(() => ({
     | undefined,
 }))
 vi.mock('streamdown', () => ({
+  defaultRehypePlugins: {},
   Streamdown: ({
     children,
     components,

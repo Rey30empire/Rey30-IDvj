@@ -26,7 +26,7 @@ describe('audio de la llamada de Pluma', () => {
     expect(detector.push(speech).chunks).toHaveLength(0)
     expect(detector.push(speech).chunks).toHaveLength(0)
     expect(detector.push(speech).chunks).toEqual([silence, speech, speech, speech])
-    for (let index = 0; index < 6; index++) expect(detector.push(silence).ended).toBe(false)
+    for (let index = 0; index < 11; index++) expect(detector.push(silence).ended).toBe(false)
     expect(detector.push(silence).ended).toBe(true)
     detector.reset()
     expect(detector.push(silence)).toMatchObject({ chunks: [], ended: false })

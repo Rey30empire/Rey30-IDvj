@@ -131,6 +131,8 @@ type VoiceTurn = {
   onMemory?: (notes: string[]) => void
   /** Documents and trusted MCP tools Pluma can use in this call. */
   actions?: PlumaActions
+  /** Stop after the model has read the prompt: nothing is said and no tool runs. */
+  warmOnly?: boolean
 } & ({ transcript: string; audioWav?: never } | { transcript?: never; audioWav: string })
 
 export class PlumaAudioNotUnderstoodError extends Error {
@@ -284,10 +286,15 @@ function noteArgument(call: ToolCall, field: 'dato' | 'tema'): string | undefine
   }
 }
 
+/** Has the model read her instructions and tools, so the first real turn starts from them. */
+export async function warmPlumaGemma(turn: Pick<VoiceTurn, 'sessionId' | 'canSing' | 'memory' | 'actions'>): Promise<void> {
+  await answerWithGemma({ ...turn, transcript: 'Te escucho.', warmOnly: true })
+}
+
 const isMemoryCall = (call: ToolCall) =>
   call.function?.name === rememberToolName || call.function?.name === forgetToolName
 
-export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions }: VoiceTurn): Promise<PlumaVoiceAnswer> {
+export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions, warmOnly = false }: VoiceTurn): Promise<PlumaVoiceAnswer> {
   signal?.throwIfAborted()
   let user: GemmaMessage
   if (transcript !== undefined) {
@@ -301,16 +308,30 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
     ? `Llama a cantar_cancion solo si te piden oír canto. Escribe una canción completa de duración normal, con estrofas, estribillo y puente; nunca un fragmento. Canta en el estilo que le gusta a la persona si lo conoces; si no, en español a capela. Cita el acompañamiento solo si lo piden. Cuando la persona diga qué música le gusta, guárdalo con recordar empezando por «${MUSIC_TASTE_PREFIX}» (por ejemplo «${MUSIC_TASTE_PREFIX} bachata romántica con guitarra»). Si solo piden una letra, responde en texto. No afirmes que ya cantaste.`
     : 'Si piden oír una canción, explica que el canto no está disponible.'
   const memoryBlock = plumaMemoryPrompt(memory, transcript ?? '')
-  const system = [instructions, singingInstructions, memoryBlock].filter(Boolean).join('\n')
+  const system = [instructions, singingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
   const messages: TurnMessage[] = [{ role: 'system', content: system }, ...history, user]
   const core = getServiceHub().core()
   const mayUseTools = transcript === undefined || !isSelfContainedGreeting(transcript)
   // Text already read aloud before a tool call; the final answer continues it.
   let spoken = ''
+  // Project files can carry instructions aimed at the model. Once a turn has read
+  // some it keeps working on the project, but can no longer write to long-term
+  // memory or reach outside servers, which is where such a note would do harm.
+  let readProject = false
+  const reachesOutside = (name?: string) => !!name && !!actions?.reachesOutside?.(name)
+  const closedAfterRead = 'Esta acción no está disponible después de leer archivos del proyecto en este turno.'
 
-  for (let round = 0; round < 3; round++) {
-    const tools = mayUseTools && round < 2
-      ? [libraryTool, ...(canSing ? [songTool] : []), rememberTool, forgetTool, ...(actions?.tools ?? [])]
+  // Editing a project takes several steps (list, read, change); the last round
+  // always offers no tools, so the turn ends in words.
+  const rounds = actions?.maxRounds ?? 3
+  for (let round = 0; round < rounds; round++) {
+    const tools = mayUseTools && round < rounds - 1
+      ? [
+          libraryTool,
+          ...(canSing ? [songTool] : []),
+          ...(readProject ? [] : [rememberTool, forgetTool]),
+          ...(actions?.tools ?? []).filter(item => !readProject || !reachesOutside((item as { function?: { name?: string } }).function?.name)),
+        ]
       : []
     let roundText = ''
     // Streaming every round lets Pluma start speaking the first sentence while
@@ -319,6 +340,7 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
       ? await streamAnswer(sessionId, turnId, [...messages], tools, delta => { roundText += delta; onTextDelta(delta) }, signal)
       : await core.invoke<Completion>('pluma_clone_chat', { sessionId, turnId, messages: [...messages], tools })
     signal?.throwIfAborted()
+    if (warmOnly) return { text: '', messages: [] }
 
     const reply = completion?.choices?.[0]?.message
     if (reply?.role !== 'assistant') throw new Error('Gemma devolvió una respuesta que Pluma no pudo leer.')
@@ -337,6 +359,10 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
     }
     messages.push(reply)
     for (const call of calls.filter(isMemoryCall)) {
+      if (readProject) {
+        messages.push({ role: 'tool', tool_call_id: call.id, content: closedAfterRead })
+        continue
+      }
       const remember = call.function.name === rememberToolName
       const value = noteArgument(call, remember ? 'dato' : 'tema')
       let result = 'No se guardó: el dato estaba vacío, era demasiado largo o era privado.'
@@ -353,9 +379,14 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
       messages.push({ role: 'tool', tool_call_id: call.id, content: result })
     }
     for (const call of calls.filter(call => actions?.owns(call.function?.name))) {
+      if (readProject && reachesOutside(call.function.name)) {
+        messages.push({ role: 'tool', tool_call_id: call.id, content: closedAfterRead })
+        continue
+      }
       const result = await actions!.run(call, signal)
       signal?.throwIfAborted()
       messages.push({ role: 'tool', tool_call_id: call.id, content: result })
+      if (actions!.readsProject?.(call.function.name)) readProject = true
     }
     const otherCalls = calls.filter(call => !isMemoryCall(call) && !actions?.owns(call.function?.name))
     if (canSing && otherCalls.length === 1 && otherCalls[0].function?.name === songToolName) {

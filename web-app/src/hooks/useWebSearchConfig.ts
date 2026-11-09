@@ -67,7 +67,7 @@ type WebSearchConfigState = {
 export const useWebSearchConfig = create<WebSearchConfigState>()(
   persist(
     (set, get) => ({
-      webSearchEnabled: true,
+      webSearchEnabled: false,
       searchProvider: DEFAULT_SEARCH_PROVIDER,
       apiKeys: {},
       endpoints: {},
@@ -93,6 +93,14 @@ export const useWebSearchConfig = create<WebSearchConfigState>()(
       name: localStorageKey.settingWebSearch,
       storage: createJSONStorage(() => backendStorage),
       skipHydration: true,
+      version: 1,
+      // Search used to start switched on, sending queries to keyless Exa before
+      // anyone asked for it. Choosing another provider was a real decision.
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<WebSearchConfigState>
+        const untouched = (state.searchProvider ?? DEFAULT_SEARCH_PROVIDER) === DEFAULT_SEARCH_PROVIDER
+        return (version < 1 && untouched ? { ...state, webSearchEnabled: false } : state) as WebSearchConfigState
+      },
       // Never write API keys to plaintext settings.json; they live in the keyring.
       partialize: (state) => ({
         webSearchEnabled: state.webSearchEnabled,

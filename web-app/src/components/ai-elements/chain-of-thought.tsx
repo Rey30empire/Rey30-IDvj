@@ -26,6 +26,7 @@ import {
   useState,
 } from 'react'
 import { Streamdown } from 'streamdown'
+import { safeStreamdownPlugins } from '@/lib/markdownImages'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { formatCompactDuration } from '@/lib/duration'
 import { Shimmer } from './shimmer'
@@ -350,7 +351,7 @@ export const ChainOfThoughtText = memo(
       {...props}
     >
       <div className="ml-2 pl-4 border-l-2 border-dotted">
-        <Streamdown className="streamdown-animate">
+        <Streamdown className="streamdown-animate" rehypePlugins={safeStreamdownPlugins}>
           {children}
         </Streamdown>
       </div>

@@ -9,6 +9,31 @@ function fixture(raw: string | null = null) {
   return { store: createCharacterStore(storage), storage, read: () => saved }
 }
 describe('persistencia independiente de personajes', () => {
+  it('marca saving desde que se pide el cambio hasta la última escritura pendiente', async () => {
+    const { store } = fixture()
+    await store.getState().load()
+    const profile = store.getState().profiles[0]
+    const first = store.getState().updateProfile(profile)
+    expect(store.getState().saving).toBe(true)
+    const second = store.getState().updateProfile(profile)
+    await first
+    expect(store.getState().saving).toBe(true)
+    await second
+    expect(store.getState().saving).toBe(false)
+  })
+  it('no deja saving puesto si la carga previa falla', async () => {
+    const { store, storage } = fixture()
+    storage.read.mockRejectedValueOnce(new Error('sin disco'))
+    await expect(store.getState().setEnabled(true)).rejects.toThrow()
+    expect(store.getState().saving).toBe(false)
+  })
+  it('quita saving tras una escritura fallida', async () => {
+    const { store, storage } = fixture()
+    await store.getState().load()
+    storage.write.mockRejectedValueOnce(new Error('disco lleno'))
+    await expect(store.getState().setEnabled(true)).rejects.toThrow()
+    expect(store.getState().saving).toBe(false)
+  })
   it('does not opt into characters or memory or write anything when opening a fresh profile', async () => {
     const { store, storage } = fixture()
     await store.getState().load()
@@ -142,7 +167,8 @@ describe('persistencia independiente de personajes', () => {
     let finish!: () => void
     storage.write.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve }))
     const pending = store.getState().selectCharacter('beto')
-    await vi.waitFor(() => expect(store.getState().saving).toBe(true))
+    await vi.waitFor(() => expect(storage.write).toHaveBeenCalled())
+    expect(store.getState().saving).toBe(true)
     expect(store.getState().activeCharacterId).toBe('literatura')
     const next = store.getState().setSharedMemory('a', { enabled: true, notes: 'Conservar' })
     finish()
