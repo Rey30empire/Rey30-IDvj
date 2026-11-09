@@ -118,6 +118,7 @@ pub async fn pluma_clone_speak(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn pluma_clone_sing(
     app: AppHandle,
     window: WebviewWindow,

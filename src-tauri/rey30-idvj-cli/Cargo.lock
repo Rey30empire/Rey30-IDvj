@@ -4412,7 +4412,7 @@ dependencies = [
 
 [[package]]
 name = "rey30-idvj-cli"
-version = "0.9.3"
+version = "0.9.7"
 dependencies = [
  "Rey30-IDvj",
  "chrono",

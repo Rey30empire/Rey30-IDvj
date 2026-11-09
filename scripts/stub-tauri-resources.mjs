@@ -48,7 +48,10 @@ for (const dir of [
   mkdirSync(path(dir), { recursive: true })
 }
 
-touch(path('src-tauri/resources/LICENSE'))
+// bundle.resources in tauri.conf.json; `copy-files.mjs resources` writes the real ones.
+for (const file of ['LICENSE', 'NOTICE', 'LICENSE-APACHE-2.0.txt']) {
+  touch(path('src-tauri/resources', file))
+}
 touch(path('web-app/dist/index.html'))
 if (readdirSync(path('src-tauri/resources/pre-install')).length === 0) {
   touch(path('src-tauri/resources/pre-install/.gitkeep'))

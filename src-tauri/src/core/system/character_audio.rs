@@ -1,18 +1,22 @@
 use base64::Engine;
 use serde_json::{json, Value};
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    LazyLock, Mutex,
-};
+#[cfg(windows)]
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{LazyLock, Mutex};
+#[cfg(windows)]
 use tauri::Manager;
+#[cfg(windows)]
 use tokio::io::AsyncWriteExt;
 use tokio::sync::oneshot;
 
 type AudioJob = Option<(String, u64, oneshot::Sender<()>)>;
 static AUDIO_JOB: LazyLock<Mutex<AudioJob>> = LazyLock::new(|| Mutex::new(None));
+#[cfg(windows)]
 static AUDIO_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+#[cfg(windows)]
 const SCRIPT: &str = include_str!("character_audio.ps1");
 
+#[cfg(any(windows, test))]
 async fn read_bounded(
     reader: impl tokio::io::AsyncRead + Unpin,
     limit: usize,

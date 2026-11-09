@@ -1,6 +1,6 @@
 [package]
 name = "rey30-idvj-cli"
-version = "0.9.3"
+version = "0.9.7"
 description = "Headless CLI for Rey30 IDvj: chat with remote AI models in an interactive agent console."
 authors = ["Reinier Tamayo"]
 license = "Apache-2.0"
