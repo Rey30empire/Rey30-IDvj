@@ -74,6 +74,7 @@ import ChatSkillsMenu from '@/containers/ChatSkillsMenu'
 import { useAssistant } from '@/hooks/useAssistant'
 import CharacterPanel, { CharacterAudioRuntime } from '@/containers/characters/CharacterPanel'
 import VoiceOrbDock from '@/containers/characters/VoiceOrbDock'
+import { ComposerDictation } from '@/containers/ComposerDictation'
 import { useAvailableAssistants } from '@/hooks/useAvailableAssistants'
 import { selectIntegratedAssistant } from '@/lib/characters/assistant-integration'
 import { isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
@@ -3010,6 +3011,8 @@ const ChatInput = memo(function ChatInput({
                   />
                 </div>
               )}
+
+              {ownsToolSet && effectiveAgentMode && <ComposerDictation disabled={isStreaming || !!toolsRunning} />}
 
               {isStreaming || toolsRunning ? (
                 <Tooltip>

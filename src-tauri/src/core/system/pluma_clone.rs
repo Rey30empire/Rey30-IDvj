@@ -11,31 +11,35 @@ pub struct ReferenceStatus {
     bytes: Option<usize>,
 }
 
+/// `singing` picks the optional singing sample instead of the speaking one.
 #[tauri::command]
 pub async fn pluma_clone_reference_status(
     app: AppHandle,
     window: WebviewWindow,
+    singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::reference_status(app)
+    platform::reference_status(app, singing.unwrap_or(false))
 }
 
 #[tauri::command]
 pub async fn pluma_clone_reference_choose(
     app: AppHandle,
     window: WebviewWindow,
+    singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::choose_reference(app).await
+    platform::choose_reference(app, singing.unwrap_or(false)).await
 }
 
 #[tauri::command]
 pub async fn pluma_clone_reference_clear(
     app: AppHandle,
     window: WebviewWindow,
+    singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::clear_reference(app)
+    platform::clear_reference(app, singing.unwrap_or(false))
 }
 
 #[tauri::command]
@@ -171,12 +175,11 @@ pub(crate) fn voice_reference(app: &AppHandle) -> Option<(Vec<u8>, &'static str)
     Some((audio, format))
 }
 
-/// The sample Pluma sings with: `pluma-voice/reference-canto.wav` (a clean
-/// recording of her singing) when present, otherwise her speaking sample.
+/// The sample Pluma sings with: the singing sample chosen in the call options
+/// when present, otherwise her speaking sample.
 #[cfg(windows)]
 pub(crate) fn song_voice_reference(app: &AppHandle) -> Option<(Vec<u8>, &'static str)> {
-    let singing = crate::core::app::commands::get_rey30_data_folder_path(app.clone())
-        .join("pluma-voice/reference-canto.wav");
+    let singing = platform::sample_path(app.clone(), true);
     platform::read_reference(&singing)
         .ok()
         .and_then(|audio| platform::reference_format(&audio).map(|format| (audio, format)))
@@ -189,13 +192,13 @@ mod platform {
 
     const UNAVAILABLE: &str = "La voz clonada de Pluma está disponible en Windows con Vulkan.";
 
-    pub fn reference_status(_: AppHandle) -> Result<ReferenceStatus, String> {
+    pub fn reference_status(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
-    pub async fn choose_reference(_: AppHandle) -> Result<ReferenceStatus, String> {
+    pub async fn choose_reference(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
-    pub fn clear_reference(_: AppHandle) -> Result<ReferenceStatus, String> {
+    pub fn clear_reference(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
     pub fn start(_: AppHandle, _: Channel<Value>) -> Result<String, String> {
@@ -446,16 +449,32 @@ mod platform {
         }
     }
 
-    pub fn reference_status(app: AppHandle) -> Result<ReferenceStatus, String> {
-        Ok(status_for(&reference_path(app)))
+    /// WAV or MP3 despite the name: samples are recognized by their content.
+    const SINGING_SAMPLE: &str = "pluma-voice/reference-canto.wav";
+
+    /// The singing sample is optional: without it she sings with her speaking sample.
+    pub(super) fn sample_path(app: AppHandle, singing: bool) -> PathBuf {
+        if singing {
+            crate::core::app::commands::get_rey30_data_folder_path(app).join(SINGING_SAMPLE)
+        } else {
+            reference_path(app)
+        }
     }
 
-    pub async fn choose_reference(app: AppHandle) -> Result<ReferenceStatus, String> {
+    pub fn reference_status(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
+        Ok(status_for(&sample_path(app, singing)))
+    }
+
+    pub async fn choose_reference(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
         ensure_idle()?;
         tokio::task::spawn_blocking(move || {
-            let path = reference_path(app.clone());
+            let path = sample_path(app.clone(), singing);
             let Some(source) = rfd::FileDialog::new()
-                .set_title("Seleccionar audio de referencia para Pluma")
+                .set_title(if singing {
+                    "Seleccionar audio de canto para Pluma"
+                } else {
+                    "Seleccionar audio de referencia para Pluma"
+                })
                 .add_filter("Audio WAV o MP3", &["wav", "mp3"])
                 .pick_file()
             else {
@@ -487,9 +506,9 @@ mod platform {
         .map_err(|_| "Se interrumpió el selector de audio.".to_string())?
     }
 
-    pub fn clear_reference(app: AppHandle) -> Result<ReferenceStatus, String> {
+    pub fn clear_reference(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
         ensure_idle()?;
-        match fs::remove_file(reference_path(app)) {
+        match fs::remove_file(sample_path(app, singing)) {
             Ok(()) => {}
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(_) => return Err("No se pudo quitar el audio de referencia.".into()),
@@ -814,8 +833,8 @@ mod platform {
     /// conversation, which the window names `mcp_<server>_<tool>`. Each name
     /// at most once, twenty-four tools at most.
     pub(super) fn tools_allowed(tools: &[Value]) -> bool {
-        const OWN: [&str; 13] = [
-            "buscar_biblioteca", "cantar_cancion", "recordar", "olvidar",
+        const OWN: [&str; 14] = [
+            "buscar_biblioteca", "cantar_cancion", "leer_libro", "recordar", "olvidar",
             "listar_documentos", "leer_documento", "crear_documento", "editar_documento",
             "proyecto_listar", "proyecto_buscar", "proyecto_leer", "proyecto_crear", "proyecto_editar",
         ];

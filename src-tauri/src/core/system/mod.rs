@@ -11,6 +11,12 @@ pub mod pluma_first_asr;
 #[cfg(windows)]
 mod pluma_music;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod avatar_images;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod pluma_reading;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod pluma_recordings;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod pluma_realtime;
 pub mod shutdown;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

@@ -1,22 +1,51 @@
 import { Channel } from '@tauri-apps/api/core'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { createPlumaTurnDetector, encodePlumaDictation, isVoiceLike, plumaDictationWav } from './pluma-audio'
-import { answerWithGemma, warmPlumaGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, plumaMicrophoneMessage, plumaMusicTasteStyle, plumaSongStyle, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
+import { answerWithGemma, warmPlumaGemma, isPlumaAudioMisunderstanding, PlumaAudioNotUnderstoodError, PLUMA_HISTORY_MESSAGES, plumaMicrophoneMessage, plumaMusicTasteStyle, plumaSongStyle, withSpokenText, type GemmaMessage, type PlumaSongRequest, type PlumaVoiceAnswer } from './pluma-gemma'
 import { startPlumaFast } from './pluma-fast'
 import { plumaActions, type PlumaActions } from './pluma-actions'
 import { loadPlumaMemory } from './pluma-memory'
 import { normalizePlumaSpeech } from './pluma-text'
 import { describeStartError as describePlumaAudioError, supportsPlumaCall, type PlumaCallCallbacks, type PlumaCallPhase } from './pluma-realtime'
+import type { PlumaAudioClip } from './pluma-call-history'
+import { readingPercent } from './pluma-reading'
 import type { CharacterProfile } from './types'
 
 export const plumaCloneVoice = 'pluma:gemma-qwen'
 
 export type PlumaReference = { ready: boolean; format?: 'wav' | 'mp3' | null; bytes?: number | null }
 type TurnTiming = { committedAt: number; voicedAt: number; heardAudio: boolean }
+type PlayedAudio = { samples: Float32Array; sampleRate: number; startAt: number }
+type TurnRecord = {
+  pcmBase64: string
+  /** The same words as the WAV Gemma heard, so the history can swap it for text. */
+  audioWav?: string
+  transcript?: string
+  understood: boolean
+  text?: string
+  spoken: { text: string; startAt: number }[]
+  voice: PlayedAudio[]
+  song: PlayedAudio[]
+  lyrics?: string
+  saved: boolean
+}
+/** A book being read aloud: which passage each stretch of audio belongs to. */
+type TurnReading = {
+  title: string
+  total: number
+  from: number
+  pending: number
+  marks: { index: number; startAt: number }[]
+  done: boolean
+  saved: boolean
+}
 type CloneTurn = {
   id: number
   abort: AbortController
   timing: TurnTiming
+  record: TurnRecord
+  readingRequested?: boolean
+  reading?: TurnReading
   transcriptionId?: string
   completedHistory?: GemmaMessage[]
 }
@@ -40,13 +69,17 @@ const singingBargeRmsFactor = 2
 const singingBargeVoiceMs = 900
 const repeatRequest = 'No te entendí bien. ¿Puedes repetirlo?'
 const songFailed = 'No pude generar el audio cantado. Seguimos en la llamada.'
-export const plumaReferenceStatus = () => invoke<PlumaReference>('pluma_clone_reference_status')
-export const choosePlumaReference = () => invoke<PlumaReference>('pluma_clone_reference_choose')
-export const clearPlumaReference = () => invoke<PlumaReference>('pluma_clone_reference_clear')
+/** `singing` is the optional sample she sings with; without it she sings with the speaking one. */
+export const plumaReferenceStatus = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_status', { singing })
+export const choosePlumaReference = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_choose', { singing })
+export const clearPlumaReference = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_clear', { singing })
 
 export function usesPlumaClone(profile: CharacterProfile | undefined) {
   return supportsPlumaCall(profile?.id) && profile?.voice.plumaClone === true
 }
+
+/** Seconds of a book queued ahead of what is playing. */
+const readAheadSeconds = 20
 
 /** A clause this long can be voiced on its own, so the voice starts while Gemma keeps writing. */
 const minOpeningClause = 18
@@ -76,6 +109,15 @@ function nextSpokenStretch(text: string, from: number) {
     const speech = normalizePlumaSpeech(raw)
     if (speech.length >= minStreamedSpeech) return { end, speech }
   }
+}
+
+/** With `stoppedAt`, only what reached the speakers before she was cut off. */
+function playedClip(parts: PlayedAudio[], stoppedAt?: number): PlumaAudioClip | undefined {
+  const heard = stoppedAt === undefined ? parts : parts.filter(part => part.startAt < stoppedAt)
+    .map(part => ({ ...part, samples: part.samples.subarray(0, Math.round((stoppedAt - part.startAt) * part.sampleRate)) }))
+  const sampleRate = heard[0]?.sampleRate
+  const samples = heard.filter(part => part.sampleRate === sampleRate && part.samples.length).map(part => part.samples)
+  return sampleRate && samples.length ? { samples, sampleRate } : undefined
 }
 
 function reducedPcm(samples: Float32Array, rate: number) {
@@ -135,7 +177,7 @@ async function captureMicrophone() {
 
 export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
   const abort = new AbortController()
-  const { isCurrent, onPhase, onAmplitude, onError, onFirstAudio, onSongCapability } = callbacks
+  const { isCurrent, onPhase, onAmplitude, onError, onFirstAudio, onSongCapability, onTurnRecorded, reader, onReading } = callbacks
   const usable = () => !abort.signal.aborted && isCurrent()
   const lifecycle = new Channel<{ type: 'clone.ready' | 'clone.error'; message?: string; canSing?: boolean }>()
   let sessionId: string | undefined
@@ -192,7 +234,53 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     }
   }
 
-  function abortTurn(turn: CloneTurn) {
+  /**
+   * Keeps her place in the book: the passage that was playing when she was cut
+   * off, so it starts again from its first word; the end once it all played.
+   */
+  function saveReading(turn: CloneTurn, stoppedAt?: number) {
+    const reading = turn.reading
+    if (!reading || reading.saved) return ''
+    reading.saved = true
+    const heard = reading.marks.filter(mark => stoppedAt === undefined || mark.startAt <= stoppedAt).at(-1)
+    const position = reading.done && stoppedAt === undefined ? reading.total : heard?.index ?? reading.from
+    reader?.save(position, reading.total)
+    onReading?.(undefined)
+    return `(Leí «${reading.title}» hasta el ${readingPercent(position, reading.total)} %.)`
+  }
+
+  // A song is kept whole even if she was cut off: it is the thing asked for.
+  function saveTurn(turn: CloneTurn, stoppedAt?: number) {
+    const readingNote = saveReading(turn, stoppedAt)
+    const { record } = turn
+    if (record.saved) return
+    record.saved = true
+    const heardText = record.spoken.filter(part => stoppedAt === undefined || part.startAt < stoppedAt).map(part => part.text).join(' ')
+    const songAudio = playedClip(record.song)
+    // Cut off mid-answer, she still remembers what she was asked and how far she got.
+    if (stoppedAt !== undefined && !abort.signal.aborted && !turn.reading) {
+      if (turn.completedHistory) previousMessages = turn.completedHistory
+      else if (heardText && record.audioWav) {
+        previousMessages = [...previousMessages, plumaMicrophoneMessage(record.audioWav), { role: 'assistant' as const, content: `${heardText} (me interrumpieron aquí)` }].slice(-PLUMA_HISTORY_MESSAGES)
+      }
+    }
+    // Written down in the background: the chat shows it, and her history keeps
+    // the words so Gemma does not have to hear the recording again every turn.
+    const transcript = record.transcript !== undefined ? Promise.resolve(record.transcript) : transcribeInBackground(record.pcmBase64)
+    const wav = record.audioWav
+    if (wav) void transcript.then(text => { if (!abort.signal.aborted) previousMessages = withSpokenText(previousMessages, wav, text) })
+    onTurnRecorded?.({
+      pcmBase64: record.pcmBase64,
+      transcript,
+      understood: record.understood,
+      said: [(stoppedAt === undefined && record.text) || heardText, readingNote].filter(Boolean).join(' '),
+      voice: playedClip(record.voice, stoppedAt),
+      ...(songAudio && record.lyrics !== undefined && { song: { lyrics: record.lyrics, audio: songAudio } }),
+    })
+  }
+
+  function abortTurn(turn: CloneTurn, stoppedAt?: number) {
+    saveTurn(turn, stoppedAt)
     activeTurn = undefined
     turn.abort.abort()
     if (turn.transcriptionId) void invoke('character_audio_cancel', { jobId: turn.transcriptionId }).catch(() => undefined)
@@ -204,7 +292,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     abort.abort()
     clearTimeout(timeout)
     clearInterval(levelTimer)
-    if (activeTurn) abortTurn(activeTurn)
+    if (activeTurn) abortTurn(activeTurn, context?.currentTime)
     fast?.stop()
     lifecycle.onmessage = () => {}
     if (processor) processor.onaudioprocess = null
@@ -234,6 +322,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
 
   function resumeListening(turn: CloneTurn) {
     if (!turnUsable(turn) || !turn.completedHistory || playing.size) return
+    saveTurn(turn)
     clearTimeout(timeout)
     previousMessages = turn.completedHistory
     activeTurn = undefined
@@ -291,6 +380,17 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
         }
         source.start(startAt)
         playing.add(source)
+        // A book can last hours: its audio is never kept for the chat history.
+        const reading = turn.reading
+        if (reading) {
+          if (!heardAudio) reading.marks.push({ index: reading.pending, startAt })
+        } else {
+          const played = song ? turn.record.song : turn.record.voice
+          played.push({ samples, sampleRate, startAt })
+          if (!heardAudio && 'text' in request) turn.record.spoken.push({ text: request.text, startAt })
+        }
+        const forgotten = Math.round((audio.currentTime - 5) * echoRate)
+        while (echoFrames[0] && echoFrames[0].start + echoFrames[0].samples.length < forgotten) echoFrames.shift()
         echoFrames.push({ start: Math.round(startAt * echoRate), samples: reducedPcm(samples, sampleRate) })
         nextPlayback = startAt + buffer.duration
         if (!heardAudio) {
@@ -326,14 +426,27 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     turn.transcriptionId = jobId
     try {
       const result = await invoke<{ text: string }>('character_audio_transcribe', { jobId, pcmBase64 })
-      return typeof result.text === 'string' ? result.text.trim() : ''
+      const text = typeof result.text === 'string' ? result.text.trim() : ''
+      if (text) turn.record.transcript = text
+      return text
     } finally {
       turn.transcriptionId = undefined
     }
   }
 
+  /** Never blocks or cancels the live call: it runs beside it. */
+  function transcribeInBackground(pcmBase64: string): Promise<string> {
+    if (!pcmBase64) return Promise.resolve('')
+    return invoke<{ text?: unknown }>('character_audio_transcribe', { jobId: crypto.randomUUID(), pcmBase64, background: true })
+      .then(result => typeof result?.text === 'string' ? result.text.trim() : '', () => '')
+  }
+
   async function answerTurn(id: string, pcmBase64: string, turn: CloneTurn, onTextDelta: (delta: string) => void, hasFirstSentence: () => boolean): Promise<PlumaVoiceAnswer | undefined> {
     const audioWav = plumaDictationWav(pcmBase64)
+    turn.record.audioWav = audioWav
+    // The chat she continues, her notes and tools: the first turn needs them too.
+    await prepared
+    if (!turnUsable(turn)) return
     const firstTurn = fast
     fast = undefined
     if (firstTurn) {
@@ -341,12 +454,12 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       if (!turnUsable(turn)) return
       if (text) {
         const history: GemmaMessage[] = [...previousMessages, plumaMicrophoneMessage(audioWav), { role: 'assistant', content: text }]
-        return { text, messages: history.slice(-4) }
+        return { text, messages: history.slice(-PLUMA_HISTORY_MESSAGES) }
       }
     }
     const options = {
       sessionId: id, turnId: turn.id, previousMessages, canSing, signal: turn.abort.signal, onTextDelta,
-      memory, onMemory: (notes: string[]) => { memory = notes }, actions,
+      memory, onMemory: (notes: string[]) => { memory = notes }, actions, book: reader?.current(),
     }
     let directError: unknown
     try {
@@ -417,25 +530,42 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       }
     }
     const result = await answerTurn(id, pcmBase64, turn, onTextDelta, () => firstSpeech !== undefined)
+    turn.record.understood = Boolean(result)
+    turn.record.text = result?.text ?? repeatRequest
     if (!turnUsable(turn)) return
     await firstSpeech
     if (!turnUsable(turn)) return
     if (result?.song && canSing) {
       setPhase('composing')
       let outcome = `Generé una canción con esta letra:\n${result.song.lyrics}`
+      turn.record.lyrics = result.song.lyrics
       try {
         await playNativeAudio({ lyrics: result.song.lyrics, style: result.song.style, seconds: result.song.seconds }, turn, id)
       } catch {
         if (!turnUsable(turn)) return
         discardPlayback(context?.currentTime)
         outcome = songFailed
+        turn.record.song = []
+        turn.record.text = [result.text, songFailed].filter(Boolean).join(' ')
         await speak(outcome, turn, id)
       }
       if (!turnUsable(turn)) return
       const history: GemmaMessage[] = [...result.messages, { role: 'assistant', content: outcome }]
-      turn.completedHistory = history.slice(-4)
+      turn.completedHistory = history.slice(-PLUMA_HISTORY_MESSAGES)
       resumeListening(turn)
       return
+    }
+    if (result?.read) {
+      const book = reader?.current()
+      if (book) {
+        await readBook(turn, id, result.read.fromStart)
+        if (!turnUsable(turn)) return
+        const history: GemmaMessage[] = [...result.messages, { role: 'assistant', content: `Leí en voz alta «${book.title}».` }]
+        turn.completedHistory = history.slice(-PLUMA_HISTORY_MESSAGES)
+        resumeListening(turn)
+        return
+      }
+      if (!result.text.trim()) result.text = 'No hay ningún libro cargado en el modo lectura.'
     }
     if (spokenPrefix && !result?.text.startsWith(spokenPrefix)) throw new Error('Gemma no pudo terminar la respuesta hablada de forma coherente.')
     const spoken = result ? normalizePlumaSpeech(result.text.slice(spokenPrefix.length)) : repeatRequest
@@ -446,12 +576,93 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     resumeListening(turn)
   }
 
+  /**
+   * Reads the loaded book aloud, passage after passage, from where it was left.
+   * About twenty seconds stay queued: enough for no gaps, without synthesizing
+   * whole chapters she may never reach. A long book has no overall time limit;
+   * each passage has its own.
+   */
+  async function readBook(turn: CloneTurn, id: string, fromStart: boolean) {
+    if (!reader) return
+    turn.readingRequested = true
+    const book = await reader.load()
+    if (!turnUsable(turn) || !book.chunks.length) return
+    const saved = reader.position()
+    const from = fromStart || saved >= book.chunks.length ? 0 : saved
+    const reading: TurnReading = { title: book.title, total: book.chunks.length, from, pending: from, marks: [], done: false, saved: false }
+    turn.reading = reading
+    let failures = 0
+    for (let index = from; index < book.chunks.length; index++) {
+      while (turnUsable(turn) && context && nextPlayback - context.currentTime > readAheadSeconds) await new Promise(resolve => setTimeout(resolve, 250))
+      if (!turnUsable(turn)) return
+      const text = normalizePlumaSpeech(book.chunks[index])
+      if (!text) continue
+      reading.pending = index
+      onReading?.({ title: book.title, percent: readingPercent(index, book.chunks.length) })
+      clearTimeout(timeout)
+      timeout = setTimeout(() => { if (turnUsable(turn)) fail('La lectura se detuvo porque la voz de Qwen dejó de responder.') }, 120000)
+      try {
+        await speak(text, turn, id)
+        failures = 0
+      } catch (cause) {
+        if (!turnUsable(turn)) return
+        // One passage the voice cannot say is skipped; several in a row end the reading.
+        if (++failures >= 3) throw cause
+      }
+    }
+    clearTimeout(timeout)
+    reading.done = true
+  }
+
+  /** Reading asked for with the button, without speaking: false while she is busy. */
+  function read(fromStart: boolean) {
+    if (!usable() || phase !== 'listening' || !sessionId || !reader?.current()) return false
+    const now = performance.now()
+    const turn: CloneTurn = {
+      id: ++nextTurnId,
+      abort: new AbortController(),
+      timing: { committedAt: now, voicedAt: now, heardAudio: false },
+      // Nothing was said, so nothing goes to the chat; only her place in the book is kept.
+      record: { pcmBase64: '', understood: true, spoken: [], voice: [], song: [], saved: true },
+    }
+    activeTurn = turn
+    detector?.reset()
+    chunks = []
+    clearBarge()
+    setPhase('thinking')
+    const id = sessionId
+    void readBook(turn, id, fromStart).then(() => {
+      if (!turnUsable(turn)) return
+      turn.completedHistory = previousMessages
+      resumeListening(turn)
+    }).catch(cause => { if (turnUsable(turn)) fail(describePlumaAudioError(cause)) })
+    return true
+  }
+
+  /** Stops the reading where it is and listens again; her place is kept. */
+  function stopReading() {
+    const turn = activeTurn
+    if (!turn?.readingRequested || !context || !sessionId) return
+    const at = context.currentTime
+    clearTimeout(timeout)
+    abortTurn(turn, at)
+    discardPlayback(at)
+    void invoke('pluma_clone_cancel_turn', { sessionId, turnId: turn.id }).catch(() => undefined)
+    detector?.reset()
+    chunks = []
+    clearBarge()
+    setPhase('listening')
+  }
+
   function finishTurn() {
     if (!usable() || phase !== 'listening' || !detector?.started || !context || !sessionId) return
+    const pcmBase64 = encodePlumaDictation(chunks, context.sampleRate)
+    chunks = []
     const turn: CloneTurn = {
       id: ++nextTurnId,
       abort: new AbortController(),
       timing: { committedAt: performance.now(), voicedAt: lastVoicedAt, heardAudio: false },
+      record: { pcmBase64, understood: true, spoken: [], voice: [], song: [], saved: false },
     }
     activeTurn = turn
     setPhase('thinking')
@@ -459,8 +670,6 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     detector.reset()
     clearBarge()
     const id = sessionId
-    const pcmBase64 = encodePlumaDictation(chunks, context.sampleRate)
-    chunks = []
     timeout = setTimeout(() => {
       if (turnUsable(turn)) fail('Gemma o Qwen tardó demasiado en responder. Vuelve a iniciar la llamada.')
     // Covers composing and playing a full song (about 50 s + 90 s) with room to spare.
@@ -510,7 +719,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     const onset = bargeFrames
     clearBarge()
     clearTimeout(timeout)
-    abortTurn(turn)
+    abortTurn(turn, audioTime)
     discardPlayback(audioTime)
     void invoke('pluma_clone_cancel_turn', { sessionId, turnId: turn.id }).catch(() => undefined)
     detector?.reset()
@@ -561,7 +770,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     warmed = true
     const id = sessionId
     await prepared
-    if (usable()) await warmPlumaGemma({ sessionId: id, canSing, memory, actions }).catch(() => undefined)
+    if (usable()) await warmPlumaGemma({ sessionId: id, canSing, memory, actions, book: reader?.current() }).catch(() => undefined)
   }
 
   async function open() {
@@ -599,6 +808,8 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     prepared = Promise.all([
       loadPlumaMemory().then(notes => { if (usable()) memory = notes }),
       plumaActions().then(tools => { if (usable()) actions = tools }).catch(() => undefined),
+      // A call in a chat continues that conversation instead of starting blank.
+      callbacks.loadHistory?.().then(history => { if (usable() && !previousMessages.length) previousMessages = history.slice(-PLUMA_HISTORY_MESSAGES) }).catch(() => undefined),
     ]).then(() => undefined)
     fast = startPlumaFast()
     const id = await invoke<string>('pluma_clone_start', { events: lifecycle })
@@ -610,7 +821,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
 
   timeout = setTimeout(() => fail('Gemma y Qwen no terminaron de iniciar. Revisa el estado de los modelos y vuelve a intentar.'), 240000)
   void open().catch(cause => fail(describePlumaAudioError(cause)))
-  return { stop, finishTurn, setMuted: (muted: boolean) => { if (gain) gain.gain.value = muted ? 0 : volume } }
+  return { stop, finishTurn, read, stopReading, setMuted: (muted: boolean) => { if (gain) gain.gain.value = muted ? 0 : volume } }
 }
 
 export function decodePlumaCloneAudio(data: string) {

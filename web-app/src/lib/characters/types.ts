@@ -28,6 +28,10 @@ export type CharacterVoice = {
   volume: number
   localOnly: boolean
 }
+/** A point of a picture, in its own pixels. */
+export type AvatarPoint = [number, number]
+/** A picture chosen for the hologram, saved in the data folder, with where its face is. */
+export type CustomPortrait = { file: string; leftEye: AvatarPoint; rightEye: AvatarPoint; mouth: AvatarPoint }
 export type CharacterAvatar = {
   enabled: boolean
   primary: string
@@ -39,6 +43,8 @@ export type CharacterAvatar = {
   gestures: AvatarGesture[]
   /** How a character with a portrait appears; absent means the hologram. */
   display?: 'sphere' | 'hologram'
+  /** A picture chosen in the editor instead of the character's own. */
+  portrait?: CustomPortrait
 }
 export type CharacterModelBinding = { providerId: string; modelId: string }
 export type CharacterProfile = {

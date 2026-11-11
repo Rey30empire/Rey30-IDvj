@@ -48,6 +48,8 @@ import { useWebCitationStore } from '@/stores/web-citation-store'
 import { WebSourcesRow } from '@/components/WebSourcesRow'
 import { injectCitationMarkers } from '@/lib/grounding'
 import { normalizePlumaDisplayText } from '@/lib/characters/pluma-text'
+import { plumaRecordingOf } from '@/lib/characters/pluma-recording'
+import { PlumaRecordingPlayer } from '@/containers/characters/PlumaRecordingPlayer'
 
 export type MessageItemProps = {
   message: UIMessage
@@ -130,6 +132,7 @@ export const MessageItem = memo(
     // Machine-readable stamp for <time>; toISOString throws on an invalid date,
     // which a malformed stored value must not turn into a crashed message.
     const createdAtMs = new Date(createdAt).getTime()
+    const plumaRecording = plumaRecordingOf(metadata)
     const createdAtIso = Number.isNaN(createdAtMs)
       ? undefined
       : new Date(createdAtMs).toISOString()
@@ -646,6 +649,15 @@ export const MessageItem = memo(
         {/* Render message parts. A turn alternates collapsed traces with
             answer paragraphs, and with no gap the two read as one block. */}
         <div className="flex flex-col gap-3">{renderedParts}</div>
+
+        {plumaRecording && (
+          <PlumaRecordingPlayer
+            recording={plumaRecording}
+            messageId={message.id}
+            createdAt={createdAtMs}
+            align={message.role === 'user' ? 'end' : 'start'}
+          />
+        )}
 
         {!privateLibrary && message.role === 'assistant' &&
           !isStreaming &&

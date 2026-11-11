@@ -388,7 +388,9 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       staleEvents!.onmessage({ done: true })
       finishCanceled?.()
       for (let index = 0; index < 24; index++) capture(new Float32Array(frameLength))
-      await vi.waitFor(() => expect(mock.answer).toHaveBeenNthCalledWith(2, expect.objectContaining({ turnId: 2, previousMessages: [] })))
+      // What she managed to say before being cut off is remembered; a song cut off before a word is not.
+      const remembered = singing ? [] : [expect.objectContaining({ role: 'user' }), { role: 'assistant', content: 'Primera respuesta. (me interrumpieron aquí)' }]
+      await vi.waitFor(() => expect(mock.answer).toHaveBeenNthCalledWith(2, expect.objectContaining({ turnId: 2, previousMessages: remembered })))
       await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
       staleEnded?.()
       expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking')
@@ -429,6 +431,259 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
       expect(mock.invoke).not.toHaveBeenCalledWith('pluma_clone_cancel_turn', expect.anything())
       expect(callbacks.onPhase).toHaveBeenLastCalledWith('thinking')
     } finally { call.stop() }
+  })
+
+  describe('historial de cada turno', () => {
+    const listening = (callbacks: { onPhase: ReturnType<typeof vi.fn> }) => vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+    const phase = (callbacks: { onPhase: ReturnType<typeof vi.fn> }, name: string) => vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith(name))
+    const withHistory = () => ({ isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn(), onSongCapability: vi.fn(), onTurnRecorded: vi.fn() })
+    const sampleCount = (clip: { samples: Float32Array[] }) => clip.samples.reduce((sum, part) => sum + part.length, 0)
+    const hold = (command: string, sampleRate: number, length: number) => {
+      const nativeInvoke = mock.invoke.getMockImplementation()!
+      mock.invoke.mockImplementation(async (name, args) => {
+        if (name !== command) return nativeInvoke(name, args)
+        args.events.onmessage({ sampleRate, data: floatAudio(Array.from({ length }, (_, index) => 0.4 * Math.sin(2 * Math.PI * 440 * index / sampleRate))) })
+        await new Promise<void>(() => undefined)
+      })
+    }
+
+    it('lo entrega cuando Plumita termina de sonar, una sola vez', async () => {
+      mock.answer.mockResolvedValue({ text: '**Hola**.', messages: [] })
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await listening(callbacks)
+        simulateTurn()
+        await phase(callbacks, 'speaking')
+        await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_speak', expect.anything()))
+        expect(callbacks.onTurnRecorded).not.toHaveBeenCalled()
+        source.onended?.()
+        await listening(callbacks)
+        const [turn] = callbacks.onTurnRecorded.mock.calls[0]
+        expect(turn).toMatchObject({ understood: true, said: '**Hola**.' })
+        expect(turn.pcmBase64.length).toBeGreaterThan(0)
+        expect(turn.voice.sampleRate).toBe(24000)
+        expect(sampleCount(turn.voice)).toBe(2)
+      } finally { call.stop() }
+      expect(callbacks.onTurnRecorded).toHaveBeenCalledTimes(1)
+    })
+
+    it('si la interrumpes guarda solo lo que alcanzó a sonar', async () => {
+      mock.answer.mockResolvedValue({ text: 'Hola.', messages: [] })
+      hold('pluma_clone_speak', 24000, 24000)
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await listening(callbacks)
+        simulateTurn()
+        await phase(callbacks, 'speaking')
+        for (let index = 0; index < 6; index++) captureVoice(0.12)
+        expect(callbacks.onTurnRecorded).toHaveBeenCalledTimes(1)
+        const [turn] = callbacks.onTurnRecorded.mock.calls[0]
+        expect(turn.said).toBe('Hola.')
+        expect(sampleCount(turn.voice)).toBeGreaterThan(0)
+        expect(sampleCount(turn.voice)).toBeLessThan(24000)
+      } finally { call.stop() }
+    })
+
+    it('guarda lo que dijiste aunque cuelgues antes de que responda', async () => {
+      mock.answer.mockImplementation(() => new Promise(() => undefined))
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      await listening(callbacks)
+      simulateTurn()
+      await vi.waitFor(() => expect(mock.answer).toHaveBeenCalled())
+      call.stop()
+      expect(callbacks.onTurnRecorded).toHaveBeenCalledTimes(1)
+      expect(callbacks.onTurnRecorded.mock.calls[0][0]).toMatchObject({ said: '', voice: undefined })
+    })
+
+    it('conserva la canción entera aunque la corten', async () => {
+      canSing = true
+      mock.answer.mockResolvedValue({ text: '', song: { lyrics: 'Cae la lluvia.', style: 'bolero' }, messages: [] })
+      hold('pluma_clone_sing', 48000, 24000)
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      await listening(callbacks)
+      simulateTurn()
+      await phase(callbacks, 'singing')
+      call.stop()
+      const [turn] = callbacks.onTurnRecorded.mock.calls[0]
+      expect(turn.song.lyrics).toBe('Cae la lluvia.')
+      expect(sampleCount(turn.song.audio)).toBe(24000)
+    })
+
+    it('no guarda canción si el motor no la pudo cantar, y deja el aviso', async () => {
+      canSing = true
+      mock.answer.mockResolvedValue({ text: '', song: { lyrics: 'Cae la lluvia.', style: 'bolero' }, messages: [] })
+      const nativeInvoke = mock.invoke.getMockImplementation()!
+      mock.invoke.mockImplementation(async (command, args) => {
+        if (command === 'pluma_clone_sing') throw new Error('sin motor')
+        return nativeInvoke(command, args)
+      })
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await listening(callbacks)
+        simulateTurn()
+        await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_speak', expect.anything()))
+        await phase(callbacks, 'speaking')
+        source.onended?.()
+        await listening(callbacks)
+        const [turn] = callbacks.onTurnRecorded.mock.calls[0]
+        expect(turn.song).toBeUndefined()
+        expect(turn.said).toBe('No pude generar el audio cantado. Seguimos en la llamada.')
+      } finally { call.stop() }
+    })
+
+    it('marca el turno que no se entendió y aprovecha el dictado si lo hubo', async () => {
+      mock.answer.mockRejectedValue(new PlumaAudioNotUnderstoodError())
+      const nativeInvoke = mock.invoke.getMockImplementation()!
+      mock.invoke.mockImplementation(async (command, args) => command === 'character_audio_transcribe' ? { text: '' } : nativeInvoke(command, args))
+      const callbacks = withHistory()
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await listening(callbacks)
+        simulateTurn()
+        await phase(callbacks, 'speaking')
+        source.onended?.()
+        await listening(callbacks)
+        expect(callbacks.onTurnRecorded.mock.calls[0][0]).toMatchObject({ understood: false, said: 'No te entendí bien. ¿Puedes repetirlo?' })
+      } finally { call.stop() }
+    })
+  })
+
+  describe('memoria en la conversación', () => {
+    const base = () => ({ isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn() })
+    const historyOf = (call: number) => mock.answer.mock.calls[call][0].previousMessages as { role: string; content: unknown }[]
+
+    it('retoma el chat donde se llama y cambia tu grabación por lo que dijiste', async () => {
+      const chat = [{ role: 'user', content: 'Me llamo Rey.' }, { role: 'assistant', content: 'Encantada, Rey.' }]
+      mock.answer.mockImplementation(async (options: { previousMessages: unknown[]; audioWav: string }) => ({
+        text: 'Claro.',
+        messages: [...options.previousMessages, { role: 'user', content: [{ type: 'text', text: 'micro' }, { type: 'input_audio', input_audio: { data: options.audioWav, format: 'wav' } }] }, { role: 'assistant', content: 'Claro.' }],
+      }))
+      const callbacks = { ...base(), loadHistory: vi.fn(async () => chat) }
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        simulateTurn()
+        await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(1))
+        expect(historyOf(0)).toEqual(chat)
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
+        source.onended?.()
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('character_audio_transcribe', expect.objectContaining({ background: true })))
+        await Promise.resolve()
+        simulateTurn()
+        await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(2))
+        expect(historyOf(1)).toEqual([...chat, { role: 'user', content: 'Hola, Pluma' }, { role: 'assistant', content: 'Claro.' }])
+      } finally { call.stop() }
+    })
+
+    it('no olvida lo que hablaban cuando la interrumpes', async () => {
+      mock.answer.mockResolvedValue({ text: 'Te cuento una historia larga.', messages: [] })
+      const nativeInvoke = mock.invoke.getMockImplementation()!
+      let speeches = 0
+      mock.invoke.mockImplementation(async (command, args) => {
+        if (command !== 'pluma_clone_speak' || ++speeches > 1) return nativeInvoke(command, args)
+        args.events.onmessage({ sampleRate: 24000, data: floatAudio(Array.from({ length: 24000 }, (_, index) => 0.4 * Math.sin(2 * Math.PI * 440 * index / 24000))) })
+        await new Promise<void>(() => undefined)
+      })
+      const callbacks = base()
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        simulateTurn()
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
+        for (let index = 0; index < 6; index++) captureVoice(0.12)
+        expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_cancel_turn', expect.anything())
+        for (let index = 0; index < 24; index++) capture(new Float32Array(frameLength))
+        await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(2))
+        const remembered = historyOf(1)
+        expect(remembered.at(-1)).toEqual({ role: 'assistant', content: 'Te cuento una historia larga. (me interrumpieron aquí)' })
+        expect(remembered.at(-2)?.role).toBe('user')
+      } finally { call.stop() }
+    })
+  })
+
+  describe('modo lectura', () => {
+    const book = { title: 'Rayuela', chunks: ['Primer pasaje.', 'Segundo pasaje.', 'Tercer pasaje.'] }
+    const withReader = (position = 0) => {
+      const reader = { current: vi.fn(() => ({ title: 'Rayuela', percent: 0 })), load: vi.fn(async () => book), position: vi.fn(() => position), save: vi.fn() }
+      return { reader, callbacks: { isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn(), onTurnRecorded: vi.fn(), onReading: vi.fn(), reader } }
+    }
+    const spokenTexts = () => mock.invoke.mock.calls.filter(([command]) => command === 'pluma_clone_speak').map(([, args]) => args.text)
+
+    it('con el botón lee todo en orden desde donde quedó y guarda el final', async () => {
+      const { reader, callbacks } = withReader(1)
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        expect(call.read(false)).toBe(true)
+        await vi.waitFor(() => expect(spokenTexts()).toEqual(['Segundo pasaje.', 'Tercer pasaje.']))
+        expect(callbacks.onReading).toHaveBeenCalledWith({ title: 'Rayuela', percent: 33 })
+        source.onended?.()
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        expect(reader.save).toHaveBeenCalledWith(3, 3)
+        expect(callbacks.onReading).toHaveBeenLastCalledWith(undefined)
+        expect(callbacks.onTurnRecorded).not.toHaveBeenCalled()
+      } finally { call.stop() }
+    })
+
+    it('si ya lo terminó, vuelve a empezar', async () => {
+      const { callbacks } = withReader(3)
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        call.read(false)
+        await vi.waitFor(() => expect(spokenTexts()[0]).toBe('Primer pasaje.'))
+      } finally { call.stop() }
+    })
+
+    it('al detenerla guarda el pasaje que sonaba para repetirlo entero', async () => {
+      const { reader, callbacks } = withReader()
+      const nativeInvoke = mock.invoke.getMockImplementation()!
+      mock.invoke.mockImplementation(async (command, args) => {
+        if (command !== 'pluma_clone_speak') return nativeInvoke(command, args)
+        args.events.onmessage({ sampleRate: 24000, data: floatAudio(Array.from({ length: 2400 }, () => 0.3)) })
+        if (args.text === 'Segundo pasaje.') await new Promise<void>(() => undefined)
+        args.events.onmessage({ done: true })
+      })
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        call.read(false)
+        await vi.waitFor(() => expect(spokenTexts()).toEqual(['Primer pasaje.', 'Segundo pasaje.']))
+        // The first passage's audio started at about 12 ms and lasts 100 ms: stop inside it.
+        audioClock = 0.05
+        call.stopReading()
+        expect(reader.save).toHaveBeenCalledWith(0, 3)
+        expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_cancel_turn', { sessionId: 'sesión', turnId: 1 })
+        expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening')
+      } finally { call.stop() }
+    })
+
+    it('al pedírselo de voz dice su frase, lee y lo deja en el historial sin guardar el audio del libro', async () => {
+      const { reader, callbacks } = withReader()
+      mock.answer.mockImplementation(async (options: { onTextDelta?: (delta: string) => void; book?: unknown }) => {
+        expect(options.book).toEqual({ title: 'Rayuela', percent: 0 })
+        options.onTextDelta?.('Claro, empiezo con Rayuela. ')
+        return { text: 'Claro, empiezo con Rayuela.', messages: [], read: { fromStart: false } }
+      })
+      const call = startPlumaClone(callbacks, 0.8)
+      try {
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        simulateTurn()
+        await vi.waitFor(() => expect(spokenTexts()).toEqual(['Claro, empiezo con Rayuela.', 'Primer pasaje.', 'Segundo pasaje.', 'Tercer pasaje.']))
+        source.onended?.()
+        await vi.waitFor(() => expect(callbacks.onTurnRecorded).toHaveBeenCalled())
+        const [turn] = callbacks.onTurnRecorded.mock.calls[0]
+        expect(turn.said).toBe('Claro, empiezo con Rayuela. (Leí «Rayuela» hasta el 100 %.)')
+        expect(turn.voice.samples).toHaveLength(1)
+        expect(reader.save).toHaveBeenCalledWith(3, 3)
+      } finally { call.stop() }
+    })
   })
 
   it('mantiene turnos alternados si el dispositivo no ofrece cancelación de eco', async () => {

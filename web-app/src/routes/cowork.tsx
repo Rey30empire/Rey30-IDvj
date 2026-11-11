@@ -2,7 +2,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import ChatInput from '@/containers/ChatInput'
 import HeaderPage from '@/containers/HeaderPage'
-import { HologramAvatar, HOLOGRAM_PORTRAITS, usesHologram } from '@/containers/characters/HologramAvatar'
+import { HologramAvatar, useHologramPortrait, usesHologram } from '@/containers/characters/HologramAvatar'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { route } from '@/constants/routes'
@@ -252,6 +252,7 @@ function CoworkPage() {
 
   const running = useCoworkRun((s) => !!(currentId && s.runId[currentId]))
   const coder = useCharacterStore((s) => s.profiles.find((item) => item.id === 'coder'))
+  const coderPortrait = useHologramPortrait(coder)
   const contextRecovery = useRef({ mounted: true, pending: false })
   useEffect(() => {
     const recovery = contextRecovery.current
@@ -1560,9 +1561,9 @@ function CoworkPage() {
       data-testid="cowork-surface"
       className="flex flex-col h-[calc(100dvh-(env(safe-area-inset-bottom)+env(safe-area-inset-top)))]"
     >
-      {coder && usesHologram(coder) && (
+      {coder && coderPortrait && usesHologram(coder) && (
         <div className="fixed top-16 right-4 z-30">
-          <HologramAvatar portrait={HOLOGRAM_PORTRAITS.coder} state={running ? 'thinking' : 'idle'} level={0} color="#5CE1E6" label={`Holograma de ${coder.name}`} size="corner" />
+          <HologramAvatar portrait={coderPortrait} state={running ? 'thinking' : 'idle'} level={0} color="#5CE1E6" label={`Holograma de ${coder.name}`} size="corner" />
         </div>
       )}
       <HeaderPage>

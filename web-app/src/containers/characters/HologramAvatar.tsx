@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { avatarImageData } from '@/lib/characters/avatar-image'
+import type { CustomPortrait } from '@/lib/characters/types'
 
 /**
  * A character drawn as a cloud of light particles that behaves like a person:
@@ -33,9 +35,38 @@ export const HOLOGRAM_PORTRAITS: Record<string, HologramPortrait> = {
 /** The element a screen with room offers for the full-size hologram. */
 export const HOLOGRAM_STAGE_ID = 'hologram-stage'
 
-/** Sphere or hologram, never both: only characters with a portrait can have the hologram. */
-export function usesHologram(profile: { baseId: string; avatar: { display?: 'sphere' | 'hologram' } }): boolean {
-  return profile.baseId in HOLOGRAM_PORTRAITS && profile.avatar.display !== 'sphere'
+type PortraitOwner = { baseId: string; avatar: { display?: 'sphere' | 'hologram'; portrait?: CustomPortrait } }
+
+/** Sphere or hologram, never both: only characters with a portrait, their own or a chosen one, can have the hologram. */
+export function usesHologram(profile: PortraitOwner): boolean {
+  return (!!profile.avatar.portrait || profile.baseId in HOLOGRAM_PORTRAITS) && profile.avatar.display !== 'sphere'
+}
+
+/**
+ * The picture chosen in the editor, or the character's own. Undefined while a
+ * chosen picture loads; the character's own if it can no longer be read.
+ */
+export function useHologramPortrait(profile: PortraitOwner | undefined): HologramPortrait | undefined {
+  const custom = profile?.avatar.portrait
+  const key = custom ? JSON.stringify(custom) : ''
+  const [loaded, setLoaded] = useState<{ file: string; src?: string }>()
+  useEffect(() => {
+    if (!custom) return
+    let current = true
+    avatarImageData(custom.file).then(
+      src => { if (current) setLoaded({ file: custom.file, src }) },
+      () => { if (current) setLoaded({ file: custom.file }) },
+    )
+    return () => { current = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [custom?.file])
+  const builtIn = profile ? HOLOGRAM_PORTRAITS[profile.baseId] : undefined
+  return useMemo(() => {
+    if (!custom) return builtIn
+    if (loaded?.file !== custom.file) return undefined
+    return loaded.src ? { src: loaded.src, leftEye: custom.leftEye, rightEye: custom.rightEye, mouth: custom.mouth } : builtIn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, loaded, builtIn])
 }
 
 const SAMPLE_WIDTH = 240

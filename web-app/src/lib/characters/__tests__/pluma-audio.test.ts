@@ -1,5 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { createPlumaPcmEncoder, createPlumaTurnDetector, decodePlumaPcm, encodePlumaDictation, isVoiceLike, voicePeriodicity } from '../pluma-audio'
+import { createPlumaPcmEncoder, createPlumaTurnDetector, decodePlumaPcm, encodePlumaDictation, encodePlumaWav, isVoiceLike, voicePeriodicity } from '../pluma-audio'
+
+describe('grabación en WAV', () => {
+  const view = (base64: string) => {
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0))
+    return new DataView(bytes.buffer)
+  }
+
+  it('escribe PCM mono de 16 bits a la frecuencia pedida y recorta los picos', () => {
+    const wav = view(encodePlumaWav([Float32Array.of(0.5), Float32Array.of(2, -2)], 24000))
+    expect(wav.getUint32(0, false)).toBe(0x52494646)
+    expect(wav.getUint32(8, false)).toBe(0x57415645)
+    expect(wav.getUint16(22, true)).toBe(1)
+    expect(wav.getUint32(24, true)).toBe(24000)
+    expect(wav.getUint32(40, true)).toBe(6)
+    expect([wav.getInt16(44, true), wav.getInt16(46, true), wav.getInt16(48, true)]).toEqual([16384, 32767, -32767])
+  })
+
+  it('aguanta una canción entera sin desbordar la pila', () => {
+    const seconds = 150
+    const wav = encodePlumaWav([new Float32Array(48000 * seconds)], 48000)
+    expect(wav.length).toBe(Math.ceil((44 + 48000 * seconds * 2) / 3) * 4)
+  })
+})
 
 // A voiced vowel: a 150 Hz pitch with its first harmonics.
 const voice = (length: number, rate = 48000, gain = 0.1, start = 0) => Float32Array.from({ length }, (_, index) => {

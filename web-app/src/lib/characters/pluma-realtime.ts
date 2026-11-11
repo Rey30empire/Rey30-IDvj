@@ -4,6 +4,9 @@ import { isPlatformTauri } from '@/lib/platform/utils'
 import { createPlumaPcmEncoder, createPlumaTurnDetector, decodePlumaPcm } from './pluma-audio'
 import { answerWithPluma, plumaReasoningTool, plumaRealtimeInstructions } from './pluma-reasoning'
 import { normalizePlumaSpeech } from './pluma-text'
+import type { PlumaCallTurn } from './pluma-call-history'
+import type { PlumaReader, PlumaReadingProgress } from './pluma-reading'
+import type { GemmaMessage } from './pluma-gemma'
 import type { CharacterProfile } from './types'
 
 export const plumaDirectVoice = 'lfm3:direct'
@@ -29,6 +32,13 @@ export type PlumaCallCallbacks = {
   onError: (message: string) => void
   onFirstAudio: (timing: PlumaCallTiming) => void
   onSongCapability?: (available: boolean) => void
+  onTurnRecorded?: (turn: PlumaCallTurn) => void
+  /** Reading mode: the loaded book and where she left it. */
+  reader?: PlumaReader
+  /** The book being read and how far, or undefined when she stops reading. */
+  onReading?: (progress?: PlumaReadingProgress) => void
+  /** The chat the call belongs to, as history she continues. */
+  loadHistory?: () => Promise<GemmaMessage[]>
 }
 
 export function supportsPlumaCall(characterId: string | undefined) {

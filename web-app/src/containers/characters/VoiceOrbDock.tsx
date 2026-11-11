@@ -10,14 +10,17 @@ import { useThreads } from '@/hooks/useThreads'
 import { defaultVoiceId, useCharacterAudio } from '@/lib/characters/audio'
 import { plumaDirectVoice, startPlumaCall, supportsPlumaCall, usesPlumaCall, type PlumaCallPhase, type PlumaCallTiming } from '@/lib/characters/pluma-realtime'
 import { plumaCloneVoice, startPlumaClone, usesPlumaClone } from '@/lib/characters/pluma-clone'
+import { createPlumaCallHistory, plumaChatMemory } from '@/lib/characters/pluma-call-history'
 import { normalizePlumaSpeech } from '@/lib/characters/pluma-text'
 import { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
 import { PlumaCloneReference } from './PlumaCloneReference'
+import { PlumaReadingPanel } from './PlumaReadingPanel'
+import { plumaReader, type PlumaReadingProgress } from '@/lib/characters/pluma-reading'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { toast } from 'sonner'
-import { HologramAvatar, HOLOGRAM_PORTRAITS, HOLOGRAM_STAGE_ID, usesHologram } from './HologramAvatar'
+import { HologramAvatar, HOLOGRAM_STAGE_ID, useHologramPortrait, usesHologram } from './HologramAvatar'
 import './VoiceOrbDock.css'
 
 const micSilenceMs = 6000
@@ -64,6 +67,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const plumaSelector = supportsPlumaCall(profile?.id)
   const reference = usePlumaCloneReference(cloneCall)
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const songReference = usePlumaCloneReference(cloneCall && optionsOpen, true)
+  const portrait = useHologramPortrait(profile)
   const [stage, setStage] = useState<HTMLElement | null>(null)
   const [micSilent, setMicSilent] = useState(false)
   const lastSound = useRef(0)
@@ -73,7 +78,12 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const [callLevel, setCallLevel] = useState(0)
   const [callTiming, setCallTiming] = useState<PlumaCallTiming>()
   const [canSing, setCanSing] = useState(false)
-  const plumaCall = useRef<ReturnType<typeof startPlumaCall> | null>(null)
+  const [reading, setReading] = useState<PlumaReadingProgress>()
+  /** A reading asked for while the call was off: it starts once she listens. */
+  const pendingRead = useRef<boolean | null>(null)
+  const plumaCall = useRef<(ReturnType<typeof startPlumaCall> & Partial<Pick<ReturnType<typeof startPlumaClone>, 'read' | 'stopReading'>>) | null>(null)
+  /** The chat a call from the home screen writes to, kept across its pauses. */
+  const callThread = useRef<string | null>(null)
   const threadId = useThreads(state => state.currentThreadId)
   const hasThread = useThreads(state => Boolean(state.currentThreadId && state.threads[state.currentThreadId]))
   const audioStatus = useCharacterAudio(state => state.status)
@@ -130,6 +140,13 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
 
   useEffect(() => { setStage(document.getElementById(HOLOGRAM_STAGE_ID)) }, [threadId])
 
+  useEffect(() => { if (!session.open) { callThread.current = null; pendingRead.current = null } }, [session.open])
+
+  useEffect(() => {
+    if (callPhase !== 'listening' || pendingRead.current === null || !session.active) return
+    if (plumaCall.current?.read?.(pendingRead.current)) pendingRead.current = null
+  }, [callPhase, session.active])
+
   useEffect(() => {
     if (callLevel > 0) { lastSound.current = Date.now(); setMicSilent(false) }
   }, [callLevel])
@@ -180,18 +197,30 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
     setCallLevel(0)
     setCallTiming(undefined)
     setCanSing(false)
+    setReading(undefined)
+    const speaker = useCharacterStore.getState().profiles.find(item => item.id === session.characterId)
+    const history = cloneCall && speaker ? createPlumaCallHistory({
+      profile: speaker,
+      threadId: useAvatarVoiceSession.getState().threadId ?? callThread.current,
+      onThread: id => { callThread.current = id },
+      onError: () => toast.error('No se pudo guardar esta parte de la llamada en el chat.', { id: 'pluma-call-history' }),
+    }) : undefined
     const callbacks = {
       isCurrent,
       onPhase: setCallPhase,
       onAmplitude: setCallLevel,
       onFirstAudio: setCallTiming,
       onSongCapability: setCanSing,
+      reader: cloneCall ? plumaReader : undefined,
+      loadHistory: () => plumaChatMemory(useAvatarVoiceSession.getState().threadId ?? callThread.current),
+      onReading: (progress?: PlumaReadingProgress) => { if (isCurrent()) setReading(progress) },
+      onTurnRecorded: history?.record,
       onError: (message: string) => { if (isCurrent()) useAvatarVoiceSession.getState().pause(message) },
     }
     const call = cloneCall ? startPlumaClone(callbacks, cloneVolume) : startPlumaCall(callbacks)
     plumaCall.current = call
     call.setMuted(useAvatarVoiceSession.getState().muted)
-    return () => { call.stop(); plumaCall.current = null }
+    return () => { call.stop(); plumaCall.current = null; setReading(undefined) }
   }, [localCall, cloneCall, cloneVolume, session.open, session.active, session.generation, session.characterId, activeProfile?.id, profile?.avatar.enabled, profile?.voice.enabled, threadId])
 
   useEffect(() => {
@@ -273,7 +302,14 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
 
   if (!profile?.avatar.enabled) return null
   const cloneNeedsReference = cloneCall && !reference.reference?.ready
-  const localStatus = cloneCall && callPhase === 'connecting' ? 'Preparando Gemma y la voz de Qwen en este equipo…' : plumaStatus[callPhase]
+  const localStatus = cloneCall && callPhase === 'connecting' ? 'Preparando Gemma y la voz de Qwen en este equipo…'
+    : reading ? `Leyendo «${reading.title}» · ${reading.percent} %` : plumaStatus[callPhase]
+  const readBook = (fromStart: boolean) => {
+    if (plumaCall.current?.read?.(fromStart)) return
+    if (session.active) { toast.info('Pluma está ocupada. Leerá en cuanto termine este turno.'); pendingRead.current = fromStart; return }
+    pendingRead.current = fromStart
+    start()
+  }
   const status = localCall ? session.active ? localStatus : cloneNeedsReference ? 'Elige una muestra de voz' : 'Micrófono apagado' : processing ? 'Preparando respuesta…' : audioStatus === 'speaking' ? 'Hablando' : audioStatus === 'preparing' ? 'Preparando audio local…' : audioStatus === 'transcribing' ? 'Transcribiendo en este equipo…' : session.phase === 'listening' ? 'Te escucho. Termina tu frase y espera un momento.' : session.phase === 'waiting' ? 'Esperando la respuesta del chat…' : session.active ? 'Conversación en curso' : 'Micrófono apagado'
   const callState = callPhase === 'singing' ? 'speaking' : callPhase === 'speaking' || callPhase === 'listening' ? callPhase : 'thinking'
   const state = localCall ? session.error ? 'error' : session.active ? callState : 'idle' : session.error || audioError ? 'error' : audioStatus === 'speaking' ? 'speaking' : audioStatus === 'listening' ? 'listening' : processing || ['preparing', 'transcribing'].includes(audioStatus) || session.phase === 'waiting' ? 'thinking' : 'idle'
@@ -296,9 +332,10 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const spanishVoices = nativeVoices.filter(voice => /^es(?:-|$)/i.test(voice.language))
   const selectedVoice = !plumaSelector ? undefined : cloneCall ? plumaCloneVoice : directCall ? plumaDirectVoice : profile.voice.voiceURI ?? defaultVoiceId(profile)
   const error = session.error || (!localCall && audioError)
-  const hologram = usesHologram(profile)
+  // A chosen picture still loading shows nothing rather than the sphere for a moment.
+  const hologram = usesHologram(profile) && !!portrait
   const notice = error || (micSilent ? 'Tu micrófono no envía sonido. Revisa que el headset esté encendido y sin silenciar.' : undefined)
-  const hologramAt = (size: 'stage' | 'call' | 'corner') => <HologramAvatar portrait={HOLOGRAM_PORTRAITS[profile.baseId]} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} />
+  const hologramAt = (size: 'stage' | 'call' | 'corner') => portrait && <HologramAvatar portrait={portrait} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} />
   return <aside data-view={hologram ? 'hologram' : 'sphere'} data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className="voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1" data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
     <button data-testid="voice-orb-toggle" type="button" title={`${profile.name} · ${status}`} aria-label={session.active ? 'Pausar voz' : cloneNeedsReference ? 'Configurar muestra de voz' : 'Iniciar voz'} aria-pressed={session.active} disabled={!session.active && (saving || processing || (!localCall && (!onVoiceMessage || !catalogLoaded || !dictation)))} className="voice-orb focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { if (session.active) { autoListenDeclined = profile.id; stop() } else { autoListenDeclined = null; start() } }}>{hologram ? <Mic className="size-5" aria-hidden="true" /> : <span className="voice-orb-core" />}<span className="sr-only">{profile.name} · {status}</span></button>
     <Popover open={optionsOpen} onOpenChange={setOptionsOpen}>
@@ -328,6 +365,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
           {session.active && <p className="text-xs text-muted-foreground">Pausa la llamada para cambiar de voz.</p>}
         </>}
         {cloneCall && <PlumaCloneReference controls={reference} active={session.active} />}
+        {cloneCall && <PlumaCloneReference controls={songReference} active={session.active} singing />}
+        {cloneCall && <PlumaReadingPanel reading={session.active ? reading : undefined} onRead={readBook} onStop={() => plumaCall.current?.stopReading?.()} />}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" aria-pressed={!session.muted} onClick={() => {
             const muted = !session.muted

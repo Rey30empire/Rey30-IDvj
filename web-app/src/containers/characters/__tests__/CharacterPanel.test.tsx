@@ -31,6 +31,22 @@ beforeEach(async () => {
   useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: false, saving: false, error: null }); useCharacterAudio.setState({ status: 'idle', error: null, autoplayCancelled: false }); useAvatarVoiceSession.getState().close(); i18n.changeLanguage('es'); await useCharacterStore.getState().load()
 })
 describe('editor sin selección implícita', () => {
+  it('opened before the saved characters load, it never saves the factory defaults over them', async () => {
+    const saved = createDefaultCharacterData()
+    const pluma = saved.profiles.find(profile => profile.id === 'literatura')!
+    pluma.voice = { ...pluma.voice, enabled: true, plumaClone: true, plumaDirect: false }
+    pluma.instructions = 'Instrucciones propias de Pluma.'
+    h.saved = JSON.stringify(saved)
+    // As right after the app starts: the store still holds the defaults.
+    useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: false, saving: false, error: null })
+    editor('literatura')
+    expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+    await act(async () => { await useCharacterStore.getState().load() })
+    await waitFor(() => expect(screen.getByLabelText('Personalidad de voz')).toHaveValue('Instrucciones propias de Pluma.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await screen.findByText('Cambios guardados en este equipo.')
+    expect(JSON.parse(h.saved!).profiles.find((profile: { id: string }) => profile.id === 'literatura')).toMatchObject({ instructions: 'Instrucciones propias de Pluma.', voice: { enabled: true, plumaClone: true, plumaDirect: false } })
+  })
   it('keeps the chat clear until options are opened', async () => {
     render(<CharacterPanel />, { wrapper }); expect(screen.queryByTestId('character-avatar')).toBeNull(); expect(screen.queryByText('Blaster')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Opciones del asistente' })); expect(await screen.findByTestId('character-options-popover')).toBeVisible(); expect(h.speak).not.toHaveBeenCalled(); expect(h.setPrompt).not.toHaveBeenCalled()

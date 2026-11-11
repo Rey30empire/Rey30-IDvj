@@ -147,21 +147,43 @@ export function encodePlumaDictation(chunks: Float32Array[], sourceRate: number)
   return btoa(chunks.map(chunk => atob(encode(chunk))).join('').slice(0, 640000))
 }
 
-export function plumaDictationWav(pcmBase64: string) {
-  const pcm = atob(pcmBase64)
-  const header = new Uint8Array(44)
-  const view = new DataView(header.buffer)
-  header.set([82, 73, 70, 70], 0)
-  view.setUint32(4, 36 + pcm.length, true)
-  header.set([87, 65, 86, 69, 102, 109, 116, 32], 8)
+function writeWavHeader(bytes: Uint8Array, dataLength: number, sampleRate: number) {
+  const view = new DataView(bytes.buffer)
+  bytes.set([82, 73, 70, 70], 0)
+  view.setUint32(4, 36 + dataLength, true)
+  bytes.set([87, 65, 86, 69, 102, 109, 116, 32], 8)
   view.setUint32(16, 16, true)
   view.setUint16(20, 1, true)
   view.setUint16(22, 1, true)
-  view.setUint32(24, 16000, true)
-  view.setUint32(28, 32000, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * 2, true)
   view.setUint16(32, 2, true)
   view.setUint16(34, 16, true)
-  header.set([100, 97, 116, 97], 36)
-  view.setUint32(40, pcm.length, true)
+  bytes.set([100, 97, 116, 97], 36)
+  view.setUint32(40, dataLength, true)
+}
+
+export function plumaDictationWav(pcmBase64: string) {
+  const pcm = atob(pcmBase64)
+  const header = new Uint8Array(44)
+  writeWavHeader(header, pcm.length, 16000)
   return btoa(String.fromCharCode(...header) + pcm)
+}
+
+/** A whole song is megabytes: converted in slices, since one spread would overflow the call stack. */
+export function encodePlumaWav(clips: Float32Array[], sampleRate: number) {
+  const dataLength = clips.reduce((sum, clip) => sum + clip.length * 2, 0)
+  const bytes = new Uint8Array(44 + dataLength)
+  writeWavHeader(bytes, dataLength, sampleRate)
+  const view = new DataView(bytes.buffer)
+  let offset = 44
+  for (const clip of clips) {
+    for (const sample of clip) {
+      view.setInt16(offset, Math.round(Math.max(-1, Math.min(1, sample)) * 32767), true)
+      offset += 2
+    }
+  }
+  let binary = ''
+  for (let start = 0; start < bytes.length; start += 0x8000) binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000))
+  return btoa(binary)
 }

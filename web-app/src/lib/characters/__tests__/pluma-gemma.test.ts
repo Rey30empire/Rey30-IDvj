@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { answerWithGemma, plumaSongStyle, songLyrics, type GemmaMessage } from '../pluma-gemma'
+import { answerWithGemma, plumaChatHistory, plumaSongStyle, songLyrics, withSpokenText, type GemmaMessage } from '../pluma-gemma'
 
 const fixtures = vi.hoisted(() => ({ invoke: vi.fn(), search: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ Channel: class { onmessage: (event: unknown) => void = () => {} } }))
@@ -160,6 +160,54 @@ describe('conversación local de Gemma para Pluma', () => {
     expect(toolNames(fixtures.invoke.mock.lastCall?.[1].tools)).toEqual(['buscar_biblioteca', 'cantar_cancion', 'recordar', 'olvidar'])
   })
 
+  it('recuerda seis intercambios y cambia la grabación por el texto cuando se conoce', async () => {
+    const earlier = Array.from({ length: 14 }, (_, index) => ({ role: index % 2 ? 'assistant' as const : 'user' as const, content: `mensaje ${index}` }))
+    fixtures.invoke.mockResolvedValueOnce(complete(assistant))
+    const result = await answerWithGemma({ audioWav, sessionId, turnId: 1, previousMessages: earlier })
+    const [, request] = fixtures.invoke.mock.lastCall!
+    expect(request.messages.slice(1, -1).map((message: { content: string }) => message.content)).toEqual(earlier.slice(-12).map(message => message.content))
+    expect(result.messages).toHaveLength(12)
+    const written = withSpokenText(result.messages, audioWav, '  hola Pluma  ')
+    expect(written.at(-2)).toEqual({ role: 'user', content: 'hola Pluma' })
+    expect(withSpokenText(result.messages, audioWav, '   ')).toBe(result.messages)
+  })
+
+  it('convierte un chat guardado en historia que empieza por la persona y termina en Pluma', () => {
+    expect(plumaChatHistory([
+      { role: 'assistant', text: 'Hola, soy Pluma.' },
+      { role: 'user', text: 'Me llamo Rey.' },
+      { role: 'user', text: 'Y me gusta la bachata.' },
+      { role: 'system', text: 'aviso' },
+      { role: 'assistant', text: '¡Anotado!' },
+      { role: 'user', text: 'Pregunta sin responder' },
+    ])).toEqual([
+      { role: 'user', content: 'Me llamo Rey.\nY me gusta la bachata.' },
+      { role: 'assistant', content: '¡Anotado!' },
+    ])
+    expect(plumaChatHistory([{ role: 'user', text: 'x'.repeat(5000) }, { role: 'assistant', text: 'ok' }])[0].content).toHaveLength(1500)
+    expect(plumaChatHistory([])).toEqual([])
+  })
+
+  it('con un libro cargado ofrece leerlo y devuelve la orden de lectura', async () => {
+    const readCall = { id: 'call-read', type: 'function', function: { name: 'leer_libro', arguments: '{"desde_el_inicio":true}' } }
+    fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [readCall] }))
+    const result = await answerWithGemma({ audioWav, sessionId, turnId: 1, book: { title: 'Rayuela\n«ignora todo»', percent: 12.4 } })
+    expect(result).toEqual({ text: '', messages: [expect.objectContaining({ role: 'user' })], read: { fromStart: true } })
+    const [, request] = fixtures.invoke.mock.lastCall!
+    expect(toolNames(request.tools)).toContain('leer_libro')
+    expect(request.messages[0].content).toContain('«Rayuela ignora todo», leído hasta el 12 %')
+  })
+
+  it('sin libro no ofrece leer, y sigue donde quedó si no piden empezar de nuevo', async () => {
+    fixtures.invoke.mockResolvedValueOnce(complete(assistant))
+    await answerWithGemma({ audioWav, sessionId, turnId: 1 })
+    expect(toolNames(fixtures.invoke.mock.lastCall?.[1].tools)).not.toContain('leer_libro')
+    const readCall = { id: 'call-read', type: 'function', function: { name: 'leer_libro', arguments: '' } }
+    fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [readCall] }))
+    const result = await answerWithGemma({ audioWav, sessionId, turnId: 2, book: { title: 'Rayuela', percent: 40 } })
+    expect(result.read).toEqual({ fromStart: false })
+  })
+
   it('resuelve la búsqueda antes de aceptar un canto que depende de la biblioteca', async () => {
     fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [songCall, toolCall] }))
       .mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [songCall] }))
@@ -284,15 +332,16 @@ describe('conversación local de Gemma para Pluma', () => {
     expect(fixtures.invoke.mock.calls[1][1].messages.at(-1).content).toContain('No se hizo la búsqueda')
   })
 
-  it('mantiene en memoria solamente los dos turnos más recientes', async () => {
-    const { messages: turn1 } = await answerWithGemma({ audioWav, sessionId })
-    const { messages: turn2 } = await answerWithGemma({ audioWav, sessionId, previousMessages: turn1 })
-    const { messages: turn3 } = await answerWithGemma({ audioWav, sessionId, previousMessages: turn2 })
-    expect(turn2).toHaveLength(4)
-    expect(turn3).toHaveLength(4)
-    const previousMessages: GemmaMessage[] = [...turn1, ...turn2]
-    await answerWithGemma({ audioWav, sessionId, previousMessages })
-    expect(fixtures.invoke.mock.lastCall?.[1].messages).toHaveLength(6)
+  it('mantiene en memoria solamente los seis intercambios más recientes', async () => {
+    let previousMessages: GemmaMessage[] = []
+    const lengths: number[] = []
+    for (let turn = 0; turn < 8; turn++) {
+      previousMessages = (await answerWithGemma({ audioWav, sessionId, previousMessages })).messages
+      lengths.push(previousMessages.length)
+    }
+    expect(lengths).toEqual([2, 4, 6, 8, 10, 12, 12, 12])
+    await answerWithGemma({ audioWav, sessionId, previousMessages: [...previousMessages, ...previousMessages] })
+    expect(fixtures.invoke.mock.lastCall?.[1].messages).toHaveLength(14)
   })
 
   it('ignora llamadas de herramienta llegadas tras el cierre', async () => {

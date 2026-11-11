@@ -1,5 +1,5 @@
 import { DEFAULT_ACTIVE_AGENTS, LEGACY_CHARACTER_IDS, ORIGINAL_CHARACTER_IDS, refreshBuiltInProfiles } from './profiles'
-import type { CharacterData, CharacterMemory, CharacterProfile, CharacterSettings, MemoryEntry } from './types'
+import type { AvatarPoint, CharacterData, CharacterMemory, CharacterProfile, CharacterSettings, CustomPortrait, MemoryEntry } from './types'
 
 export const CHARACTER_LIMITS = { profiles: 32, projects: 64, memoryNotes: 4_000, profileJson: 64_000, storageJson: 630_000, context: 24_000 } as const
 const forbiddenText = /(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\b(?:sk-(?:proj-|ant-)?[a-z\d_-]{20,}|gh[pousr]_[a-z\d]{20,}|github_pat_[a-z\d_]{20,}|AKIA[A-Z\d]{16})\b|\b(?:api[_-]?key|access[_-]?token|authorization|password)\s*[:=]\s*\S+|<script\b|javascript:|data:text\/html|\bon(?:load|error)\s*=)/i
@@ -67,6 +67,16 @@ export function validateCharacterMemory(value: unknown): CharacterMemory {
   const entry = validateMemoryEntry({ enabled: shared.enabled, notes: shared.notes })
   return { individual: validateMemoryEntry(v.individual), shared: { ...entry, ...(shared.projectId === undefined ? {} : { projectId: validateProjectId(shared.projectId) }) } }
 }
+function avatarPoint(value: unknown, label: string): AvatarPoint {
+  if (!Array.isArray(value) || value.length !== 2 || !value.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0 && item <= 20_000)) return fail(label)
+  return [value[0], value[1]]
+}
+/** Only a name the app generated for a copied picture, never a path. */
+function customPortrait(value: unknown): CustomPortrait {
+  const p = shape(value, ['file', 'leftEye', 'rightEye', 'mouth'], 'imagen del avatar')
+  const file = typeof p.file === 'string' && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}\.(?:png|jpg|webp)$/.test(p.file) ? p.file : fail('imagen del avatar')
+  return { file, leftEye: avatarPoint(p.leftEye, 'ojo izquierdo'), rightEye: avatarPoint(p.rightEye, 'ojo derecho'), mouth: avatarPoint(p.mouth, 'boca') }
+}
 export function validateCharacterProfile(value: unknown): CharacterProfile {
   const v = shape(value, ['id', 'baseId', 'name', 'description', 'biography', 'instructions', 'traits', 'motivations', 'speech', 'mannerisms', 'examples', 'settings', 'voice', 'avatar', 'modelBinding'], 'perfil')
   const speech = shape(v.speech, ['style', 'rhythm'], 'forma de hablar')
@@ -76,8 +86,10 @@ export function validateCharacterProfile(value: unknown): CharacterProfile {
   if (Object.prototype.hasOwnProperty.call(voiceRecord, 'plumaDirect')) voiceKeys.push('plumaDirect')
   if (Object.prototype.hasOwnProperty.call(voiceRecord, 'plumaClone')) voiceKeys.push('plumaClone')
   const voice = shape(voiceRecord, voiceKeys, 'voz')
-  // Saves from before the sphere/hologram choice have no `display`.
-  const avatar = shape(v.avatar, ['enabled', 'primary', 'secondary', 'accent', 'skin', 'hair', 'motion', 'gestures', ...(Object.prototype.hasOwnProperty.call(record(v.avatar, 'avatar'), 'display') ? ['display'] : [])], 'avatar')
+  // Saves from before the sphere/hologram choice have no `display`, and only a chosen picture has `portrait`.
+  const avatarRecord = record(v.avatar, 'avatar')
+  const optionalAvatar = ['display', 'portrait'].filter(key => Object.prototype.hasOwnProperty.call(avatarRecord, key))
+  const avatar = shape(avatarRecord, ['enabled', 'primary', 'secondary', 'accent', 'skin', 'hair', 'motion', 'gestures', ...optionalAvatar], 'avatar')
   const color = (value: unknown) => typeof value === 'string' && /^#[\da-f]{6}$/i.test(value) ? value : fail('color hexadecimal')
   if (!Array.isArray(v.examples) || v.examples.length < 1 || v.examples.length > 12) return fail('ejemplos')
   if (!Array.isArray(avatar.gestures) || avatar.gestures.length > gestures.length || new Set(avatar.gestures).size !== avatar.gestures.length) return fail('gestos')
@@ -91,7 +103,7 @@ export function validateCharacterProfile(value: unknown): CharacterProfile {
     examples: v.examples.map(example => { const e = shape(example, ['situation', 'response'], 'ejemplo'); return { situation: text(e.situation, 300, 'situación'), response: text(e.response, 1_200, 'respuesta de ejemplo') } }),
     settings: validateCharacterSettings(v.settings),
     voice: { provider: oneOf(voice.provider, ['native-local'], 'proveedor de voz'), enabled: bool(voice.enabled, 'voz activa'), voiceURI: voice.voiceURI === null ? null : text(voice.voiceURI, 512, 'voz disponible'), lang: text(voice.lang, 35, 'idioma de voz'), rate: number(voice.rate, 0.5, 1.8, 'velocidad de voz'), pitch: number(voice.pitch, 0.5, 2, 'tono de voz'), volume: number(voice.volume, 0, 1, 'volumen'), localOnly: bool(voice.localOnly, 'voz local'), ...(voiceKeys.includes('plumaDirect') ? { plumaDirect: bool(voice.plumaDirect, 'voz directa de Pluma') } : {}), ...(voiceKeys.includes('plumaClone') ? { plumaClone: bool(voice.plumaClone, 'voz clonada de Pluma') } : {}) },
-    avatar: { enabled: bool(avatar.enabled, 'avatar activo'), primary: color(avatar.primary), secondary: color(avatar.secondary), accent: color(avatar.accent), skin: color(avatar.skin), hair: color(avatar.hair), motion: intensity(avatar.motion, 'movimiento'), gestures: avatar.gestures.map(gesture => oneOf(gesture, gestures, 'gesto')) as CharacterProfile['avatar']['gestures'], ...(avatar.display === undefined ? {} : { display: oneOf(avatar.display, ['sphere', 'hologram'] as const, 'vista del avatar') }) },
+    avatar: { enabled: bool(avatar.enabled, 'avatar activo'), primary: color(avatar.primary), secondary: color(avatar.secondary), accent: color(avatar.accent), skin: color(avatar.skin), hair: color(avatar.hair), motion: intensity(avatar.motion, 'movimiento'), gestures: avatar.gestures.map(gesture => oneOf(gesture, gestures, 'gesto')) as CharacterProfile['avatar']['gestures'], ...(avatar.display === undefined ? {} : { display: oneOf(avatar.display, ['sphere', 'hologram'] as const, 'vista del avatar') }), ...(avatar.portrait === undefined ? {} : { portrait: customPortrait(avatar.portrait) }) },
     modelBinding: model ? { providerId: text(model.providerId, 200, 'identificador de proveedor'), modelId: text(model.modelId, 300, 'identificador de modelo') } : null,
   }
   if (ORIGINAL_CHARACTER_IDS.includes(result.id as CharacterProfile['baseId']) && result.baseId !== result.id) return fail('identidad original')

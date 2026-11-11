@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
@@ -165,12 +165,19 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     expect(await screen.findByText('Selecciona un WAV o MP3 con una sola voz clara.')).toBeVisible()
     expect(clone.start).not.toHaveBeenCalled()
     expect(live.start).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Elegir WAV o MP3' }))
+    const voiceSample = within(screen.getByTestId('pluma-clone-reference'))
+    fireEvent.click(voiceSample.getByRole('button', { name: 'Elegir WAV o MP3' }))
     expect(await screen.findByText('Muestra WAV guardada en este equipo.')).toBeVisible()
+    expect(clone.choose).toHaveBeenLastCalledWith(false)
+    // The singing sample is separate and optional.
+    const songSample = within(screen.getByTestId('pluma-song-reference'))
+    fireEvent.click(songSample.getByRole('button', { name: 'Elegir WAV o MP3' }))
+    expect(await songSample.findByText('Muestra WAV de canto guardada. Canta con este timbre.')).toBeVisible()
+    expect(clone.choose).toHaveBeenLastCalledWith(true)
     fireEvent.click(screen.getByTestId('voice-orb-toggle'))
     await waitFor(() => expect(clone.start).toHaveBeenCalledTimes(1))
     expect(h.listen).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Cambiar muestra' })).toBeDisabled()
+    expect(voiceSample.getByRole('button', { name: 'Cambiar muestra' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Pausar voz' }))
     expect(live.stop).toHaveBeenCalled()
   })

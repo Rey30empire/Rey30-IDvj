@@ -79,6 +79,11 @@ export const useMessages = create<MessageState>()((set, get) => ({
     })
   },
   deleteMessage: (threadId, messageId) => {
+    const doomed = get().messages[threadId]?.find((m) => m.id === messageId)
+    const recording = (doomed?.metadata as { plumaRecording?: { file?: string } } | undefined)?.plumaRecording
+    if (recording?.file) {
+      void getServiceHub().core().invoke('pluma_recording_delete', { threadId, file: recording.file }).catch(() => undefined)
+    }
     getServiceHub().messages().deleteMessage(threadId, messageId)
     set((state) => ({
       messages: {

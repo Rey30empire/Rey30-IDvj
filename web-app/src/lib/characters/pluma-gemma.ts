@@ -51,6 +51,33 @@ const songTool = {
   },
 }
 
+const readToolName = 'leer_libro'
+const readTool = {
+  type: 'function',
+  function: {
+    name: readToolName,
+    description: 'Lee en voz alta el libro cargado en el modo lectura, en orden. Úsala cuando la persona pida que leas, sigas leyendo o empieces el libro.',
+    parameters: {
+      type: 'object',
+      properties: {
+        desde_el_inicio: { type: 'boolean', description: 'true solo si piden empezar desde el principio; si no, sigue donde se quedó.' },
+      },
+      additionalProperties: false,
+    },
+  },
+}
+
+function readsFromStart(call: ToolCall) {
+  try {
+    return (JSON.parse(call.function.arguments || '{}') as { desde_el_inicio?: unknown } | null)?.desde_el_inicio === true
+  } catch {
+    return false
+  }
+}
+
+/** The book's name as she may say it: one line, no control characters, short. */
+const bookTitle = (title: string) => title.replace(/[\p{Cc}\p{Cf}«»]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
+
 const rememberToolName = 'recordar'
 const forgetToolName = 'olvidar'
 
@@ -103,8 +130,48 @@ type AudioUserMessage = {
 }
 
 export type GemmaMessage = AudioUserMessage | { role: 'user' | 'assistant'; content: string }
+
+/** How much of the conversation she keeps in mind: the last six exchanges. */
+export const PLUMA_HISTORY_MESSAGES = 12
+const maxRememberedLength = 1_500
+
+/**
+ * Once what the person said is written down, the history keeps the words
+ * instead of the recording: Gemma does not have to hear it again every turn.
+ */
+export function withSpokenText(messages: GemmaMessage[], audioWav: string, transcript: string): GemmaMessage[] {
+  const text = transcript.trim()
+  if (!text) return messages
+  return messages.map(message => typeof message.content !== 'string' && message.content[1]?.input_audio.data === audioWav
+    ? { role: 'user', content: text.slice(0, maxRememberedLength) }
+    : message)
+}
+
+/**
+ * A saved chat as history she can continue: alternating turns that start with
+ * the person and end with her, each one shortened, the most recent kept.
+ */
+export function plumaChatHistory(messages: { role: string; text: string }[]): GemmaMessage[] {
+  const turns: { role: 'user' | 'assistant'; content: string }[] = []
+  for (const { role, text } of messages) {
+    if ((role !== 'user' && role !== 'assistant') || !text.trim()) continue
+    const content = text.trim().slice(0, maxRememberedLength)
+    const last = turns.at(-1)
+    if (last?.role === role) last.content = `${last.content}\n${content}`.slice(-maxRememberedLength)
+    else turns.push({ role, content })
+  }
+  while (turns.at(-1)?.role === 'user') turns.pop()
+  const recent = turns.slice(-PLUMA_HISTORY_MESSAGES)
+  return recent[0]?.role === 'assistant' ? recent.slice(1) : recent
+}
 export type PlumaSongRequest = { lyrics: string; style: string; seconds?: number }
-export type PlumaVoiceAnswer = { text: string; messages: GemmaMessage[]; song?: PlumaSongRequest & { accompanimentQuote?: string } }
+export type PlumaVoiceAnswer = {
+  text: string
+  messages: GemmaMessage[]
+  song?: PlumaSongRequest & { accompanimentQuote?: string }
+  /** She was asked to read the book loaded in reading mode. */
+  read?: { fromStart: boolean }
+}
 
 type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
 type GemmaAssistant = {
@@ -133,6 +200,8 @@ type VoiceTurn = {
   actions?: PlumaActions
   /** Stop after the model has read the prompt: nothing is said and no tool runs. */
   warmOnly?: boolean
+  /** The book loaded in reading mode and how far she has read it. */
+  book?: { title: string; percent: number }
 } & ({ transcript: string; audioWav?: never } | { transcript?: never; audioWav: string })
 
 export class PlumaAudioNotUnderstoodError extends Error {
@@ -287,14 +356,14 @@ function noteArgument(call: ToolCall, field: 'dato' | 'tema'): string | undefine
 }
 
 /** Has the model read her instructions and tools, so the first real turn starts from them. */
-export async function warmPlumaGemma(turn: Pick<VoiceTurn, 'sessionId' | 'canSing' | 'memory' | 'actions'>): Promise<void> {
+export async function warmPlumaGemma(turn: Pick<VoiceTurn, 'sessionId' | 'canSing' | 'memory' | 'actions' | 'book'>): Promise<void> {
   await answerWithGemma({ ...turn, transcript: 'Te escucho.', warmOnly: true })
 }
 
 const isMemoryCall = (call: ToolCall) =>
   call.function?.name === rememberToolName || call.function?.name === forgetToolName
 
-export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions, warmOnly = false }: VoiceTurn): Promise<PlumaVoiceAnswer> {
+export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions, warmOnly = false, book }: VoiceTurn): Promise<PlumaVoiceAnswer> {
   signal?.throwIfAborted()
   let user: GemmaMessage
   if (transcript !== undefined) {
@@ -303,12 +372,16 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
   } else {
     user = plumaMicrophoneMessage(audioWav)
   }
-  const history = previousMessages.slice(-4)
+  const history = previousMessages.slice(-PLUMA_HISTORY_MESSAGES)
   const singingInstructions = canSing
     ? `Llama a cantar_cancion solo si te piden oír canto. Escribe una canción completa de duración normal, con estrofas, estribillo y puente; nunca un fragmento. Canta en el estilo que le gusta a la persona si lo conoces; si no, en español a capela. Cita el acompañamiento solo si lo piden. Cuando la persona diga qué música le gusta, guárdalo con recordar empezando por «${MUSIC_TASTE_PREFIX}» (por ejemplo «${MUSIC_TASTE_PREFIX} bachata romántica con guitarra»). Si solo piden una letra, responde en texto. No afirmes que ya cantaste.`
     : 'Si piden oír una canción, explica que el canto no está disponible.'
   const memoryBlock = plumaMemoryPrompt(memory, transcript ?? '')
-  const system = [instructions, singingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
+  const title = book && bookTitle(book.title)
+  const readingInstructions = title
+    ? `Modo lectura: está cargado «${title}», leído hasta el ${Math.round(book.percent)} %. Si piden que lo leas, sigas o empieces, llama a leer_libro (desde_el_inicio solo si lo piden) y di antes como mucho una frase breve. No leas tú el texto ni lo resumas sin que te lo pidan.`
+    : ''
+  const system = [instructions, singingInstructions, readingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
   const messages: TurnMessage[] = [{ role: 'system', content: system }, ...history, user]
   const core = getServiceHub().core()
   const mayUseTools = transcript === undefined || !isSelfContainedGreeting(transcript)
@@ -329,6 +402,7 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
       ? [
           libraryTool,
           ...(canSing ? [songTool] : []),
+          ...(title ? [readTool] : []),
           ...(readProject ? [] : [rememberTool, forgetTool]),
           ...(actions?.tools ?? []).filter(item => !readProject || !reachesOutside((item as { function?: { name?: string } }).function?.name)),
         ]
@@ -350,7 +424,7 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
       if (!text) throw new Error('Gemma no devolvió texto para leer en voz alta.')
       if (isPlumaAudioMisunderstanding(text)) throw new PlumaAudioNotUnderstoodError()
       const nextHistory: GemmaMessage[] = [...history, user, { role: 'assistant', content: text }]
-      return { text, messages: nextHistory.slice(-4) }
+      return { text, messages: nextHistory.slice(-PLUMA_HISTORY_MESSAGES) }
     }
     spoken += roundText
 
@@ -391,9 +465,16 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
     const otherCalls = calls.filter(call => !isMemoryCall(call) && !actions?.owns(call.function?.name))
     if (canSing && otherCalls.length === 1 && otherCalls[0].function?.name === songToolName) {
       const song = requestedSong(otherCalls[0], transcript, memory)
-      if (song) return { text: '', messages: [...history, user].slice(-3), song }
+      if (song) return { text: '', messages: [...history, user].slice(-(PLUMA_HISTORY_MESSAGES - 1)), song }
+    }
+    if (title && otherCalls.length === 1 && otherCalls[0].function?.name === readToolName) {
+      return { text: spoken.trim(), messages: [...history, user].slice(-(PLUMA_HISTORY_MESSAGES - 1)), read: { fromStart: readsFromStart(otherCalls[0]) } }
     }
     for (const call of otherCalls) {
+      if (call.function?.name === readToolName) {
+        messages.push({ role: 'tool', tool_call_id: call.id, content: title ? 'La lectura no empezó. Llama solo a leer_libro, sin otras herramientas.' : 'No hay ningún libro cargado en el modo lectura.' })
+        continue
+      }
       if (call.function?.name === songToolName) {
         messages.push({
           role: 'tool', tool_call_id: call.id,

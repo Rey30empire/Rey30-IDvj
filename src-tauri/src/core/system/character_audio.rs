@@ -83,7 +83,8 @@ async fn execute(
     );
     let (cancel, cancelled) = oneshot::channel();
     let serial = AUDIO_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    let tracked = request["operation"] != "catalog";
+    // Writing a call's history must not cancel, or be cancelled by, the live call.
+    let tracked = request["operation"] != "catalog" && request["untracked"] != true;
     let _catalog_cancel = if tracked {
         let mut current = AUDIO_JOB
             .lock()
@@ -233,6 +234,7 @@ pub async fn character_audio_transcribe(
     app: tauri::AppHandle,
     job_id: String,
     pcm_base64: String,
+    background: Option<bool>,
 ) -> Result<Value, String> {
     if pcm_base64.len() > 1_300_000 {
         return Err("El dictado admite hasta 30 segundos.".into());
@@ -246,7 +248,7 @@ pub async fn character_audio_transcribe(
     execute(
         app,
         job_id,
-        json!({"operation":"transcribe","pcmBase64":pcm_base64}),
+        json!({"operation":"transcribe","pcmBase64":pcm_base64,"untracked":background.unwrap_or(false)}),
     )
     .await
 }

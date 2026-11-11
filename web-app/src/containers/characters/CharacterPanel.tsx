@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { HOLOGRAM_PORTRAITS, usesHologram } from './HologramAvatar'
+import { AvatarPortraitEditor } from './AvatarPortraitEditor'
+import { deleteAvatarImage } from '@/lib/characters/avatar-image'
 import { useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
 import { plumaDirectVoice, supportsPlumaCall, usesPlumaCall } from '@/lib/characters/pluma-realtime'
 import { plumaCloneVoice, plumaReferenceStatus, usesPlumaClone } from '@/lib/characters/pluma-clone'
@@ -220,21 +222,27 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
   useEffect(() => { void useCharacterStore.getState().load().catch(() => {}) }, [])
   useEffect(() => { if (open || optionsOpen) void useCharacterAudio.getState().loadCatalog() }, [open, optionsOpen])
   useEffect(() => { if (open && characterId) setEditingId(characterId) }, [open, characterId])
+  // Until the saved characters load, the store holds the factory defaults: a
+  // draft taken from them and then saved would overwrite the person's own
+  // settings. So the draft is taken again once loading finishes.
   useEffect(() => {
-    if (open) {
+    if (open && loaded) {
       const selected = useCharacterStore.getState().profiles.find((item) => item.id === editingId)
       if (!selected) return
       setDraft(selected)
       const memory = useCharacterStore.getState().getMemory(selected.id, projectId)
       setIndividual(memory.individual); setShared({ enabled: memory.shared.enabled, notes: memory.shared.notes }); setNotice(null)
     }
-  }, [open, editingId, projectId])
+  }, [open, editingId, projectId, loaded])
 
   const update = (next: CharacterProfile) => run(useCharacterStore.getState().updateProfile(next))
   const save = async (event: React.FormEvent) => {
     event.preventDefault(); setLocalError(null); setNotice(null)
     try {
+      const previousPortrait = profile.avatar.portrait?.file
       await useCharacterStore.getState().updateProfile(draft)
+      // The replaced picture is no longer used by anything.
+      if (previousPortrait && previousPortrait !== draft.avatar.portrait?.file) void deleteAvatarImage(previousPortrait)
       await useCharacterStore.getState().setIndividualMemory(profile.id, individual)
       if (projectId) await useCharacterStore.getState().setSharedMemory(projectId, shared)
       setNotice('Cambios guardados en este equipo.')
@@ -262,7 +270,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
           <select aria-label="Modo del personaje" className={cn(fieldClass, 'w-auto py-1 text-xs')} disabled={saving} value={activeProfile.settings.mode} onChange={(e) => update({ ...activeProfile, settings: { ...activeProfile.settings, mode: e.target.value as CharacterMode } })}>{Object.entries(modeLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select>
           <Button type="button" size="sm" variant="ghost" aria-pressed={activeProfile.avatar.enabled} disabled={saving} onClick={() => { if (activeProfile.avatar.enabled) { useCharacterAudio.getState().stop(); useAvatarVoiceSession.getState().close() } update({ ...activeProfile, avatar: { ...activeProfile.avatar, enabled: !activeProfile.avatar.enabled } }) }}>Indicador {activeProfile.avatar.enabled ? 'visible' : 'oculto'}</Button>
           <Button type="button" size="sm" variant="ghost" aria-pressed={activeProfile.avatar.motion > 0} disabled={saving || !activeProfile.avatar.enabled} onClick={() => update({ ...activeProfile, avatar: { ...activeProfile.avatar, motion: activeProfile.avatar.motion > 0 ? 0 : 1 } })}>Animación {activeProfile.avatar.motion > 0 ? 'activada' : 'desactivada'}</Button>
-          {activeProfile.baseId in HOLOGRAM_PORTRAITS && <Button data-testid="avatar-display-toggle" type="button" size="sm" variant="ghost" disabled={saving || !activeProfile.avatar.enabled} onClick={() => update({ ...activeProfile, avatar: { ...activeProfile.avatar, display: usesHologram(activeProfile) ? 'sphere' : 'hologram' } })}>Vista: {usesHologram(activeProfile) ? 'holograma' : 'esfera'}</Button>}
+          {(activeProfile.baseId in HOLOGRAM_PORTRAITS || !!activeProfile.avatar.portrait) && <Button data-testid="avatar-display-toggle" type="button" size="sm" variant="ghost" disabled={saving || !activeProfile.avatar.enabled} onClick={() => update({ ...activeProfile, avatar: { ...activeProfile.avatar, display: usesHologram(activeProfile) ? 'sphere' : 'hologram' } })}>Vista: {usesHologram(activeProfile) ? 'holograma' : 'esfera'}</Button>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button data-testid="voice-orb-open" type="button" size="sm" disabled={saving || (!onVoiceMessage && !activeLocalCall) || busy} onClick={() => {
@@ -329,6 +337,11 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               {isLiterary && open && <LiteraryLibrarySettings />}
               {isLiterary && open && <PlumaProjectSettings />}
               {isLiterary && open && <PlumaLearnedMemory />}
+              <AvatarPortraitEditor value={draft.avatar.portrait} builtInSrc={HOLOGRAM_PORTRAITS[draft.baseId]?.src} onChange={(portrait) => {
+                const avatar = { ...draft.avatar }
+                delete avatar.portrait
+                setDraft({ ...draft, avatar: portrait ? { ...avatar, portrait, display: 'hologram' } : avatar })
+              }} />
               <div className="flex flex-wrap gap-3">{(['primary', 'secondary', 'accent'] as const).map((key) => <Field key={key} label={({ primary: 'Esfera', secondary: 'Aro', accent: 'Detalles' })[key]}><input type="color" value={draft.avatar[key]} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, [key]: e.target.value } })} /></Field>)}</div>
               <Field label={`Animación del aro · ${draft.avatar.motion}`}><input type="range" min={0} max={3} step={1} value={draft.avatar.motion} onChange={(e) => setDraft({ ...draft, avatar: { ...draft.avatar, motion: Number(e.target.value) as Intensity } })} /></Field>
               <details><summary className="cursor-pointer text-sm">Ejemplos de su estilo</summary>{draft.examples.map((example, index) => <div key={index} className="mt-2 text-xs"><p className="font-medium">{example.situation}</p><p>{example.response}</p></div>)}</details>

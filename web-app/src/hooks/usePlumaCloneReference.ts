@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { choosePlumaReference, clearPlumaReference, plumaReferenceStatus, type PlumaReference } from '@/lib/characters/pluma-clone'
 
-export function usePlumaCloneReference(enabled: boolean) {
+/** The speaking sample, or with `singing` the optional sample she sings with. */
+export function usePlumaCloneReference(enabled: boolean, singing = false) {
   const [reference, setReference] = useState<PlumaReference>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -24,9 +25,9 @@ export function usePlumaCloneReference(enabled: boolean) {
 
   useEffect(() => {
     const state = requests.current
-    if (enabled) void run(plumaReferenceStatus)
+    if (enabled) void run(() => plumaReferenceStatus(singing))
     return () => { state.latest++ }
-  }, [enabled, run])
+  }, [enabled, singing, run])
 
-  return { reference, busy, error, choose: () => run(choosePlumaReference), clear: () => run(clearPlumaReference) }
+  return { reference, busy, error, choose: () => run(() => choosePlumaReference(singing)), clear: () => run(() => clearPlumaReference(singing)) }
 }
