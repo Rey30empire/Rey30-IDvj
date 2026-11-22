@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState, useRef, useMemo, useCallback, memo } from 'react'
+import { Fragment, useEffect, useState, useRef, useMemo, useCallback, memo } from 'react'
+import { modelTier, PROVIDER_TIERS, providerTiers } from '@/lib/providerTiers'
 import {
   Popover,
   PopoverContent,
@@ -453,13 +454,13 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
         })
 
       activeProviders.forEach((provider) => {
-        groups[provider.provider] = []
+        for (const tier of providerTiers(provider)) groups[`${tier}|${provider.provider}`] = []
       })
     }
 
     // Add the filtered items to their respective groups
     filteredItems.forEach((item) => {
-      const providerKey = item.provider.provider
+      const providerKey = `${modelTier(item.provider, item.model.id)}|${item.provider.provider}`
       if (!groups[providerKey]) {
         groups[providerKey] = []
       }
@@ -471,7 +472,12 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
       groups[providerKey].push(item)
     })
 
-    return groups
+    // Local first, then the free cloud, then the paid cloud, never mixed.
+    return PROVIDER_TIERS.flatMap(({ tier, title }) =>
+      Object.entries(groups)
+        .filter(([key]) => key.startsWith(`${tier}|`))
+        .map(([key, models]) => ({ tier, tierTitle: title, providerKey: key.slice(tier.length + 1), models }))
+    )
   }, [filteredItems, providers, searchValue, favoriteModels])
 
   const handleSelect = useCallback(
@@ -565,6 +571,15 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
       const loaded = llamacpp?.models.find((item) => item.id === modelId)
       if (!llamacpp || !loaded) return
       void handleSelect({ provider: llamacpp, model: loaded, searchStr: '', value: '' })
+    },
+    [allowAssistants, character, handleSelect]
+  )
+  const selectStrataModel = useCallback(
+    (modelId: string) => {
+      if (allowAssistants && character) return
+      const strata = useModelProvider.getState().getProviderByName('strata')
+      const model = strata?.models.find((item) => item.id === modelId)
+      if (strata && model) void handleSelect({ provider: strata, model, searchStr: '', value: '' })
     },
     [allowAssistants, character, handleSelect]
   )
@@ -687,7 +702,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
 
           {/* Model list */}
           <div className="max-h-80 overflow-y-auto">
-            {Object.keys(groupedItems).length === 0 && searchValue ? (
+            {groupedItems.length === 0 && searchValue ? (
               <div className="py-3 px-4 text-sm ">
                 {t('common:noModelsFoundFor', { searchValue })}
               </div>
@@ -760,16 +775,22 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                 )}
 
                 {/* Regular provider sections */}
-                {Object.entries(groupedItems).map(([providerKey, models]) => {
+                {groupedItems.map(({ tier, tierTitle, providerKey, models }, index) => {
                   const providerInfo = providers.find(
                     (p) => p.provider === providerKey
                   )
 
                   if (!providerInfo) return null
+                  const firstOfTier = groupedItems.findIndex((group) => group.tier === tier && providers.some((p) => p.provider === group.providerKey)) === index
 
                   return (
+                    <Fragment key={`${tier}|${providerKey}`}>
+                    {firstOfTier && (
+                      <div data-testid={`model-tier-${tier}`} className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {tierTitle}
+                      </div>
+                    )}
                     <div
-                      key={providerKey}
                       className="bg-secondary/30 first:mt-0 rounded-sm my-1.5 mx-1.5 first:mb-0 py-1"
                     >
                       {/* Provider header */}
@@ -852,6 +873,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
                         })
                       )}
                     </div>
+                    </Fragment>
                   )
                 })}
               </div>
@@ -884,6 +906,7 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
         open={localModelsOpen}
         onOpenChange={setLocalModelsOpen}
         onModelLoaded={selectLoadedLocalModel}
+        onStrataReady={selectStrataModel}
       />
     )}
     </>

@@ -85,6 +85,7 @@ import { useAppState } from '@/hooks/useAppState'
 import { useGeneralSetting } from '@/hooks/useGeneralSetting'
 import { ensureAnthropicHeaders } from '@/lib/remoteModelCatalog'
 import { assertNativeSessionPort, assertPrivacyFactoryParameters, assertPrivacyLoopbackUrl, assertPrivacyProvider, ensurePrivacyMode, getPrivacyModeSnapshot, nativePrivacyProvider } from '@/lib/privacyPolicy'
+import { isAppStrata, STRATA_PROVIDER, withLiveStrata } from '@/lib/strata'
 import { withPrivacyRemoteGuard, wrapModelWithPrivacy } from '@/lib/privacyMiddleware'
 
 /**
@@ -1006,13 +1007,15 @@ export class ModelFactory {
    */
   static async createModel(
     modelId: string,
-    provider: ProviderObject,
+    chosenProvider: ProviderObject,
     parameters: Record<string, unknown> = {},
     nativeOnly = false
   ): Promise<LanguageModel> {
     const mode = await ensurePrivacyMode()
-    const name = provider.provider.toLowerCase()
-    const nativeEngine = nativePrivacyProvider(name) && getProviderApiType(provider) !== 'anthropic'
+    const name = chosenProvider.provider.toLowerCase()
+    const provider = name === STRATA_PROVIDER ? await withLiveStrata(chosenProvider) : chosenProvider
+    // Strata counts as local only while it is the server this editor started, on loopback.
+    const nativeEngine = (nativePrivacyProvider(name) || isAppStrata(provider)) && getProviderApiType(provider) !== 'anthropic'
     assertPrivacyProvider(nativeOnly ? 'local-only' : mode, nativeEngine && (!nativeOnly || isPlatformTauri()))
     assertPrivacyFactoryParameters(mode, parameters, nativeEngine)
     const defaults: Record<string, string> = { anthropic: 'https://api.anthropic.com/v1', google: 'https://generativelanguage.googleapis.com/v1beta', gemini: 'https://generativelanguage.googleapis.com/v1beta', mistral: 'https://api.mistral.ai/v1', xai: 'https://api.x.ai/v1' }
@@ -1045,6 +1048,11 @@ export class ModelFactory {
 
       case 'mlx':
         return this.createMlxModel(modelId, provider, parameters)
+
+      case STRATA_PROVIDER:
+        return isAppStrata(provider)
+          ? this.createStrataModel(modelId, provider, parameters)
+          : this.createOpenAICompatibleModel(modelId, provider, parameters)
 
       case 'anthropic':
         return this.createAnthropicModel(modelId, provider, parameters)
@@ -1153,6 +1161,31 @@ export class ModelFactory {
         const url = new URL(`http://localhost:${sessionInfo.port}/v1${path}`)
         return url.toString()
       },
+      includeUsage: true,
+      fetch: customFetch,
+      metadataExtractor: providerMetadataExtractor,
+    })
+  }
+
+  /**
+   * The Strata server this editor started: on loopback, with the key the editor
+   * gave it, so it goes through the loopback fetch like llama.cpp and not
+   * through the guard for cloud providers.
+   */
+  private static createStrataModel(
+    modelId: string,
+    provider: ProviderObject,
+    parameters: Record<string, unknown> = {}
+  ): LanguageModel {
+    const baseUrl = (provider.base_url ?? '').replace(/\/$/, '')
+    let customFetch = createCustomFetch(loopbackFetch, parameters, true, undefined, true)
+    if (shouldStripReasoningFromContext() && !modelPreservesReasoning(provider, modelId)) {
+      customFetch = withAssistantReasoningStripped(customFetch)
+    }
+    return new OpenAICompatibleChatLanguageModel(modelId, {
+      provider: STRATA_PROVIDER,
+      headers: () => ({ Authorization: `Bearer ${provider.api_key ?? ''}` }),
+      url: ({ path }) => `${baseUrl}${path}`,
       includeUsage: true,
       fetch: customFetch,
       metadataExtractor: providerMetadataExtractor,

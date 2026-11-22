@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blinkAmount, faceLayout, faceWeights, HOLOGRAM_PORTRAITS, hologramDissolve, rotateFace, sampleParticles, usesHologram } from '../HologramAvatar'
+import { blinkAmount, faceLayout, faceWeights, headPose, HOLOGRAM_PORTRAITS, hologramDissolve, rotateFace, sampleParticles, usesHologram } from '../HologramAvatar'
 
 /** A dark square with a bright disc in the middle, like a face on a dark backdrop. */
 function disc(size: number) {
@@ -91,6 +91,51 @@ describe('holograma de partículas', () => {
     expect(faceWeights(90, 102, marks).brow).toBeGreaterThan(0.9)
     expect(faceWeights(120, 150, marks).head).toBe(1)
     expect(faceWeights(120, 290, marks).head).toBe(0)
+  })
+
+  it('mira de frente: la cabeza solo se mece un poco, haga lo que haga', () => {
+    for (const state of ['idle', 'listening', 'thinking', 'speaking', 'error'] as const) {
+      for (let time = 0; time < 60_000; time += 37) {
+        const pose = headPose(state, time, 1)
+        expect(Math.abs(pose.yaw)).toBeLessThanOrEqual(0.05)
+        expect(Math.abs(pose.pitch)).toBeLessThanOrEqual(0.06)
+        expect(Math.abs(pose.roll)).toBeLessThanOrEqual(0.04)
+      }
+    }
+  })
+
+  it('no desdobla la nariz ni los rasgos al moverse: puntos vecinos se mueven juntos', () => {
+    // A lit face with a bright nose ridge down the middle, like a real portrait.
+    const size = 120
+    const pixels = new Uint8ClampedArray(size * size * 4)
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const inside = (x - 60) ** 2 + (y - 60) ** 2 < 45 ** 2
+      const ridge = Math.abs(x - 60) < 3 && y > 45 && y < 75
+      pixels.set(inside ? (ridge ? [250, 250, 250, 255] : [120, 120, 120, 255]) : [0, 0, 0, 255], (y * size + x) * 4)
+    }
+    let seed = 7
+    const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+    const marks = { leftEye: [40, 45], rightEye: [80, 45], mouth: [60, 80] } as Parameters<typeof faceWeights>[2]
+    const particles = sampleParticles(pixels, size, size, 20_000, random, marks)
+    // Compared with the face at rest, which already has its perspective.
+    const rest = particles.map(p => rotateFace(p.fx, p.fy, p.fz, 0, 0, 0))
+    let worst = 0
+    for (const state of ['idle', 'speaking', 'thinking'] as const) {
+      for (let time = 0; time < 20_000; time += 211) {
+        const { yaw, pitch, roll } = headPose(state, time, 1)
+        const moved = particles.map(p => rotateFace(p.fx, p.fy, p.fz, yaw, pitch, roll))
+        for (let a = 0; a < particles.length; a += 3) {
+          for (let b = a + 1; b < Math.min(particles.length, a + 40); b++) {
+            if (Math.hypot(particles[a].fx - particles[b].fx, particles[a].fy - particles[b].fy) > 3) continue
+            const before = [rest[b].x - rest[a].x, rest[b].y - rest[a].y]
+            const after = [moved[b].x - moved[a].x, moved[b].y - moved[a].y]
+            worst = Math.max(worst, Math.hypot(after[0] - before[0], after[1] - before[1]))
+          }
+        }
+      }
+    }
+    // Neighbours that drift apart by a pixel or more show a doubled or protruding feature.
+    expect(worst).toBeLessThan(0.5)
   })
 
   it('parpadea rápido al cerrar y más lento al abrir', () => {

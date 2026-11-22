@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { choosePlumaReference, clearPlumaReference, plumaReferenceStatus, type PlumaReference } from '@/lib/characters/pluma-clone'
-import { applyLoreVoice, loreVoices, openLoreFolder, type LoreVoices } from '@/lib/characters/lore'
+import { applyLoreVoice, loreVoices, openLoreFolder, saveLoreVoice, type LoreVoices } from '@/lib/characters/lore'
 
 const message = (cause: unknown, fallback: string) => cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : fallback
 
@@ -56,6 +56,11 @@ export function usePlumaCloneReference(enabled: boolean, singing = false) {
     choose: () => run(() => choosePlumaReference(singing)),
     clear: () => run(() => clearPlumaReference(singing)),
     pickLore: (file: string) => run(() => applyLoreVoice(file, singing)),
+    /** Keeps a recording in Lore and starts using it; the list then shows it selected. */
+    saveRecording: async (name: string, wav: string) => {
+      await run(() => saveLoreVoice(name, wav, singing))
+      await refreshLore()
+    },
     refreshLore,
     openLore: () => openLoreFolder(singing ? 'voces/cantar' : 'voces/hablar').catch(cause => setError(message(cause, 'No se pudo abrir la carpeta de voces.'))),
   }

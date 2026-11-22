@@ -25,6 +25,8 @@ pub mod shutdown;
 pub mod wsl_hub;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod local_model_scan;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod strata;
 // Process-table sweep; desktop-only, `sysinfo` is not a mobile dependency.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod orphans;

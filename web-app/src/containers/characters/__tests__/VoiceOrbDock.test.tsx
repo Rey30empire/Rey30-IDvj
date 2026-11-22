@@ -91,6 +91,41 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
       expect(stage.querySelector('[data-testid="hologram-caption"]')?.textContent).toBeTruthy()
     } finally { stage.remove() }
   })
+  it('en la portada, doble clic lo vuelve ficha arriba y otro doble clic lo devuelve grande', async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'literatura'
+    window.localStorage.removeItem('rey30-hologram-home-card')
+    const stage = document.createElement('div')
+    stage.id = 'hologram-stage'
+    document.body.append(stage)
+    try {
+      mount()
+      await waitFor(() => expect(stage.querySelector('[data-testid="hologram-avatar"]')).not.toBeNull())
+      fireEvent.doubleClick(screen.getByRole('button', { name: /Doble clic para hacerlo pequeño/ }))
+      expect(stage.querySelector('[data-testid="hologram-avatar"]')).toBeNull()
+      const card = within(screen.getByTestId('voice-orb-dock')).getByTestId('hologram-avatar')
+      expect(card.className).toContain('w-[150px]')
+      expect(document.querySelector('[data-testid="hologram-enlarged"]')).toBeNull()
+      fireEvent.doubleClick(screen.getByRole('button', { name: /Doble clic para agrandarlo/ }))
+      expect(stage.querySelector('[data-testid="hologram-avatar"]')).not.toBeNull()
+    } finally { stage.remove(); window.localStorage.removeItem('rey30-hologram-home-card') }
+  })
+  it('en un chat es ficha, y agrandado ocupa solo la zona de mensajes', async () => {
+    act(() => useAvatarVoiceSession.getState().close())
+    h.activeId = 'literatura'
+    const messages = document.createElement('div')
+    messages.id = 'hologram-thread-stage'
+    document.body.append(messages)
+    try {
+      mount()
+      await waitFor(() => expect(screen.getByRole('button', { name: /Doble clic para agrandarlo/ })).toBeInTheDocument())
+      expect(messages.querySelector('[data-testid="hologram-avatar"]')).toBeNull()
+      fireEvent.doubleClick(screen.getByRole('button', { name: /Doble clic para agrandarlo/ }))
+      expect(messages.querySelector('[data-testid="hologram-avatar"]')).not.toBeNull()
+      fireEvent.doubleClick(screen.getByRole('button', { name: /Doble clic para hacerlo pequeño/ }))
+      expect(messages.querySelector('[data-testid="hologram-avatar"]')).toBeNull()
+    } finally { messages.remove() }
+  })
   it('escucha sola con la voz activada y no vuelve a abrirse tras pausar', async () => {
     act(() => useAvatarVoiceSession.getState().close())
     h.activeId = 'literatura'

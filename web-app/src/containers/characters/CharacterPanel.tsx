@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { HOLOGRAM_PORTRAITS, usesHologram } from './HologramAvatar'
 import { AvatarPortraitEditor } from './AvatarPortraitEditor'
+import { PlumaCloneSamples } from './PlumaCloneReference'
 import { deleteAvatarImage } from '@/lib/characters/avatar-image'
 import { useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
 import { plumaDirectVoice, supportsPlumaCall, usesPlumaCall } from '@/lib/characters/pluma-realtime'
@@ -347,7 +348,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <details><summary className="cursor-pointer text-sm">Ejemplos de su estilo</summary>{draft.examples.map((example, index) => <div key={index} className="mt-2 text-xs"><p className="font-medium">{example.situation}</p><p>{example.response}</p></div>)}</details>
             </div>}
             {tab === 'voz' && <div className="space-y-3">
-              <p className="text-sm">{draftClone ? 'Qwen usa una muestra de voz guardada en este equipo. Guarda la elección y abre Opciones de voz en la esfera para elegir la muestra.' : 'Voz sintética local en español. Inicia la conversación hablada desde la esfera o Activar voz.'}</p>
+              <p className="text-sm">{draftClone ? 'Qwen habla con una muestra de voz guardada en este equipo: elige una de Lore, graba la tuya o elige un archivo. Guarda la elección de voz clonada para usarla.' : 'Voz sintética local en español. Inicia la conversación hablada desde la esfera o Activar voz.'}</p>
               <Field label={draftPluma ? 'Voz de Pluma' : 'Voz instalada'}><select className={fieldClass} value={draftClone ? plumaCloneVoice : draftDirect ? plumaDirectVoice : draft.voice.voiceURI ?? defaultVoiceId(draft)} onChange={(e) => {
                 const id = e.target.value
                 const selected = voices.find(voice => voice.id === id)
@@ -357,6 +358,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
                 {draftPluma && <><option value={plumaDirectVoice}>LFM3 · voz directa</option><option value={plumaCloneVoice}>Gemma 4 · voz clonada</option></>}
                 {voices.filter(voice => !draftPluma || /^es(?:-|$)/i.test(voice.language)).map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language} · {voice.provider}</option>)}
               </select></Field>
+              {draftClone && open && <PlumaCloneSamples />}
               {!voices.length && <p role="status" className="text-sm">No hay voces locales disponibles. El chat funciona sin audio.</p>}
               {!voices.length && <Button type="button" size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Volver a consultar voces</Button>}
               {(['rate', 'pitch', 'volume'] as const).map((key) => <Field key={key} label={`${({ rate: 'Velocidad', pitch: 'Tono', volume: 'Volumen' })[key]} · ${draft.voice[key].toFixed(2)}`}><input type="range" min={key === 'volume' ? 0 : 0.5} max={key === 'volume' ? 1 : key === 'rate' ? 1.8 : 2} step="any" disabled={key === 'pitch' && draft.voice.voiceURI?.startsWith('windows:')} value={draft.voice[key]} onChange={(e) => setDraft({ ...draft, voice: { ...draft.voice, [key]: Number(e.target.value) } })} /></Field>)}

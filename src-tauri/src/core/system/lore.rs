@@ -29,6 +29,7 @@ const MAX_SONGS: usize = 60;
 const MAX_SONG_FILE: u64 = 64 * 1024;
 const MAX_LYRICS: usize = 2_400;
 const MAX_TITLE: usize = 80;
+const MAX_VOICE_NAME: usize = 60;
 /// The folders the app may open for the person, relative to Lore.
 const FOLDERS: [&str; 5] = ["", "biblioteca", "voces/hablar", "voces/cantar", "canciones"];
 
@@ -122,6 +123,12 @@ fn stem(name: &str) -> String {
         .unwrap_or_else(|| name.to_string())
 }
 
+/// Formats the voice engine reads as they are.
+const DIRECT_AUDIO: [&str; 2] = ["wav", "mp3"];
+/// Formats people drop in too (phone and WhatsApp voice notes): the app turns
+/// them into a WAV when one is chosen, and the file in Lore stays as it is.
+const CONVERTED_AUDIO: [&str; 6] = ["m4a", "mp4", "aac", "ogg", "opus", "webm"];
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoreVoice {
@@ -130,6 +137,8 @@ pub struct LoreVoice {
     /// What the selector shows: the file name without its extension.
     name: String,
     bytes: u64,
+    /// True when the app has to turn it into a WAV before using it.
+    convert: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -142,15 +151,39 @@ pub struct LoreVoices {
 }
 
 fn list_voices(root: &Path, singing: bool) -> Vec<LoreVoice> {
-    files_in(&voices_dir(root, singing), &["wav", "mp3"], MAX_VOICES)
+    let extensions = [DIRECT_AUDIO.as_slice(), CONVERTED_AUDIO.as_slice()].concat();
+    files_in(&voices_dir(root, singing), &extensions, MAX_VOICES)
         .into_iter()
         .filter(|(_, _, bytes)| *bytes > 44 && *bytes <= VOICE_LIMIT)
-        .map(|(file, _, bytes)| LoreVoice {
+        .map(|(file, path, bytes)| LoreVoice {
             name: stem(&file),
+            convert: !DIRECT_AUDIO.contains(&extension(&path).as_str()),
             file,
             bytes,
         })
         .collect()
+}
+
+/// A voice file in Lore by name, never outside its folder.
+fn voice_file(root: &Path, singing: bool, file: &str) -> Result<PathBuf, String> {
+    plain_file(&voices_dir(root, singing), file)
+        .filter(|path| {
+            let kind = extension(path);
+            DIRECT_AUDIO.contains(&kind.as_str()) || CONVERTED_AUDIO.contains(&kind.as_str())
+        })
+        .ok_or_else(|| "Esa voz ya no está en la carpeta de voces de Lore.".to_string())
+}
+
+async fn read_voice(path: PathBuf) -> Result<Vec<u8>, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut bytes = Vec::new();
+        fs::File::open(&path)
+            .and_then(|file| file.take(VOICE_LIMIT + 1).read_to_end(&mut bytes))
+            .map(|_| bytes)
+    })
+    .await
+    .map_err(|_| "No se pudo leer la voz elegida.".to_string())?
+    .map_err(|_| "No se pudo leer la voz elegida.".to_string())
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -227,29 +260,126 @@ pub async fn lore_voices(
     })
 }
 
-/// Makes a voice from Lore Pluma's speaking or singing sample.
+/// A voice file from Lore in base64, for the app to turn into a WAV when the
+/// engine cannot read its format.
+#[tauri::command]
+pub async fn lore_voice_read(
+    window: WebviewWindow,
+    singing: Option<bool>,
+    file: String,
+) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    require_main(&window)?;
+    let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
+    let audio = read_voice(voice_file(&root, singing.unwrap_or(false), &file)?).await?;
+    if audio.len() as u64 > VOICE_LIMIT {
+        return Err("Esa voz pesa más de 10 MB.".into());
+    }
+    Ok(STANDARD.encode(audio))
+}
+
+/// Makes a voice from Lore Pluma's speaking or singing sample. A WAV or MP3 is
+/// used as it is; any other format comes with `audio`, the app's WAV of it.
 #[tauri::command]
 pub async fn lore_voice_use(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
     file: String,
+    audio: Option<String>,
 ) -> Result<super::pluma_clone::ReferenceStatus, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
-    let path = plain_file(&voices_dir(&root, singing), &file)
-        .filter(|path| matches!(extension(path).as_str(), "wav" | "mp3"))
-        .ok_or("Esa voz ya no está en la carpeta de voces de Lore.")?;
-    let audio = tokio::task::spawn_blocking(move || {
-        let mut bytes = Vec::new();
-        fs::File::open(&path)
-            .and_then(|file| file.take(VOICE_LIMIT + 1).read_to_end(&mut bytes))
-            .map(|_| bytes)
-    })
-    .await
-    .map_err(|_| "No se pudo leer la voz elegida.".to_string())?
-    .map_err(|_| "No se pudo leer la voz elegida.".to_string())?;
+    let path = voice_file(&root, singing, &file)?;
+    let audio = if DIRECT_AUDIO.contains(&extension(&path).as_str()) {
+        read_voice(path).await?
+    } else {
+        audio
+            .and_then(|audio| STANDARD.decode(audio.as_bytes()).ok())
+            .filter(|audio| is_wav(audio) && audio.len() as u64 <= VOICE_LIMIT)
+            .ok_or("Hay que convertir esa voz a WAV antes de usarla.")?
+    };
+    let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
+    remember_voice(&app, singing, Some(&file));
+    Ok(status.with_name(Some(stem(&file))))
+}
+
+/// A file name for a recorded voice from what the person typed: no path or
+/// reserved characters, never empty, short enough for the selector.
+fn voice_file_stem(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| if c.is_control() || "\\/:*?\"<>|".contains(c) { ' ' } else { c })
+        .collect();
+    let words = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let short: String = words.chars().take(MAX_VOICE_NAME).collect();
+    // Windows drops trailing dots and spaces, and a leading dot hides the file.
+    let base = short.trim_matches(|c: char| c == '.' || c.is_whitespace());
+    if base.is_empty() {
+        "Mi voz".into()
+    } else {
+        base.into()
+    }
+}
+
+/// `base.wav`, else `base 2.wav`, `base 3.wav`…: a recording never replaces a
+/// voice already in Lore.
+fn free_voice_file(dir: &Path, base: &str) -> Option<String> {
+    (1..=MAX_VOICES)
+        .map(|n| if n == 1 { format!("{base}.wav") } else { format!("{base} {n}.wav") })
+        .find(|file| fs::symlink_metadata(dir.join(file)).is_err())
+}
+
+fn is_wav(audio: &[u8]) -> bool {
+    audio.len() > 44 && audio.starts_with(b"RIFF") && audio.get(8..12) == Some(b"WAVE")
+}
+
+/// Writes a recording to a new file in `dir`, failing rather than replacing one.
+fn save_recording(dir: &Path, base: &str, audio: &[u8]) -> Result<String, String> {
+    use std::io::Write;
+    fs::create_dir_all(dir).map_err(|_| "No se pudo crear la carpeta de voces de Lore.")?;
+    let file = free_voice_file(dir, base).ok_or("Ya hay demasiadas voces con ese nombre en Lore.")?;
+    let path = dir.join(&file);
+    let mut out = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|_| "No se pudo guardar la grabación en Lore.")?;
+    if out.write_all(audio).and_then(|_| out.sync_all()).is_err() {
+        drop(out);
+        let _ = fs::remove_file(&path);
+        return Err("No se pudo guardar la grabación en Lore.".into());
+    }
+    Ok(file)
+}
+
+/// Saves a voice recorded in the app (a WAV in base64) into Lore's speaking or
+/// singing voices and makes it Pluma's sample at once.
+#[tauri::command]
+pub async fn lore_voice_save(
+    app: AppHandle,
+    window: WebviewWindow,
+    singing: Option<bool>,
+    name: String,
+    audio: String,
+) -> Result<super::pluma_clone::ReferenceStatus, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    require_main(&window)?;
+    let singing = singing.unwrap_or(false);
+    let audio = STANDARD
+        .decode(audio.as_bytes())
+        .map_err(|_| "La grabación llegó dañada. Grábala de nuevo.")?;
+    if !is_wav(&audio) || audio.len() as u64 > VOICE_LIMIT {
+        return Err("La grabación no es un WAV válido de hasta 10 MB.".into());
+    }
+    let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
+    let dir = voices_dir(&root, singing);
+    let base = voice_file_stem(&name);
+    let (file, audio) = tokio::task::spawn_blocking(move || save_recording(&dir, &base, &audio).map(|file| (file, audio)))
+        .await
+        .map_err(|_| "No se pudo guardar la grabación en Lore.".to_string())??;
     let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
     remember_voice(&app, singing, Some(&file));
     Ok(status.with_name(Some(stem(&file))))
@@ -365,9 +495,13 @@ mod tests {
         fs::write(speaking.join("Voz 2.mp3"), &sample).unwrap();
         fs::write(speaking.join("notas.txt"), &sample).unwrap();
         fs::write(speaking.join("vacia.wav"), [0u8; 10]).unwrap();
+        fs::write(speaking.join("WhatsApp Audio.mp4"), &sample).unwrap();
         fs::write(voices_dir(&root, true).join("Canto.wav"), &sample).unwrap();
-        let names: Vec<_> = list_voices(&root, false).into_iter().map(|voice| voice.name).collect();
-        assert_eq!(names, ["Voz 2", "Voz 10"]);
+        let listed: Vec<_> = list_voices(&root, false).into_iter().map(|voice| (voice.name, voice.convert)).collect();
+        let expected = [("Voz 2", false), ("Voz 10", false), ("WhatsApp Audio", true)].map(|(name, convert)| (name.to_string(), convert));
+        assert_eq!(listed, expected);
+        assert!(voice_file(&root, false, "WhatsApp Audio.mp4").is_ok());
+        assert!(voice_file(&root, false, "notas.txt").is_err());
         let singing: Vec<_> = list_voices(&root, true).into_iter().map(|voice| voice.file).collect();
         assert_eq!(singing, ["Canto.wav"]);
         fs::remove_dir_all(root).unwrap();
@@ -381,6 +515,22 @@ mod tests {
         for name in ["../bien.wav", "..\\bien.wav", "C:bien.wav", "..", "", "falta.wav"] {
             assert!(plain_file(&root, name).is_none(), "{name}");
         }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_recorded_voice_gets_a_safe_name_and_never_replaces_another() {
+        assert_eq!(voice_file_stem("  Mi   voz\tnueva "), "Mi voz nueva");
+        assert_eq!(voice_file_stem("..\\..\\sistema/voz:1?"), "sistema voz 1");
+        assert_eq!(voice_file_stem(" ... "), "Mi voz");
+        assert_eq!(voice_file_stem(&"a".repeat(200)).chars().count(), MAX_VOICE_NAME);
+        let root = scratch("record");
+        let wav = [b"RIFF".as_slice(), &[0; 4], b"WAVE", &[0; 40]].concat();
+        assert!(is_wav(&wav));
+        assert!(!is_wav(b"ID3 not a wav at all, just some bytes to pass the length check"));
+        assert_eq!(save_recording(&root, "Mi voz", &wav).unwrap(), "Mi voz.wav");
+        assert_eq!(save_recording(&root, "Mi voz", &wav).unwrap(), "Mi voz 2.wav");
+        assert_eq!(fs::read(root.join("Mi voz.wav")).unwrap(), wav);
         fs::remove_dir_all(root).unwrap();
     }
 

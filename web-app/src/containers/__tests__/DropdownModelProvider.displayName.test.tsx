@@ -178,6 +178,28 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     cleanup()
   })
 
+  it('separa los modelos en locales, nube gratis y nube de pago', () => {
+    const tiered = [
+      mockProviders[0],
+      { provider: 'anthropic', active: true, api_key: 'clave', models: [{ id: 'claude-opus-5-5', capabilities: [] }], settings: [] },
+      { provider: 'openrouter', active: true, api_key: 'clave', models: [{ id: 'qwen/qwen3-30b-a3b:free', capabilities: [] }, { id: 'openai/gpt-5.5', capabilities: [] }], settings: [] },
+    ] as ModelProvider[]
+    vi.mocked(useModelProvider).mockReturnValue({ ...vi.mocked(useModelProvider)(), providers: tiered, getProviderByName: (name: string) => tiered.find(p => p.provider === name) } as MockHookReturn)
+    render(<DropdownModelProvider />)
+    fireEvent.click(screen.getByTestId('model-selector-tab'))
+    const local = screen.getByTestId('model-tier-local')
+    const free = screen.getByTestId('model-tier-free')
+    const paid = screen.getByTestId('model-tier-paid')
+    const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(after(local, free) && after(free, paid)).toBe(true)
+    const freeModel = screen.getByTestId('model-option-qwen/qwen3-30b-a3b:free')
+    const paidModel = screen.getByTestId('model-option-openai/gpt-5.5')
+    expect(after(free, freeModel) && after(freeModel, paid)).toBe(true)
+    expect(after(paid, paidModel)).toBe(true)
+    expect(after(paid, screen.getByTestId('model-option-claude-opus-5-5'))).toBe(true)
+    expect(after(screen.getByTestId('model-option-model1.gguf'), free)).toBe(true)
+  })
+
   it('ofrece los perfiles en el selector superior y usa la selección integrada', async () => {
     const profiles = useCharacterStore.getState().profiles
     vi.mocked(useAvailableAssistants).mockReturnValue(profiles.map(profile => ({

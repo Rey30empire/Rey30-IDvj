@@ -20,13 +20,17 @@ import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { toast } from 'sonner'
-import { HologramAvatar, HOLOGRAM_STAGE_ID, useHologramPortrait, usesHologram } from './HologramAvatar'
+import { HologramAvatar, HOLOGRAM_STAGE_ID, HOLOGRAM_THREAD_STAGE_ID, useHologramPortrait, usesHologram } from './HologramAvatar'
 import './VoiceOrbDock.css'
 
 const micSilenceMs = 6000
 let mountedViews = 0
 /** The character whose call the person paused: it must not reopen by itself on the next screen. */
 let autoListenDeclined: string | null = null
+/** Whether home shows the hologram as the small card, remembered on this computer. */
+const HOME_CARD_KEY = 'rey30-hologram-home-card'
+const readHomeCard = () => { try { return window.localStorage.getItem(HOME_CARD_KEY) === '1' } catch { return false } }
+const writeHomeCard = (card: boolean) => { try { window.localStorage.setItem(HOME_CARD_KEY, card ? '1' : '0') } catch { /* only a convenience */ } }
 let orphanTimer: ReturnType<typeof setTimeout> | undefined
 let orphanRouteCheck: ReturnType<typeof setInterval> | undefined
 const noMessages: UIMessage[] = []
@@ -70,6 +74,11 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const songReference = usePlumaCloneReference(cloneCall && optionsOpen, true)
   const portrait = useHologramPortrait(profile)
   const [stage, setStage] = useState<HTMLElement | null>(null)
+  const [threadStage, setThreadStage] = useState<HTMLElement | null>(null)
+  // Home shows the hologram large unless it was made a card; a chat shows the
+  // card unless it was made large, and each new chat starts as a card.
+  const [homeCard, setHomeCard] = useState(readHomeCard)
+  const [largeInChat, setLargeInChat] = useState(false)
   const [micSilent, setMicSilent] = useState(false)
   const lastSound = useRef(0)
   const startCall = useRef<() => void>(undefined)
@@ -138,7 +147,11 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
 
   useEffect(() => { if (profile?.avatar.enabled) void useCharacterAudio.getState().loadCatalog() }, [profile?.id, profile?.avatar.enabled])
 
-  useEffect(() => { setStage(document.getElementById(HOLOGRAM_STAGE_ID)) }, [threadId])
+  useEffect(() => {
+    setStage(document.getElementById(HOLOGRAM_STAGE_ID))
+    setThreadStage(document.getElementById(HOLOGRAM_THREAD_STAGE_ID))
+    setLargeInChat(false)
+  }, [threadId])
 
   useEffect(() => { if (!session.open) { callThread.current = null; pendingRead.current = null } }, [session.open])
 
@@ -342,7 +355,15 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   // A chosen picture still loading shows nothing rather than the sphere for a moment.
   const hologram = usesHologram(profile) && !!portrait
   const notice = error || (micSilent ? 'Tu micrófono no envía sonido. Revisa que el headset esté encendido y sin silenciar.' : undefined)
-  const hologramAt = (size: 'stage' | 'call' | 'corner') => portrait && <HologramAvatar portrait={portrait} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} />
+  // Large fills its own area (home's stage or the chat's messages), never the whole editor.
+  const largeArea = stage ? (homeCard ? null : stage) : largeInChat ? threadStage : null
+  const toggleSize = () => {
+    if (!stage) { setLargeInChat(value => !value); return }
+    const card = !homeCard
+    setHomeCard(card)
+    writeHomeCard(card)
+  }
+  const hologramAt = (size: 'stage' | 'call' | 'corner') => portrait && <HologramAvatar portrait={portrait} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} onToggleSize={stage || threadStage ? toggleSize : undefined} toggleHint={size === 'stage' ? 'hacerlo pequeño' : 'agrandarlo'} />
   return <aside data-view={hologram ? 'hologram' : 'sphere'} data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className="voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1" data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
     <button data-testid="voice-orb-toggle" type="button" title={`${profile.name} · ${status}`} aria-label={session.active ? 'Pausar voz' : cloneNeedsReference ? 'Configurar muestra de voz' : 'Iniciar voz'} aria-pressed={session.active} disabled={!session.active && (saving || processing || (!localCall && (!onVoiceMessage || !catalogLoaded || !dictation)))} className="voice-orb focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { if (session.active) { autoListenDeclined = profile.id; stop() } else { autoListenDeclined = null; start() } }}>{hologram ? <Mic className="size-5" aria-hidden="true" /> : <span className="voice-orb-core" />}<span className="sr-only">{profile.name} · {status}</span></button>
     <Popover open={optionsOpen} onOpenChange={setOptionsOpen}>
@@ -355,7 +376,7 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
         {plumaSelector && <>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Voz de Pluma
-            <select value={selectedVoice} disabled={saving || session.active} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed" onChange={event => {
+            <select value={selectedVoice} disabled={saving} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed" onChange={event => {
               const value = event.target.value
               const nativeVoice = spanishVoices.find(voice => voice.id === value)
               if (value !== plumaDirectVoice && value !== plumaCloneVoice && !nativeVoice) return
@@ -369,7 +390,7 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
               {spanishVoices.length > 0 && <optgroup label="Voces instaladas · por chat">{spanishVoices.map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language}</option>)}</optgroup>}
             </select>
           </label>
-          {session.active && <p className="text-xs text-muted-foreground">Pausa la llamada para cambiar de voz.</p>}
+          {session.active && <p className="text-xs text-muted-foreground">Cambiar de motor pausa la llamada; vuelve a llamarla con el micrófono.</p>}
         </>}
         {cloneCall && <PlumaCloneReference controls={reference} active={session.active} />}
         {cloneCall && <PlumaCloneReference controls={songReference} active={session.active} singing />}
@@ -390,8 +411,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
         {!catalogLoaded && audioError && <Button size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Consultar audio local</Button>}
       </PopoverContent>
     </Popover>
-    {hologram && (stage
-      ? createPortal(<div className="absolute inset-x-3 inset-y-2 flex items-center justify-center overflow-hidden rounded-2xl bg-[#040810] sm:inset-x-6">{hologramAt('stage')}<p data-testid="hologram-caption" role="status" className={cn('pointer-events-none absolute inset-x-4 bottom-3 text-center text-sm font-medium', notice ? 'text-amber-300' : 'text-cyan-100/80')}>{notice ?? status}</p></div>, stage)
+    {hologram && (largeArea
+      ? createPortal(<div className="pointer-events-auto absolute inset-x-3 inset-y-2 z-10 flex items-center justify-center overflow-hidden rounded-2xl bg-[#040810] sm:inset-x-6">{hologramAt('stage')}<p data-testid="hologram-caption" role="status" className={cn('pointer-events-none absolute inset-x-4 bottom-3 text-center text-sm font-medium', notice ? 'text-amber-300' : 'text-cyan-100/80')}>{notice ?? status}</p></div>, largeArea)
       : <div className="absolute right-0 top-full mt-2 flex w-[240px] flex-col items-end gap-1">{hologramAt(session.open ? 'call' : 'corner')}{notice && <p role="status" className="rounded-md bg-background/90 px-2 py-1 text-xs font-medium text-destructive">{notice}</p>}</div>)}
   </aside>
 }

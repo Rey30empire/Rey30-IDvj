@@ -5,8 +5,8 @@ import type { CustomPortrait } from '@/lib/characters/types'
 /**
  * A character drawn as a cloud of light particles that behaves like a person:
  * the portrait is straightened to face the viewer, the lips follow the voice
- * that is playing, the eyes blink and look around, the brows react and the head
- * moves while the body only breathes. Between sentences it comes apart into
+ * that is playing, the eyes blink, the brows react and the head sways a little
+ * while the body only breathes. Between sentences it comes apart into
  * drifting molecules and assembles again. Plain canvas 2D, no extra dependencies.
  *
  * The portraits are personal photos kept in `public/hologram/` (ignored by
@@ -34,6 +34,8 @@ export const HOLOGRAM_PORTRAITS: Record<string, HologramPortrait> = {
 
 /** The element a screen with room offers for the full-size hologram. */
 export const HOLOGRAM_STAGE_ID = 'hologram-stage'
+/** In a chat, the messages area: the hologram covers it only when made large. */
+export const HOLOGRAM_THREAD_STAGE_ID = 'hologram-thread-stage'
 
 type PortraitOwner = { baseId: string; avatar: { display?: 'sphere' | 'hologram'; portrait?: CustomPortrait } }
 
@@ -200,14 +202,14 @@ export function sampleParticles(pixels: Uint8ClampedArray, width: number, height
     const theta = random() * Math.PI * 2
     const fx = offsetX + (x + random() * stride * 0.6) * scale
     const fy = offsetY + (y + random() * stride * 0.6) * scale
-    // The head as a rounded volume, with bright features a little in front.
-    const nx = (fx - WIDTH / 2) / (WIDTH * 0.4)
-    const ny = (fy - HEIGHT * 0.42) / (HEIGHT * 0.48)
-    // The nose stands out, which is what makes a turning head read as one.
-    const noseTop = face ? face.leftEye[1] : 0
-    const noseSpan = face ? face.rightEye[0] - face.leftEye[0] : 1
-    const nose = face && fy > noseTop && fy < face.mouth[1] ? Math.exp(-(((fx - face.mouth[0]) / (noseSpan * 0.16)) ** 2)) * 22 : 0
-    const fz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny)) * 62 + light * 12 + nose
+    // The head as one smooth rounded volume. The picture already has its nose
+    // and shading drawn in, so giving a feature or a bright patch its own relief
+    // makes it slide away from its neighbours when the head sways: a doubled,
+    // protruding nose.
+    // The dome flattens out toward its rim instead of dropping at it, so the
+    // outline of the head moves with the face too.
+    const rim = Math.min(1, Math.hypot((fx - WIDTH / 2) / (WIDTH * 0.4), (fy - HEIGHT * 0.42) / (HEIGHT * 0.48)))
+    const fz = (Math.cos(rim * Math.PI) + 1) * 31
     const weights = face ? faceWeights(fx, fy, face) : STILL_FACE
     // The face is what matters: clothes stay faint and the crop melts away instead of ending in a straight edge.
     const melt = face ? (1 - fade((Math.hypot((fx - WIDTH / 2) / (WIDTH * 0.5), (fy - HEIGHT / 2) / (HEIGHT * 0.5)) - 0.74) / 0.28)) * (0.3 + 0.7 * weights.head) : 1
@@ -255,6 +257,19 @@ export function rotateFace(x: number, y: number, z: number, yaw: number, pitch: 
   return { x: centerX + turnedX * perspective, y: centerY + turnedY * perspective }
 }
 
+/**
+ * How the head sits at a moment: it faces the viewer and only sways a little.
+ * The portrait is a flat photo, so turning it further, or sending the eyes
+ * aside, shows the nose and eyes twice instead of a person turning.
+ */
+export function headPose(state: HologramState, time: number, open: number): { yaw: number; pitch: number; roll: number } {
+  return {
+    yaw: Math.sin(time * 0.00131) * 0.025 + (state === 'speaking' ? Math.sin(time * 0.0031) * 0.02 : 0),
+    pitch: Math.sin(time * 0.0009) * 0.025 + open * 0.015 + (state === 'thinking' ? -0.02 : 0),
+    roll: Math.sin(time * 0.00071) * 0.018 + (state === 'listening' ? 0.02 : 0),
+  }
+}
+
 /** How closed the eyes are `elapsed` ms into a blink: fast down, slower up. */
 export function blinkAmount(elapsed: number): number {
   if (elapsed < 0) return 0
@@ -292,8 +307,10 @@ const SIZE_CLASS = {
   call: 'h-auto w-[240px] rounded-2xl border border-cyan-400/20 shadow-[0_0_40px_rgba(92,225,230,0.18)]',
   corner: 'h-auto w-[150px] rounded-2xl border border-cyan-400/20 shadow-[0_0_40px_rgba(92,225,230,0.18)]',
 }
+/** The large hologram fills its area of the window, so it draws with more pixels to stay sharp. */
+const STAGE_RENDER_SCALE = 3
 
-export function HologramAvatar({ portrait, state, level, color, label, size }: {
+export function HologramAvatar({ portrait, state, level, color, label, size, onToggleSize, toggleHint }: {
   portrait: HologramPortrait
   state: HologramState
   /** Voice amplitude, 0 to 1. */
@@ -302,6 +319,10 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
   color: string
   label: string
   size: keyof typeof SIZE_CLASS
+  /** Double click (or Enter) switches between large and the small card; where it goes is up to the owner. */
+  onToggleSize?: () => void
+  /** What a double click does, as the end of «Doble clic para …». */
+  toggleHint?: string
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const live = useRef({ state, level })
@@ -318,12 +339,6 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
     let lastDraw = 0
     let open = 0
     let raise = 0
-    let gazeX = 0
-    let gazeY = 0
-    let headYaw = 0
-    let lookX = 0
-    let lookY = 0
-    let nextLook = 0
     let blinkStart = -1000
     let nextBlink = 0
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -340,23 +355,10 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
       dissolve = reduced ? 0 : dissolve + (hologramDissolve(now, time) - dissolve) * 0.05
       const speaking = now === 'speaking' ? Math.max(0, Math.min(1, voice)) : 0
 
-      if (!reduced) {
-        if (time >= nextBlink) {
-          blinkStart = time
-          // People blink every few seconds, now and then twice in a row.
-          nextBlink = time + (Math.random() < 0.18 ? 260 : 1800 + Math.random() * 3800)
-        }
-        if (time >= nextLook) {
-          // While talking or listening the eyes stay near the viewer; thinking, they wander up.
-          const roam = now === 'thinking' ? 1 : now === 'speaking' || now === 'listening' ? 0.5 : 0.9
-          lookX = (Math.random() * 2 - 1) * roam
-          lookY = now === 'thinking' ? -0.6 - Math.random() * 0.4 : (Math.random() * 2 - 1) * roam * 0.5
-          nextLook = time + 500 + Math.random() * 2400
-        }
-        gazeX += (lookX - gazeX) * 0.35
-        gazeY += (lookY - gazeY) * 0.35
-        // The eyes get there first and the head follows, as when a person looks aside.
-        headYaw += (lookX * 0.34 - headYaw) * 0.035
+      if (!reduced && time >= nextBlink) {
+        blinkStart = time
+        // People blink every few seconds, now and then twice in a row.
+        nextBlink = time + (Math.random() < 0.18 ? 260 : 1800 + Math.random() * 3800)
       }
       const blink = reduced ? 0 : blinkAmount(time - blinkStart)
       const mouth = Math.min(1, speaking * 1.4)
@@ -364,12 +366,11 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
       const browGoal = now === 'speaking' ? 0.35 + speaking * 0.65 : now === 'listening' ? 0.5 : now === 'thinking' ? 0.3 : 0
       raise += (browGoal - raise) * 0.12
 
-      const yaw = reduced ? 0 : headYaw + Math.sin(time * 0.00131) * 0.025 + (now === 'speaking' ? Math.sin(time * 0.0031) * 0.05 : 0)
-      const pitch = reduced ? 0 : Math.sin(time * 0.0009) * 0.03 + open * 0.02 + (now === 'thinking' ? -0.04 : 0)
-      const roll = reduced ? 0 : Math.sin(time * 0.00071) * 0.018 + (now === 'listening' ? 0.04 : 0)
+      const { yaw, pitch, roll } = reduced ? { yaw: 0, pitch: 0, roll: 0 } : headPose(now, time, open)
       const breath = reduced ? 0 : Math.sin(time * 0.0016) * 0.9
 
-      context.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0)
+      const pixels = element.width / WIDTH
+      context.setTransform(pixels, 0, 0, pixels, 0, 0)
       // A fading trail, not a full clear: moving particles leave a faint streak.
       context.globalCompositeOperation = 'source-over'
       context.fillStyle = reduced ? 'rgba(4, 8, 16, 1)' : 'rgba(4, 8, 16, 0.7)'
@@ -377,18 +378,14 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
       context.globalCompositeOperation = 'lighter'
       // A speaking mouth barely opens: more than this reads as a deformed face.
       const jawTravel = span * 0.11
-      const eyeTravel = span * 0.07
       const browTravel = span * 0.05
       for (const particle of particles) {
-        let fx = particle.fx
+        const fx = particle.fx
         let fy = particle.fy
         if (particle.jaw) fy += particle.jaw * open * jawTravel
         if (particle.lip) fy -= particle.lip * open * jawTravel * 0.25
-        if (particle.lid) {
-          const grip = Math.min(1, particle.lid * 2.5)
-          fy = particle.lidY + (fy - particle.lidY) * (1 - blink * grip) + gazeY * eyeTravel * 0.5 * grip
-          fx += gazeX * eyeTravel * grip
-        }
+        // The eyes only blink: sliding the eye of a photo aside leaves it doubled.
+        if (particle.lid) fy = particle.lidY + (fy - particle.lidY) * (1 - blink * Math.min(1, particle.lid * 2.5))
         if (particle.brow) fy -= particle.brow * raise * browTravel
         const turned = rotateFace(fx, fy, particle.fz, yaw, pitch, roll)
         const faceX = fx + (turned.x - fx) * particle.head
@@ -413,8 +410,9 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
           goalX += particle.dirX * age * 14
           flake = 1 - age
         }
-        // Lips and eyes have to keep up with the voice; the rest may trail a little.
-        const follow = reduced || particle.jaw || particle.lid || particle.lip ? 1 : 0.35
+        // A whole face moves as one, or lips and eyes would come loose from it;
+        // only molecules flying apart may trail.
+        const follow = reduced || loose < 0.01 || particle.jaw || particle.lid || particle.lip ? 1 : 0.35
         particle.x += (goalX - particle.x) * follow
         particle.y += (goalY - particle.y) * follow
         // Brightness follows the portrait, so dark features (eyes, mouth) stay dark.
@@ -463,17 +461,32 @@ export function HologramAvatar({ portrait, state, level, color, label, size }: {
     }
   }, [portrait, color])
 
-  return (
+  const scale = size === 'stage' ? STAGE_RENDER_SCALE : RENDER_SCALE
+  const picture = (
     <canvas
       ref={canvas}
       data-testid="hologram-avatar"
       data-state={state}
       role="img"
       aria-label={label}
-      width={WIDTH * RENDER_SCALE}
-      height={HEIGHT * RENDER_SCALE}
+      width={WIDTH * scale}
+      height={HEIGHT * scale}
       hidden={!ready}
-      className={`pointer-events-none bg-[#040810] ${SIZE_CLASS[size]}`}
+      className={`block bg-[#040810] ${onToggleSize ? '' : 'pointer-events-none'} ${SIZE_CLASS[size]}`}
     />
+  )
+  if (!onToggleSize) return picture
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${label}. Doble clic para ${toggleHint ?? 'cambiar su tamaño'}`}
+      title={`Doble clic para ${toggleHint ?? 'cambiar su tamaño'}`}
+      onDoubleClick={onToggleSize}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onToggleSize() } }}
+      className={`select-none rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 ${size === 'stage' ? 'flex h-full max-w-full cursor-zoom-out items-center justify-center' : 'cursor-zoom-in'}`}
+    >
+      {picture}
+    </div>
   )
 }

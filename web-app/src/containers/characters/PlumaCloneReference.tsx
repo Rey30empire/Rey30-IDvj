@@ -1,18 +1,21 @@
 import { Button } from '@/components/ui/button'
-import type { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
+import { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
+import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
+import { PlumaVoiceRecorder } from './PlumaVoiceRecorder'
 
 const handPicked = ''
 
 /**
  * The speaking sample, or with `singing` the optional sample she sings with:
- * a voice from the project's Lore folder, or a WAV or MP3 chosen by hand.
+ * a voice from the project's Lore folder, one recorded here (saved into Lore),
+ * or a WAV or MP3 chosen by hand.
  */
 export function PlumaCloneReference({ controls, active, singing = false }: {
   controls: ReturnType<typeof usePlumaCloneReference>
   active: boolean
   singing?: boolean
 }) {
-  const { reference, lore, busy, error, choose, clear, pickLore, refreshLore, openLore } = controls
+  const { reference, lore, busy, error, choose, clear, pickLore, saveRecording, refreshLore, openLore } = controls
   const format = reference?.format?.toUpperCase()
   const voices = lore?.voices ?? []
   const selected = reference?.ready && reference.name ? lore?.selected ?? handPicked : handPicked
@@ -48,7 +51,19 @@ export function PlumaCloneReference({ controls, active, singing = false }: {
         <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void refreshLore()}>Actualizar</Button>
       </>}
     </div>
-    {active && !singing && <p className="text-xs text-muted-foreground">Puedes cambiar de voz sin colgar: la usa desde su próxima frase.</p>}
+    {lore?.root && <PlumaVoiceRecorder singing={singing} disabled={busy} onSave={saveRecording} beforeRecording={active ? () => useAvatarVoiceSession.getState().pause() : undefined} />}
+    {active && !singing && <p className="text-xs text-muted-foreground">Puedes cambiar de voz sin colgar: la usa desde su próxima frase. Al grabar tu voz, la llamada se pausa.</p>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+  </div>
+}
+
+/** Both samples, speaking and singing, as the assistant's voice settings show them. */
+export function PlumaCloneSamples() {
+  const active = useAvatarVoiceSession(state => state.active)
+  const speaking = usePlumaCloneReference(true)
+  const singing = usePlumaCloneReference(true, true)
+  return <div data-testid="pluma-clone-samples" className="space-y-2">
+    <PlumaCloneReference controls={speaking} active={active} />
+    <PlumaCloneReference controls={singing} active={active} singing />
   </div>
 }

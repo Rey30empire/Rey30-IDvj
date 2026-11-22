@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import HeaderPage from '@/containers/HeaderPage'
 import { useThreads } from '@/hooks/useThreads'
 import ChatInput from '@/containers/ChatInput'
+import { HOLOGRAM_THREAD_STAGE_ID } from '@/containers/characters/HologramAvatar'
 import { useShallow } from 'zustand/react/shallow'
 import { MessageItem } from '@/containers/MessageItem'
 
@@ -2477,6 +2478,8 @@ function ThreadDetail() {
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
+          {/* Where the character's hologram goes when made large: over the messages only. */}
+          <div id={HOLOGRAM_THREAD_STAGE_ID} className="pointer-events-none absolute inset-0 z-10" />
         </div>
 
         {/* Chat Input - Fixed at bottom. No top padding: the scroll area (and

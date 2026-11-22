@@ -74,7 +74,7 @@ pub async fn pluma_clone_reference_clear(
 }
 
 /// Saves `audio` as Pluma's speaking or singing sample (used for the voices in
-/// the Lore folder). Refused during a call, like choosing a file by hand.
+/// the Lore folder). Allowed during a call: she speaks with it from her next sentence.
 pub(crate) async fn install_reference(
     app: AppHandle,
     singing: bool,

@@ -21,6 +21,7 @@ import {
 import cloneDeep from 'lodash/cloneDeep'
 import { toast } from 'sonner'
 import { useServiceHub } from '@/hooks/useServiceHub'
+import { PROVIDER_TIERS, providerTier } from '@/lib/providerTiers'
 
 export const Route = createFileRoute('/settings/providers/')({
   component: ModelProviders,
@@ -129,19 +130,25 @@ function ModelProviders() {
                 }
               />
             </Card>
-            {/* Model Providers */}
+            {/* Model providers, apart by where they run and who pays */}
+            {PROVIDER_TIERS.map(({ tier, title, description }) => {
+              const listed = providers.filter((provider) => (IS_MACOS || provider.provider !== 'mlx') && providerTier(provider) === tier)
+              if (!listed.length) return null
+              return (
             <Card
+              key={tier}
               header={
-                <div className="flex items-center justify-between w-full mb-6">
+                <div data-testid={`provider-tier-${tier}`} className="flex flex-col w-full mb-6">
                   <span className="font-medium text-base font-studio text-foreground">
-                    {t('common:modelProviders')}
+                    {title}
                   </span>
+                  <span className="text-xs text-muted-foreground">{description}</span>
                 </div>
               }
             >
-              {providers.filter((provider) => IS_MACOS || provider.provider !== 'mlx').map((provider, index) => (
+              {listed.map((provider) => (
                 <CardItem
-                  key={index}
+                  key={provider.provider}
                   title={
                     <div className="flex items-center gap-3">
                       <ProvidersAvatar provider={provider} />
@@ -196,6 +203,8 @@ function ModelProviders() {
                 />
               ))}
             </Card>
+              )
+            })}
           </div>
         </div>
       </div>

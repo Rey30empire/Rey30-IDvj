@@ -17,6 +17,7 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAppState } from '@/hooks/useAppState'
 import { useLlamacppDevices } from '@/hooks/useLlamacppDevices'
 import { cn, formatBytes, formatMegaBytes } from '@/lib/utils'
+import { StrataPanel } from './StrataPanel'
 import {
   ALL_GPUS,
   activationsForGpuChoice,
@@ -51,6 +52,8 @@ type LocalModelsDialogProps = {
   onOpenChange?: (open: boolean) => void
   /** Called after a chat model was loaded on the GPU. */
   onModelLoaded?: (modelId: string) => void
+  /** Called when the Strata model started here answers. */
+  onStrataReady?: (modelId: string) => void
 }
 
 const key = (name: string) => `providers:localModels.${name}`
@@ -64,6 +67,7 @@ export function LocalModelsDialog({
   open: openProp,
   onOpenChange,
   onModelLoaded,
+  onStrataReady,
 }: LocalModelsDialogProps) {
   const { t } = useTranslation()
   const [ownOpen, setOwnOpen] = useState(false)
@@ -86,6 +90,7 @@ export function LocalModelsDialog({
           <DialogDescription>{t(key('description'))}</DialogDescription>
         </DialogHeader>
         <LocalModelsList onBusyChange={setBusy} onModelLoaded={onModelLoaded} />
+        {IS_WINDOWS && <StrataPanel onReady={onStrataReady} />}
       </DialogContent>
     </Dialog>
   )

@@ -30,16 +30,17 @@ vi.mock('@/containers/Card', () => ({
 }))
 
 vi.mock('@/containers/ProvidersAvatar', () => ({
-  default: ({ provider }: { provider: string }) => (
-    <div data-testid="providers-avatar" data-provider={provider}>
-      Provider Avatar: {provider}
+  default: ({ provider }: { provider: { provider: string } }) => (
+    <div data-testid="providers-avatar" data-provider={provider.provider}>
+      Provider Avatar: {provider.provider}
     </div>
   ),
 }))
 
+const mocked = vi.hoisted(() => ({ providers: [] as { provider: string; active: boolean; models: unknown[]; base_url?: string }[] }))
 vi.mock('@/hooks/useModelProvider', () => ({
   useModelProvider: () => ({
-    providers: [],
+    providers: mocked.providers,
     addProvider: vi.fn(),
     updateProvider: vi.fn(),
   }),
@@ -153,6 +154,21 @@ describe('Providers Settings Route', () => {
     expect(screen.getByTestId('header-page')).toBeInTheDocument()
     expect(screen.getByTestId('settings-menu')).toBeInTheDocument()
     expect(screen.getByText('common:settings')).toBeInTheDocument()
+  })
+
+  it('separa los proveedores en locales, nube gratis y nube de pago', () => {
+    mocked.providers = ['llamacpp', 'openrouter', 'nvidia', 'anthropic', 'openai'].map(provider => ({ provider, active: true, models: [] }))
+    try {
+      const ModelProviders = ProvidersRoute.component as React.ComponentType
+      render(<ModelProviders />)
+      const inTier = (tier: string) => screen.getByTestId(`provider-tier-${tier}`).closest('[data-testid="card"]')?.textContent ?? ''
+      expect(inTier('local')).toContain('llamacpp Provider')
+      expect(inTier('free')).toContain('openrouter Provider')
+      expect(inTier('free')).toContain('nvidia Provider')
+      expect(inTier('paid')).toContain('anthropic Provider')
+      expect(inTier('paid')).toContain('openai Provider')
+      expect(inTier('paid')).not.toContain('nvidia Provider')
+    } finally { mocked.providers = [] }
   })
 
   it('should render providers card with header', () => {
