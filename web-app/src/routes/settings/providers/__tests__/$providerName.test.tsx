@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import React from 'react'
 
@@ -218,6 +218,12 @@ vi.mock('@/containers/dialogs/ImportLlamacppModelDialog', () => ({
   ),
 }))
 
+vi.mock('@/containers/dialogs/LocalModelsDialog', () => ({
+  LocalModelsDialog: ({ trigger }: any) => (
+    <div data-testid="local-models">{trigger}</div>
+  ),
+}))
+
 vi.mock('@/containers/dialogs/ImportMlxModelDialog', () => ({
   ImportMlxModelDialog: ({ trigger }: any) => (
     <div data-testid="import-mlx">{trigger}</div>
@@ -270,6 +276,7 @@ vi.mock('@/components/ui/switch', () => ({
 }))
 
 vi.mock('@tabler/icons-react', () => ({
+  IconDeviceDesktopSearch: () => <span />,
   IconFolderPlus: () => <span />,
   IconInfoCircle: () => <span />,
   IconLoader: () => <span />,
@@ -437,6 +444,19 @@ describe('ProviderDetail route', () => {
       h.params.providerName = 'llamacpp'
       renderComponent()
       expect(screen.getByTestId('import-vision')).toBeInTheDocument()
+    })
+
+    it('offers the PC model scan on the llamacpp page only', () => {
+      renderComponent()
+      expect(screen.queryByTestId('local-models')).not.toBeInTheDocument()
+
+      h.params.providerName = 'llamacpp'
+      renderComponent()
+      expect(
+        within(screen.getByTestId('local-models')).getByText(
+          'providers:localModels.button'
+        )
+      ).toBeInTheDocument()
     })
 
     // The engine belongs to llamacpp alone: a remote provider runs no engine

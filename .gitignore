@@ -107,3 +107,12 @@ e2e/logs
 # the hologram portraits and any dataset copied into the editor.
 web-app/public/hologram/
 /datasets/
+
+# Lore: Pluma's library, voices and songs. Personal content that stays on this
+# PC; only the folder layout and its README go to git.
+/Lore/**
+!/Lore/README.md
+!/Lore/*/
+!/Lore/*/.gitkeep
+!/Lore/voces/*/
+!/Lore/voces/*/.gitkeep

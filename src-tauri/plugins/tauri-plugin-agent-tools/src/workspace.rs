@@ -31,14 +31,19 @@ pub const PLUMA_LIBRARY_DENIED: &str = "La biblioteca local está reservada a Pl
 
 /// The folder chosen in the app, set at startup and whenever it changes.
 static PLUMA_LIBRARY_CHOSEN: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
+/// The app's own default (the library in the project's Lore folder), set at startup.
+static PLUMA_LIBRARY_DEFAULT: std::sync::RwLock<Option<PathBuf>> = std::sync::RwLock::new(None);
 
 /// The folder Pluma's library is read from, and that every other tool is kept
-/// out of: the one chosen in the app, else `REY30_PLUMA_LIBRARY_DIR`, else
-/// [`PLUMA_LIBRARY_ROOT`]. Only absolute paths count.
+/// out of: the one chosen in the app, else `REY30_PLUMA_LIBRARY_DIR`, else the
+/// app's default, else [`PLUMA_LIBRARY_ROOT`]. Only absolute paths count.
 pub fn pluma_library_root() -> PathBuf {
     let chosen = PLUMA_LIBRARY_CHOSEN.read().ok().and_then(|value| value.clone());
+    let default = || PLUMA_LIBRARY_DEFAULT.read().ok().and_then(|value| value.clone());
     chosen
-        .or_else(|| std::env::var_os(PLUMA_LIBRARY_ENV).map(PathBuf::from))
+        .filter(|path| path.is_absolute())
+        .or_else(|| std::env::var_os(PLUMA_LIBRARY_ENV).map(PathBuf::from).filter(|path| path.is_absolute()))
+        .or_else(default)
         .filter(|path| path.is_absolute())
         .unwrap_or_else(|| PathBuf::from(PLUMA_LIBRARY_ROOT))
 }
@@ -46,6 +51,13 @@ pub fn pluma_library_root() -> PathBuf {
 /// Record the folder chosen in the app (`None` goes back to the default).
 pub fn set_pluma_library_root(path: Option<PathBuf>) {
     if let Ok(mut value) = PLUMA_LIBRARY_CHOSEN.write() {
+        *value = path.filter(|path| path.is_absolute());
+    }
+}
+
+/// Record the app's default library folder, used when none was chosen.
+pub fn set_pluma_library_default(path: Option<PathBuf>) {
+    if let Ok(mut value) = PLUMA_LIBRARY_DEFAULT.write() {
         *value = path.filter(|path| path.is_absolute());
     }
 }

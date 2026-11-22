@@ -24,6 +24,8 @@ export type PlumaCallTurn = {
   said: string
   voice?: PlumaAudioClip
   song?: { lyrics: string; audio: PlumaAudioClip }
+  /** Typed in the chat during the call: the message is already there and has no recording. */
+  typed?: boolean
 }
 type PlumaCallHistoryOptions = {
   profile: CharacterProfile
@@ -133,7 +135,7 @@ export function createPlumaCallHistory({ profile, threadId, onThread, onError }:
     // Room noise she asked to repeat, or a turn nothing came of.
     if (!transcript && (!turn.understood || (!turn.said && !turn.song))) return
     const id = await callThread()
-    appendMessage(id, ChatCompletionRole.User, transcript || unrecognizedVoice, await keepAudio(id, plumaDictationWav(turn.pcmBase64), 'user'))
+    if (!turn.typed) appendMessage(id, ChatCompletionRole.User, transcript || unrecognizedVoice, await keepAudio(id, plumaDictationWav(turn.pcmBase64), 'user'))
     if (turn.said) appendMessage(id, ChatCompletionRole.Assistant, turn.said, turn.voice && await keepAudio(id, clipWav(turn.voice), 'voice'))
     if (turn.song) {
       const lyrics = turn.song.lyrics.split('\n').join('  \n')
@@ -145,6 +147,15 @@ export function createPlumaCallHistory({ profile, threadId, onThread, onError }:
   return {
     record(turn: PlumaCallTurn) {
       pending = pending.then(() => store(turn)).catch(onError)
+      return pending
+    },
+    /** A typed message goes into the chat at once; her answer follows with `record`. */
+    typed(text: string) {
+      pending = pending.then(async () => {
+        const id = await callThread()
+        appendMessage(id, ChatCompletionRole.User, text)
+        useThreads.getState().updateThreadTimestamp(id)
+      }).catch(onError)
       return pending
     },
   }

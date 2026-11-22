@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { executeAgentTool, validateCoworkFolder } from '@/lib/agentTools'
 import { isPlatformTauri } from '@/lib/platform/utils'
+import { useCoworkSessions } from '@/hooks/useCoworkSessions'
 
 /**
  * Lets Pluma work on one project folder during a voice call: list, search, read,
@@ -40,9 +41,31 @@ export const plumaProjectStorage: PlumaProjectStorage = {
   },
 }
 
+/**
+ * The workspace's folder: the open session's, else the most recent one with a
+ * folder. Pluma works there, like Coder, until a folder is chosen for her.
+ */
+export function workspaceFolder(): string | null {
+  const { sessions, currentId } = useCoworkSessions.getState()
+  const current = sessions.find(session => session.id === currentId)?.folder
+  if (current) return current
+  return [...sessions].filter(session => session.folder).sort((a, b) => b.updated - a.updated)[0]?.folder ?? null
+}
+
 export async function loadPlumaProject(storage = plumaProjectStorage): Promise<PlumaProject> {
+  let raw: string | null = null
   try {
-    const value = JSON.parse((await storage.read()) ?? 'null') as Partial<PlumaProject> | null
+    raw = await storage.read()
+  } catch {
+    return { folder: null, canEdit: false }
+  }
+  // Never set up: she works in the workspace's folder and can change files there.
+  if (raw === null || raw === undefined) {
+    const folder = workspaceFolder()
+    return { folder, canEdit: !!folder }
+  }
+  try {
+    const value = JSON.parse(raw) as Partial<PlumaProject> | null
     const folder = typeof value?.folder === 'string' && value.folder ? value.folder : null
     return { folder, canEdit: !!folder && value?.canEdit === true }
   } catch {

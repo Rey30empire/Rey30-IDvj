@@ -45,7 +45,7 @@ describe('defaultModel', () => {
   })
 
   it('returns first model for known providers', () => {
-    expect(defaultModel('anthropic')).toBe('claude-sonnet-4-5')
+    expect(defaultModel('anthropic')).toBe('claude-opus-5-5')
     expect(defaultModel('mistral')).toBe('mistral-large-2411')
   })
 
@@ -342,7 +342,7 @@ describe('getModelCapabilities', () => {
   })
 
   it('includes both tools and vision when model supports both', () => {
-    const capabilities = getModelCapabilities('anthropic', 'claude-sonnet-4-5')
+    const capabilities = getModelCapabilities('anthropic', 'claude-opus-5-5')
     expect(capabilities).toContain(ModelCapabilities.COMPLETION)
     expect(capabilities).toContain(ModelCapabilities.TOOLS)
     expect(capabilities).toContain(ModelCapabilities.VISION)

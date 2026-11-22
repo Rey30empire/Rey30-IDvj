@@ -80,6 +80,7 @@ import { selectIntegratedAssistant } from '@/lib/characters/assistant-integratio
 import { isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
 import { useCharacterAudio } from '@/lib/characters/audio'
 import { isPendingVoiceTurn, useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
+import { useChatSessions } from '@/stores/chat-session-store'
 import DropdownToolsAvailable from '@/containers/DropdownToolsAvailable'
 import { useServiceHub } from '@/hooks/useServiceHub'
 import { useTools } from '@/hooks/useTools'
@@ -660,6 +661,36 @@ const ChatInput = memo(function ChatInput({
     if (!voiceTurn && ownsToolSet) {
       const session = useAvatarVoiceSession.getState()
       if (session.active && session.threadId === (currentThreadId ?? null)) {
+        const words = prompt.trim()
+        // Typing keeps the voice on. Only a message with attachments goes to the chat alone.
+        if (words && attachments.length === 0) {
+          // A call on this computer (Pluma) answers typed words aloud, inside the call.
+          if (session.sendTyped) {
+            if (session.sendTyped(words)) {
+              setMessage('')
+              addToHistory(words)
+              setPrompt('')
+            } else {
+              toast.info('Pluma todavía se está preparando o terminando de leer. Envíalo de nuevo en un momento.')
+            }
+            return
+          }
+          // Any other voice: the chat answers and the reply is read aloud.
+          const baseline = useChatSessions.getState().sessions[currentThreadId ?? '']?.chat.messages
+            .filter((message) => message.role === 'assistant').at(-1)?.id ?? null
+          useCharacterAudio.getState().stop(`avatar:${session.generation}`)
+          const generation = session.typeTurn(words, baseline)
+          if (generation !== null) {
+            try {
+              await handleSendMessage(prompt, generation)
+            } catch (cause) {
+              if (useAvatarVoiceSession.getState().generation === generation) {
+                useAvatarVoiceSession.getState().pause(cause instanceof Error ? cause.message : 'No se pudo enviar el mensaje.')
+              }
+            }
+            return
+          }
+        }
         useCharacterAudio.getState().stop(`avatar:${session.generation}`)
         session.pause()
       }
@@ -3012,7 +3043,8 @@ const ChatInput = memo(function ChatInput({
                 </div>
               )}
 
-              {ownsToolSet && effectiveAgentMode && <ComposerDictation disabled={isStreaming || !!toolsRunning} />}
+              {/* Wherever the voice orb is not shown (the workspace, agent mode), the composer offers dictation. */}
+              {!(ownsToolSet && !effectiveAgentMode) && <ComposerDictation disabled={isStreaming || !!toolsRunning} />}
 
               {isStreaming || toolsRunning ? (
                 <Tooltip>

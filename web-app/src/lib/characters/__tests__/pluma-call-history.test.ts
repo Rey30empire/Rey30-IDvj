@@ -76,6 +76,21 @@ describe('historial de las llamadas de Pluma', () => {
     expect(call.onError).not.toHaveBeenCalled()
   })
 
+  it('lo escrito durante la llamada aparece al momento, sin audio, y su respuesta después', async () => {
+    const call = history()
+    await call.typed('Escribe un haiku')
+    expect(stored('llamada').map(textOf)).toEqual(['Escribe un haiku'])
+    expect(recordingOf(stored('llamada')[0])).toBeUndefined()
+    await call.record(turn({ pcmBase64: '', transcript: 'Escribe un haiku', typed: true, said: 'Luna sobre el mar.' }))
+    const [user, assistant] = stored('llamada')
+    expect(stored('llamada')).toHaveLength(2)
+    expect(textOf(user)).toBe('Escribe un haiku')
+    expect(textOf(assistant)).toBe('Luna sobre el mar.')
+    expect(recordingOf(assistant)).toEqual({ threadId: 'llamada', file: 'audio-1.wav', kind: 'voice' })
+    expect(hub.invoke.mock.calls.some(([command]) => command === 'character_audio_transcribe')).toBe(false)
+    expect(hub.createThread).toHaveBeenCalledTimes(1)
+  })
+
   it('reconoce tu voz sin ocupar el turno de audio de la llamada', async () => {
     await history().record(turn())
     expect(hub.invoke).toHaveBeenCalledWith('character_audio_transcribe', expect.objectContaining({ pcmBase64, background: true }))

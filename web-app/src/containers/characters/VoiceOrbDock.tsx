@@ -215,12 +215,19 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
       loadHistory: () => plumaChatMemory(useAvatarVoiceSession.getState().threadId ?? callThread.current),
       onReading: (progress?: PlumaReadingProgress) => { if (isCurrent()) setReading(progress) },
       onTurnRecorded: history?.record,
+      onTyped: history ? (text: string) => { void history.typed(text) } : undefined,
       onError: (message: string) => { if (isCurrent()) useAvatarVoiceSession.getState().pause(message) },
     }
     const call = cloneCall ? startPlumaClone(callbacks, cloneVolume) : startPlumaCall(callbacks)
     plumaCall.current = call
     call.setMuted(useAvatarVoiceSession.getState().muted)
-    return () => { call.stop(); plumaCall.current = null; setReading(undefined) }
+    // Words typed in the chat go into the call and she answers them aloud.
+    const sendTyped = (text: string) => isCurrent() && call.sendText(text)
+    useAvatarVoiceSession.setState({ sendTyped })
+    return () => {
+      call.stop(); plumaCall.current = null; setReading(undefined)
+      if (useAvatarVoiceSession.getState().sendTyped === sendTyped) useAvatarVoiceSession.setState({ sendTyped: null })
+    }
   }, [localCall, cloneCall, cloneVolume, session.open, session.active, session.generation, session.characterId, activeProfile?.id, profile?.avatar.enabled, profile?.voice.enabled, threadId])
 
   useEffect(() => {

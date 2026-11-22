@@ -435,6 +435,43 @@ function requestUrlOf(input: RequestInfo | URL): string {
  * `error.message` is cleaned of stack-trace noise before the AI SDK surfaces
  * it to the UI.
  */
+/** Claude models that answer `temperature`, `top_p` or `top_k` with a 400. */
+const CLAUDE_WITHOUT_SAMPLING = /^claude-(?:fable|mythos|opus-5|opus-4-[78]|sonnet-5|haiku-5)\b/
+/** Claude models whose thinking cannot be switched off: `{type: 'disabled'}` is a 400. */
+const CLAUDE_ALWAYS_THINKING = /^claude-(?:fable|mythos|opus-5-5|sonnet-5-5)\b/
+
+/**
+ * Drops what current Claude models reject from a Messages request: sampling
+ * parameters an assistant may carry, and a request to switch thinking off on
+ * the models where it is always on (they then think as little as they need).
+ */
+export function claudeCompatibleBody(body: Record<string, unknown>): Record<string, unknown> {
+  const model = typeof body.model === 'string' ? body.model : ''
+  const next = { ...body }
+  if (CLAUDE_WITHOUT_SAMPLING.test(model)) {
+    delete next.temperature
+    delete next.top_p
+    delete next.top_k
+  }
+  const thinking = next.thinking as { type?: unknown } | undefined
+  if (CLAUDE_ALWAYS_THINKING.test(model) && thinking?.type === 'disabled') delete next.thinking
+  return next
+}
+
+/** A fetch that sends every Anthropic request through {@link claudeCompatibleBody}. */
+export function claudeCompatibleFetch(baseFetch: typeof globalThis.fetch): typeof globalThis.fetch {
+  return (input, init) => {
+    if (typeof init?.body !== 'string') return baseFetch(input, init)
+    try {
+      const body = JSON.parse(init.body) as unknown
+      if (!body || typeof body !== 'object' || Array.isArray(body)) return baseFetch(input, init)
+      return baseFetch(input, { ...init, body: JSON.stringify(claudeCompatibleBody(body as Record<string, unknown>)) })
+    } catch {
+      return baseFetch(input, init)
+    }
+  }
+}
+
 export function createCustomFetch(
   baseFetch: typeof globalThis.fetch,
   parameters: Record<string, unknown>,
@@ -1239,15 +1276,16 @@ export class ModelFactory {
     ensureAnthropicHeaders(provider, headers)
 
     const keyChain = providerRemoteApiKeyChain(provider)
+    const baseFetch = claudeCompatibleFetch(getRuntimeFetch())
     const fetchImpl =
       keyChain.length > 1
         ? createApiKeyRotatingFetch(
-            getRuntimeFetch(),
+            baseFetch,
             keyChain,
             parameters,
             'x-api-key'
           )
-        : createCustomFetch(getRuntimeFetch(), parameters)
+        : createCustomFetch(baseFetch, parameters)
 
     const anthropic = createAnthropic({
       apiKey: requireRemoteApiKey(provider, keyChain),

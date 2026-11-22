@@ -66,14 +66,14 @@ function LiteraryLibrarySettings() {
   const changed = !!status && folder.trim() !== '' && folder.trim() !== status.root
   return (
     <section className="space-y-2 rounded-md border px-3 py-2 text-sm" aria-label="Biblioteca literaria">
-      <p className="font-medium">Biblioteca local · {status?.root ?? 'D:\\Libreria General'}</p>
+      <p className="font-medium">Biblioteca local · {status?.root ?? 'Lore\\biblioteca del proyecto'}</p>
       <p className="text-muted-foreground">Pluma consulta fragmentos de esta carpeta en chat y voz con un modelo local. Solo ella puede leerla.</p>
       <div className="flex flex-wrap items-end gap-2">
         <Field label="Carpeta de la biblioteca">
-          <Input value={folder} onChange={event => setFolder(event.target.value)} placeholder="D:\Libreria General" spellCheck={false} />
+          <Input value={folder} onChange={event => setFolder(event.target.value)} placeholder="Lore\biblioteca del proyecto" spellCheck={false} />
         </Field>
         <Button type="button" size="sm" disabled={busy || !changed} onClick={() => void run(() => setLiteraryLibraryRoot(folder))}>Usar esta carpeta</Button>
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void run(() => setLiteraryLibraryRoot(null))}>Restablecer</Button>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => void run(() => setLiteraryLibraryRoot(null))}>Volver a Lore</Button>
       </div>
       <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void refresh()}>{busy ? 'Indexando…' : 'Actualizar índice'}</Button>
       {busy && <p role="status">Leyendo los documentos de la biblioteca.</p>}

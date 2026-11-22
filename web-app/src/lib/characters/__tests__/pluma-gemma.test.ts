@@ -160,6 +160,38 @@ describe('conversación local de Gemma para Pluma', () => {
     expect(toolNames(fixtures.invoke.mock.lastCall?.[1].tools)).toEqual(['buscar_biblioteca', 'cantar_cancion', 'recordar', 'olvidar'])
   })
 
+  it('canta una canción guardada en Lore con su propia letra, por su título', async () => {
+    const songs = [{ title: 'Lluvia de Abril', lyrics: 'Cae la lluvia\nsobre abril' }, { title: 'Sol', lyrics: '[Chorus]\nSale el sol' }]
+    const saved = { id: 'call-saved', type: 'function', function: { name: 'cantar_cancion', arguments: JSON.stringify({ cancion_guardada: 'lluvia de abril', letra: 'otra letra' }) } }
+    fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [saved] }))
+    const result = await answerWithGemma({ transcript: 'Cántame Lluvia de Abril', sessionId, canSing: true, turnId: 1, songs })
+    expect(result.song).toEqual({ lyrics: '[Verse]\nCae la lluvia\nsobre abril', style: defaultSongStyle })
+    const [, request] = fixtures.invoke.mock.lastCall!
+    expect(request.messages[0].content).toContain('Canciones guardadas que puedes cantar: «Lluvia de Abril», «Sol»')
+    const tool = request.tools.find((item: { function: { name: string } }) => item.function.name === 'cantar_cancion')
+    expect(tool.function.parameters.properties.cancion_guardada.enum).toEqual(['Lluvia de Abril', 'Sol'])
+    expect(tool.function.parameters.required).toEqual([])
+  })
+
+  it('no canta un título que no está guardado y pide corregirlo', async () => {
+    const songs = [{ title: 'Sol', lyrics: 'Sale el sol' }]
+    const missing = { id: 'call-missing', type: 'function', function: { name: 'cantar_cancion', arguments: '{"cancion_guardada":"Luna"}' } }
+    fixtures.invoke.mockResolvedValueOnce(complete({ role: 'assistant', content: null, tool_calls: [missing] }))
+      .mockResolvedValueOnce(complete({ role: 'assistant', content: 'No tengo esa canción.' }))
+    const result = await answerWithGemma({ transcript: 'Canta Luna', sessionId, canSing: true, turnId: 1, songs })
+    expect(result.song).toBeUndefined()
+    const [, request] = fixtures.invoke.mock.lastCall!
+    expect(request.messages.at(-1).content).toContain('el título exacto de una canción guardada')
+  })
+
+  it('sin canciones guardadas la letra sigue siendo obligatoria', async () => {
+    fixtures.invoke.mockResolvedValueOnce(complete(assistant))
+    await answerWithGemma({ audioWav, sessionId, canSing: true, turnId: 1 })
+    const tool = fixtures.invoke.mock.lastCall?.[1].tools.find((item: { function: { name: string } }) => item.function.name === 'cantar_cancion')
+    expect(tool.function.parameters.required).toEqual(['letra'])
+    expect(tool.function.parameters.properties.cancion_guardada).toBeUndefined()
+  })
+
   it('recuerda seis intercambios y cambia la grabación por el texto cuando se conoce', async () => {
     const earlier = Array.from({ length: 14 }, (_, index) => ({ role: index % 2 ? 'assistant' as const : 'user' as const, content: `mensaje ${index}` }))
     fixtures.invoke.mockResolvedValueOnce(complete(assistant))

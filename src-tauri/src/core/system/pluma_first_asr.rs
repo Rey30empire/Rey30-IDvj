@@ -134,8 +134,9 @@ mod windows {
             return Err("El reconocimiento local en español no está instalado.".into());
         }
         let mut active = ACTIVE.lock().map_err(|_| ASR_FAILED)?;
-        if active.is_some() {
-            return Err("Ya hay un reconocimiento local de Pluma abierto.".into());
+        // Left behind by a page reload, or not stopped yet: the new one replaces it.
+        if let Some(previous) = active.take() {
+            previous.task.abort();
         }
         let id = uuid::Uuid::new_v4().to_string();
         let task_id = id.clone();

@@ -177,7 +177,9 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     fireEvent.click(screen.getByTestId('voice-orb-toggle'))
     await waitFor(() => expect(clone.start).toHaveBeenCalledTimes(1))
     expect(h.listen).not.toHaveBeenCalled()
-    expect(voiceSample.getByRole('button', { name: 'Cambiar muestra' })).toBeDisabled()
+    // Another sample can be picked mid-call; only removing it waits for a pause.
+    expect(voiceSample.getByRole('button', { name: 'Otro archivo…' })).toBeEnabled()
+    expect(voiceSample.getByRole('button', { name: 'Quitar' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Pausar voz' }))
     expect(live.stop).toHaveBeenCalled()
   })

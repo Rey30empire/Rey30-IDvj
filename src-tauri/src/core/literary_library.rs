@@ -170,8 +170,13 @@ fn saved_root_file(app: &tauri::AppHandle) -> Option<PathBuf> {
     app.path().app_config_dir().ok().map(|dir| dir.join("pluma-library-root.txt"))
 }
 
-/// Restore the library folder chosen in an earlier session. Called at startup.
+/// Restore the library folder chosen in an earlier session, and make the one in
+/// the project's Lore folder the default. Called at startup.
 pub fn load_saved_library_root(app: &tauri::AppHandle) {
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    tauri_plugin_agent_tools::workspace::set_pluma_library_default(
+        crate::core::system::lore::library_dir(),
+    );
     let saved = saved_root_file(app)
         .and_then(|file| fs::read_to_string(file).ok())
         .map(|text| PathBuf::from(text.trim()))
@@ -179,9 +184,10 @@ pub fn load_saved_library_root(app: &tauri::AppHandle) {
     set_pluma_library_root(saved);
 }
 
-/// Choose the folder Pluma's library is read from (`None` restores
-/// `D:\Libreria General`). The folder is checked before it is saved, and the
-/// index of the previous folder is dropped.
+/// Choose the folder Pluma's library is read from (`None` restores the
+/// default: `Lore\biblioteca` in the project, else `D:\Libreria General`). The
+/// folder is checked before it is saved, and the index of the previous folder
+/// is dropped.
 #[tauri::command]
 pub async fn literary_library_set_root(
     app: tauri::AppHandle,

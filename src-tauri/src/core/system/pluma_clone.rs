@@ -9,6 +9,24 @@ pub struct ReferenceStatus {
     ready: bool,
     format: Option<&'static str>,
     bytes: Option<usize>,
+    /// The voice from the Lore folder this sample came from, if any.
+    name: Option<String>,
+}
+
+impl ReferenceStatus {
+    pub(crate) fn with_name(self, name: Option<String>) -> Self {
+        Self { name: name.filter(|_| self.ready), ..self }
+    }
+}
+
+/// The Lore voice behind a sample, shown by its name without the extension.
+fn lore_name(app: &AppHandle, singing: bool) -> Option<String> {
+    super::lore::selected_voice(app, singing).map(|file| {
+        std::path::Path::new(&file)
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or(file)
+    })
 }
 
 /// `singing` picks the optional singing sample instead of the speaking one.
@@ -19,7 +37,9 @@ pub async fn pluma_clone_reference_status(
     singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::reference_status(app, singing.unwrap_or(false))
+    let singing = singing.unwrap_or(false);
+    let name = lore_name(&app, singing);
+    platform::reference_status(app, singing).map(|status| status.with_name(name))
 }
 
 #[tauri::command]
@@ -29,7 +49,15 @@ pub async fn pluma_clone_reference_choose(
     singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::choose_reference(app, singing.unwrap_or(false)).await
+    let singing = singing.unwrap_or(false);
+    let previous = lore_name(&app, singing);
+    let status = platform::choose_reference(app.clone(), singing).await?;
+    // A sample picked by hand replaces the Lore voice; a cancelled picker keeps it.
+    if status.chosen {
+        super::lore::remember_voice(&app, singing, None);
+        return Ok(status.status);
+    }
+    Ok(status.status.with_name(previous))
 }
 
 #[tauri::command]
@@ -39,7 +67,26 @@ pub async fn pluma_clone_reference_clear(
     singing: Option<bool>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
-    platform::clear_reference(app, singing.unwrap_or(false))
+    let singing = singing.unwrap_or(false);
+    let status = platform::clear_reference(app.clone(), singing)?;
+    super::lore::remember_voice(&app, singing, None);
+    Ok(status)
+}
+
+/// Saves `audio` as Pluma's speaking or singing sample (used for the voices in
+/// the Lore folder). Refused during a call, like choosing a file by hand.
+pub(crate) async fn install_reference(
+    app: AppHandle,
+    singing: bool,
+    audio: Vec<u8>,
+) -> Result<ReferenceStatus, String> {
+    platform::install_reference(app, singing, audio).await
+}
+
+/// What the file picker left: the sample now in place, and whether a new file was chosen.
+pub(crate) struct ChosenReference {
+    status: ReferenceStatus,
+    chosen: bool,
 }
 
 #[tauri::command]
@@ -195,7 +242,10 @@ mod platform {
     pub fn reference_status(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
-    pub async fn choose_reference(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
+    pub async fn choose_reference(_: AppHandle, _: bool) -> Result<ChosenReference, String> {
+        Err(UNAVAILABLE.into())
+    }
+    pub async fn install_reference(_: AppHandle, _: bool, _: Vec<u8>) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
     pub fn clear_reference(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
@@ -298,7 +348,15 @@ mod platform {
         client: Client,
         gemma: Endpoint,
         tts: Endpoint,
-        reference: String,
+        /// The speaking sample, base64. A voice picked mid-call replaces it,
+        /// so her next sentence already uses the new voice.
+        reference: std::sync::RwLock<String>,
+    }
+
+    impl Engines {
+        fn reference(&self) -> String {
+            self.reference.read().map(|value| value.clone()).unwrap_or_default()
+        }
     }
 
     struct Endpoint {
@@ -363,7 +421,7 @@ mod platform {
             Ok::<_, String>(started.elapsed().as_millis())
         };
         let tts = async {
-            let mut body = speech_body("Hola.", &local.reference);
+            let mut body = speech_body("Hola.", &local.reference());
             body["n_predict"] = json!(32);
             body["seed"] = json!(42);
             let mut response = local.tts.post(&local.client, "/tts", body).await?;
@@ -434,6 +492,7 @@ mod platform {
             ready: format.is_some(),
             format,
             bytes: audio.map(|bytes| bytes.len()).filter(|_| format.is_some()),
+            name: None,
         }
     }
 
@@ -465,8 +524,46 @@ mod platform {
         Ok(status_for(&sample_path(app, singing)))
     }
 
-    pub async fn choose_reference(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
-        ensure_idle()?;
+    /// A new speaking sample takes over in the call that is running, from her
+    /// next sentence on. A call still starting reads the file when it is ready.
+    fn use_in_active_call(audio: &[u8]) {
+        let Ok(active) = ACTIVE.lock() else { return };
+        if let Some(engines) = active.as_ref().and_then(|call| call.ready.get()) {
+            if let Ok(mut reference) = engines.reference.write() {
+                *reference = STANDARD.encode(audio);
+            }
+        }
+    }
+
+    /// Checks `audio` and puts it in place of the speaking or singing sample in
+    /// one step. Allowed during a call: songs read their sample each time, and
+    /// the speaking one is swapped into the running call.
+    fn write_reference(app: AppHandle, singing: bool, audio: &[u8]) -> Result<ReferenceStatus, String> {
+        let path = &sample_path(app, singing);
+        let format = reference_format(audio)
+            .ok_or("Elige una grabación WAV o MP3 válida de hasta 10 MB.")?;
+        let parent = path
+            .parent()
+            .ok_or("No se encontró la carpeta de voz de Pluma.")?;
+        fs::create_dir_all(parent).map_err(|_| "No se pudo crear la carpeta de voz de Pluma.")?;
+        let temporary = parent.join(format!("{}.partial", Uuid::new_v4()));
+        fs::write(&temporary, audio).map_err(|_| "No se pudo guardar el audio de referencia.")?;
+        if fs::rename(&temporary, path).is_err() {
+            let _ = fs::remove_file(temporary);
+            return Err("No se pudo sustituir el audio de referencia.".into());
+        }
+        if !singing {
+            use_in_active_call(audio);
+        }
+        Ok(ReferenceStatus {
+            ready: true,
+            format: Some(format),
+            bytes: Some(audio.len()),
+            name: None,
+        })
+    }
+
+    pub async fn choose_reference(app: AppHandle, singing: bool) -> Result<ChosenReference, String> {
         tokio::task::spawn_blocking(move || {
             let path = sample_path(app.clone(), singing);
             let Some(source) = rfd::FileDialog::new()
@@ -478,32 +575,23 @@ mod platform {
                 .add_filter("Audio WAV o MP3", &["wav", "mp3"])
                 .pick_file()
             else {
-                return Ok(status_for(&path));
+                return Ok(ChosenReference { status: status_for(&path), chosen: false });
             };
             let audio = read_reference(&source).map_err(|_| "No se pudo leer el audio elegido.")?;
-            let format = reference_format(&audio)
-                .ok_or("Elige una grabación WAV o MP3 válida de hasta 10 MB.")?;
-            ensure_idle()?;
-            let parent = path
-                .parent()
-                .ok_or("No se encontró la carpeta de voz de Pluma.")?;
-            fs::create_dir_all(parent)
-                .map_err(|_| "No se pudo crear la carpeta de voz de Pluma.")?;
-            let temporary = parent.join(format!("{}.partial", Uuid::new_v4()));
-            fs::write(&temporary, &audio)
-                .map_err(|_| "No se pudo guardar el audio de referencia.")?;
-            if fs::rename(&temporary, &path).is_err() {
-                let _ = fs::remove_file(temporary);
-                return Err("No se pudo sustituir el audio de referencia.".into());
-            }
-            Ok(ReferenceStatus {
-                ready: true,
-                format: Some(format),
-                bytes: Some(audio.len()),
-            })
+            Ok(ChosenReference { status: write_reference(app, singing, &audio)?, chosen: true })
         })
         .await
         .map_err(|_| "Se interrumpió el selector de audio.".to_string())?
+    }
+
+    pub async fn install_reference(
+        app: AppHandle,
+        singing: bool,
+        audio: Vec<u8>,
+    ) -> Result<ReferenceStatus, String> {
+        tokio::task::spawn_blocking(move || write_reference(app, singing, &audio))
+            .await
+            .map_err(|_| "No se pudo cambiar la voz de Pluma.".to_string())?
     }
 
     pub fn clear_reference(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
@@ -517,6 +605,7 @@ mod platform {
             ready: false,
             format: None,
             bytes: None,
+            name: None,
         })
     }
 
@@ -524,8 +613,16 @@ mod platform {
         let mut active = ACTIVE
             .lock()
             .map_err(|_| "No se pudo iniciar la voz clonada.")?;
-        if active.is_some() {
-            return Err("Ya hay una llamada de voz clonada.".into());
+        // One call per window: a page reloaded mid-call leaves its call with no
+        // one to stop it, and a stop sent just before this start may not have
+        // arrived. The new call replaces the old one instead of being refused.
+        if let Some(previous) = active.take() {
+            previous.cancel.cancel();
+            previous.task.abort();
+            let _ = previous.events.send(json!({
+                "type": "clone.error",
+                "message": "La llamada anterior de Pluma se cerró al empezar otra."
+            }));
         }
         let id = Uuid::new_v4().to_string();
         let task_id = id.clone();
@@ -737,7 +834,7 @@ mod platform {
             .map(|resources| resources.join("pluma-llama-tts/llama-server.exe"))
             .filter(|path| path.is_file());
         let can_sing = super::super::pluma_music::available(&app);
-        let reference = read_reference(&reference_path(app))
+        let reference = read_reference(&reference_path(app.clone()))
             .map_err(|_| "Agrega un WAV o MP3 como audio de referencia de Pluma.")?;
         if reference_format(&reference).is_none() {
             return Err("El audio de referencia de Pluma no es un WAV o MP3 válido.".into());
@@ -790,11 +887,16 @@ mod platform {
             .timeout(Duration::from_secs(120))
             .build()
             .map_err(|_| "No se pudo conectar con los motores locales de Pluma.")?;
+        // A voice picked while the engines were starting counts too.
+        let reference = read_reference(&reference_path(app))
+            .ok()
+            .filter(|audio| reference_format(audio).is_some())
+            .unwrap_or(reference);
         let local = Engines {
             client,
             gemma,
             tts,
-            reference: STANDARD.encode(reference),
+            reference: std::sync::RwLock::new(STANDARD.encode(reference)),
         };
         prime_engines(&local).await;
         ready
@@ -1038,7 +1140,7 @@ mod platform {
             .ok_or("Qwen3-TTS todavía no está preparado.")?;
         let mut response = local
             .tts
-            .post(&local.client, "/tts", speech_body(text, &local.reference))
+            .post(&local.client, "/tts", speech_body(text, &local.reference()))
             .await?;
         let sample_rate = response
             .headers()

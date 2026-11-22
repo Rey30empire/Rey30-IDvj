@@ -49,7 +49,7 @@ fn stem(path: &Path) -> String {
 }
 
 /// Name order as a person expects it: «Capítulo 2» before «Capítulo 10».
-fn natural_cmp(left: &str, right: &str) -> Ordering {
+pub(crate) fn natural_cmp(left: &str, right: &str) -> Ordering {
     let (mut a, mut b) = (left.chars().peekable(), right.chars().peekable());
     loop {
         match (a.peek().copied(), b.peek().copied()) {

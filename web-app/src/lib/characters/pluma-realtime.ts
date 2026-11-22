@@ -39,6 +39,8 @@ export type PlumaCallCallbacks = {
   onReading?: (progress?: PlumaReadingProgress) => void
   /** The chat the call belongs to, as history she continues. */
   loadHistory?: () => Promise<GemmaMessage[]>
+  /** A message the person typed during the call, shown in the chat right away. */
+  onTyped?: (text: string) => void
 }
 
 export function supportsPlumaCall(characterId: string | undefined) {
@@ -153,6 +155,27 @@ export function startPlumaCall(callbacks: PlumaCallCallbacks) {
     send({ type: 'input_audio_buffer.commit' })
     send({ type: 'response.create', response: { output_modalities: ['text', 'audio'] } })
     armTimeout(45000, 'Pluma tardó demasiado en responder. Vuelve a iniciar la llamada.')
+  }
+
+  /**
+   * Words typed in the chat during the call, answered aloud like a spoken turn.
+   * Only while she listens: false when she is busy or still getting ready.
+   */
+  function sendText(text: string) {
+    const words = text.trim().slice(0, 4_000)
+    if (!words || !usable() || !id || waitingForConfig || phase !== 'listening') return false
+    setPhase('thinking')
+    onAmplitude(0)
+    detector?.reset()
+    responseFinished = false
+    hadAudio = false
+    toolCalls = new Map()
+    committedAt = lastVoicedAt = performance.now()
+    send({ type: 'input_audio_buffer.clear' })
+    send({ type: 'conversation.item.create', item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: words }] } })
+    send({ type: 'response.create', response: { output_modalities: ['text', 'audio'] } })
+    armTimeout(45000, 'Pluma tardó demasiado en responder. Vuelve a iniciar la llamada.')
+    return true
   }
 
   function listenAfterPlayback() {
@@ -312,5 +335,5 @@ export function startPlumaCall(callbacks: PlumaCallCallbacks) {
 
   armTimeout(170000, 'La voz local no pudo iniciarse. Revisa el micrófono y vuelve a intentar.')
   void open().catch(cause => fail(describeStartError(cause)))
-  return { stop, finishTurn, setMuted: (muted: boolean) => { if (gain) gain.gain.value = muted ? 0 : 1 } }
+  return { stop, finishTurn, sendText, setMuted: (muted: boolean) => { if (gain) gain.gain.value = muted ? 0 : 1 } }
 }

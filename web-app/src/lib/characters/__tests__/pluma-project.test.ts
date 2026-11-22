@@ -7,6 +7,7 @@ vi.mock('@/hooks/useServiceHub', () => ({ getServiceHub: () => ({ mcp: () => ({ 
 
 import { loadPlumaProject, runProjectTool, savePlumaProject, type PlumaProjectStorage } from '../pluma-project'
 import { plumaActions } from '../pluma-actions'
+import { useCoworkSessions } from '@/hooks/useCoworkSessions'
 
 const call = (name: string, args: object) => ({ function: { name, arguments: JSON.stringify(args) } })
 function store(initial: string | null = null): PlumaProjectStorage {
@@ -23,11 +24,25 @@ describe('edición de proyectos por voz', () => {
     expect(await loadPlumaProject(store('{roto'))).toEqual({ folder: null, canEdit: false })
   })
 
+  it('sin configurar, trabaja como Coder en la carpeta del espacio de trabajo', async () => {
+    const session = (id: string, folder: string | null, updated: number) => ({ id, title: id, folder, turns: [], messages: [], updated })
+    useCoworkSessions.setState({ sessions: [session('viejo', 'C:/viejo', 1), session('nuevo', 'C:/nuevo', 5), session('vacio', null, 9)], currentId: 'vacio' })
+    expect(await loadPlumaProject(store())).toEqual({ folder: 'C:/nuevo', canEdit: true })
+    useCoworkSessions.setState({ currentId: 'viejo' })
+    expect(await loadPlumaProject(store())).toEqual({ folder: 'C:/viejo', canEdit: true })
+    // Once the person turned it off, it stays off.
+    expect(await loadPlumaProject(store(JSON.stringify({ folder: null, canEdit: false })))).toEqual({ folder: null, canEdit: false })
+    useCoworkSessions.setState({ sessions: [], currentId: null })
+  })
+
   it('no ofrece herramientas de proyecto hasta activar el permiso', async () => {
     await savePlumaProject({ folder: 'C:/app', canEdit: false })
     let actions = await plumaActions()
     expect(actions.owns('proyecto_editar')).toBe(false)
-    expect(actions.prompt).toBeUndefined()
+    expect(actions.prompt).not.toContain('C:/app')
+    // Her own documents are always there, and she is told so.
+    expect(actions.owns('crear_documento')).toBe(true)
+    expect(actions.prompt).toContain('crear_documento')
     await savePlumaProject({ folder: 'C:/app', canEdit: true })
     actions = await plumaActions()
     expect(actions.owns('proyecto_editar')).toBe(true)

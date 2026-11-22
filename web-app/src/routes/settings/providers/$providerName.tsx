@@ -23,9 +23,11 @@ import { useServiceHub } from '@/hooks/useServiceHub'
 import { Button } from '@/components/ui/button'
 import { SecretInput } from '@/components/ui/secret-input'
 import { Switch } from '@/components/ui/switch'
+import { LocalModelsDialog } from '@/containers/dialogs/LocalModelsDialog'
 import {
   IconCircleCheck,
   IconCircle,
+  IconDeviceDesktopSearch,
   IconFolderPlus,
   IconInfoCircle,
   IconLoader,
@@ -1029,6 +1031,19 @@ function ProviderDetail() {
                           provider.provider === 'mlx') && (
                           <DialogDeleteAllModels provider={provider} />
                         )}
+                      {provider && provider.provider === 'llamacpp' && (
+                        <LocalModelsDialog
+                          trigger={
+                            <Button variant="secondary" size="sm">
+                              <IconDeviceDesktopSearch
+                                size={18}
+                                className="text-muted-foreground"
+                              />
+                              <span>{t('providers:localModels.button')}</span>
+                            </Button>
+                          }
+                        />
+                      )}
                       {provider && provider.provider === 'llamacpp' && (
                         <ImportLlamacppModelDialog
                           provider={provider}

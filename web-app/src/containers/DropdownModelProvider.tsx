@@ -9,7 +9,8 @@ import { useModelProvider } from '@/hooks/useModelProvider'
 import { cn, getProviderTitle, getModelDisplayName } from '@/lib/utils'
 import { highlightFzfMatch } from '@/utils/highlight'
 import Capabilities from './Capabilities'
-import { IconSettings, IconX } from '@tabler/icons-react'
+import { IconDeviceDesktopSearch, IconSettings, IconX } from '@tabler/icons-react'
+import { LocalModelsDialog } from '@/containers/dialogs/LocalModelsDialog'
 import { useNavigate } from '@tanstack/react-router'
 import { route } from '@/constants/routes'
 import { useThreads } from '@/hooks/useThreads'
@@ -551,12 +552,30 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
     ? getModelBy(selectedModel?.id)
     : undefined
 
+  // "Modelos del PC" loads GGUF files found on this computer into llama.cpp.
+  const [localModelsOpen, setLocalModelsOpen] = useState(false)
+  const canScanLocalModels = providers.some(
+    (item) => item.provider === 'llamacpp' && item.active !== false
+  )
+  const selectLoadedLocalModel = useCallback(
+    (modelId: string) => {
+      // An assistant's model is chosen on purpose; loading one does not rebind it.
+      if (allowAssistants && character) return
+      const llamacpp = useModelProvider.getState().getProviderByName('llamacpp')
+      const loaded = llamacpp?.models.find((item) => item.id === modelId)
+      if (!llamacpp || !loaded) return
+      void handleSelect({ provider: llamacpp, model: loaded, searchStr: '', value: '' })
+    },
+    [allowAssistants, character, handleSelect]
+  )
+
   if (!providers.length && !allowAssistants) return null
 
   const provider = getProviderByName(selectedProvider)
 
 
   return (
+    <>
     <Popover open={open} onOpenChange={onOpenChange}>
           <div
             data-testid="model-selector-trigger"
@@ -838,10 +857,36 @@ const DropdownModelProvider = memo(function DropdownModelProvider({
               </div>
             )}
           </div>
+          {canScanLocalModels && (
+            <div className="border-t p-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                data-testid="local-models-open"
+                className="w-full justify-start"
+                onClick={() => {
+                  setOpen(false)
+                  setLocalModelsOpen(true)
+                }}
+              >
+                <IconDeviceDesktopSearch size={16} className="text-muted-foreground" />
+                {t('providers:localModels.button')}
+              </Button>
+            </div>
+          )}
           </>}
         </div>
       </PopoverContent>
     </Popover>
+    {canScanLocalModels && (
+      <LocalModelsDialog
+        open={localModelsOpen}
+        onOpenChange={setLocalModelsOpen}
+        onModelLoaded={selectLoadedLocalModel}
+      />
+    )}
+    </>
   )
 })
 

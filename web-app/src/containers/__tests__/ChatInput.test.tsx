@@ -294,6 +294,7 @@ vi.mock('@/containers/dialogs/BrowserExtensionDialog', () => ({
   __esModule: true,
   default: () => null,
 }))
+vi.mock('@/containers/characters/VoiceOrbDock', () => ({ default: () => null }))
 vi.mock('@/containers/MovingBorder', () => ({
   MovingBorder: ({ children }: any) => <div>{children}</div>,
 }))
@@ -355,6 +356,7 @@ vi.mock('@/lib/platform/utils', () => ({
 // Import component AFTER all mocks
 import ChatInput from '../ChatInput'
 import { useImageAttachmentConfig } from '@/hooks/useImageAttachmentConfig'
+import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 
 // Helpers -------------------------------------------------------------------
 
@@ -448,6 +450,57 @@ describe('ChatInput', () => {
     )
     expect(addToHistoryMock).toHaveBeenCalledWith('hello world')
     expect(setPromptMock).toHaveBeenCalledWith('')
+  })
+
+  it('sends typed words into an active Pluma call and keeps the call on', async () => {
+    const sendTyped = vi.fn(() => true)
+    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'ready', characterId: 'literatura', threadId: 'thread-1', sendTyped })
+    try {
+      promptState = '  Escribe un poema  '
+      const onSubmit = vi.fn()
+      renderInput({ onSubmit })
+      fireEvent.keyDown(getTextarea(), { key: 'Enter' })
+      await waitFor(() => expect(sendTyped).toHaveBeenCalledWith('Escribe un poema'))
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(setPromptMock).toHaveBeenCalledWith('')
+      expect(useAvatarVoiceSession.getState()).toMatchObject({ active: true, phase: 'ready' })
+    } finally {
+      useAvatarVoiceSession.getState().close()
+      useAvatarVoiceSession.setState({ sendTyped: null })
+    }
+  })
+
+  it('keeps the words in the box while the call is still getting ready', async () => {
+    const sendTyped = vi.fn(() => false)
+    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'ready', characterId: 'literatura', threadId: 'thread-1', sendTyped })
+    try {
+      promptState = 'hola'
+      const onSubmit = vi.fn()
+      renderInput({ onSubmit })
+      fireEvent.keyDown(getTextarea(), { key: 'Enter' })
+      await waitFor(() => expect(sendTyped).toHaveBeenCalledWith('hola'))
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(setPromptMock).not.toHaveBeenCalledWith('')
+      expect(useAvatarVoiceSession.getState().active).toBe(true)
+    } finally {
+      useAvatarVoiceSession.getState().close()
+      useAvatarVoiceSession.setState({ sendTyped: null })
+    }
+  })
+
+  it('with another voice, the chat answers the typed words as a voice turn', async () => {
+    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'listening', characterId: 'nara', threadId: 'thread-1', sendTyped: null })
+    const generation = useAvatarVoiceSession.getState().generation
+    try {
+      promptState = '¿Qué tal?'
+      const onSubmit = vi.fn()
+      renderInput({ onSubmit })
+      fireEvent.keyDown(getTextarea(), { key: 'Enter' })
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('¿Qué tal?', undefined, undefined, '¿Qué tal?', generation))
+      expect(useAvatarVoiceSession.getState()).toMatchObject({ active: true, phase: 'waiting', heardText: '¿Qué tal?' })
+    } finally {
+      useAvatarVoiceSession.getState().close()
+    }
   })
 
   it('does NOT submit on Shift+Enter (newline behavior)', () => {

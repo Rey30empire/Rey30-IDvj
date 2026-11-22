@@ -115,6 +115,37 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
     expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_stop', { sessionId: 'sesión' })
   })
 
+  it('contesta en voz lo que se escribe en el chat y deja de hablar para leerlo', async () => {
+    mock.answer.mockResolvedValueOnce({ text: 'Claro, aquí va.', messages: [] })
+      .mockResolvedValueOnce({ text: 'Vale, cambio de tema.', messages: [] })
+    const onTyped = vi.fn()
+    const onTurnRecorded = vi.fn()
+    const callbacks = { isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn(), onTyped, onTurnRecorded }
+    const call = startPlumaClone(callbacks, 0.8)
+    try {
+      // Still getting ready: the words stay in the chat box.
+      expect(call.sendText('hola')).toBe(false)
+      await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+      expect(call.sendText('   ')).toBe(false)
+      expect(call.sendText('  Escribe un poema corto  ')).toBe(true)
+      expect(onTyped).toHaveBeenCalledWith('Escribe un poema corto')
+      await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
+      expect(mock.answer.mock.calls[0][0]).toMatchObject({ transcript: 'Escribe un poema corto' })
+      expect(mock.answer.mock.calls[0][0].audioWav).toBeUndefined()
+      expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_speak', expect.objectContaining({ text: 'Claro, aquí va.' }))
+      // Typing again while she talks cuts her off, like speaking over her.
+      expect(call.sendText('Mejor otra cosa')).toBe(true)
+      expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_cancel_turn', expect.objectContaining({ sessionId: 'sesión' }))
+      await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(2))
+      expect(mock.answer.mock.calls[1][0]).toMatchObject({ transcript: 'Mejor otra cosa' })
+      await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_speak', expect.objectContaining({ text: 'Vale, cambio de tema.' })))
+      source.onended?.()
+      await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+      expect(onTurnRecorded).toHaveBeenCalledWith(expect.objectContaining({ typed: true, pcmBase64: '', said: 'Vale, cambio de tema.' }))
+      expect(mock.invoke.mock.calls.some(([command]) => command === 'character_audio_transcribe')).toBe(false)
+    } finally { call.stop() }
+  })
+
   it.each([true, false])('solo conserva el canto que el motor pudo reproducir (éxito=%s)', async success => {
     canSing = true
     const song = { lyrics: 'Cae la lluvia. La noche canta.', style: 'bolero' }

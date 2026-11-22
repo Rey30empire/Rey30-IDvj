@@ -22,6 +22,17 @@ describe('autorización efímera de avatar y voz', () => {
     store.getState().start()
     expect(store.getState().claim(generation, 'ready', 'listening')).toBe(false)
   })
+  it('turns typed words into the next voice turn instead of switching the voice off', () => {
+    const store = useAvatarVoiceSession
+    expect(store.getState().typeTurn('hola', null)).toBeNull()
+    store.getState().openFor('nara', 'thread-qa'); store.getState().start()
+    const generation = store.getState().generation
+    store.getState().claim(generation, 'ready', 'listening')
+    expect(store.getState().typeTurn('¿Qué hora es?', 'answer-1')).toBe(generation)
+    expect(store.getState()).toMatchObject({ active: true, phase: 'waiting', heardText: '¿Qué hora es?', baselineMessageId: 'answer-1', submittedMessageId: null })
+    // Busy with a turn: the caller falls back to the plain chat.
+    expect(store.getState().typeTurn('otra', null)).toBeNull()
+  })
   it('adopts only one newly created thread while waiting for its first response', () => {
     const store = useAvatarVoiceSession
     store.getState().openFor('beto', null); store.getState().start()

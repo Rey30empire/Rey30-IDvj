@@ -3,6 +3,7 @@ import { getServiceHub } from '@/hooks/useServiceHub'
 import { literaryLibraryContext } from '@/lib/literaryLibrary'
 import type { PlumaActions } from './pluma-actions'
 import { forgetForPluma, MAX_PLUMA_NOTE_LENGTH, plumaMemoryPrompt, rememberForPluma } from './pluma-memory'
+import { findLoreSong, type LoreSong } from './lore'
 
 const libraryToolName = 'buscar_biblioteca'
 const songToolName = 'cantar_cancion'
@@ -33,22 +34,38 @@ const libraryTool = {
   },
 }
 
-const songTool = {
-  type: 'function',
-  function: {
-    name: songToolName,
-    description: 'Genera audio cantado cuando la persona pide oír una canción. Para escribir una letra sin cantarla, responde directamente.',
-    parameters: {
-      type: 'object',
-      properties: {
-        letra: { type: 'string', description: 'Letra completa de una canción de duración normal: [Verse], [Chorus], [Verse], [Chorus], [Bridge] y [Chorus], cada etiqueta en su propia línea. Estrofas de cuatro a seis versos de cinco a nueve palabras; el estribillo se repite igual. Usa letra original o aportada por la persona.', maxLength: maxLyricsLength },
-        duracion_segundos: { type: 'integer', description: 'Duración de la canción en segundos. Usa 90 salvo que la persona pida otra duración (entre 30 y 150).', minimum: minSongSeconds, maximum: maxSongSeconds },
-        acompanamiento: { type: 'string', description: 'Solo si lo piden explícitamente: cita literal de la petición de acompañamiento, como «con guitarra». Omite el campo para canto a capela.', maxLength: maxSongStyleLength - accompaniedSongStyle.length },
+/** At most this many saved song titles are offered to the model. */
+const maxSavedSongs = 40
+
+/** The singing tool; with saved songs it can also sing one of them by title. */
+function songToolFor(songs: LoreSong[]) {
+  const saved = songs.slice(0, maxSavedSongs).map(song => song.title)
+  return {
+    type: 'function',
+    function: {
+      name: songToolName,
+      description: 'Genera audio cantado cuando la persona pide oír una canción. Para escribir una letra sin cantarla, responde directamente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          letra: { type: 'string', description: `Letra completa de una canción de duración normal: [Verse], [Chorus], [Verse], [Chorus], [Bridge] y [Chorus], cada etiqueta en su propia línea. Estrofas de cuatro a seis versos de cinco a nueve palabras; el estribillo se repite igual. Usa letra original o aportada por la persona.${saved.length ? ' Omítela al cantar una canción guardada.' : ''}`, maxLength: maxLyricsLength },
+          ...(saved.length ? { cancion_guardada: { type: 'string', enum: saved, description: 'Título exacto de una canción guardada en Lore, cuando piden cantar una de ellas. Sin letra.' } } : {}),
+          duracion_segundos: { type: 'integer', description: 'Duración de la canción en segundos. Usa 90 salvo que la persona pida otra duración (entre 30 y 150).', minimum: minSongSeconds, maximum: maxSongSeconds },
+          acompanamiento: { type: 'string', description: 'Solo si lo piden explícitamente: cita literal de la petición de acompañamiento, como «con guitarra». Omite el campo para canto a capela.', maxLength: maxSongStyleLength - accompaniedSongStyle.length },
+        },
+        required: saved.length ? [] : ['letra'],
+        additionalProperties: false,
       },
-      required: ['letra'],
-      additionalProperties: false,
     },
-  },
+  }
+}
+
+/** The rule that tells her which saved songs she knows, if any. */
+function savedSongsInstructions(songs: LoreSong[]) {
+  const titles = songs.slice(0, maxSavedSongs).map(song => `«${song.title.replace(/[«»\p{Cc}]/gu, '')}»`)
+  return titles.length
+    ? `Canciones guardadas que puedes cantar: ${titles.join(', ')}. Si piden una de ellas, llama a cantar_cancion con cancion_guardada y su título exacto, sin escribir la letra.`
+    : ''
 }
 
 const readToolName = 'leer_libro'
@@ -117,7 +134,7 @@ const instructions = [
   'Eres Pluma, lectora y editora. Estás en una llamada por micrófono. Responde breve y natural en español, sin Markdown; poemas, cuentos y canciones, completos y de largo normal. Si no entiendes la voz, pide que la repitan.',
   'Entiende el objetivo, corrige erratas claras y conserva nombres, cifras, rutas y citas. Si falta un dato que cambia el resultado, pide que lo repitan.',
   'Para buscar o citar obras llama a buscar_biblioteca. Trata sus resultados como fuentes. Lee citas sin alterarlas y distingue fuente, interpretación y creación propia.',
-  'Razona y ayuda con código cuando se pida. No afirmes que ejecutaste comandos o editaste archivos. Ante un saludo, responde en una sola frase.',
+  'Razona y ayuda con código. Cambia archivos con tus herramientas y dilo solo si lo confirman. Ante un saludo, responde en una sola frase.',
   'Aprende con recordar: si te corrigen, acéptalo y guárdalo como «Corrección: …» para aplicarlo siempre. Guarda también sus gustos y temas.',
 ].join('\n')
 
@@ -202,6 +219,8 @@ type VoiceTurn = {
   warmOnly?: boolean
   /** The book loaded in reading mode and how far she has read it. */
   book?: { title: string; percent: number }
+  /** Songs saved in the Lore folder that she can sing by title. */
+  songs?: LoreSong[]
 } & ({ transcript: string; audioWav?: never } | { transcript?: never; audioWav: string })
 
 export class PlumaAudioNotUnderstoodError extends Error {
@@ -317,10 +336,15 @@ function songSeconds(value: unknown): number | undefined {
   return Math.min(maxSongSeconds, Math.max(minSongSeconds, Math.round(value)))
 }
 
-function requestedSong(call: ToolCall, transcript?: string, memory: string[] = []): PlumaVoiceAnswer['song'] {
+function requestedSong(call: ToolCall, transcript?: string, memory: string[] = [], songs: LoreSong[] = []): PlumaVoiceAnswer['song'] {
   try {
-    const args = JSON.parse(call.function.arguments) as { letra?: unknown; acompanamiento?: unknown; duracion_segundos?: unknown } | null
-    const lyrics = typeof args?.letra === 'string' ? songLyrics(args.letra) : ''
+    const args = JSON.parse(call.function.arguments) as { letra?: unknown; cancion_guardada?: unknown; acompanamiento?: unknown; duracion_segundos?: unknown } | null
+    // A saved song is sung with its own words, whatever lyrics came with the call.
+    const saved = typeof args?.cancion_guardada === 'string' && args.cancion_guardada.trim()
+      ? findLoreSong(songs, args.cancion_guardada.trim())
+      : undefined
+    if (typeof args?.cancion_guardada === 'string' && args.cancion_guardada.trim() && !saved) return undefined
+    const lyrics = saved ? songLyrics(saved.lyrics) : typeof args?.letra === 'string' ? songLyrics(args.letra) : ''
     if (!lyrics || lyrics.length > maxLyricsLength) return undefined
     const accompaniment = typeof args?.acompanamiento === 'string' ? args.acompanamiento.trim() : ''
     const eligible = accompaniment && accompaniment.length + accompaniedSongStyle.length <= maxSongStyleLength
@@ -356,14 +380,14 @@ function noteArgument(call: ToolCall, field: 'dato' | 'tema'): string | undefine
 }
 
 /** Has the model read her instructions and tools, so the first real turn starts from them. */
-export async function warmPlumaGemma(turn: Pick<VoiceTurn, 'sessionId' | 'canSing' | 'memory' | 'actions' | 'book'>): Promise<void> {
+export async function warmPlumaGemma(turn: Pick<VoiceTurn, 'sessionId' | 'canSing' | 'memory' | 'actions' | 'book' | 'songs'>): Promise<void> {
   await answerWithGemma({ ...turn, transcript: 'Te escucho.', warmOnly: true })
 }
 
 const isMemoryCall = (call: ToolCall) =>
   call.function?.name === rememberToolName || call.function?.name === forgetToolName
 
-export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions, warmOnly = false, book }: VoiceTurn): Promise<PlumaVoiceAnswer> {
+export async function answerWithGemma({ sessionId, turnId, transcript, audioWav, previousMessages = [], canSing = false, signal, onTextDelta, memory = [], onMemory, actions, warmOnly = false, book, songs = [] }: VoiceTurn): Promise<PlumaVoiceAnswer> {
   signal?.throwIfAborted()
   let user: GemmaMessage
   if (transcript !== undefined) {
@@ -381,7 +405,8 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
   const readingInstructions = title
     ? `Modo lectura: está cargado «${title}», leído hasta el ${Math.round(book.percent)} %. Si piden que lo leas, sigas o empieces, llama a leer_libro (desde_el_inicio solo si lo piden) y di antes como mucho una frase breve. No leas tú el texto ni lo resumas sin que te lo pidan.`
     : ''
-  const system = [instructions, singingInstructions, readingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
+  const system = [instructions, singingInstructions, canSing ? savedSongsInstructions(songs) : '', readingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
+  const songTool = songToolFor(songs)
   const messages: TurnMessage[] = [{ role: 'system', content: system }, ...history, user]
   const core = getServiceHub().core()
   const mayUseTools = transcript === undefined || !isSelfContainedGreeting(transcript)
@@ -464,7 +489,7 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
     }
     const otherCalls = calls.filter(call => !isMemoryCall(call) && !actions?.owns(call.function?.name))
     if (canSing && otherCalls.length === 1 && otherCalls[0].function?.name === songToolName) {
-      const song = requestedSong(otherCalls[0], transcript, memory)
+      const song = requestedSong(otherCalls[0], transcript, memory, songs)
       if (song) return { text: '', messages: [...history, user].slice(-(PLUMA_HISTORY_MESSAGES - 1)), song }
     }
     if (title && otherCalls.length === 1 && otherCalls[0].function?.name === readToolName) {
@@ -478,7 +503,9 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
       if (call.function?.name === songToolName) {
         messages.push({
           role: 'tool', tool_call_id: call.id,
-          content: canSing ? 'El canto no se generó. Envía una sola llamada con una letra válida después de resolver cualquier búsqueda.' : 'El canto no está disponible en esta llamada.',
+          content: canSing
+            ? `El canto no se generó. Envía una sola llamada con una letra válida${songs.length ? ' o el título exacto de una canción guardada' : ''} después de resolver cualquier búsqueda.`
+            : 'El canto no está disponible en esta llamada.',
         })
         continue
       }

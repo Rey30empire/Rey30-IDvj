@@ -11,12 +11,14 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { IconDeviceDesktopAnalytics, IconRefresh } from '@tabler/icons-react'
 import { useServiceHub } from '@/hooks/useServiceHub'
-import type {
-  DeviceList,
-  HardwareData,
-  SystemUsage,
-} from '@/services/hardware/types'
+import type { HardwareData, SystemUsage } from '@/services/hardware/types'
 import { cn, formatMegaBytes } from '@/lib/utils'
+import {
+  groupDevices,
+  parseDeviceId,
+  selectedDevice,
+  type GpuGroup,
+} from '@/lib/gpuDevices'
 import { toNumber } from '@/utils/number'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAppState } from '@/hooks/useAppState'
@@ -35,12 +37,6 @@ const BACKEND_LABELS: Record<string, string> = {
   opencl: 'OpenCL',
   metal: 'Metal',
   cpu: 'CPU',
-}
-
-function parseDeviceId(id: string): { backend: string; index: number } {
-  const match = /^([A-Za-z]+?)(\d+)$/.exec(id ?? '')
-  if (!match) return { backend: id ?? '', index: 0 }
-  return { backend: match[1], index: Number(match[2]) }
 }
 
 function backendLabel(backend: string): string {
@@ -103,74 +99,6 @@ function UsageMeter({ percent }: { percent: number }) {
       </span>
     </div>
   )
-}
-
-type ActiveDevice = DeviceList & { activated: boolean }
-
-interface GpuGroup {
-  key: string
-  name: string
-  devices: ActiveDevice[]
-}
-
-const BACKEND_PRIORITY = [
-  'cuda',
-  'hip',
-  'rocm',
-  'sycl',
-  'metal',
-  'vulkan',
-  'opencl',
-]
-
-function backendPriority(backend: string): number {
-  const index = BACKEND_PRIORITY.indexOf(backend.toLowerCase())
-  return index === -1 ? BACKEND_PRIORITY.length : index
-}
-
-// llama.cpp lists one device per backend, so a single physical GPU can appear
-// as both CUDA0 and Vulkan0. Group by name and pair same-name devices by their
-// per-backend enumeration order.
-function groupDevices(devices: ActiveDevice[]): GpuGroup[] {
-  const byName = new Map<string, Map<string, ActiveDevice[]>>()
-  for (const device of devices) {
-    const { backend } = parseDeviceId(device.id)
-    const backends = byName.get(device.name) ?? new Map()
-    byName.set(device.name, backends)
-    backends.set(backend, [...(backends.get(backend) ?? []), device])
-  }
-
-  const groups: GpuGroup[] = []
-  for (const [name, backends] of byName) {
-    const lists = [...backends.values()]
-    for (const list of lists) {
-      list.sort((a, b) => parseDeviceId(a.id).index - parseDeviceId(b.id).index)
-    }
-    const unitCount = Math.max(...lists.map((list) => list.length))
-    for (let i = 0; i < unitCount; i++) {
-      const unit = lists
-        .map((list) => list[i])
-        .filter((device): device is ActiveDevice => Boolean(device))
-        .sort(
-          (a, b) =>
-            backendPriority(parseDeviceId(a.id).backend) -
-            backendPriority(parseDeviceId(b.id).backend)
-        )
-      if (unit.length > 0) {
-        groups.push({
-          key: unit.map((device) => device.id).join('+'),
-          name,
-          devices: unit,
-        })
-      }
-    }
-  }
-  return groups
-}
-
-// Activated device if any (units are priority-sorted), else the preferred one.
-function selectedDevice(group: GpuGroup): ActiveDevice {
-  return group.devices.find((device) => device.activated) ?? group.devices[0]
 }
 
 function GpuGroupCard({

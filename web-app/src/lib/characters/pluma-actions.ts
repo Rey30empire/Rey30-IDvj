@@ -154,6 +154,9 @@ async function runMcpTool(item: MCPTool, call: PlumaToolCall, signal?: AbortSign
   }
 }
 
+/** Without this she does not know she can write files, and dictates them instead. */
+const documentsPrompt = 'Tienes tu propia carpeta de documentos (Documentos\\Pluma): crea textos con crear_documento, léelos con leer_documento y listar_documentos y cámbialos con editar_documento cuando te pidan escribir, guardar o corregir algo. Si piden un archivo o código, créalo o cámbialo tú con las herramientas en vez de dictarlo. No ejecutas comandos.'
+
 /** Builds the tools for one call; MCP tools come from the running servers. */
 export async function plumaActions(): Promise<PlumaActions> {
   let mcp: { name: string; tool: MCPTool }[] = []
@@ -177,6 +180,7 @@ export async function plumaActions(): Promise<PlumaActions> {
     },
     readsProject: name => !!folder && projectReadToolNames.has(name),
     reachesOutside: name => byName.has(name),
-    ...(folder ? { prompt: plumaProjectPrompt(folder), maxRounds: 8 } : {}),
+    prompt: [documentsPrompt, folder ? plumaProjectPrompt(folder) : ''].filter(Boolean).join('\n'),
+    maxRounds: folder ? 8 : 4,
   }
 }

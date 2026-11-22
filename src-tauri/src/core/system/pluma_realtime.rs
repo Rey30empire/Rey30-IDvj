@@ -120,8 +120,14 @@ pub(super) mod windows {
         let engine = engine_path(&app)?;
         let models = model_dir(app)?;
         let mut active = ACTIVE.lock().map_err(|_| "No se pudo iniciar Pluma.")?;
-        if active.is_some() {
-            return Err("Ya hay una llamada de Pluma abierta.".into());
+        // One call per window: a call left behind by a page reload, or one whose
+        // stop has not arrived yet, is replaced instead of refusing the new one.
+        if let Some(previous) = active.take() {
+            previous.task.abort();
+            let _ = previous.events.send(json!({
+                "type": "rey30.error",
+                "message": "La llamada anterior de Pluma se cerró al empezar otra."
+            }));
         }
         let id = Uuid::new_v4().to_string();
         let task_id = id.clone();
