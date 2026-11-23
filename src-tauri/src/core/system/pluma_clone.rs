@@ -19,9 +19,37 @@ impl ReferenceStatus {
     }
 }
 
+/// Whose voice samples a request is about: Pluma's (`None`, also for her id
+/// `literatura`), or another assistant's by its id (`beto`, `coder`…).
+pub(crate) fn voice_owner(owner: Option<String>) -> Result<Option<String>, String> {
+    match owner.filter(|id| id != "literatura") {
+        None => Ok(None),
+        Some(id) if valid_owner(&id) => Ok(Some(id)),
+        Some(_) => Err("Ese asistente no es válido.".into()),
+    }
+}
+
+/// An assistant id as the app writes them: lower case letters, digits and dashes.
+fn valid_owner(id: &str) -> bool {
+    (1..=80).contains(&id.len())
+        && id.starts_with(|c: char| c.is_ascii_lowercase())
+        && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        && !matches!(id, "constructor" | "prototype")
+}
+
+/// The folder of an assistant's samples inside the data folder: Pluma keeps
+/// `pluma-voice`, any other assistant `pluma-voice/asistentes/<id>`.
+pub(crate) fn voice_folder(owner: Option<&str>) -> std::path::PathBuf {
+    let base = std::path::PathBuf::from("pluma-voice");
+    match owner {
+        None => base,
+        Some(id) => base.join("asistentes").join(id),
+    }
+}
+
 /// The Lore voice behind a sample, shown by its name without the extension.
-fn lore_name(app: &AppHandle, singing: bool) -> Option<String> {
-    super::lore::selected_voice(app, singing).map(|file| {
+fn lore_name(app: &AppHandle, owner: Option<&str>, singing: bool) -> Option<String> {
+    super::lore::selected_voice(app, owner, singing).map(|file| {
         std::path::Path::new(&file)
             .file_stem()
             .map(|stem| stem.to_string_lossy().into_owned())
@@ -29,17 +57,20 @@ fn lore_name(app: &AppHandle, singing: bool) -> Option<String> {
     })
 }
 
-/// `singing` picks the optional singing sample instead of the speaking one.
+/// `singing` picks the optional singing sample instead of the speaking one;
+/// `owner` an assistant other than Pluma.
 #[tauri::command]
 pub async fn pluma_clone_reference_status(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    owner: Option<String>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
-    let name = lore_name(&app, singing);
-    platform::reference_status(app, singing).map(|status| status.with_name(name))
+    let owner = voice_owner(owner)?;
+    let name = lore_name(&app, owner.as_deref(), singing);
+    platform::reference_status(app, owner.as_deref(), singing).map(|status| status.with_name(name))
 }
 
 #[tauri::command]
@@ -47,14 +78,16 @@ pub async fn pluma_clone_reference_choose(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    owner: Option<String>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
-    let previous = lore_name(&app, singing);
-    let status = platform::choose_reference(app.clone(), singing).await?;
+    let owner = voice_owner(owner)?;
+    let previous = lore_name(&app, owner.as_deref(), singing);
+    let status = platform::choose_reference(app.clone(), owner.clone(), singing).await?;
     // A sample picked by hand replaces the Lore voice; a cancelled picker keeps it.
     if status.chosen {
-        super::lore::remember_voice(&app, singing, None);
+        super::lore::remember_voice(&app, owner.as_deref(), singing, None);
         return Ok(status.status);
     }
     Ok(status.status.with_name(previous))
@@ -65,22 +98,51 @@ pub async fn pluma_clone_reference_clear(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    owner: Option<String>,
 ) -> Result<ReferenceStatus, String> {
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
-    let status = platform::clear_reference(app.clone(), singing)?;
-    super::lore::remember_voice(&app, singing, None);
+    let owner = voice_owner(owner)?;
+    let status = platform::clear_reference(app.clone(), owner.as_deref(), singing)?;
+    super::lore::remember_voice(&app, owner.as_deref(), singing, None);
     Ok(status)
 }
 
-/// Saves `audio` as Pluma's speaking or singing sample (used for the voices in
-/// the Lore folder). Allowed during a call: she speaks with it from her next sentence.
+/// Saves `audio` as an assistant's speaking or singing sample (used for the
+/// voices in the Lore folder). Allowed during Pluma's call: she speaks with it
+/// from her next sentence.
 pub(crate) async fn install_reference(
     app: AppHandle,
+    owner: Option<String>,
     singing: bool,
     audio: Vec<u8>,
 ) -> Result<ReferenceStatus, String> {
-    platform::install_reference(app, singing, audio).await
+    platform::install_reference(app, owner, singing, audio).await
+}
+
+/// Reads `text` aloud with an assistant's cloned voice (its speaking sample),
+/// through a small local Qwen3-TTS engine started on first use. A new request
+/// cuts the one still speaking.
+#[tauri::command]
+pub async fn assistant_voice_speak(
+    app: AppHandle,
+    window: WebviewWindow,
+    owner: Option<String>,
+    text: String,
+    style: Option<Value>,
+    events: Channel<Value>,
+) -> Result<(), String> {
+    require_main(&window)?;
+    let owner = voice_owner(owner)?;
+    platform::assistant_speak(app, owner, text, style, events).await
+}
+
+/// Stops the assistant voice that is speaking, if any.
+#[tauri::command]
+pub async fn assistant_voice_cancel(window: WebviewWindow) -> Result<(), String> {
+    require_main(&window)?;
+    platform::assistant_cancel();
+    Ok(())
 }
 
 /// What the file picker left: the sample now in place, and whether a new file was chosen.
@@ -226,7 +288,7 @@ pub(crate) fn voice_reference(app: &AppHandle) -> Option<(Vec<u8>, &'static str)
 /// when present, otherwise her speaking sample.
 #[cfg(windows)]
 pub(crate) fn song_voice_reference(app: &AppHandle) -> Option<(Vec<u8>, &'static str)> {
-    let singing = platform::sample_path(app.clone(), true);
+    let singing = platform::sample_path(app.clone(), None, true);
     platform::read_reference(&singing)
         .ok()
         .and_then(|audio| platform::reference_format(&audio).map(|format| (audio, format)))
@@ -239,18 +301,22 @@ mod platform {
 
     const UNAVAILABLE: &str = "La voz clonada de Pluma está disponible en Windows con Vulkan.";
 
-    pub fn reference_status(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
+    pub fn reference_status(_: AppHandle, _: Option<&str>, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
-    pub async fn choose_reference(_: AppHandle, _: bool) -> Result<ChosenReference, String> {
+    pub async fn choose_reference(_: AppHandle, _: Option<String>, _: bool) -> Result<ChosenReference, String> {
         Err(UNAVAILABLE.into())
     }
-    pub async fn install_reference(_: AppHandle, _: bool, _: Vec<u8>) -> Result<ReferenceStatus, String> {
+    pub async fn install_reference(_: AppHandle, _: Option<String>, _: bool, _: Vec<u8>) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
-    pub fn clear_reference(_: AppHandle, _: bool) -> Result<ReferenceStatus, String> {
+    pub fn clear_reference(_: AppHandle, _: Option<&str>, _: bool) -> Result<ReferenceStatus, String> {
         Err(UNAVAILABLE.into())
     }
+    pub async fn assistant_speak(_: AppHandle, _: Option<String>, _: String, _: Option<Value>, _: Channel<Value>) -> Result<(), String> {
+        Err(UNAVAILABLE.into())
+    }
+    pub fn assistant_cancel() {}
     pub fn start(_: AppHandle, _: Channel<Value>) -> Result<String, String> {
         Err(UNAVAILABLE.into())
     }
@@ -359,6 +425,7 @@ mod platform {
         }
     }
 
+    #[derive(Clone)]
     struct Endpoint {
         port: u16,
         key: String,
@@ -407,6 +474,10 @@ mod platform {
             "response_format": "pcm", "stream": true
         })
     }
+
+    /// The voice style the page asked for. Nothing is passed on yet: the
+    /// styles the engine accepts are added here.
+    fn apply_style(_body: &mut Value, _style: Option<&Value>) {}
 
     async fn prime_engines(local: &Engines) {
         let started = Instant::now();
@@ -459,9 +530,9 @@ mod platform {
         }
     }
 
+    /// Pluma's speaking sample.
     pub(super) fn reference_path(app: AppHandle) -> PathBuf {
-        crate::core::app::commands::get_rey30_data_folder_path(app)
-            .join("pluma-voice/reference.audio")
+        sample_path(app, None, false)
     }
 
     pub(super) fn reference_format(audio: &[u8]) -> Option<&'static str> {
@@ -508,20 +579,21 @@ mod platform {
         }
     }
 
-    /// WAV or MP3 despite the name: samples are recognized by their content.
-    const SINGING_SAMPLE: &str = "pluma-voice/reference-canto.wav";
+    /// WAV or MP3 despite the names: samples are recognized by their content.
+    const SPEAKING_SAMPLE: &str = "reference.audio";
+    const SINGING_SAMPLE: &str = "reference-canto.wav";
 
-    /// The singing sample is optional: without it she sings with her speaking sample.
-    pub(super) fn sample_path(app: AppHandle, singing: bool) -> PathBuf {
-        if singing {
-            crate::core::app::commands::get_rey30_data_folder_path(app).join(SINGING_SAMPLE)
-        } else {
-            reference_path(app)
-        }
+    /// An assistant's speaking or singing sample (Pluma's when `owner` is
+    /// `None`). The singing one is optional: without it she sings with her
+    /// speaking sample.
+    pub(super) fn sample_path(app: AppHandle, owner: Option<&str>, singing: bool) -> PathBuf {
+        crate::core::app::commands::get_rey30_data_folder_path(app)
+            .join(super::voice_folder(owner))
+            .join(if singing { SINGING_SAMPLE } else { SPEAKING_SAMPLE })
     }
 
-    pub fn reference_status(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
-        Ok(status_for(&sample_path(app, singing)))
+    pub fn reference_status(app: AppHandle, owner: Option<&str>, singing: bool) -> Result<ReferenceStatus, String> {
+        Ok(status_for(&sample_path(app, owner, singing)))
     }
 
     /// A new speaking sample takes over in the call that is running, from her
@@ -537,9 +609,9 @@ mod platform {
 
     /// Checks `audio` and puts it in place of the speaking or singing sample in
     /// one step. Allowed during a call: songs read their sample each time, and
-    /// the speaking one is swapped into the running call.
-    fn write_reference(app: AppHandle, singing: bool, audio: &[u8]) -> Result<ReferenceStatus, String> {
-        let path = &sample_path(app, singing);
+    /// Pluma's speaking one is swapped into the running call.
+    fn write_reference(app: AppHandle, owner: Option<&str>, singing: bool, audio: &[u8]) -> Result<ReferenceStatus, String> {
+        let path = &sample_path(app, owner, singing);
         let format = reference_format(audio)
             .ok_or("Elige una grabación WAV o MP3 válida de hasta 10 MB.")?;
         let parent = path
@@ -552,7 +624,7 @@ mod platform {
             let _ = fs::remove_file(temporary);
             return Err("No se pudo sustituir el audio de referencia.".into());
         }
-        if !singing {
+        if !singing && owner.is_none() {
             use_in_active_call(audio);
         }
         Ok(ReferenceStatus {
@@ -563,14 +635,14 @@ mod platform {
         })
     }
 
-    pub async fn choose_reference(app: AppHandle, singing: bool) -> Result<ChosenReference, String> {
+    pub async fn choose_reference(app: AppHandle, owner: Option<String>, singing: bool) -> Result<ChosenReference, String> {
         tokio::task::spawn_blocking(move || {
-            let path = sample_path(app.clone(), singing);
+            let path = sample_path(app.clone(), owner.as_deref(), singing);
             let Some(source) = rfd::FileDialog::new()
                 .set_title(if singing {
-                    "Seleccionar audio de canto para Pluma"
+                    "Seleccionar audio de canto"
                 } else {
-                    "Seleccionar audio de referencia para Pluma"
+                    "Seleccionar audio de referencia de la voz"
                 })
                 .add_filter("Audio WAV o MP3", &["wav", "mp3"])
                 .pick_file()
@@ -578,7 +650,7 @@ mod platform {
                 return Ok(ChosenReference { status: status_for(&path), chosen: false });
             };
             let audio = read_reference(&source).map_err(|_| "No se pudo leer el audio elegido.")?;
-            Ok(ChosenReference { status: write_reference(app, singing, &audio)?, chosen: true })
+            Ok(ChosenReference { status: write_reference(app, owner.as_deref(), singing, &audio)?, chosen: true })
         })
         .await
         .map_err(|_| "Se interrumpió el selector de audio.".to_string())?
@@ -586,17 +658,20 @@ mod platform {
 
     pub async fn install_reference(
         app: AppHandle,
+        owner: Option<String>,
         singing: bool,
         audio: Vec<u8>,
     ) -> Result<ReferenceStatus, String> {
-        tokio::task::spawn_blocking(move || write_reference(app, singing, &audio))
+        tokio::task::spawn_blocking(move || write_reference(app, owner.as_deref(), singing, &audio))
             .await
-            .map_err(|_| "No se pudo cambiar la voz de Pluma.".to_string())?
+            .map_err(|_| "No se pudo cambiar la voz.".to_string())?
     }
 
-    pub fn clear_reference(app: AppHandle, singing: bool) -> Result<ReferenceStatus, String> {
-        ensure_idle()?;
-        match fs::remove_file(sample_path(app, singing)) {
+    pub fn clear_reference(app: AppHandle, owner: Option<&str>, singing: bool) -> Result<ReferenceStatus, String> {
+        if owner.is_none() {
+            ensure_idle()?;
+        }
+        match fs::remove_file(sample_path(app, owner, singing)) {
             Ok(()) => {}
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(_) => return Err("No se pudo quitar el audio de referencia.".into()),
@@ -1138,10 +1213,13 @@ mod platform {
         let local = engines
             .get()
             .ok_or("Qwen3-TTS todavía no está preparado.")?;
-        let mut response = local
-            .tts
-            .post(&local.client, "/tts", speech_body(text, &local.reference()))
-            .await?;
+        stream_speech(&local.client, &local.tts, speech_body(text, &local.reference()), &events).await
+    }
+
+    /// Sends Qwen3-TTS's PCM to the window as it arrives, in frames small
+    /// enough for Tauri's direct IPC, then `{"done": true}`.
+    async fn stream_speech(client: &Client, tts: &Endpoint, body: Value, events: &Channel<Value>) -> Result<(), String> {
+        let mut response = tts.post(client, "/tts", body).await?;
         let sample_rate = response
             .headers()
             .get("content-type")
@@ -1185,6 +1263,87 @@ mod platform {
             .send(json!({"done": true}))
             .map_err(|_| "La ventana dejó de recibir el audio de Pluma.")?;
         Ok(())
+    }
+
+    /// The Qwen3-TTS engine the assistants speak with outside Pluma's call: one
+    /// small server, started on first use and kept until the app closes.
+    struct AssistantTts {
+        child: Child,
+        _job: OwnedHandle,
+        endpoint: Endpoint,
+        client: Client,
+    }
+
+    static ASSISTANT_TTS: tokio::sync::Mutex<Option<AssistantTts>> = tokio::sync::Mutex::const_new(None);
+    static ASSISTANT_TURN: Mutex<Option<CancellationToken>> = Mutex::new(None);
+
+    /// The running assistant engine, starting it when there is none (or it died).
+    async fn assistant_engine(app: &AppHandle) -> Result<(Client, Endpoint), String> {
+        let mut slot = ASSISTANT_TTS.lock().await;
+        if let Some(engine) = slot.as_mut() {
+            if engine.child.try_wait().ok().flatten().is_none() {
+                return Ok((engine.client.clone(), engine.endpoint.clone()));
+            }
+            *slot = None;
+        }
+        let engine = engine_path(app)?;
+        let tts_engine = engine
+            .parent()
+            .and_then(Path::parent)
+            .map(|resources| resources.join("pluma-llama-tts/llama-server.exe"))
+            .filter(|path| path.is_file())
+            .unwrap_or_else(|| engine.clone());
+        let dir = models("REY30_PLUMA_TTS_DIR", "Qwen3-TTS-12Hz-1.7B-Base-GGUF", TTS_MODEL, TTS_PROJECTOR)?;
+        let device = amd_device(&engine).await?;
+        log::info!("La voz clonada de los asistentes usa Qwen3-TTS en {device}.");
+        let (mut child, job, endpoint) = spawn_engine(&tts_engine, &device, &dir, TTS_MODEL, TTS_PROJECTOR, "asistentes-tts", &["--ctx-size", "4096"])?;
+        wait_for_engine(&mut child, endpoint.port, Duration::from_secs(195)).await?;
+        let client = Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(120))
+            .build()
+            .map_err(|_| "No se pudo conectar con el motor de voz local.")?;
+        let ready = (client.clone(), endpoint.clone());
+        *slot = Some(AssistantTts { child, _job: job, endpoint, client });
+        Ok(ready)
+    }
+
+    /// Reads `text` with the assistant's speaking sample. A new request (or
+    /// `assistant_cancel`) cuts the one still speaking.
+    pub async fn assistant_speak(app: AppHandle, owner: Option<String>, text: String, style: Option<Value>, events: Channel<Value>) -> Result<(), String> {
+        let text = text.trim().to_string();
+        if text.is_empty() || text.chars().count() > 2500 {
+            return Err("El texto para la voz está vacío o es demasiado largo.".into());
+        }
+        let token = CancellationToken::new();
+        if let Ok(mut turn) = ASSISTANT_TURN.lock() {
+            if let Some(previous) = turn.replace(token.clone()) {
+                previous.cancel();
+            }
+        }
+        let reference = read_reference(&sample_path(app.clone(), owner.as_deref(), false))
+            .ok()
+            .filter(|audio| reference_format(audio).is_some())
+            .ok_or("Este asistente todavía no tiene voz: elige una de Lore, graba la tuya o elige un archivo en Configurar personaje → Voz.")?;
+        let speech = async {
+            let (client, endpoint) = assistant_engine(&app).await?;
+            let mut body = speech_body(&text, &STANDARD.encode(reference));
+            apply_style(&mut body, style.as_ref());
+            stream_speech(&client, &endpoint, body, &events).await
+        };
+        tokio::select! {
+            biased;
+            _ = token.cancelled() => Err("Se detuvo la voz.".into()),
+            result = speech => result,
+        }
+    }
+
+    pub fn assistant_cancel() {
+        if let Ok(mut turn) = ASSISTANT_TURN.lock() {
+            if let Some(token) = turn.take() {
+                token.cancel();
+            }
+        }
     }
 }
 
@@ -1247,5 +1406,28 @@ mod tool_tests {
         assert!(!tools_allowed(&[tool("proyecto_borrar")]));
         let many: Vec<_> = (0..25).map(|i| tool(&format!("mcp_t{i}"))).collect();
         assert!(!tools_allowed(&many));
+    }
+}
+
+#[cfg(test)]
+mod owner_tests {
+    use super::{voice_folder, voice_owner};
+    use std::path::Path;
+
+    #[test]
+    fn each_assistant_keeps_its_samples_apart_and_pluma_keeps_hers() {
+        assert_eq!(voice_owner(None).unwrap(), None);
+        assert_eq!(voice_owner(Some("literatura".into())).unwrap(), None);
+        assert_eq!(voice_owner(Some("beto".into())).unwrap().as_deref(), Some("beto"));
+        assert_eq!(voice_owner(Some("mi-asistente-2".into())).unwrap().as_deref(), Some("mi-asistente-2"));
+        assert_eq!(voice_folder(None), Path::new("pluma-voice"));
+        assert_eq!(voice_folder(Some("beto")), Path::new("pluma-voice").join("asistentes").join("beto"));
+    }
+
+    #[test]
+    fn an_assistant_id_cannot_point_outside_its_folder() {
+        for id in ["", "..", "../pluma", "beto/..", "Beto", "a\\b", "c:", "constructor", "-x", "1beto", &"a".repeat(81)] {
+            assert!(voice_owner(Some(id.to_string())).is_err(), "{id}");
+        }
     }
 }

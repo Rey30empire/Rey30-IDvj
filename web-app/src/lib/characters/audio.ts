@@ -1,5 +1,8 @@
+import { Channel } from '@tauri-apps/api/core'
 import { create } from 'zustand'
 import { getServiceHub } from '@/hooks/useServiceHub'
+import { isPlatformTauri } from '@/lib/platform/utils'
+import { applyVoiceStyle, styleChangesAudio, usePlumaVoiceStyle } from './pluma-voice-style'
 import type { CharacterProfile, OriginalCharacterId } from './types'
 
 export type LocalVoice = {
@@ -206,6 +209,120 @@ function closeDevices() {
   frame = 0
   if (previousContext) void previousContext.close().catch(() => {})
 }
+/**
+ * On the Windows desktop app every assistant speaks with its own cloned voice
+ * (a sample from Lore, a recording or a file), never with a synthetic one.
+ */
+export function clonedVoices() {
+  return isPlatformTauri() && /Windows/i.test(navigator.userAgent)
+}
+let clonedSpeaking = false
+
+function floatPcm(base64: string) {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length - (binary.length % 4))
+  for (let index = 0; index < bytes.length; index++) bytes[index] = binary.charCodeAt(index)
+  return new Float32Array(bytes.buffer)
+}
+
+/**
+ * Says `text` with the assistant's cloned voice: Qwen3-TTS streams PCM that is
+ * scheduled gap-free as it arrives, through the volume and a meter for the
+ * sphere. Resolves when the last sound has played or the turn is replaced.
+ */
+async function speakCloned(
+  player: AudioContext,
+  text: string,
+  profile: CharacterProfile,
+  current: () => boolean,
+  update: (state: Partial<Pick<AudioState, 'status' | 'amplitude'>>) => void
+) {
+  const output = player.createGain()
+  output.gain.value = profile.voice.volume
+  const analyser = player.createAnalyser()
+  analyser.fftSize = 1024
+  output.connect(analyser)
+  analyser.connect(player.destination)
+  const waveform = new Float32Array(analyser.fftSize)
+  let endsAt = player.currentTime
+  let lastFrame = 0
+  const animate = (time: number) => {
+    if (!current()) return
+    if (time - lastFrame >= 33) {
+      analyser.getFloatTimeDomainData(waveform)
+      const rms = Math.sqrt(waveform.reduce((sum, value) => sum + value * value, 0) / waveform.length)
+      update({ amplitude: Math.min(1, rms * 7) })
+      lastFrame = time
+    }
+    frame = requestAnimationFrame(animate)
+  }
+  // Pluma's chosen speed and pitch need the whole sentence: it is gathered first.
+  const style = profile.id === 'literatura' ? usePlumaVoiceStyle.getState() : undefined
+  const styled = !!style && styleChangesAudio(style)
+  const held: Float32Array[] = []
+  let heldRate = 0
+  const play = (samples: Float32Array, sampleRate: number) => {
+    if (!samples.length || !current()) return
+    const buffer = player.createBuffer(1, samples.length, sampleRate)
+    buffer.getChannelData(0).set(samples)
+    const part = player.createBufferSource()
+    part.buffer = buffer
+    part.connect(output)
+    const at = Math.max(endsAt, player.currentTime + 0.03)
+    part.start(at)
+    endsAt = at + buffer.duration
+    if (!frame) {
+      update({ status: 'speaking' })
+      frame = requestAnimationFrame(animate)
+    }
+  }
+  const events = new Channel<{ data: string; sampleRate: number } | { done: true }>()
+  events.onmessage = (event) => {
+    if (!current() || 'done' in event) return
+    const { data, sampleRate } = event
+    if (typeof data !== 'string' || !Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 48000) return
+    const samples = floatPcm(data)
+    if (styled) {
+      held.push(samples)
+      heldRate = sampleRate
+    } else play(samples, sampleRate)
+  }
+  clonedSpeaking = true
+  try {
+    await invoke('assistant_voice_speak', {
+      ...(profile.id === 'literatura' ? {} : { owner: profile.id }),
+      text,
+      events,
+    })
+  } finally {
+    clonedSpeaking = false
+  }
+  if (!current()) return
+  if (styled && held.length) {
+    const joined = new Float32Array(held.reduce((total, part) => total + part.length, 0))
+    let offset = 0
+    for (const part of held) {
+      joined.set(part, offset)
+      offset += part.length
+    }
+    play(applyVoiceStyle(joined, heldRate, style), heldRate)
+  }
+  // The stream ends before the sound does: wait for what is still queued.
+  await new Promise<void>((resolve) => {
+    const done = () => {
+      if (finishPlayback === done) finishPlayback = undefined
+      clearTimeout(timer)
+      resolve()
+    }
+    finishPlayback = done
+    timer = setTimeout(done, Math.max(0, (endsAt - player.currentTime) * 1000) + 60)
+  })
+  cancelAnimationFrame(frame)
+  frame = 0
+  output.disconnect()
+  analyser.disconnect()
+}
+
 const fail = (error: unknown) =>
   useCharacterAudio.setState({
     status: 'error',
@@ -258,6 +375,10 @@ export const useCharacterAudio = create<AudioState>((set, get) => ({
     nativeJob = undefined
     if (job)
       void invoke('character_audio_cancel', { jobId: job }).catch(() => {})
+    if (clonedSpeaking) {
+      clonedSpeaking = false
+      void invoke('assistant_voice_cancel', {}).catch(() => {})
+    }
     closeDevices()
     samples = []
     capturedSamples = 0
@@ -294,6 +415,14 @@ export const useCharacterAudio = create<AudioState>((set, get) => ({
           return
         }
         set({ status: 'preparing', error: null, amplitude: 0 })
+        if (clonedVoices()) {
+          await speakCloned(player, chunk, profile, current, (state) => set(state))
+          if (!current()) {
+            discard()
+            return
+          }
+          continue
+        }
         const jobId = crypto.randomUUID()
         nativeJob = jobId
         const result = await invoke<{ audioBase64: string }>(

@@ -27,7 +27,8 @@ use std::{
 use tauri::{AppHandle, WebviewWindow};
 
 pub const LORE_ENV: &str = "REY30_LORE_DIR";
-const SELECTION_FILE: &str = "pluma-voice/lore.json";
+/// Inside the assistant's voice folder (`pluma-voice` for Pluma).
+const SELECTION_FILE: &str = "lore.json";
 const VOICE_LIMIT: u64 = 10 * 1024 * 1024;
 const MAX_VOICES: usize = 200;
 const MAX_SONGS: usize = 60;
@@ -294,20 +295,23 @@ struct Selection {
     singing: Option<String>,
 }
 
-fn selection_path(app: &AppHandle) -> PathBuf {
-    crate::core::app::commands::get_rey30_data_folder_path(app.clone()).join(SELECTION_FILE)
+/// Where an assistant's chosen Lore voices are remembered (Pluma's when `owner` is `None`).
+fn selection_path(app: &AppHandle, owner: Option<&str>) -> PathBuf {
+    crate::core::app::commands::get_rey30_data_folder_path(app.clone())
+        .join(super::pluma_clone::voice_folder(owner))
+        .join(SELECTION_FILE)
 }
 
-fn read_selection(app: &AppHandle) -> Selection {
-    fs::read(selection_path(app))
+fn read_selection(app: &AppHandle, owner: Option<&str>) -> Selection {
+    fs::read(selection_path(app, owner))
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
 }
 
-/// The Lore voice behind the current sample, if it came from Lore.
-pub fn selected_voice(app: &AppHandle, singing: bool) -> Option<String> {
-    let selection = read_selection(app);
+/// The Lore voice behind an assistant's current sample, if it came from Lore.
+pub fn selected_voice(app: &AppHandle, owner: Option<&str>, singing: bool) -> Option<String> {
+    let selection = read_selection(app, owner);
     if singing {
         selection.singing
     } else {
@@ -317,15 +321,15 @@ pub fn selected_voice(app: &AppHandle, singing: bool) -> Option<String> {
 
 /// Remembers which Lore voice the sample came from; `None` when the sample was
 /// chosen by hand or removed.
-pub fn remember_voice(app: &AppHandle, singing: bool, file: Option<&str>) {
-    let mut selection = read_selection(app);
+pub fn remember_voice(app: &AppHandle, owner: Option<&str>, singing: bool, file: Option<&str>) {
+    let mut selection = read_selection(app, owner);
     let value = file.map(str::to_string);
     if singing {
         selection.singing = value;
     } else {
         selection.speaking = value;
     }
-    let path = selection_path(app);
+    let path = selection_path(app, owner);
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
@@ -353,9 +357,11 @@ pub async fn lore_voices(
     window: WebviewWindow,
     singing: Option<bool>,
     groups: Option<Vec<String>>,
+    owner: Option<String>,
 ) -> Result<LoreVoices, String> {
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
+    let owner = super::pluma_clone::voice_owner(owner)?;
     let groups: Option<Vec<String>> = groups.map(|groups| {
         groups
             .into_iter()
@@ -376,7 +382,7 @@ pub async fn lore_voices(
     Ok(LoreVoices {
         root: root.map(|path| path.display().to_string()),
         voices,
-        selected: selected_voice(&app, singing),
+        selected: selected_voice(&app, owner.as_deref(), singing),
     })
 }
 
@@ -410,11 +416,13 @@ pub async fn lore_voice_use(
     group: Option<String>,
     file: String,
     audio: Option<String>,
+    owner: Option<String>,
 ) -> Result<super::pluma_clone::ReferenceStatus, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
     let group = requested_group(group)?;
+    let owner = super::pluma_clone::voice_owner(owner)?;
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
     let path = voice_file(&root, singing, &group, &file)?;
     let audio = if DIRECT_AUDIO.contains(&extension(&path).as_str()) {
@@ -425,8 +433,8 @@ pub async fn lore_voice_use(
             .filter(|audio| is_wav(audio) && audio.len() as u64 <= VOICE_LIMIT)
             .ok_or("Hay que convertir esa voz a WAV antes de usarla.")?
     };
-    let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
-    remember_voice(&app, singing, Some(&voice_key(&group, &file)));
+    let status = super::pluma_clone::install_reference(app.clone(), owner.clone(), singing, audio).await?;
+    remember_voice(&app, owner.as_deref(), singing, Some(&voice_key(&group, &file)));
     Ok(status.with_name(Some(stem(&file))))
 }
 
@@ -493,11 +501,13 @@ pub async fn lore_voice_save(
     group: Option<String>,
     name: String,
     audio: String,
+    owner: Option<String>,
 ) -> Result<super::pluma_clone::ReferenceStatus, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
     let group = requested_group(group)?;
+    let owner = super::pluma_clone::voice_owner(owner)?;
     let audio = STANDARD
         .decode(audio.as_bytes())
         .map_err(|_| "La grabación llegó dañada. Grábala de nuevo.")?;
@@ -510,8 +520,8 @@ pub async fn lore_voice_save(
     let (file, audio) = tokio::task::spawn_blocking(move || save_recording(&root, &dir, &base, &audio).map(|file| (file, audio)))
         .await
         .map_err(|_| "No se pudo guardar la grabación en Lore.".to_string())??;
-    let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
-    remember_voice(&app, singing, Some(&voice_key(&group, &file)));
+    let status = super::pluma_clone::install_reference(app.clone(), owner.clone(), singing, audio).await?;
+    remember_voice(&app, owner.as_deref(), singing, Some(&voice_key(&group, &file)));
     Ok(status.with_name(Some(stem(&file))))
 }
 

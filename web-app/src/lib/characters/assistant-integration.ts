@@ -3,6 +3,7 @@ import { getCharacterChatRole } from './profiles'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { useCharacterAudio } from './audio'
 import { isLiteraryModelProvider, isLiteraryThread, literaryAssistantId } from '@/lib/literaryLibrary'
+import { listStrataModel, STRATA_PROVIDER } from '@/lib/strata'
 
 const PREFIX = 'character:'
 const REY30_MODEL_ID = 'Qwen3.5-9B-Q4_K_M'
@@ -74,6 +75,9 @@ export function characterBindingModel(
     throw new Error(
       'El personaje no tiene un modelo asignado. Elige un modelo disponible en su configuración.'
     )
+  // A Strata model is there even while Strata is stopped: sending starts it.
+  if (binding.providerId === STRATA_PROVIDER)
+    return { provider: binding.providerId, id: binding.modelId }
   const provider = providers.find(
     (item) => item.provider === binding.providerId
   )
@@ -188,6 +192,7 @@ export function selectIntegratedAssistant(
         profile.modelBinding,
         useModelProvider.getState().providers
       )
+      if (model.provider === STRATA_PROVIDER) await listStrataModel(model.id)
       if (assistantId === literaryAssistantId || (threadId && isLiteraryThread(useThreads.getState().threads[threadId]))) {
         const provider = useModelProvider.getState().getProviderByName(model.provider)
         if (!provider || !isLiteraryModelProvider(provider)) {

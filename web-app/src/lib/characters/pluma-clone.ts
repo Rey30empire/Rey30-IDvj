@@ -6,6 +6,7 @@ import { startPlumaFast } from './pluma-fast'
 import { plumaActions, type PlumaActions } from './pluma-actions'
 import { loadPlumaMemory } from './pluma-memory'
 import { normalizePlumaSpeech } from './pluma-text'
+import { applyVoiceStyle, styleChangesAudio, usePlumaVoiceStyle } from './pluma-voice-style'
 import { describeStartError as describePlumaAudioError, supportsPlumaCall, type PlumaCallCallbacks, type PlumaCallPhase } from './pluma-realtime'
 import type { PlumaAudioClip } from './pluma-call-history'
 import { readingPercent } from './pluma-reading'
@@ -67,16 +68,25 @@ const echoLead = Math.round(echoRate * 0.01)
 // never cuts her off; short gaps between syllables are tolerated.
 const bargeVoiceMs = 240
 const bargeQuietMs = 120
+/** What the microphone heard just before she listens again, given to the detector on resume. */
+const recentMs = 500
 const bargeRms = 0.025
 // While a song plays: twice as loud and close to a full second of voice.
 const singingBargeRmsFactor = 2
 const singingBargeVoiceMs = 900
 const repeatRequest = 'No te entendí bien. ¿Puedes repetirlo?'
 const songFailed = 'No pude generar el audio cantado. Seguimos en la llamada.'
-/** `singing` is the optional sample she sings with; without it she sings with the speaking one. */
-export const plumaReferenceStatus = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_status', { singing })
-export const choosePlumaReference = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_choose', { singing })
-export const clearPlumaReference = (singing = false) => invoke<PlumaReference>('pluma_clone_reference_clear', { singing })
+/**
+ * `singing` is the optional sample she sings with; without it she sings with
+ * the speaking one. `owner` is another assistant's id: each has its own
+ * samples, and Pluma's are the ones without an owner.
+ */
+const sampleOf = (singing: boolean, owner?: string) => owner ? { singing, owner } : { singing }
+export const plumaReferenceStatus = (singing = false, owner?: string) => invoke<PlumaReference>('pluma_clone_reference_status', sampleOf(singing, owner))
+export const choosePlumaReference = (singing = false, owner?: string) => invoke<PlumaReference>('pluma_clone_reference_choose', sampleOf(singing, owner))
+export const clearPlumaReference = (singing = false, owner?: string) => invoke<PlumaReference>('pluma_clone_reference_clear', sampleOf(singing, owner))
+/** Whose samples an assistant uses: none for Pluma (hers have no owner), its id for any other. */
+export const voiceOwner = (profile: Pick<CharacterProfile, 'id'>) => profile.id === 'literatura' ? undefined : profile.id
 
 export function usesPlumaClone(profile: CharacterProfile | undefined) {
   return supportsPlumaCall(profile?.id) && profile?.voice.plumaClone === true
@@ -162,7 +172,9 @@ function isPlaybackEcho(samples: Float32Array, rate: number, audioTime: number, 
       dot += sample * mic[index]
       outputPower += sample * sample
     }
-    if (outputPower >= 1e-5 && dot * dot >= 0.43 * outputPower * power) return true
+    // A correlation of about 0.7: her voice coming back through the speakers, not
+    // his voice merely sounding alike right after she stops.
+    if (outputPower >= 1e-5 && dot * dot >= 0.5 * outputPower * power) return true
   }
   return false
 }
@@ -216,6 +228,9 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
   let echoCancellation = false
   let echoFrames: EchoFrame[] = []
   let bargeFrames: MicFrame[] = []
+  let recentFrames: MicFrame[] = []
+  /** His last recording, still in her history as audio, and its text once written. */
+  let heardAudio: { wav: string; transcript: Promise<string> } | undefined
   let bargeVoiced = 0
   let bargeQuiet = 0
 
@@ -272,10 +287,14 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       }
     }
     // Written down in the background: the chat shows it, and her history keeps
-    // the words so Gemma does not have to hear the recording again every turn.
+    // the words so Gemma does not have to hear old recordings every turn. The
+    // small recognizer mishears, so the last thing he said stays as his voice
+    // for one more turn and only the turn before it becomes text.
     const transcript = record.transcript !== undefined ? Promise.resolve(record.transcript) : transcribeInBackground(record.pcmBase64)
     const wav = record.audioWav
-    if (wav) void transcript.then(text => { if (!abort.signal.aborted) previousMessages = withSpokenText(previousMessages, wav, text) })
+    const older = heardAudio
+    heardAudio = wav ? { wav, transcript } : undefined
+    if (older) void older.transcript.then(text => { if (!abort.signal.aborted) previousMessages = withSpokenText(previousMessages, older.wav, text) })
     onTurnRecorded?.({
       pcmBase64: record.pcmBase64,
       transcript,
@@ -328,6 +347,13 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     onPhase(next)
   }
 
+  /** The last half second the microphone heard while she spoke or thought, without her echo. */
+  function keepRecent(frame: MicFrame, rate: number) {
+    recentFrames.push(frame)
+    let ms = recentFrames.reduce((sum, item) => sum + item.samples.length * 1000 / rate, 0)
+    while (recentFrames.length > 1 && ms - recentFrames[0].samples.length * 1000 / rate >= recentMs) ms -= recentFrames.shift()!.samples.length * 1000 / rate
+  }
+
   function resumeListening(turn: CloneTurn) {
     if (!turnUsable(turn) || !turn.completedHistory || playing.size) return
     saveTurn(turn)
@@ -337,6 +363,13 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     nextPlayback = 0
     clearBarge()
     setPhase('listening')
+    // He often answers as her last syllable ends: what he said in that half
+    // second goes to the detector, so the start of his «hola» is not lost.
+    const recent = recentFrames
+    recentFrames = []
+    detector?.reset()
+    chunks = []
+    recent.forEach(listen)
   }
 
   async function playNativeAudio(request: { text: string } | PlumaSongRequest, turn: CloneTurn, id: string) {
@@ -355,64 +388,90 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     const cancelWait = () => { complete(); canceled() }
     let heardAudio = false
     let packetError: unknown
+    // Speed and pitch need the whole sentence: it is gathered, then played.
+    const style = song ? undefined : usePlumaVoiceStyle.getState()
+    const styled = !!style && styleChangesAudio(style)
+    let held: Float32Array[] = []
+    let heldRate = 0
     events.onmessage = event => {
-      if ('done' in event) { complete(); return }
+      if ('done' in event) {
+        if (styled && held.length && turnUsable(turn) && !packetError) {
+          try {
+            schedule(applyVoiceStyle(joinSamples(held), heldRate, style), heldRate)
+          } catch (cause) {
+            packetError = cause
+          }
+        }
+        held = []
+        complete()
+        return
+      }
       if (!turnUsable(turn) || packetError) return
       const { data, sampleRate } = event
       try {
         if (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 48000) throw new Error('El motor devolvió una frecuencia de audio incompatible.')
-        let samples = decodePlumaCloneAudio(data)
-        let offset = 0
-        if (!heardAudio) {
-          const first = samples.findIndex(sample => Math.abs(sample) >= 0.005)
-          if (first < 0) return
-          const trim = Math.max(0, first - Math.round(sampleRate * 0.02))
-          samples = samples.subarray(trim)
-          offset = (first - trim) / sampleRate
+        const samples = decodePlumaCloneAudio(data)
+        if (styled) {
+          heldRate = sampleRate
+          held.push(samples)
+          return
         }
-        if (!samples.length) return
-        const startAt = Math.max(nextPlayback, audio.currentTime + 0.012)
-        // A song arrives whole and is queued at once; a spoken answer streams.
-        if (startAt - audio.currentTime > (song ? 240 : 120)) throw new Error('La respuesta supera la cola de audio. Pide una respuesta más breve.')
-        const buffer = audio.createBuffer(1, samples.length, sampleRate)
-        buffer.getChannelData(0).set(samples)
-        const source = audio.createBufferSource()
-        source.buffer = buffer
-        source.connect(output)
-        source.onended = () => {
-          if (!turnUsable(turn)) return
-          playing.delete(source)
-          source.disconnect()
-          if (!playing.size && !turn.completedHistory && phase === playingPhase) setPhase(pendingPhase)
-          resumeListening(turn)
-        }
-        source.start(startAt)
-        playing.add(source)
-        // A book can last hours: its audio is never kept for the chat history.
-        const reading = turn.reading
-        if (reading) {
-          if (!heardAudio) reading.marks.push({ index: reading.pending, startAt })
-        } else {
-          const played = song ? turn.record.song : turn.record.voice
-          played.push({ samples, sampleRate, startAt })
-          if (!heardAudio && 'text' in request) turn.record.spoken.push({ text: request.text, startAt })
-        }
-        const forgotten = Math.round((audio.currentTime - 5) * echoRate)
-        while (echoFrames[0] && echoFrames[0].start + echoFrames[0].samples.length < forgotten) echoFrames.shift()
-        echoFrames.push({ start: Math.round(startAt * echoRate), samples: reducedPcm(samples, sampleRate) })
-        nextPlayback = startAt + buffer.duration
-        if (!heardAudio) {
-          heardAudio = true
-          if (!timing.heardAudio) {
-            timing.heardAudio = true
-            const audibleAt = performance.now() + (startAt - audio.currentTime + offset) * 1000
-            onFirstAudio({ fromSpeechMs: Math.round(audibleAt - timing.voicedAt), fromCommitMs: Math.round(audibleAt - timing.committedAt) })
-          }
-        }
-        if (phase !== playingPhase) setPhase(playingPhase)
+        schedule(samples, sampleRate)
       } catch (cause) {
         packetError = cause
       }
+    }
+    function schedule(decoded: Float32Array, sampleRate: number) {
+      if (!audio || !output) return
+      let samples = decoded
+      let offset = 0
+      if (!heardAudio) {
+        const first = samples.findIndex(sample => Math.abs(sample) >= 0.005)
+        if (first < 0) return
+        const trim = Math.max(0, first - Math.round(sampleRate * 0.02))
+        samples = samples.subarray(trim)
+        offset = (first - trim) / sampleRate
+      }
+      if (!samples.length) return
+      const startAt = Math.max(nextPlayback, audio.currentTime + 0.012)
+      // A song arrives whole and is queued at once; a spoken answer streams.
+      if (startAt - audio.currentTime > (song ? 240 : 120)) throw new Error('La respuesta supera la cola de audio. Pide una respuesta más breve.')
+      const buffer = audio.createBuffer(1, samples.length, sampleRate)
+      buffer.getChannelData(0).set(samples)
+      const source = audio.createBufferSource()
+      source.buffer = buffer
+      source.connect(output)
+      source.onended = () => {
+        if (!turnUsable(turn)) return
+        playing.delete(source)
+        source.disconnect()
+        if (!playing.size && !turn.completedHistory && phase === playingPhase) setPhase(pendingPhase)
+        resumeListening(turn)
+      }
+      source.start(startAt)
+      playing.add(source)
+      // A book can last hours: its audio is never kept for the chat history.
+      const reading = turn.reading
+      if (reading) {
+        if (!heardAudio) reading.marks.push({ index: reading.pending, startAt })
+      } else {
+        const played = song ? turn.record.song : turn.record.voice
+        played.push({ samples, sampleRate, startAt })
+        if (!heardAudio && 'text' in request) turn.record.spoken.push({ text: request.text, startAt })
+      }
+      const forgotten = Math.round((audio.currentTime - 5) * echoRate)
+      while (echoFrames[0] && echoFrames[0].start + echoFrames[0].samples.length < forgotten) echoFrames.shift()
+      echoFrames.push({ start: Math.round(startAt * echoRate), samples: reducedPcm(samples, sampleRate) })
+      nextPlayback = startAt + buffer.duration
+      if (!heardAudio) {
+        heardAudio = true
+        if (!timing.heardAudio) {
+          timing.heardAudio = true
+          const audibleAt = performance.now() + (startAt - audio.currentTime + offset) * 1000
+          onFirstAudio({ fromSpeechMs: Math.round(audibleAt - timing.voicedAt), fromCommitMs: Math.round(audibleAt - timing.committedAt) })
+        }
+      }
+      if (phase !== playingPhase) setPhase(playingPhase)
     }
     turn.abort.signal.addEventListener('abort', cancelWait, { once: true })
     try {
@@ -779,6 +838,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     bargeFrames.push(frame)
     if (bargeVoiced < (singing ? singingBargeVoiceMs : bargeVoiceMs)) return
     const onset = bargeFrames
+    recentFrames = []
     clearBarge()
     clearTimeout(timeout)
     abortTurn(turn, audioTime)
@@ -815,12 +875,23 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
         const echo = (gain?.gain.value ?? 0) > 0 && isPlaybackEcho(frame.samples, sampleRate, currentTime, echoFrames)
         if (phase === 'listening') {
           if (!echo) listen(frame)
-        } else considerInterruption(frame, sampleRate, currentTime, echo)
+        } else {
+          if (!echo) keepRecent(frame, sampleRate)
+          considerInterruption(frame, sampleRate, currentTime, echo)
+        }
       } catch (cause) {
         fail(describePlumaAudioError(cause))
       }
     }
-    mic.connect(processor)
+    // Below 80 Hz there is only rumble (fans, desk knocks, handling noise): it
+    // takes level from the voice and never carries a word.
+    const rumble = context.createBiquadFilter?.()
+    if (rumble) {
+      rumble.type = 'highpass'
+      rumble.frequency.value = 80
+      mic.connect(rumble)
+      rumble.connect(processor)
+    } else mic.connect(processor)
     processor.connect(context.destination)
     clearTimeout(timeout)
     setPhase('listening')
@@ -885,6 +956,17 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
   timeout = setTimeout(() => fail('Gemma y Qwen no terminaron de iniciar. Revisa el estado de los modelos y vuelve a intentar.'), 240000)
   void open().catch(cause => fail(describePlumaAudioError(cause)))
   return { stop, finishTurn, read, stopReading, sendText, setMuted: (muted: boolean) => { if (gain) gain.gain.value = muted ? 0 : volume } }
+}
+
+/** One buffer from the parts of a sentence that arrived one after another. */
+function joinSamples(parts: Float32Array[]) {
+  const joined = new Float32Array(parts.reduce((total, part) => total + part.length, 0))
+  let offset = 0
+  for (const part of parts) {
+    joined.set(part, offset)
+    offset += part.length
+  }
+  return joined
 }
 
 export function decodePlumaCloneAudio(data: string) {

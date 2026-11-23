@@ -55,9 +55,12 @@ export const loreVoiceGroups = (profile: Pick<CharacterProfile, 'id' | 'name' | 
 /** `voces/<carpeta>/hablar` or `…/cantar`. */
 export const loreVoiceFolder = (group: string, singing = false): LoreFolder => `voces/${group}/${singing ? 'cantar' : 'hablar'}`
 
+/** `owner`: another assistant than Pluma, whose own choice of Lore voice is remembered apart. */
+const withOwner = <T extends Record<string, unknown>>(args: T, owner?: string) => owner ? { ...args, owner } : args
+
 /** The voices of `groups` (its own folder, its gender's, then the old flat one), or every folder's. */
-export const loreVoices = (singing = false, groups?: LoreVoiceGroups) =>
-  invoke<LoreVoices>('lore_voices', groups ? { singing, groups: [groups.own, groups.gender, ''] } : { singing })
+export const loreVoices = (singing = false, groups?: LoreVoiceGroups, owner?: string) =>
+  invoke<LoreVoices>('lore_voices', withOwner(groups ? { singing, groups: [groups.own, groups.gender, ''] } : { singing }, owner))
 const directAudio = /\.(?:wav|mp3)$/i
 
 function bytesOf(base64: string): ArrayBuffer {
@@ -72,13 +75,13 @@ function bytesOf(base64: string): ArrayBuffer {
  * with. A WAV or MP3 goes as it is; another format (an M4A or OGG voice note)
  * is turned into a WAV here first, and the file in Lore is left untouched.
  */
-export async function applyLoreVoice(voice: Pick<LoreVoice, 'group' | 'file'>, singing = false, convert: (audio: ArrayBuffer, unreadable: string) => Promise<string> = audioToVoiceSample): Promise<PlumaReference> {
+export async function applyLoreVoice(voice: Pick<LoreVoice, 'group' | 'file'>, singing = false, convert: (audio: ArrayBuffer, unreadable: string) => Promise<string> = audioToVoiceSample, owner?: string): Promise<PlumaReference> {
   const { file } = voice
   const where = voice.group ? { singing, group: voice.group, file } : { singing, file }
-  if (directAudio.test(file)) return invoke<PlumaReference>('lore_voice_use', where)
+  if (directAudio.test(file)) return invoke<PlumaReference>('lore_voice_use', withOwner(where, owner))
   const original = await invoke<string>('lore_voice_read', where)
   const audio = await convert(bytesOf(original), `No se pudo leer «${file}». Guárdalo como WAV, MP3, M4A u OGG.`)
-  return invoke<PlumaReference>('lore_voice_use', { ...where, audio })
+  return invoke<PlumaReference>('lore_voice_use', withOwner({ ...where, audio }, owner))
 }
 export const openLoreFolder = (folder: LoreFolder) => invoke<void>('lore_open', { folder })
 /**
@@ -86,8 +89,8 @@ export const openLoreFolder = (folder: LoreFolder) => invoke<void>('lore_open', 
  * in the assistant's own folder (`group`) and never over another one, and
  * makes it the sample she speaks or sings with.
  */
-export const saveLoreVoice = (name: string, wav: string, singing = false, group?: string) =>
-  invoke<PlumaReference>('lore_voice_save', group ? { singing, group, name, audio: wav } : { singing, name, audio: wav })
+export const saveLoreVoice = (name: string, wav: string, singing = false, group?: string, owner?: string) =>
+  invoke<PlumaReference>('lore_voice_save', withOwner(group ? { singing, group, name, audio: wav } : { singing, name, audio: wav }, owner))
 
 /** The songs saved in `Lore/canciones`; none outside the desktop app or when Lore is missing. */
 export async function loadLoreSongs(): Promise<LoreSong[]> {

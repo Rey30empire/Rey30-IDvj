@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPlumaPcmEncoder, createPlumaTurnDetector, decodePlumaPcm, encodePlumaDictation, encodePlumaWav, isVoiceLike, voicePeriodicity } from '../pluma-audio'
+import { createPlumaPcmEncoder, createPlumaTurnDetector, decodePlumaPcm, encodePlumaDictation, encodePlumaWav, isVoiceLike, plumaLowPass, voicePeriodicity } from '../pluma-audio'
 
 describe('grabación en WAV', () => {
   const view = (base64: string) => {
@@ -48,7 +48,8 @@ describe('audio de la llamada de Pluma', () => {
     for (let index = 0; index < 50; index++) expect(detector.push(silence).chunks).toHaveLength(0)
     expect(detector.push(speech).chunks).toHaveLength(0)
     expect(detector.push(speech).chunks).toHaveLength(0)
-    expect(detector.push(speech).chunks).toEqual([silence, speech, speech, speech])
+    // 400 ms of what came before the voice is kept: the soft start of the word.
+    expect(detector.push(speech).chunks).toEqual([...Array(7).fill(silence), speech, speech, speech])
     for (let index = 0; index < 11; index++) expect(detector.push(silence).ended).toBe(false)
     expect(detector.push(silence).ended).toBe(true)
     detector.reset()
@@ -74,8 +75,51 @@ describe('audio de la llamada de Pluma', () => {
     const chunks = [new Float32Array(480).fill(-0.5), new Float32Array(480).fill(0.5)]
     const samples = decodePlumaPcm(encodePlumaDictation(chunks, 48000))
     expect(samples).toHaveLength(320)
-    expect(samples[0]).toBe(-0.5)
-    expect(samples[160]).toBe(0.5)
+    // The low-pass settles within a few samples and keeps the level.
+    expect(samples[100]).toBeCloseTo(-0.5, 3)
+    expect(samples[300]).toBeCloseTo(0.5, 3)
+  })
+
+  it('filtra el silbido agudo antes de bajar a 16 kHz para que no ensucie la voz', () => {
+    const tone = (hz: number) => Float32Array.from({ length: 48000 }, (_, index) => 0.5 * Math.sin(2 * Math.PI * hz * index / 48000))
+    const rms = (samples: Float32Array) => Math.sqrt(samples.slice(200).reduce((sum, value) => sum + value * value, 0) / (samples.length - 200))
+    const voiceBand = decodePlumaPcm(createPlumaPcmEncoder(48000, 16000)(tone(1000)))
+    const hiss = decodePlumaPcm(createPlumaPcmEncoder(48000, 16000)(tone(10000)))
+    expect(rms(voiceBand)).toBeCloseTo(0.5 / Math.SQRT2, 2)
+    // A 10 kHz hiss would come back at 6 kHz at full level; now it is nearly gone.
+    expect(rms(hiss)).toBeLessThan(0.02)
+    expect(Array.from(plumaLowPass(16000, 16000))).toEqual([1])
+  })
+
+  it('un «sí» corto abre el turno y conserva su consonante inicial', () => {
+    const detector = createPlumaTurnDetector(48000)
+    const silence = new Float32Array(2048)
+    for (let index = 0; index < 20; index++) detector.push(silence)
+    const hiss = breath(2048, 0.05, 3)
+    expect(detector.push(hiss).chunks).toHaveLength(0)
+    expect(detector.push(voice(2048)).chunks).toHaveLength(0)
+    const opened = detector.push(voice(2048, 48000, 0.1, 2048)).chunks
+    expect(opened).toContain(hiss)
+    expect(opened.reduce((ms, chunk) => ms + chunk.length / 48, 0)).toBeGreaterThanOrEqual(400)
+  })
+
+  it('un sonido sin voz en mitad de la palabra no borra lo ya oído', () => {
+    const detector = createPlumaTurnDetector(48000)
+    const start = voice(1920)
+    detector.push(start)
+    detector.push(breath(1920, 0.05, 9))
+    detector.push(voice(1920, 48000, 0.1, 1920))
+    const opened = detector.push(voice(1920, 48000, 0.1, 3840)).chunks
+    expect(detector.started).toBe(true)
+    expect(opened[0]).toBe(start)
+  })
+
+  it('en una frase larga espera una pausa más larga antes de cortarla', () => {
+    const detector = createPlumaTurnDetector(48000)
+    const silence = new Float32Array(1920)
+    for (let index = 0; index < 30; index++) detector.push(voice(1920, 48000, 0.1, index * 1920))
+    for (let index = 0; index < 18; index++) expect(detector.push(silence).ended).toBe(false)
+    expect(detector.push(silence).ended).toBe(true)
   })
 
   it('distingue una voz de la respiración y el ruido aunque suenen igual de fuerte', () => {

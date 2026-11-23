@@ -364,6 +364,8 @@ pub fn run() {
         core::system::pluma_clone::pluma_clone_reference_status,
         core::system::pluma_clone::pluma_clone_reference_choose,
         core::system::pluma_clone::pluma_clone_reference_clear,
+        core::system::pluma_clone::assistant_voice_speak,
+        core::system::pluma_clone::assistant_voice_cancel,
         core::system::lore::lore_voices,
         core::system::lore::lore_voice_use,
         core::system::lore::lore_voice_save,

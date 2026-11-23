@@ -203,12 +203,12 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     const voiceSample = within(screen.getByTestId('pluma-clone-reference'))
     fireEvent.click(voiceSample.getByRole('button', { name: 'Elegir WAV o MP3' }))
     expect(await screen.findByText('Muestra WAV guardada en este equipo.')).toBeVisible()
-    expect(clone.choose).toHaveBeenLastCalledWith(false)
+    expect(clone.choose).toHaveBeenLastCalledWith(false, undefined)
     // The singing sample is separate and optional.
     const songSample = within(screen.getByTestId('pluma-song-reference'))
     fireEvent.click(songSample.getByRole('button', { name: 'Elegir WAV o MP3' }))
     expect(await songSample.findByText('Muestra WAV de canto guardada. Canta con este timbre.')).toBeVisible()
-    expect(clone.choose).toHaveBeenLastCalledWith(true)
+    expect(clone.choose).toHaveBeenLastCalledWith(true, undefined)
     fireEvent.click(screen.getByTestId('voice-orb-toggle'))
     await waitFor(() => expect(clone.start).toHaveBeenCalledTimes(1))
     expect(h.listen).not.toHaveBeenCalled()
@@ -218,7 +218,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     fireEvent.click(screen.getByRole('button', { name: 'Pausar voz' }))
     expect(live.stop).toHaveBeenCalled()
   })
-  it('ofrece LFM3 y voces locales reales, y abre el modo elegido solo al iniciarlo', async () => {
+  it('ofrece LFM3 y la voz clonada, nunca las voces robóticas, y abre el modo elegido solo al iniciarlo', async () => {
     h.activeId = 'literatura'
     useAvatarVoiceSession.getState().openFor(h.activeId, h.threadId!)
     const voice = { id: 'espeak:es-419+f3', name: 'Voz local de prueba', language: 'es-419', provider: 'eSpeak', gender: 'female' }
@@ -235,9 +235,11 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     fireEvent.click(screen.getByTestId('voice-orb-toggle'))
     expect(live.stop).toHaveBeenCalled()
     if (!screen.queryByRole('combobox', { name: 'Voz de Pluma' })) fireEvent.click(screen.getByTestId('voice-orb-options'))
-    fireEvent.change(screen.getByRole('combobox', { name: 'Voz de Pluma' }), { target: { value: voice.id } })
-    await waitFor(() => expect(useCharacterStore.getState().profiles.find(profile => profile.id === h.activeId)?.voice).toMatchObject({ plumaDirect: false, voiceURI: voice.id }))
-    expect(screen.getByTestId('voice-orb-toggle')).toBeDisabled()
+    const engines = within(screen.getByRole('combobox', { name: 'Voz de Pluma' })).getAllByRole('option').map(option => option.textContent)
+    expect(engines).toEqual(['Gemma 4 · voz clonada', 'LFM3 · voz directa'])
+    expect(screen.queryByRole('option', { name: /Voz local de prueba/ })).toBeNull()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Voz de Pluma' }), { target: { value: 'pluma:gemma-qwen' } })
+    await waitFor(() => expect(useCharacterStore.getState().profiles.find(profile => profile.id === h.activeId)?.voice).toMatchObject({ plumaDirect: false, plumaClone: true }))
     expect(live.start).toHaveBeenCalledTimes(1)
   })
   it('mounts an idle orb without microphone, synthesis or text input and starts only after explicit action', async () => {

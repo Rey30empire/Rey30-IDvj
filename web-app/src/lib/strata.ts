@@ -62,6 +62,82 @@ export function strataGpu(engines: string[]): 'amd' | 'nvidia' | 'both' | 'none'
   return amd && nvidia ? 'both' : amd ? 'amd' : nvidia ? 'nvidia' : 'none'
 }
 
+/** Adds or refreshes the `strata` provider with the running server's address, key and model. */
+export async function registerStrataProvider(running: StrataRunning) {
+  const { useModelProvider } = await import('@/hooks/useModelProvider')
+  const store = useModelProvider.getState()
+  const existing = store.getProviderByName(STRATA_PROVIDER)
+  const next = strataProvider(running, existing)
+  if (existing) store.updateProvider(STRATA_PROVIDER, next)
+  else store.addProvider(next)
+}
+
+/**
+ * Lists a Strata model in the `strata` provider even while Strata is stopped,
+ * so an assistant bound to it can be chosen and the picker shows it; sending
+ * a message starts Strata with it.
+ */
+export async function listStrataModel(model: string) {
+  const { useModelProvider } = await import('@/hooks/useModelProvider')
+  const store = useModelProvider.getState()
+  const existing = store.getProviderByName(STRATA_PROVIDER)
+  if (existing?.models.some(item => item.id === model)) return
+  const entry: Model = { id: model, name: model, capabilities: ['completion', 'tools'] }
+  if (existing) store.updateProvider(STRATA_PROVIDER, { ...existing, models: [...existing.models, entry] })
+  else store.addProvider({ provider: STRATA_PROVIDER, active: true, base_url: '', api_key: '', settings: cloneDeep(openAIProviderSettings) as ProviderSetting[], models: [entry] })
+}
+
+const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+const loadLimitMs = 15 * 60_000
+
+type ServingOptions = {
+  signal?: AbortSignal
+  load?: typeof strataStatus
+  start?: typeof startStrata
+  stop?: typeof stopStrata
+  register?: (running: StrataRunning) => unknown
+  wait?: (ms: number) => Promise<void>
+}
+
+/**
+ * Makes Strata serve `model` for an assistant bound to it: started from its
+ * setup when Strata is stopped, switched when it serves another model, and
+ * waited for until the model answers. Registers the `strata` provider with the
+ * new address and key so the message can go out.
+ */
+export async function ensureStrataServing(model: string, options: ServingOptions = {}): Promise<StrataRunning> {
+  const load = options.load ?? strataStatus
+  const wait = options.wait ?? pause
+  const aborted = () => { if (options.signal?.aborted) throw new DOMException('Se canceló el envío.', 'AbortError') }
+  let status = await load()
+  if (!status.installed) throw new Error('Strata no está instalado en este equipo, y este asistente usa un modelo de Strata. Elige otro modelo en su configuración.')
+  let running = status.running
+  if (running && running.model !== model) {
+    await (options.stop ?? stopStrata)()
+    running = null
+    status = { ...status, running: null, ready: false }
+  }
+  if (!running) {
+    const setup = status.setups.find(item => item.model === model)
+    if (!setup) throw new Error(`Strata ya no tiene preparado ${model}. Elige otro modelo para este asistente.`)
+    aborted()
+    running = await (options.start ?? startStrata)(setup.file)
+    status = { ...status, running, ready: false }
+  }
+  rememberAppStrata(running)
+  await (options.register ?? registerStrataProvider)(running)
+  const deadline = Date.now() + loadLimitMs
+  while (!status.ready) {
+    aborted()
+    if (Date.now() > deadline) throw new Error(`Strata tardó demasiado en cargar ${model}.`)
+    await wait(2000)
+    status = await load()
+    if (!status.running) throw new Error(status.stopped ?? `Strata se detuvo mientras cargaba ${model}.`)
+  }
+  rememberAppStrata(status.running)
+  return status.running ?? running
+}
+
 /** The provider entry for a running server: its address, its key and the one model it serves. */
 export function strataProvider(running: StrataRunning, existing?: ProviderObject): ProviderObject {
   const settings = cloneDeep(existing?.settings?.length ? existing.settings : openAIProviderSettings) as ProviderSetting[]

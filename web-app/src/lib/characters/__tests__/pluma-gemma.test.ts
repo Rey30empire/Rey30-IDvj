@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { answerWithGemma, plumaChatHistory, plumaSongStyle, songLyrics, withSpokenText, type GemmaMessage } from '../pluma-gemma'
+import { answerWithGemma, isPlumaAudioMisunderstanding, plumaChatHistory, plumaMicrophoneMessage, plumaSongStyle, songLyrics, withSpokenText, type GemmaMessage } from '../pluma-gemma'
 
 const fixtures = vi.hoisted(() => ({ invoke: vi.fn(), search: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ Channel: class { onmessage: (event: unknown) => void = () => {} } }))
@@ -384,6 +384,23 @@ describe('conversación local de Gemma para Pluma', () => {
     })
     await expect(answerWithGemma({ audioWav, sessionId, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
     expect(fixtures.search).not.toHaveBeenCalled()
+  })
+})
+
+describe('cuándo Pluma no te oyó', () => {
+  it('pedir que repitas sin más es no haberte oído', () => {
+    for (const text of ['¿Puedes repetirlo?', 'Perdona, ¿podrías repetírmelo, por favor?', 'No te entendí bien.', 'Lo siento, no te oí.', '¿Puedes repetir lo que dijiste?'])
+      expect(isPlumaAudioMisunderstanding(text.normalize('NFC')), text).toBe(true)
+  })
+
+  it('preguntar por un dato concreto es una respuesta, no un fallo del micrófono', () => {
+    for (const text of ['¿Puedes repetir el título del libro?', '¿Podrías repetir la cifra exacta?', 'Hola, ¿qué tal?', 'Sí, claro.'])
+      expect(isPlumaAudioMisunderstanding(text), text).toBe(false)
+  })
+
+  it('avisa a Gemma de que el audio es español y puede ser una sola palabra', () => {
+    const message = plumaMicrophoneMessage(audioWav)
+    expect(message.content[0]).toMatchObject({ type: 'text', text: expect.stringMatching(/en español.*una sola palabra/) })
   })
 })
 

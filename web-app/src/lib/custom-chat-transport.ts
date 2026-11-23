@@ -23,6 +23,7 @@ import {
 import { useServiceStore } from '@/hooks/useServiceHub'
 import { useToolAvailable } from '@/hooks/useToolAvailable'
 import { ModelFactory } from './model-factory'
+import { ensureStrataServing, STRATA_PROVIDER } from './strata'
 import { buildsOwnToolImageRequest } from './providerCaps'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAssistant } from '@/hooks/useAssistant'
@@ -1474,6 +1475,17 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
       await characterState.applyModeInstruction(turnUserText, characterId)
     }
     if (turnCharacter) {
+      // A Strata model runs only while Strata serves it: started (or switched)
+      // here, the message waits until it answers.
+      const strataModel = turnCharacter.modelBinding?.providerId === STRATA_PROVIDER ? turnCharacter.modelBinding.modelId : undefined
+      if (strataModel) {
+        this.setLoadingModel(threadId, true)
+        try {
+          await ensureStrataServing(strataModel, { signal: options.abortSignal })
+        } finally {
+          this.setLoadingModel(threadId, false)
+        }
+      }
       const assignedModel = characterBindingModel(turnCharacter.modelBinding, useModelProvider.getState().providers)
       const binding = { providerId: assignedModel.provider, modelId: assignedModel.id }
       const boundProvider = useModelProvider.getState().getProviderByName(binding.providerId)

@@ -1,7 +1,13 @@
-const minVoiceMs = 120
+// Two capture frames of voice: enough to tell a word from a click, short enough for a bare «sí».
+const minVoiceMs = 85
 // Long enough for most commas, short enough that the reply starts right away.
 const endSilenceMs = 450
-const preRollMs = 140
+// Once a phrase runs past a second, a pause to think is longer than a comma.
+const longTurnMs = 1000
+const longTurnSilenceMs = 750
+// The audio before the voice was recognized: the soft start of «hola» or the
+// «s» of «sí» comes before the first periodic frame.
+const preRollMs = 400
 const maxTurnMs = 20000
 
 const pitchRate = 8000
@@ -78,7 +84,9 @@ export function createPlumaTurnDetector(rate: number) {
       // a breath between phrases) keeps it going until the silence.
       const voiced = loud && (started || isVoiceLike(samples, rate))
       if (!started && !loud && voiceMs === 0) noise = Math.min(0.012, noise * 0.9 + rms * 0.1)
-      voiceMs = voiced ? voiceMs + ms : started ? voiceMs : Math.max(0, voiceMs - ms)
+      // One frame without voice (an «l», a soft consonant) only half undoes the
+      // voice heard so far, so it does not throw away the start of the word.
+      voiceMs = voiced ? voiceMs + ms : started ? voiceMs : Math.max(0, voiceMs - ms / 2)
       silenceMs = voiced ? 0 : silenceMs + ms
       let chunks: Float32Array[] = []
       if (started) {
@@ -97,9 +105,10 @@ export function createPlumaTurnDetector(rate: number) {
           preRoll = []
         }
       }
+      const silenceNeeded = turnMs - silenceMs > longTurnMs ? longTurnSilenceMs : endSilenceMs
       return {
         chunks,
-        ended: started && (silenceMs >= endSilenceMs || turnMs >= maxTurnMs),
+        ended: started && (silenceMs >= silenceNeeded || turnMs >= maxTurnMs),
         level: Math.min(1, rms * 8),
         voiced,
       }
@@ -107,26 +116,59 @@ export function createPlumaTurnDetector(rate: number) {
   }
 }
 
+const lowPassLength = 31
+
+/**
+ * A windowed-sinc low-pass at 90 % of the target's Nyquist frequency (7.2 kHz
+ * for 16 kHz), unity gain. Without it, going from 48 kHz to 16 kHz keeps every
+ * third sample and the hiss of «s», «z» and «ch» folds back into the voice.
+ */
+export function plumaLowPass(fromRate: number, toRate: number) {
+  if (fromRate <= toRate) return Float32Array.of(1)
+  const cutoff = 0.45 * toRate / fromRate
+  const middle = (lowPassLength - 1) / 2
+  const taps = Float32Array.from({ length: lowPassLength }, (_, index) => {
+    const x = index - middle
+    const sinc = x === 0 ? 2 * cutoff : Math.sin(2 * Math.PI * cutoff * x) / (Math.PI * x)
+    return sinc * (0.54 - 0.46 * Math.cos(2 * Math.PI * index / (lowPassLength - 1)))
+  })
+  const sum = taps.reduce((total, tap) => total + tap, 0)
+  return taps.map(tap => tap / sum)
+}
+
 export function createPlumaPcmEncoder(fromRate: number, toRate: number) {
   const ratio = fromRate / toRate
+  const taps = plumaLowPass(fromRate, toRate)
+  // The last input samples, so the filter runs across packet boundaries.
+  let history = new Float32Array(taps.length - 1)
   let next = 0
   let previous = 0
 
   return (input: Float32Array): string => {
+    const joined = new Float32Array(history.length + input.length)
+    joined.set(history)
+    joined.set(input, history.length)
+    const filtered = new Float32Array(input.length)
+    for (let index = 0; index < input.length; index++) {
+      let sum = 0
+      for (let tap = 0; tap < taps.length; tap++) sum += taps[tap] * joined[index + taps.length - 1 - tap]
+      filtered[index] = sum
+    }
+    history = joined.slice(joined.length - history.length)
     const pcm = new Uint8Array((Math.ceil(input.length / ratio) + 1) * 2)
     const view = new DataView(pcm.buffer)
     let size = 0
-    for (; next <= input.length - 1; next += ratio) {
+    for (; next <= filtered.length - 1; next += ratio) {
       const left = Math.floor(next)
       const fraction = next - left
-      const a = left < 0 ? previous : input[left]
-      const b = input[left + 1] ?? a
+      const a = left < 0 ? previous : filtered[left]
+      const b = filtered[left + 1] ?? a
       const value = Math.max(-1, Math.min(1, a + fraction * (b - a)))
       view.setInt16(size, Math.round(value * (value < 0 ? 32768 : 32767)), true)
       size += 2
     }
-    next -= input.length
-    previous = input[input.length - 1]
+    next -= filtered.length
+    previous = filtered[filtered.length - 1]
     return btoa(String.fromCharCode(...pcm.subarray(0, size)))
   }
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
 import { createDefaultCharacterData } from '@/lib/characters/profiles'
-const h = vi.hoisted(() => ({ saved: null as string | null, activeId: 'kairo' as string | undefined, stop: vi.fn(), speak: vi.fn(), catalog: vi.fn(), selectModel: vi.fn(), setPrompt: vi.fn(), projectId: 'project-character-fixture', messages: [{ id: 'response-qa', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta sintética de interfaz.' }] }] }))
+const h = vi.hoisted(() => ({ cloned: false, saved: null as string | null, activeId: 'kairo' as string | undefined, stop: vi.fn(), speak: vi.fn(), catalog: vi.fn(), selectModel: vi.fn(), setPrompt: vi.fn(), projectId: 'project-character-fixture', messages: [{ id: 'response-qa', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta sintética de interfaz.' }] }] }))
 vi.mock('@/lib/characters/persistence', async original => ({ ...(await original<typeof import('@/lib/characters/persistence')>()), characterStorage: { read: async () => h.saved, write: async (value: string) => { h.saved = value } } }))
 vi.mock('../VoiceOrbDock', () => ({ default: () => null }))
 vi.mock('@/hooks/useAvailableAssistants', async () => {
@@ -13,7 +13,7 @@ vi.mock('@/hooks/useAvailableAssistants', async () => {
 vi.mock('@/lib/characters/audio', async () => {
   const { create } = await import('zustand')
   const useCharacterAudio = create(() => ({ status: 'idle', amplitude: 0, error: null, voices: [], dictation: false, autoplayCancelled: false, loadCatalog: h.catalog, speak: h.speak, stop: () => { h.stop(); useCharacterAudio.setState({ status: 'idle', autoplayCancelled: true }) }, startDictation: vi.fn(), finishDictation: vi.fn() }))
-  return { useCharacterAudio, defaultVoiceId: () => 'espeak:es+m1' }
+  return { useCharacterAudio, defaultVoiceId: () => 'espeak:es+m1', clonedVoices: () => h.cloned }
 })
 vi.mock('@/hooks/useThreads', () => ({ useThreads: (select: (state: unknown) => unknown) => select({ currentThreadId: 'thread-qa', threads: { 'thread-qa': { metadata: { project: { id: h.projectId } } } } }) }))
 vi.mock('@/hooks/useModelProvider', () => ({ useModelProvider: Object.assign((select: (state: unknown) => unknown) => select({ providers: [{ provider: 'llamacpp', active: true, models: [{ id: 'small', name: 'Modelo QA' }, { id: 'embedding-qa', capabilities: ['embeddings'] }] }, { provider: 'off', active: false, models: [{ id: 'inactive' }] }] }), { getState: () => ({ selectModelProvider: h.selectModel }) }) }))
@@ -70,6 +70,18 @@ describe('editor sin selección implícita', () => {
   })
   it('preserves unsaved personality when clearing memory', async () => {
     await useCharacterStore.getState().setIndividualMemory('kairo', { enabled: true, notes: 'Nota QA.' }); editor(); fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Kairo sin guardar' } }); fireEvent.click(screen.getByRole('button', { name: 'Memoria' })); fireEvent.click(screen.getByRole('button', { name: 'Borrar memoria individual' })); await waitFor(() => expect(useCharacterStore.getState().getMemory('kairo').individual.notes).toBe('')); fireEvent.click(screen.getByRole('button', { name: 'Personalidad y aspecto' })); expect(screen.getByLabelText('Nombre')).toHaveValue('Kairo sin guardar')
+  })
+  it('with cloned voices, an assistant gets its own samples and no robotic voices', async () => {
+    h.cloned = true
+    try {
+      useCharacterAudio.setState({ voices: [{ id: 'espeak:es-419+m1', name: 'Voz local QA', language: 'es', provider: 'espeak', gender: 'male' }] })
+      editor(); fireEvent.click(screen.getByRole('button', { name: 'Voz', exact: true }))
+      expect(screen.queryByRole('combobox', { name: 'Voz instalada' })).toBeNull()
+      expect(screen.queryByRole('option', { name: /Voz local QA/ })).toBeNull()
+      expect(screen.getByText(/habla con una voz clonada: elige una de Lore \(su carpeta y la de hombre\)/)).toBeInTheDocument()
+      expect(await screen.findByTestId('pluma-clone-samples')).toBeInTheDocument()
+      expect(screen.queryByTestId('pluma-song-reference')).toBeNull()
+    } finally { h.cloned = false }
   })
   it('pauses a live voice session before explicit sample playback and before stopping audio', async () => {
     useCharacterAudio.setState({ voices: [{ id: 'espeak:es-419+m1', name: 'Voz local QA', language: 'es', provider: 'espeak', gender: 'male' }] })

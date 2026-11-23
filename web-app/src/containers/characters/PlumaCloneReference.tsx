@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
 import { loreVoiceKey, loreVoiceGroups, type LoreVoice, type LoreVoiceGroups } from '@/lib/characters/lore'
+import { voiceOwner } from '@/lib/characters/pluma-clone'
 import type { CharacterProfile } from '@/lib/characters/types'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { PlumaVoiceRecorder } from './PlumaVoiceRecorder'
@@ -80,14 +81,18 @@ export function PlumaCloneReference({ controls, active, singing = false }: {
   </div>
 }
 
-/** Both samples, speaking and singing, as the assistant's voice settings show them. */
+/**
+ * The assistant's samples as its voice settings show them: the speaking one,
+ * and for Pluma (who sings) the singing one too. Each assistant keeps its own.
+ */
 export function PlumaCloneSamples({ profile }: { profile: Pick<CharacterProfile, 'id' | 'name' | 'baseId' | 'voice'> }) {
   const active = useAvatarVoiceSession(state => state.active)
   const groups = loreVoiceGroups(profile)
-  const speaking = usePlumaCloneReference(true, false, groups)
-  const singing = usePlumaCloneReference(true, true, groups)
+  const owner = voiceOwner(profile)
+  const speaking = usePlumaCloneReference(true, false, groups, owner)
+  const singing = usePlumaCloneReference(!owner, true, groups, owner)
   return <div data-testid="pluma-clone-samples" className="space-y-2">
-    <PlumaCloneReference controls={speaking} active={active} />
-    <PlumaCloneReference controls={singing} active={active} singing />
+    <PlumaCloneReference controls={speaking} active={active && !owner} />
+    {!owner && <PlumaCloneReference controls={singing} active={active} singing />}
   </div>
 }

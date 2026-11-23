@@ -6,8 +6,10 @@ import { useCharacterStore } from '@/stores/useCharacterStore'
 import { HOLOGRAM_PORTRAITS, usesHologram } from './HologramAvatar'
 import { AvatarPortraitEditor } from './AvatarPortraitEditor'
 import { PlumaCloneSamples } from './PlumaCloneReference'
+import { PlumaVoiceStyleControls } from './PlumaVoiceStyle'
 import { deleteAvatarImage } from '@/lib/characters/avatar-image'
-import { useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
+import { clonedVoices, useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
+import { loreVoiceGroups } from '@/lib/characters/lore'
 import { plumaDirectVoice, supportsPlumaCall, usesPlumaCall } from '@/lib/characters/pluma-realtime'
 import { plumaCloneVoice, plumaReferenceStatus, usesPlumaClone } from '@/lib/characters/pluma-clone'
 import { useThreads } from '@/hooks/useThreads'
@@ -22,6 +24,11 @@ import { clearPlumaMemory, forgetPlumaNote, loadPlumaMemory, MAX_PLUMA_NOTES } f
 import { loadPlumaProject, pickPlumaProjectFolder, savePlumaProject, type PlumaProject } from '@/lib/characters/pluma-project'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { isPlatformTauri } from '@/lib/platform/utils'
+import { STRATA_PROVIDER, strataStatus, type StrataSetup } from '@/lib/strata'
+import { PROVIDER_TIERS, modelTier } from '@/lib/providerTiers'
+import { predefinedProviders } from '@/constants/providers'
+import { providerHasRemoteApiKeys } from '@/lib/provider-api-keys'
 
 const fieldClass = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground'
 const statusLabels = { idle: 'Listo', preparing: 'Preparando audio local…', speaking: 'Hablando', listening: 'Escuchando · máximo 30 segundos', transcribing: 'Transcribiendo en el equipo…', error: 'Audio detenido' }
@@ -223,6 +230,19 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
   useEffect(() => { void useCharacterStore.getState().load().catch(() => {}) }, [])
   useEffect(() => { if (open || optionsOpen) void useCharacterAudio.getState().loadCatalog() }, [open, optionsOpen])
   useEffect(() => { if (open && characterId) setEditingId(characterId) }, [open, characterId])
+  // Strata's prepared models, so an assistant can be bound to one while Strata is stopped.
+  const [strataSetups, setStrataSetups] = useState<StrataSetup[]>([])
+  const [strataLoaded, setStrataLoaded] = useState(false)
+  useEffect(() => {
+    if (!open || !isPlatformTauri()) { setStrataLoaded(true); return }
+    let current = true
+    setStrataLoaded(false)
+    strataStatus()
+      .then(status => { if (current) setStrataSetups(status.installed ? status.setups : []) })
+      .catch(() => { if (current) setStrataSetups([]) })
+      .finally(() => { if (current) setStrataLoaded(true) })
+    return () => { current = false }
+  }, [open])
   // Until the saved characters load, the store holds the factory defaults: a
   // draft taken from them and then saved would overwrite the person's own
   // settings. So the draft is taken again once loading finishes.
@@ -254,13 +274,22 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
   const draftPluma = supportsPlumaCall(draft.id)
   const draftClone = usesPlumaClone(draft)
   const draftDirect = !draftClone && usesPlumaCall(draft)
+  const cloned = clonedVoices()
   const activeLocalCall = usesPlumaCall(activeProfile) || usesPlumaClone(activeProfile)
-  const availableModels = providers
-    .filter(provider => provider.active !== false && (!isLiterary || isLiteraryModelProvider(provider)))
-    .flatMap(provider => provider.models
-      .filter(model => !model.capabilities?.includes('embeddings'))
-      .map(model => ({ providerId: provider.provider, modelId: model.id, label: `${provider.provider} · ${model.name ?? model.id}` })))
-  const bindingAvailable = !draft.modelBinding || availableModels.some(model => model.providerId === draft.modelBinding?.providerId && model.modelId === draft.modelBinding.modelId)
+  // The models the picker offers, grouped the same way: local, free cloud, paid
+  // cloud. A cloud provider without its key is left out, and Strata's prepared
+  // models are listed even while it is stopped: a message to the assistant starts it.
+  const availableModels = [
+    ...providers
+      .filter(provider => provider.active !== false && provider.provider !== STRATA_PROVIDER && (!isLiterary || isLiteraryModelProvider(provider)))
+      .filter(provider => provider.provider === 'llamacpp' || providerHasRemoteApiKeys(provider) || (!predefinedProviders.some(item => item.provider.includes(provider.provider)) && provider.models.length > 0))
+      .flatMap(provider => provider.models
+        .filter(model => !model.capabilities?.includes('embeddings') && !model.embedding)
+        .map(model => ({ providerId: provider.provider, modelId: model.id, label: `${provider.provider} · ${model.name ?? model.id}`, tier: modelTier(provider, model.id) }))),
+    ...(isLiterary ? [] : strataSetups.map(setup => ({ providerId: STRATA_PROVIDER, modelId: setup.model, label: `${setup.model} · Strata (se inicia al usarlo)`, tier: 'local' as const }))),
+  ]
+  const strataBinding = draft.modelBinding?.providerId === STRATA_PROVIDER
+  const bindingAvailable = !draft.modelBinding || (strataBinding && !strataLoaded) || availableModels.some(model => model.providerId === draft.modelBinding?.providerId && model.modelId === draft.modelBinding.modelId)
   return <>
     {presentation !== 'editor' && <>
     {activeProfile && <Popover open={optionsOpen} onOpenChange={setOptionsOpen}>
@@ -333,7 +362,11 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <p className="text-xs text-muted-foreground">Ajustes de voz. 0 desactivado · 1 suave · 2 habitual · 3 intenso. En conversación hablada puedes decir «háblame en serio» o «vamos a trabajar».</p>
               <Field label="Apodo que prefieres"><Input value={draft.settings.userNickname} maxLength={40} onChange={(e) => setDraft({ ...draft, settings: { ...draft.settings, userNickname: e.target.value } })} /></Field>
               <Field label="Longitud habitual"><select className={fieldClass} value={draft.settings.responseLength} onChange={(e) => setDraft({ ...draft, settings: { ...draft.settings, responseLength: e.target.value as CharacterProfile['settings']['responseLength'] } })}><option value="breve">Breve</option><option value="equilibrada">Equilibrada</option><option value="detallada">Detallada</option></select></Field>
-              <Field label="Modelo del personaje"><select className={fieldClass} value={draft.modelBinding ? JSON.stringify(draft.modelBinding) : ''} onChange={(e) => setDraft({ ...draft, modelBinding: e.target.value ? JSON.parse(e.target.value) : null })}><option value="">Asignar automáticamente un modelo local pequeño</option>{!bindingAvailable && draft.modelBinding && <option value={JSON.stringify(draft.modelBinding)}>No disponible: {draft.modelBinding.providerId} · {draft.modelBinding.modelId}</option>}{availableModels.map(model => <option key={`${model.providerId}/${model.modelId}`} value={JSON.stringify({ providerId: model.providerId, modelId: model.modelId })}>{model.label}</option>)}</select></Field>
+              <Field label="Modelo del personaje"><select className={fieldClass} value={draft.modelBinding ? JSON.stringify(draft.modelBinding) : ''} onChange={(e) => setDraft({ ...draft, modelBinding: e.target.value ? JSON.parse(e.target.value) : null })}><option value="">Asignar automáticamente un modelo local pequeño</option>{!bindingAvailable && draft.modelBinding && <option value={JSON.stringify(draft.modelBinding)}>No disponible: {draft.modelBinding.providerId} · {draft.modelBinding.modelId}</option>}{strataBinding && !strataLoaded && draft.modelBinding && <option value={JSON.stringify(draft.modelBinding)}>{draft.modelBinding.modelId} · Strata</option>}{PROVIDER_TIERS.map(({ tier, title }) => {
+                const items = availableModels.filter(model => model.tier === tier)
+                return items.length ? <optgroup key={tier} label={title}>{items.map(model => <option key={`${model.providerId}/${model.modelId}`} value={JSON.stringify({ providerId: model.providerId, modelId: model.modelId })}>{model.label}</option>)}</optgroup> : null
+              })}</select></Field>
+              {strataBinding && <p className="text-xs text-muted-foreground">Al escribirle, el editor enciende Strata con este modelo y espera a que cargue. Si Strata sirve otro modelo, lo cambia.</p>}
               {!bindingAvailable && <p className="text-sm text-destructive" role="status">El modelo guardado no está disponible. Elige otro modelo para utilizar este asistente.</p>}
               {isLiterary && open && <LiteraryLibrarySettings />}
               {isLiterary && open && <PlumaProjectSettings />}
@@ -348,23 +381,27 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <details><summary className="cursor-pointer text-sm">Ejemplos de su estilo</summary>{draft.examples.map((example, index) => <div key={index} className="mt-2 text-xs"><p className="font-medium">{example.situation}</p><p>{example.response}</p></div>)}</details>
             </div>}
             {tab === 'voz' && <div className="space-y-3">
-              <p className="text-sm">{draftClone ? 'Qwen habla con una muestra de voz guardada en este equipo: elige una de Lore, graba la tuya o elige un archivo. Guarda la elección de voz clonada para usarla.' : 'Voz sintética local en español. Inicia la conversación hablada desde la esfera o Activar voz.'}</p>
-              <Field label={draftPluma ? 'Voz de Pluma' : 'Voz instalada'}><select className={fieldClass} value={draftClone ? plumaCloneVoice : draftDirect ? plumaDirectVoice : draft.voice.voiceURI ?? defaultVoiceId(draft)} onChange={(e) => {
+              <p className="text-sm">{draftPluma
+                ? draftClone ? 'Pluma habla con una muestra de voz: elige una de Lore, graba la tuya o elige un archivo. Guarda los cambios para usarla.' : 'LFM3 habla con su propia voz y contesta más rápido. Elige «Gemma 4 · voz clonada» para que hable con tu voz.'
+                : cloned ? `${draft.name} habla con una voz clonada: elige una de Lore (su carpeta y la de ${loreVoiceGroups(draft).gender === 'mujer' ? 'mujer' : 'hombre'}), graba la tuya o elige un archivo.` : 'Voz sintética local en español. Inicia la conversación hablada desde la esfera o Activar voz.'}</p>
+              {draftPluma && <Field label="Motor de voz de Pluma"><select className={fieldClass} value={draftClone ? plumaCloneVoice : plumaDirectVoice} onChange={(e) => {
                 const id = e.target.value
-                const selected = voices.find(voice => voice.id === id)
-                const voice = { ...draft.voice, ...(selected ? { voiceURI: id } : {}), ...(draftPluma ? { plumaDirect: id === plumaDirectVoice, plumaClone: id === plumaCloneVoice, lang: selected?.language ?? draft.voice.lang } : {}) }
-                setDraft({ ...draft, voice })
+                setDraft({ ...draft, voice: { ...draft.voice, plumaDirect: id === plumaDirectVoice, plumaClone: id === plumaCloneVoice } })
               }}>
-                {draftPluma && <><option value={plumaDirectVoice}>LFM3 · voz directa</option><option value={plumaCloneVoice}>Gemma 4 · voz clonada</option></>}
-                {voices.filter(voice => !draftPluma || /^es(?:-|$)/i.test(voice.language)).map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language} · {voice.provider}</option>)}
-              </select></Field>
-              {draftClone && open && <PlumaCloneSamples profile={draft} />}
-              {!voices.length && <p role="status" className="text-sm">No hay voces locales disponibles. El chat funciona sin audio.</p>}
-              {!voices.length && <Button type="button" size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Volver a consultar voces</Button>}
-              {(['rate', 'pitch', 'volume'] as const).map((key) => <Field key={key} label={`${({ rate: 'Velocidad', pitch: 'Tono', volume: 'Volumen' })[key]} · ${draft.voice[key].toFixed(2)}`}><input type="range" min={key === 'volume' ? 0 : 0.5} max={key === 'volume' ? 1 : key === 'rate' ? 1.8 : 2} step="any" disabled={key === 'pitch' && draft.voice.voiceURI?.startsWith('windows:')} value={draft.voice[key]} onChange={(e) => setDraft({ ...draft, voice: { ...draft.voice, [key]: Number(e.target.value) } })} /></Field>)}
-              <p className="text-xs text-muted-foreground">El tono independiente está disponible en eSpeak NG. La esfera cambia con el estado del audio y la amplitud de la voz. Su animación puede desactivarse sin silenciarla.</p>
-              <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={!voices.length || draftDirect || draftClone} onClick={() => { if (useAvatarVoiceSession.getState().open) useAvatarVoiceSession.getState().pause(); void useCharacterAudio.getState().speak(draft.examples[0]?.response ?? `Hola, soy ${draft.name}.`, draft) }}>Escuchar muestra</Button><Button type="button" variant="outline" onClick={() => { if (useAvatarVoiceSession.getState().open) useAvatarVoiceSession.getState().pause(); useCharacterAudio.getState().stop() }}>Detener audio</Button></div>
-              {(draftDirect || draftClone) && <p className="text-xs text-muted-foreground">Escucha esta voz en la llamada. Los ajustes de velocidad y tono se aplican a las voces instaladas.</p>}
+                <option value={plumaCloneVoice}>Gemma 4 · voz clonada</option>
+                <option value={plumaDirectVoice}>LFM3 · voz directa</option>
+              </select></Field>}
+              {!draftPluma && !cloned && <Field label="Voz instalada"><select className={fieldClass} value={draft.voice.voiceURI ?? defaultVoiceId(draft)} onChange={(e) => setDraft({ ...draft, voice: { ...draft.voice, voiceURI: e.target.value } })}>
+                {voices.map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language} · {voice.provider}</option>)}
+              </select></Field>}
+              {(draftPluma ? draftClone : cloned) && open && <PlumaCloneSamples profile={draft} />}
+              {!draftPluma && !cloned && !voices.length && <p role="status" className="text-sm">No hay voces locales disponibles. El chat funciona sin audio.</p>}
+              {draftPluma && draftClone && open && <PlumaVoiceStyleControls />}
+              {(cloned ? ['volume'] as const : ['rate', 'pitch', 'volume'] as const).map((key) => <Field key={key} label={`${({ rate: 'Velocidad', pitch: 'Tono', volume: 'Volumen' })[key]} · ${draft.voice[key].toFixed(2)}`}><input type="range" min={key === 'volume' ? 0 : 0.5} max={key === 'volume' ? 1 : key === 'rate' ? 1.8 : 2} step="any" disabled={key === 'pitch' && draft.voice.voiceURI?.startsWith('windows:')} value={draft.voice[key]} onChange={(e) => setDraft({ ...draft, voice: { ...draft.voice, [key]: Number(e.target.value) } })} /></Field>)}
+              <p className="text-xs text-muted-foreground">{cloned ? 'La esfera cambia con el estado del audio y la amplitud de la voz. Su animación puede desactivarse sin silenciarla.' : 'El tono independiente está disponible en eSpeak NG. La esfera cambia con el estado del audio y la amplitud de la voz. Su animación puede desactivarse sin silenciarla.'}</p>
+              <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={draftDirect || (!cloned && !voices.length)} onClick={() => { if (useAvatarVoiceSession.getState().open) useAvatarVoiceSession.getState().pause(); void useCharacterAudio.getState().speak(draft.examples[0]?.response ?? `Hola, soy ${draft.name}.`, draft) }}>Escuchar muestra</Button><Button type="button" variant="outline" onClick={() => { if (useAvatarVoiceSession.getState().open) useAvatarVoiceSession.getState().pause(); useCharacterAudio.getState().stop() }}>Detener audio</Button></div>
+              {draftDirect && <p className="text-xs text-muted-foreground">Escucha esta voz en la llamada.</p>}
+              {cloned && <p className="text-xs text-muted-foreground">«Escuchar muestra» la lee con la voz clonada. La primera vez tarda unos segundos mientras se prepara el motor de voz.</p>}
               <p className="text-xs" role="status">{statusLabels[audioStatus]} · {dictation ? 'Dictado español instalado' : 'Dictado local no disponible'}</p>
             </div>}
             {tab === 'memoria' && <div className="space-y-3">

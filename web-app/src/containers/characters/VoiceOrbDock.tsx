@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Mic, MoreHorizontal } from 'lucide-react'
 import { useActiveCharacter } from '@/hooks/useAvailableAssistants'
 import { useThreads } from '@/hooks/useThreads'
-import { defaultVoiceId, useCharacterAudio } from '@/lib/characters/audio'
+import { useCharacterAudio } from '@/lib/characters/audio'
 import { plumaDirectVoice, startPlumaCall, supportsPlumaCall, usesPlumaCall, type PlumaCallPhase, type PlumaCallTiming } from '@/lib/characters/pluma-realtime'
 import { plumaCloneVoice, startPlumaClone, usesPlumaClone } from '@/lib/characters/pluma-clone'
 import { createPlumaCallHistory, plumaChatMemory } from '@/lib/characters/pluma-call-history'
@@ -15,6 +15,7 @@ import { normalizePlumaSpeech } from '@/lib/characters/pluma-text'
 import { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
 import { loreVoiceGroups } from '@/lib/characters/lore'
 import { PlumaCloneReference } from './PlumaCloneReference'
+import { PlumaVoiceStyleControls } from './PlumaVoiceStyle'
 import { PlumaReadingPanel } from './PlumaReadingPanel'
 import { plumaReader, type PlumaReadingProgress } from '@/lib/characters/pluma-reading'
 import { useCharacterStore } from '@/stores/useCharacterStore'
@@ -84,7 +85,6 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const [micSilent, setMicSilent] = useState(false)
   const lastSound = useRef(0)
   const startCall = useRef<() => void>(undefined)
-  const nativeVoices = useCharacterAudio(state => state.voices)
   const [callPhase, setCallPhase] = useState<PlumaCallPhase>('connecting')
   const [callLevel, setCallLevel] = useState(0)
   const [callTiming, setCallTiming] = useState<PlumaCallTiming>()
@@ -351,8 +351,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const inputLevel = localCall ? callLevel : amplitude
   const level = Number.isFinite(inputLevel) ? Math.max(0, Math.min(1, inputLevel)) : 0
   const color = (value: string) => /^#[a-f\d]{6}$/i.test(value) ? value : '#45404A'
-  const spanishVoices = nativeVoices.filter(voice => /^es(?:-|$)/i.test(voice.language))
-  const selectedVoice = !plumaSelector ? undefined : cloneCall ? plumaCloneVoice : directCall ? plumaDirectVoice : profile.voice.voiceURI ?? defaultVoiceId(profile)
+  // Only Pluma's two engines: the synthetic voices sound robotic and are not offered.
+  const selectedVoice = !plumaSelector ? undefined : cloneCall ? plumaCloneVoice : directCall ? plumaDirectVoice : ''
   const error = session.error || (!localCall && audioError)
   // A chosen picture still loading shows nothing rather than the sphere for a moment.
   const hologram = usesHologram(profile) && !!portrait
@@ -380,22 +380,21 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
             Voz de Pluma
             <select value={selectedVoice} disabled={saving} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed" onChange={event => {
               const value = event.target.value
-              const nativeVoice = spanishVoices.find(voice => voice.id === value)
-              if (value !== plumaDirectVoice && value !== plumaCloneVoice && !nativeVoice) return
+              if (value !== plumaDirectVoice && value !== plumaCloneVoice) return
               useAvatarVoiceSession.getState().pause()
-              const voice = { ...profile.voice, plumaDirect: value === plumaDirectVoice, plumaClone: value === plumaCloneVoice, ...(nativeVoice ? { voiceURI: nativeVoice.id, lang: nativeVoice.language } : {}) }
+              const voice = { ...profile.voice, plumaDirect: value === plumaDirectVoice, plumaClone: value === plumaCloneVoice }
               void useCharacterStore.getState().updateProfile({ ...profile, voice }).catch(() => toast.error('No se pudo guardar la voz de Pluma.'))
             }}>
-              <option value={plumaDirectVoice}>LFM3 · voz directa</option>
+              {!localCall && <option value="" disabled>Elige cómo habla Pluma</option>}
               <option value={plumaCloneVoice}>Gemma 4 · voz clonada</option>
-              {!localCall && !spanishVoices.some(voice => voice.id === selectedVoice) && <option value={selectedVoice} disabled>Voz instalada no disponible</option>}
-              {spanishVoices.length > 0 && <optgroup label="Voces instaladas · por chat">{spanishVoices.map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language}</option>)}</optgroup>}
+              <option value={plumaDirectVoice}>LFM3 · voz directa</option>
             </select>
           </label>
           {session.active && <p className="text-xs text-muted-foreground">Cambiar de motor pausa la llamada; vuelve a llamarla con el micrófono.</p>}
         </>}
         {cloneCall && <PlumaCloneReference controls={reference} active={session.active} />}
         {cloneCall && <PlumaCloneReference controls={songReference} active={session.active} singing />}
+        {cloneCall && <PlumaVoiceStyleControls />}
         {cloneCall && <PlumaReadingPanel reading={session.active ? reading : undefined} onRead={readBook} onStop={() => plumaCall.current?.stopReading?.()} />}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" aria-pressed={!session.muted} onClick={() => {

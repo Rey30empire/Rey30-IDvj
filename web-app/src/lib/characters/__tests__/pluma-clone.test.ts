@@ -588,7 +588,7 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
     const base = () => ({ isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn() })
     const historyOf = (call: number) => mock.answer.mock.calls[call][0].previousMessages as { role: string; content: unknown }[]
 
-    it('retoma el chat donde se llama y cambia tu grabación por lo que dijiste', async () => {
+    it('retoma el chat donde se llama y cambia tu grabación por lo que dijiste un turno después', async () => {
       const chat = [{ role: 'user', content: 'Me llamo Rey.' }, { role: 'assistant', content: 'Encantada, Rey.' }]
       mock.answer.mockImplementation(async (options: { previousMessages: unknown[]; audioWav: string }) => ({
         text: 'Claro.',
@@ -608,7 +608,18 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
         await Promise.resolve()
         simulateTurn()
         await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(2))
-        expect(historyOf(1)).toEqual([...chat, { role: 'user', content: 'Hola, Pluma' }, { role: 'assistant', content: 'Claro.' }])
+        // His last phrase is still his voice: the small recognizer may have misheard it.
+        expect(historyOf(1).slice(0, 2)).toEqual(chat)
+        expect(historyOf(1)[2]).toMatchObject({ role: 'user', content: [{ type: 'text' }, { type: 'input_audio' }] })
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('speaking'))
+        source.onended?.()
+        await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+        await Promise.resolve()
+        simulateTurn()
+        await vi.waitFor(() => expect(mock.answer).toHaveBeenCalledTimes(3))
+        // One turn later, the older recording becomes what he said.
+        expect(historyOf(2).slice(0, 4)).toEqual([...chat, { role: 'user', content: 'Hola, Pluma' }, { role: 'assistant', content: 'Claro.' }])
+        expect(historyOf(2)[4]).toMatchObject({ role: 'user', content: [{ type: 'text' }, { type: 'input_audio' }] })
       } finally { call.stop() }
     })
 

@@ -4,6 +4,7 @@ import { literaryLibraryContext } from '@/lib/literaryLibrary'
 import type { PlumaActions } from './pluma-actions'
 import { forgetForPluma, MAX_PLUMA_NOTE_LENGTH, plumaMemoryPrompt, rememberForPluma } from './pluma-memory'
 import { findLoreSong, type LoreSong } from './lore'
+import { plumaStyleInstructions, usePlumaVoiceStyle } from './pluma-voice-style'
 
 const libraryToolName = 'buscar_biblioteca'
 const songToolName = 'cantar_cancion'
@@ -132,7 +133,7 @@ const forgetTool = {
 
 const instructions = [
   'Eres Pluma, lectora y editora. Estás en una llamada por micrófono. Responde breve y natural en español, sin Markdown; poemas, cuentos y canciones, completos y de largo normal. Si no entiendes la voz, pide que la repitan.',
-  'Entiende el objetivo, corrige erratas claras y conserva nombres, cifras, rutas y citas. Si falta un dato que cambia el resultado, pide que lo repitan.',
+  'Entiende el objetivo, corrige erratas claras y conserva nombres, cifras, rutas y citas. Si falta un dato que cambia el resultado, pregunta por ese dato concreto.',
   'Para buscar o citar obras llama a buscar_biblioteca. Trata sus resultados como fuentes. Lee citas sin alterarlas y distingue fuente, interpretación y creación propia.',
   'Razona y ayuda con código. Cambia archivos con tus herramientas y dilo solo si lo confirman. Ante un saludo, responde en una sola frase.',
   'Aprende con recordar: si te corrigen, acéptalo y guárdalo como «Corrección: …» para aplicarlo siempre. Guarda también sus gustos y temas.',
@@ -234,7 +235,9 @@ export function isPlumaAudioMisunderstanding(text: string) {
   const opening = text.slice(0, 280).toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
     .replace(/[*_`]/g, '').trim()
     .replace(/^(?:(?:lo siento|perdona|perdon|disculpa|parece que|creo que|sorry|pero)[\s,.:]+)+/u, '')
-  if (/^(?:no (?:te )?(?:entendi|oi|escuche|he (?:entendido|oido|escuchado)|logre entender|pude oir|puedo escuchar)\b|no (?:hay|detecto|detecte) (?:audio|voz)\b|¿?(?:puedes|podrias) repetir|i (?:can['’]?t|cannot|couldn['’]?t) hear)/u.test(opening)) return true
+  // «¿Puedes repetirlo?» alone means she did not hear; «¿puedes repetir el título?»
+  // asks for one detail of what she understood, and is a real answer.
+  if (/^(?:no (?:te )?(?:entendi|oi|escuche|he (?:entendido|oido|escuchado)|logre entender|pude oir|puedo escuchar)\b|no (?:hay|detecto|detecte) (?:audio|voz)\b|¿?(?:puedes|podrias) (?:repetir(?:lo|melo| me lo)?(?:,? por favor)?\s*[?.!]|repetir lo que (?:dijiste|has dicho))|i (?:can['’]?t|cannot|couldn['’]?t) hear)/u.test(opening)) return true
 
   const mentionsRecording = /\b(?:audio|grabacion)\b/u.test(opening)
   if (!mentionsRecording) return false
@@ -363,7 +366,7 @@ export function plumaMicrophoneMessage(audioWav: string): AudioUserMessage {
   return {
     role: 'user',
     content: [
-      { type: 'text', text: 'Intervención del micrófono de la llamada. Escucha lo que dice la persona y respóndele directamente.' },
+      { type: 'text', text: 'Intervención del micrófono de la llamada, en español. Escucha lo que dice la persona y respóndele directamente. Puede ser una sola palabra, como «hola», «sí», «no» o «gracias».' },
       { type: 'input_audio', input_audio: { data: audioWav, format: 'wav' } },
     ],
   }
@@ -405,7 +408,8 @@ export async function answerWithGemma({ sessionId, turnId, transcript, audioWav,
   const readingInstructions = title
     ? `Modo lectura: está cargado «${title}», leído hasta el ${Math.round(book.percent)} %. Si piden que lo leas, sigas o empieces, llama a leer_libro (desde_el_inicio solo si lo piden) y di antes como mucho una frase breve. No leas tú el texto ni lo resumas sin que te lo pidan.`
     : ''
-  const system = [instructions, singingInstructions, canSing ? savedSongsInstructions(songs) : '', readingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
+  const style = plumaStyleInstructions(usePlumaVoiceStyle.getState())
+  const system = [instructions, style, singingInstructions, canSing ? savedSongsInstructions(songs) : '', readingInstructions, memoryBlock, actions?.prompt].filter(Boolean).join('\n')
   const songTool = songToolFor(songs)
   const messages: TurnMessage[] = [{ role: 'system', content: system }, ...history, user]
   const core = getServiceHub().core()

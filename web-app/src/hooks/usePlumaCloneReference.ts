@@ -8,8 +8,9 @@ const message = (cause: unknown, fallback: string) => cause instanceof Error ? c
  * The speaking sample, or with `singing` the optional sample she sings with,
  * and the voices waiting in the project's Lore folder to replace it: those of
  * the assistant's own folder and its gender's (`groups`), never another's.
+ * `owner` is the assistant when it is not Pluma: each keeps its own sample.
  */
-export function usePlumaCloneReference(enabled: boolean, singing = false, groups?: LoreVoiceGroups) {
+export function usePlumaCloneReference(enabled: boolean, singing = false, groups?: LoreVoiceGroups, owner?: string) {
   const [reference, setReference] = useState<PlumaReference>()
   const [lore, setLore] = useState<LoreVoices>()
   const [busy, setBusy] = useState(false)
@@ -36,20 +37,20 @@ export function usePlumaCloneReference(enabled: boolean, singing = false, groups
   // The list is a convenience: without Lore the sample still works as before.
   const refreshLore = useCallback(async () => {
     try {
-      setLore(await loreVoices(singing, own && gender ? { own, gender } : undefined))
+      setLore(await loreVoices(singing, own && gender ? { own, gender } : undefined, owner))
     } catch {
       setLore(undefined)
     }
-  }, [singing, own, gender])
+  }, [singing, own, gender, owner])
 
   useEffect(() => {
     const state = requests.current
     if (enabled) {
-      void run(() => plumaReferenceStatus(singing))
+      void run(() => plumaReferenceStatus(singing, owner))
       void refreshLore()
     }
     return () => { state.latest++ }
-  }, [enabled, singing, run, refreshLore])
+  }, [enabled, singing, owner, run, refreshLore])
 
   return {
     reference,
@@ -58,12 +59,12 @@ export function usePlumaCloneReference(enabled: boolean, singing = false, groups
     groups: own && gender ? { own, gender } : undefined,
     busy,
     error,
-    choose: () => run(() => choosePlumaReference(singing)),
-    clear: () => run(() => clearPlumaReference(singing)),
-    pickLore: (voice: Pick<LoreVoice, 'group' | 'file'>) => run(() => applyLoreVoice(voice, singing)),
+    choose: () => run(() => choosePlumaReference(singing, owner)),
+    clear: () => run(() => clearPlumaReference(singing, owner)),
+    pickLore: (voice: Pick<LoreVoice, 'group' | 'file'>) => run(() => applyLoreVoice(voice, singing, undefined, owner)),
     /** Keeps a recording in the assistant's Lore folder and starts using it; the list then shows it selected. */
     saveRecording: async (name: string, wav: string) => {
-      await run(() => saveLoreVoice(name, wav, singing, own))
+      await run(() => saveLoreVoice(name, wav, singing, own, owner))
       await refreshLore()
     },
     refreshLore,

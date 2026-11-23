@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { localStorageKey } from '@/constants/localStorage'
 import {
   characterAssistantId,
+  characterBindingModel,
   characterIdFromAssistantId,
   assistantModelBinding,
   ensureCharacterModelBindings,
@@ -380,5 +381,13 @@ describe('asistentes de personajes integrados', () => {
     }
     act(() => useThreads.setState({ currentThreadId: undefined }))
     expect(result.current?.id).toBe('kairo')
+  })
+})
+
+describe('un asistente con modelo de Strata', () => {
+  it('se puede elegir aunque Strata esté apagado: al escribirle se enciende', () => {
+    const binding = { providerId: 'strata', modelId: 'hy4-flash-sq-64' }
+    expect(characterBindingModel(binding, [])).toEqual({ provider: 'strata', id: 'hy4-flash-sq-64' })
+    expect(() => characterBindingModel({ providerId: 'llamacpp', modelId: 'falta' }, [])).toThrow(/ya no está disponible/)
   })
 })
