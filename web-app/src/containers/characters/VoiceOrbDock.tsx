@@ -13,6 +13,7 @@ import { plumaCloneVoice, startPlumaClone, usesPlumaClone } from '@/lib/characte
 import { createPlumaCallHistory, plumaChatMemory } from '@/lib/characters/pluma-call-history'
 import { normalizePlumaSpeech } from '@/lib/characters/pluma-text'
 import { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
+import { loreVoiceGroups } from '@/lib/characters/lore'
 import { PlumaCloneReference } from './PlumaCloneReference'
 import { PlumaReadingPanel } from './PlumaReadingPanel'
 import { plumaReader, type PlumaReadingProgress } from '@/lib/characters/pluma-reading'
@@ -69,9 +70,10 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
   const localCall = cloneCall || directCall
   const cloneVolume = cloneCall ? profile?.voice.volume ?? 0.8 : 1
   const plumaSelector = supportsPlumaCall(profile?.id)
-  const reference = usePlumaCloneReference(cloneCall)
+  const voiceGroups = profile ? loreVoiceGroups(profile) : undefined
+  const reference = usePlumaCloneReference(cloneCall, false, voiceGroups)
   const [optionsOpen, setOptionsOpen] = useState(false)
-  const songReference = usePlumaCloneReference(cloneCall && optionsOpen, true)
+  const songReference = usePlumaCloneReference(cloneCall && optionsOpen, true, voiceGroups)
   const portrait = useHologramPortrait(profile)
   const [stage, setStage] = useState<HTMLElement | null>(null)
   const [threadStage, setThreadStage] = useState<HTMLElement | null>(null)

@@ -358,7 +358,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
                 {draftPluma && <><option value={plumaDirectVoice}>LFM3 · voz directa</option><option value={plumaCloneVoice}>Gemma 4 · voz clonada</option></>}
                 {voices.filter(voice => !draftPluma || /^es(?:-|$)/i.test(voice.language)).map(voice => <option key={voice.id} value={voice.id}>{voice.name} · {voice.language} · {voice.provider}</option>)}
               </select></Field>
-              {draftClone && open && <PlumaCloneSamples />}
+              {draftClone && open && <PlumaCloneSamples profile={draft} />}
               {!voices.length && <p role="status" className="text-sm">No hay voces locales disponibles. El chat funciona sin audio.</p>}
               {!voices.length && <Button type="button" size="sm" variant="outline" onClick={() => void useCharacterAudio.getState().loadCatalog()}>Volver a consultar voces</Button>}
               {(['rate', 'pitch', 'volume'] as const).map((key) => <Field key={key} label={`${({ rate: 'Velocidad', pitch: 'Tono', volume: 'Volumen' })[key]} · ${draft.voice[key].toFixed(2)}`}><input type="range" min={key === 'volume' ? 0 : 0.5} max={key === 'volume' ? 1 : key === 'rate' ? 1.8 : 2} step="any" disabled={key === 'pitch' && draft.voice.voiceURI?.startsWith('windows:')} value={draft.voice[key]} onChange={(e) => setDraft({ ...draft, voice: { ...draft.voice, [key]: Number(e.target.value) } })} /></Field>)}

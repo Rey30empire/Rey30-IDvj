@@ -4,10 +4,16 @@ import { PlumaCloneReference } from '../PlumaCloneReference'
 import type { usePlumaCloneReference } from '@/hooks/usePlumaCloneReference'
 
 type Controls = ReturnType<typeof usePlumaCloneReference>
-const voices = [{ file: 'Pluma.wav', name: 'Pluma', bytes: 100 }, { file: 'Nueva voz.mp3', name: 'Nueva voz', bytes: 200 }]
+const voices = [
+  { group: 'Pluma', file: 'Pluma.wav', name: 'Pluma', bytes: 100 },
+  { group: 'Pluma', file: 'Nueva voz.mp3', name: 'Nueva voz', bytes: 200 },
+  { group: 'mujer', file: 'Lucía.wav', name: 'Lucía', bytes: 300 },
+  { group: '', file: 'Vieja.wav', name: 'Vieja', bytes: 400 },
+]
 const controls = (over: Partial<Controls> = {}): Controls => ({
   reference: { ready: true, format: 'wav', name: 'Pluma' },
-  lore: { root: 'C:\\Proyecto\\Lore', voices, selected: 'Pluma.wav' },
+  lore: { root: 'C:\\Proyecto\\Lore', voices, selected: 'Pluma/Pluma.wav' },
+  groups: { own: 'Pluma', gender: 'mujer' },
   busy: false,
   error: undefined,
   choose: vi.fn(async () => undefined),
@@ -24,14 +30,29 @@ describe('voces de Lore para Pluma', () => {
     const value = controls()
     render(<PlumaCloneReference controls={value} active={false} />)
     const select = screen.getByTestId('lore-voice') as HTMLSelectElement
-    expect(select.value).toBe('Pluma.wav')
+    expect(select.value).toBe('Pluma/Pluma.wav')
     expect(screen.getByRole('status')).toHaveTextContent('Habla con la voz «Pluma» de Lore.')
-    fireEvent.change(select, { target: { value: 'Nueva voz.mp3' } })
-    expect(value.pickLore).toHaveBeenCalledWith('Nueva voz.mp3')
+    fireEvent.change(select, { target: { value: 'Pluma/Nueva voz.mp3' } })
+    expect(value.pickLore).toHaveBeenCalledWith(voices[1])
     fireEvent.click(screen.getByRole('button', { name: 'Abrir carpeta' }))
     expect(value.openLore).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar' }))
     expect(value.refreshLore).toHaveBeenCalled()
+  })
+
+  it('separa sus voces, las de su género y las sueltas, y graba en su carpeta', () => {
+    const value = controls()
+    render(<PlumaCloneReference controls={value} active={false} />)
+    const groups = [...screen.getByTestId('lore-voice').querySelectorAll('optgroup')].map(group => [group.label, [...group.querySelectorAll('option')].map(option => option.textContent)])
+    expect(groups).toEqual([
+      ['Voces de Pluma', ['Pluma', 'Nueva voz']],
+      ['Voces de mujer', ['Lucía']],
+      ['Sin carpeta (voces\\hablar)', ['Vieja']],
+    ])
+    expect(screen.getByText('Voces en Lore\\voces\\Pluma\\hablar y Lore\\voces\\mujer\\hablar', { exact: false })).toBeInTheDocument()
+    expect(screen.getByText('Lo que grabes se guarda en Lore\\voces\\Pluma\\hablar.')).toBeInTheDocument()
+    fireEvent.change(screen.getByTestId('lore-voice'), { target: { value: 'mujer/Lucía.wav' } })
+    expect(value.pickLore).toHaveBeenCalledWith(voices[2])
   })
 
   it('una muestra elegida a mano no se confunde con una voz de Lore', () => {
@@ -45,8 +66,8 @@ describe('voces de Lore para Pluma', () => {
     const value = controls()
     render(<PlumaCloneReference controls={value} active />)
     expect(screen.getByTestId('lore-voice')).toBeEnabled()
-    fireEvent.change(screen.getByTestId('lore-voice'), { target: { value: 'Nueva voz.mp3' } })
-    expect(value.pickLore).toHaveBeenCalledWith('Nueva voz.mp3')
+    fireEvent.change(screen.getByTestId('lore-voice'), { target: { value: 'Pluma/Nueva voz.mp3' } })
+    expect(value.pickLore).toHaveBeenCalledWith(voices[1])
     expect(screen.getByText(/Puedes cambiar de voz sin colgar: la usa desde su próxima frase\./)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Otro archivo…' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Quitar' })).toBeDisabled()

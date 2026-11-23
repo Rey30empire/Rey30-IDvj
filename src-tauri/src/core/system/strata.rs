@@ -199,10 +199,8 @@ mod platform {
     /// The server the editor started, if it still runs; one that ended is cleared with the reason.
     fn running() -> Option<StrataRunning> {
         let mut server = SERVER.lock().ok()?;
-        let ended = match server.as_mut() {
-            Some(current) => current.child.try_wait().ok().flatten().map(|status| (status, current.log.clone())),
-            None => return None,
-        };
+        let current = server.as_mut()?;
+        let ended = current.child.try_wait().ok().flatten().map(|status| (status, current.log.clone()));
         if let Some((status, log)) = ended {
             *server = None;
             if let Ok(mut stopped) = STOPPED.lock() {

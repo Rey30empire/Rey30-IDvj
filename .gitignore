@@ -116,3 +116,5 @@ web-app/public/hologram/
 !/Lore/*/.gitkeep
 !/Lore/voces/*/
 !/Lore/voces/*/.gitkeep
+!/Lore/voces/*/*/
+!/Lore/voces/*/*/.gitkeep

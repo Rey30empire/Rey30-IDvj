@@ -2,11 +2,16 @@
 //!
 //! ```text
 //! Lore/
-//!   biblioteca/       her literary library (searched with buscar_biblioteca)
-//!   voces/hablar/     WAV or MP3 samples she can speak with
-//!   voces/cantar/     WAV or MP3 samples she can sing with
-//!   canciones/        lyrics (.txt, .md, .lrc) she can sing by title
+//!   biblioteca/              her literary library (searched with buscar_biblioteca)
+//!   voces/<carpeta>/hablar/  voice samples to speak with
+//!   voces/<carpeta>/cantar/  voice samples to sing with
+//!   canciones/               lyrics (.txt, .md, .lrc) she can sing by title
 //! ```
+//!
+//! A voice folder (`carpeta`) is an assistant's first name (`Pluma`, `Beto`) or
+//! a gender (`mujer`, `hombre`), so an assistant is offered its own voices and
+//! those of its gender, never another one's. The old flat `voces/hablar` and
+//! `voces/cantar` still count, as the folder "".
 //!
 //! Files dropped there show up in the app without rebuilding it: the build only
 //! bakes in where the folder is (the project the app was built from), and
@@ -30,8 +35,10 @@ const MAX_SONG_FILE: u64 = 64 * 1024;
 const MAX_LYRICS: usize = 2_400;
 const MAX_TITLE: usize = 80;
 const MAX_VOICE_NAME: usize = 60;
-/// The folders the app may open for the person, relative to Lore.
-const FOLDERS: [&str; 5] = ["", "biblioteca", "voces/hablar", "voces/cantar", "canciones"];
+/// Voice folders read at once: an assistant asks for its own, its gender's and the old flat one.
+const MAX_GROUPS: usize = 40;
+/// The folders the app may open for the person, relative to Lore (and `voces/<carpeta>/<hablar|cantar>`).
+const FOLDERS: [&str; 6] = ["", "biblioteca", "voces", "voces/hablar", "voces/cantar", "canciones"];
 
 /// Lore as written into the build: the `Lore` folder next to `src-tauri`.
 fn built_in_root() -> Option<PathBuf> {
@@ -57,8 +64,74 @@ pub fn library_dir() -> Option<PathBuf> {
         .filter(|path| path.is_dir())
 }
 
-fn voices_dir(root: &Path, singing: bool) -> PathBuf {
-    root.join("voces").join(if singing { "cantar" } else { "hablar" })
+fn kind(singing: bool) -> &'static str {
+    if singing {
+        "cantar"
+    } else {
+        "hablar"
+    }
+}
+
+/// A voice folder name from the page: one plain folder, not `hablar` or `cantar`.
+fn valid_group(group: &str) -> bool {
+    !group.is_empty()
+        && group.chars().count() <= MAX_VOICE_NAME
+        && group.trim() == group
+        && !group.ends_with('.')
+        && !group.starts_with('.')
+        && !group.chars().any(|c| c.is_control() || "\\/:*?\"<>|".contains(c))
+        && !group.eq_ignore_ascii_case("hablar")
+        && !group.eq_ignore_ascii_case("cantar")
+}
+
+/// `voces/<group>/<hablar|cantar>`, or the old flat `voces/<hablar|cantar>` for "".
+fn voices_dir(root: &Path, group: &str, singing: bool) -> Option<PathBuf> {
+    let voces = root.join("voces");
+    if group.is_empty() {
+        Some(voces.join(kind(singing)))
+    } else {
+        valid_group(group).then(|| voces.join(group).join(kind(singing)))
+    }
+}
+
+/// A real folder, never a link or junction that could lead out of Lore.
+fn plain_dir(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_dir() && !is_link(&metadata))
+}
+
+/// The voice folder and every folder between it and `voces` are plain.
+fn plain_voice_dir(root: &Path, dir: &Path) -> bool {
+    let voces = root.join("voces");
+    dir.strip_prefix(&voces).is_ok()
+        && dir
+            .ancestors()
+            .take_while(|ancestor| *ancestor != voces.as_path())
+            .all(plain_dir)
+}
+
+/// The voice folders in `voces` (assistants and genders), in name order.
+fn all_groups(root: &Path) -> Vec<String> {
+    let Ok(entries) = fs::read_dir(root.join("voces")) else {
+        return Vec::new();
+    };
+    let mut groups: Vec<String> = entries
+        .flatten()
+        .filter(|entry| plain_dir(&entry.path()))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| valid_group(name))
+        .collect();
+    groups.sort_by(|a, b| super::pluma_reading::natural_cmp(a, b));
+    groups.truncate(MAX_GROUPS);
+    groups
+}
+
+/// What the app remembers for a voice: `carpeta/archivo`, or the file alone in the old flat folder.
+fn voice_key(group: &str, file: &str) -> String {
+    if group.is_empty() {
+        file.to_string()
+    } else {
+        format!("{group}/{file}")
+    }
 }
 
 fn extension(path: &Path) -> String {
@@ -125,14 +198,17 @@ fn stem(name: &str) -> String {
 
 /// Formats the voice engine reads as they are.
 const DIRECT_AUDIO: [&str; 2] = ["wav", "mp3"];
-/// Formats people drop in too (phone and WhatsApp voice notes): the app turns
-/// them into a WAV when one is chosen, and the file in Lore stays as it is.
-const CONVERTED_AUDIO: [&str; 6] = ["m4a", "mp4", "aac", "ogg", "opus", "webm"];
+/// Formats people drop in too (phone and WhatsApp voice notes, saved as `.mpeg`
+/// by some phones): the app turns them into a WAV when one is chosen, and the
+/// file in Lore stays as it is.
+const CONVERTED_AUDIO: [&str; 9] = ["m4a", "mp4", "aac", "ogg", "opus", "webm", "mpeg", "mpga", "flac"];
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoreVoice {
-    /// File name inside `voces/hablar` or `voces/cantar`.
+    /// The voice folder it is in (`Pluma`, `mujer`…), or "" for the old flat folder.
+    group: String,
+    /// File name inside that folder's `hablar` or `cantar`.
     file: String,
     /// What the selector shows: the file name without its extension.
     name: String,
@@ -146,27 +222,51 @@ pub struct LoreVoice {
 pub struct LoreVoices {
     root: Option<String>,
     voices: Vec<LoreVoice>,
-    /// The Lore voice now in use, if the sample came from Lore.
+    /// The Lore voice now in use (`carpeta/archivo`), if the sample came from Lore.
     selected: Option<String>,
 }
 
-fn list_voices(root: &Path, singing: bool) -> Vec<LoreVoice> {
+/// The voices in `groups`, in that order (each folder in name order); with no
+/// `groups`, every voice folder and then the old flat one.
+fn list_voices(root: &Path, singing: bool, groups: Option<&[String]>) -> Vec<LoreVoice> {
     let extensions = [DIRECT_AUDIO.as_slice(), CONVERTED_AUDIO.as_slice()].concat();
-    files_in(&voices_dir(root, singing), &extensions, MAX_VOICES)
-        .into_iter()
-        .filter(|(_, _, bytes)| *bytes > 44 && *bytes <= VOICE_LIMIT)
-        .map(|(file, path, bytes)| LoreVoice {
-            name: stem(&file),
-            convert: !DIRECT_AUDIO.contains(&extension(&path).as_str()),
-            file,
-            bytes,
-        })
-        .collect()
+    let groups: Vec<String> = match groups {
+        Some(groups) => groups.to_vec(),
+        None => all_groups(root).into_iter().chain([String::new()]).collect(),
+    };
+    let mut seen: Vec<String> = Vec::new();
+    let mut voices = Vec::new();
+    for group in groups.into_iter().take(MAX_GROUPS) {
+        let folded = group.to_lowercase();
+        if seen.contains(&folded) {
+            continue;
+        }
+        seen.push(folded);
+        let Some(dir) = voices_dir(root, &group, singing).filter(|dir| plain_voice_dir(root, dir)) else {
+            continue;
+        };
+        let left = MAX_VOICES.saturating_sub(voices.len());
+        voices.extend(
+            files_in(&dir, &extensions, left)
+                .into_iter()
+                .filter(|(_, _, bytes)| *bytes > 44 && *bytes <= VOICE_LIMIT)
+                .map(|(file, path, bytes)| LoreVoice {
+                    group: group.clone(),
+                    name: stem(&file),
+                    convert: !DIRECT_AUDIO.contains(&extension(&path).as_str()),
+                    file,
+                    bytes,
+                }),
+        );
+    }
+    voices
 }
 
-/// A voice file in Lore by name, never outside its folder.
-fn voice_file(root: &Path, singing: bool, file: &str) -> Result<PathBuf, String> {
-    plain_file(&voices_dir(root, singing), file)
+/// A voice file in Lore by folder and name, never outside its folder.
+fn voice_file(root: &Path, singing: bool, group: &str, file: &str) -> Result<PathBuf, String> {
+    voices_dir(root, group, singing)
+        .filter(|dir| plain_voice_dir(root, dir))
+        .and_then(|dir| plain_file(&dir, file))
         .filter(|path| {
             let kind = extension(path);
             DIRECT_AUDIO.contains(&kind.as_str()) || CONVERTED_AUDIO.contains(&kind.as_str())
@@ -234,20 +334,40 @@ pub fn remember_voice(app: &AppHandle, singing: bool, file: Option<&str>) {
     }
 }
 
-/// The voices in Lore, speaking ones or with `singing` the singing ones.
+/// The voice folder the page named: "" for the old flat folder, else a plain folder name.
+fn requested_group(group: Option<String>) -> Result<String, String> {
+    let group = group.unwrap_or_default();
+    if group.is_empty() || valid_group(&group) {
+        Ok(group)
+    } else {
+        Err("Ese nombre de carpeta de voces no sirve en Lore.".into())
+    }
+}
+
+/// The voices in Lore, speaking ones or with `singing` the singing ones: those
+/// in `groups` (an assistant's folder, its gender's, "" for the old flat one),
+/// or every folder's when `groups` is missing.
 #[tauri::command]
 pub async fn lore_voices(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    groups: Option<Vec<String>>,
 ) -> Result<LoreVoices, String> {
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
+    let groups: Option<Vec<String>> = groups.map(|groups| {
+        groups
+            .into_iter()
+            .filter(|group| group.is_empty() || valid_group(group))
+            .take(MAX_GROUPS)
+            .collect()
+    });
     let root = lore_root();
     let voices = match &root {
         Some(root) => {
             let root = root.clone();
-            tokio::task::spawn_blocking(move || list_voices(&root, singing))
+            tokio::task::spawn_blocking(move || list_voices(&root, singing, groups.as_deref()))
                 .await
                 .map_err(|_| "No se pudieron leer las voces de Lore.".to_string())?
         }
@@ -266,12 +386,14 @@ pub async fn lore_voices(
 pub async fn lore_voice_read(
     window: WebviewWindow,
     singing: Option<bool>,
+    group: Option<String>,
     file: String,
 ) -> Result<String, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
+    let group = requested_group(group)?;
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
-    let audio = read_voice(voice_file(&root, singing.unwrap_or(false), &file)?).await?;
+    let audio = read_voice(voice_file(&root, singing.unwrap_or(false), &group, &file)?).await?;
     if audio.len() as u64 > VOICE_LIMIT {
         return Err("Esa voz pesa más de 10 MB.".into());
     }
@@ -285,14 +407,16 @@ pub async fn lore_voice_use(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    group: Option<String>,
     file: String,
     audio: Option<String>,
 ) -> Result<super::pluma_clone::ReferenceStatus, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
+    let group = requested_group(group)?;
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
-    let path = voice_file(&root, singing, &file)?;
+    let path = voice_file(&root, singing, &group, &file)?;
     let audio = if DIRECT_AUDIO.contains(&extension(&path).as_str()) {
         read_voice(path).await?
     } else {
@@ -302,7 +426,7 @@ pub async fn lore_voice_use(
             .ok_or("Hay que convertir esa voz a WAV antes de usarla.")?
     };
     let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
-    remember_voice(&app, singing, Some(&file));
+    remember_voice(&app, singing, Some(&voice_key(&group, &file)));
     Ok(status.with_name(Some(stem(&file))))
 }
 
@@ -336,10 +460,14 @@ fn is_wav(audio: &[u8]) -> bool {
     audio.len() > 44 && audio.starts_with(b"RIFF") && audio.get(8..12) == Some(b"WAVE")
 }
 
-/// Writes a recording to a new file in `dir`, failing rather than replacing one.
-fn save_recording(dir: &Path, base: &str, audio: &[u8]) -> Result<String, String> {
+/// Writes a recording to a new file in `dir` (a voice folder under `root`),
+/// failing rather than replacing one.
+fn save_recording(root: &Path, dir: &Path, base: &str, audio: &[u8]) -> Result<String, String> {
     use std::io::Write;
     fs::create_dir_all(dir).map_err(|_| "No se pudo crear la carpeta de voces de Lore.")?;
+    if !plain_voice_dir(root, dir) {
+        return Err("La carpeta de voces de Lore no es una carpeta normal.".into());
+    }
     let file = free_voice_file(dir, base).ok_or("Ya hay demasiadas voces con ese nombre en Lore.")?;
     let path = dir.join(&file);
     let mut out = fs::OpenOptions::new()
@@ -355,19 +483,21 @@ fn save_recording(dir: &Path, base: &str, audio: &[u8]) -> Result<String, String
     Ok(file)
 }
 
-/// Saves a voice recorded in the app (a WAV in base64) into Lore's speaking or
-/// singing voices and makes it Pluma's sample at once.
+/// Saves a voice recorded in the app (a WAV in base64) into a Lore voice folder
+/// (`group`, the assistant's own) and makes it Pluma's sample at once.
 #[tauri::command]
 pub async fn lore_voice_save(
     app: AppHandle,
     window: WebviewWindow,
     singing: Option<bool>,
+    group: Option<String>,
     name: String,
     audio: String,
 ) -> Result<super::pluma_clone::ReferenceStatus, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
     require_main(&window)?;
     let singing = singing.unwrap_or(false);
+    let group = requested_group(group)?;
     let audio = STANDARD
         .decode(audio.as_bytes())
         .map_err(|_| "La grabación llegó dañada. Grábala de nuevo.")?;
@@ -375,13 +505,13 @@ pub async fn lore_voice_save(
         return Err("La grabación no es un WAV válido de hasta 10 MB.".into());
     }
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
-    let dir = voices_dir(&root, singing);
+    let dir = voices_dir(&root, &group, singing).ok_or("Ese nombre de carpeta de voces no sirve en Lore.")?;
     let base = voice_file_stem(&name);
-    let (file, audio) = tokio::task::spawn_blocking(move || save_recording(&dir, &base, &audio).map(|file| (file, audio)))
+    let (file, audio) = tokio::task::spawn_blocking(move || save_recording(&root, &dir, &base, &audio).map(|file| (file, audio)))
         .await
         .map_err(|_| "No se pudo guardar la grabación en Lore.".to_string())??;
     let status = super::pluma_clone::install_reference(app.clone(), singing, audio).await?;
-    remember_voice(&app, singing, Some(&file));
+    remember_voice(&app, singing, Some(&voice_key(&group, &file)));
     Ok(status.with_name(Some(stem(&file))))
 }
 
@@ -448,17 +578,33 @@ pub async fn lore_songs(window: WebviewWindow) -> Result<Vec<LoreSong>, String> 
         .map_err(|_| "No se pudieron leer las canciones de Lore.".to_string())
 }
 
+/// A Lore folder the app may open: a fixed one, or `voces/<carpeta>` with
+/// optionally `/hablar` or `/cantar`.
+fn openable(folder: &str) -> bool {
+    if FOLDERS.contains(&folder) {
+        return true;
+    }
+    let mut parts = folder.split('/');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some("voces"), Some(group), kind, None) => valid_group(group) && matches!(kind, None | Some("hablar") | Some("cantar")),
+        _ => false,
+    }
+}
+
 /// Opens a Lore folder in the file explorer so the person can add files.
 #[tauri::command]
 pub async fn lore_open(window: WebviewWindow, folder: Option<String>) -> Result<(), String> {
     require_main(&window)?;
     let folder = folder.unwrap_or_default();
-    if !FOLDERS.contains(&folder.as_str()) {
+    if !openable(&folder) {
         return Err("Esa carpeta no es parte de Lore.".into());
     }
     let root = lore_root().ok_or("No se encontró la carpeta Lore del proyecto.")?;
     let path = root.join(&folder);
     fs::create_dir_all(&path).map_err(|_| "No se pudo crear la carpeta de Lore.")?;
+    if folder.starts_with("voces/") && !plain_voice_dir(&root, &path) {
+        return Err("La carpeta de voces de Lore no es una carpeta normal.".into());
+    }
     #[cfg(windows)]
     {
         std::process::Command::new("explorer.exe")
@@ -484,27 +630,106 @@ mod tests {
         dir
     }
 
+    fn dir(root: &Path, group: &str, singing: bool) -> PathBuf {
+        let dir = voices_dir(root, group, singing).unwrap();
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn lists_speaking_and_singing_voices_in_name_order() {
         let root = scratch("voices");
-        let speaking = voices_dir(&root, false);
-        fs::create_dir_all(&speaking).unwrap();
-        fs::create_dir_all(voices_dir(&root, true)).unwrap();
+        let speaking = dir(&root, "", false);
         let sample = vec![0u8; 100];
         fs::write(speaking.join("Voz 10.wav"), &sample).unwrap();
         fs::write(speaking.join("Voz 2.mp3"), &sample).unwrap();
         fs::write(speaking.join("notas.txt"), &sample).unwrap();
         fs::write(speaking.join("vacia.wav"), [0u8; 10]).unwrap();
         fs::write(speaking.join("WhatsApp Audio.mp4"), &sample).unwrap();
-        fs::write(voices_dir(&root, true).join("Canto.wav"), &sample).unwrap();
-        let listed: Vec<_> = list_voices(&root, false).into_iter().map(|voice| (voice.name, voice.convert)).collect();
-        let expected = [("Voz 2", false), ("Voz 10", false), ("WhatsApp Audio", true)].map(|(name, convert)| (name.to_string(), convert));
+        fs::write(speaking.join("Nota.mpeg"), &sample).unwrap();
+        fs::write(dir(&root, "", true).join("Canto.wav"), &sample).unwrap();
+        let legacy = [String::new()];
+        let listed: Vec<_> = list_voices(&root, false, Some(&legacy)).into_iter().map(|voice| (voice.name, voice.convert)).collect();
+        let expected = [("Nota", true), ("Voz 2", false), ("Voz 10", false), ("WhatsApp Audio", true)].map(|(name, convert)| (name.to_string(), convert));
         assert_eq!(listed, expected);
-        assert!(voice_file(&root, false, "WhatsApp Audio.mp4").is_ok());
-        assert!(voice_file(&root, false, "notas.txt").is_err());
-        let singing: Vec<_> = list_voices(&root, true).into_iter().map(|voice| voice.file).collect();
+        assert!(voice_file(&root, false, "", "WhatsApp Audio.mp4").is_ok());
+        assert!(voice_file(&root, false, "", "notas.txt").is_err());
+        let singing: Vec<_> = list_voices(&root, true, Some(&legacy)).into_iter().map(|voice| voice.file).collect();
         assert_eq!(singing, ["Canto.wav"]);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_assistant_gets_its_own_and_its_gender_voices_without_mixing() {
+        let root = scratch("groups");
+        let sample = vec![0u8; 100];
+        fs::write(dir(&root, "Pluma", false).join("Pluma suave.wav"), &sample).unwrap();
+        fs::write(dir(&root, "mujer", false).join("Lucía.mp3"), &sample).unwrap();
+        fs::write(dir(&root, "hombre", false).join("Carlos.wav"), &sample).unwrap();
+        fs::write(dir(&root, "Beto", false).join("Beto.wav"), &sample).unwrap();
+        fs::write(dir(&root, "", false).join("Vieja.wav"), &sample).unwrap();
+        fs::write(dir(&root, "Pluma", true).join("Canto.wav"), &sample).unwrap();
+        let pluma = ["Pluma".to_string(), "mujer".into(), String::new()];
+        let listed: Vec<_> = list_voices(&root, false, Some(&pluma)).into_iter().map(|voice| (voice.group, voice.file)).collect();
+        let expected = [("Pluma", "Pluma suave.wav"), ("mujer", "Lucía.mp3"), ("", "Vieja.wav")].map(|(group, file)| (group.to_string(), file.to_string()));
+        assert_eq!(listed, expected);
+        let beto = ["Beto".to_string(), "hombre".into(), "HOMBRE".into()];
+        let listed: Vec<_> = list_voices(&root, false, Some(&beto)).into_iter().map(|voice| voice.file).collect();
+        assert_eq!(listed, ["Beto.wav", "Carlos.wav"]);
+        let every: Vec<_> = list_voices(&root, false, None).into_iter().map(|voice| voice_key(&voice.group, &voice.file)).collect();
+        assert_eq!(every, ["Beto/Beto.wav", "hombre/Carlos.wav", "mujer/Lucía.mp3", "Pluma/Pluma suave.wav", "Vieja.wav"]);
+        assert!(voice_file(&root, false, "mujer", "Lucía.mp3").is_ok());
+        assert!(voice_file(&root, false, "Pluma", "Lucía.mp3").is_err());
+        assert!(voice_file(&root, true, "Pluma", "Canto.wav").is_ok());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_voice_folder_name_cannot_leave_voces() {
+        for group in ["Pluma", "Beto", "mujer", "hombre", "Nara Violeta", "Señora Ñ"] {
+            assert!(valid_group(group), "{group}");
+        }
+        for group in ["", "..", ".", "../Pluma", "a\\b", "C:", "hablar", "Cantar", " Pluma", "Pluma.", ".oculta", "a*b"] {
+            assert!(!valid_group(group), "{group}");
+        }
+        let root = scratch("group-names");
+        assert!(voices_dir(&root, "../fuera", false).is_none());
+        assert!(voice_file(&root, false, "..", "x.wav").is_err());
+        for folder in ["voces/Pluma", "voces/mujer/hablar", "voces/hombre/cantar", "voces", "voces/hablar"] {
+            assert!(openable(folder), "{folder}");
+        }
+        for folder in ["voces/../x", "voces/Pluma/otra", "voces/Pluma/hablar/x", "otra", "voces/"] {
+            assert!(!openable(folder), "{folder}");
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_junction_in_voces_is_not_followed() {
+        let root = scratch("junction");
+        let outside = scratch("outside");
+        fs::create_dir_all(outside.join("hablar")).unwrap();
+        fs::write(outside.join("hablar").join("ajena.wav"), vec![0u8; 100]).unwrap();
+        fs::create_dir_all(root.join("voces")).unwrap();
+        let link = root.join("voces").join("Ajena");
+        let made = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(&outside)
+            .output()
+            .unwrap();
+        assert!(made.status.success());
+        let group = ["Ajena".to_string()];
+        assert!(list_voices(&root, false, Some(&group)).is_empty());
+        assert!(voice_file(&root, false, "Ajena", "ajena.wav").is_err());
+        let wav = [b"RIFF".as_slice(), &[0; 4], b"WAVE", &[0; 40]].concat();
+        let dir = voices_dir(&root, "Ajena", false).unwrap();
+        assert!(save_recording(&root, &dir, "Mi voz", &wav).is_err());
+        assert!(!outside.join("hablar").join("Mi voz.wav").exists());
+        fs::remove_dir(&link).unwrap();
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(outside).unwrap();
     }
 
     #[test]
@@ -528,9 +753,11 @@ mod tests {
         let wav = [b"RIFF".as_slice(), &[0; 4], b"WAVE", &[0; 40]].concat();
         assert!(is_wav(&wav));
         assert!(!is_wav(b"ID3 not a wav at all, just some bytes to pass the length check"));
-        assert_eq!(save_recording(&root, "Mi voz", &wav).unwrap(), "Mi voz.wav");
-        assert_eq!(save_recording(&root, "Mi voz", &wav).unwrap(), "Mi voz 2.wav");
-        assert_eq!(fs::read(root.join("Mi voz.wav")).unwrap(), wav);
+        // A recording goes to the assistant's folder, created on the first one.
+        let pluma = voices_dir(&root, "Pluma", false).unwrap();
+        assert_eq!(save_recording(&root, &pluma, "Mi voz", &wav).unwrap(), "Mi voz.wav");
+        assert_eq!(save_recording(&root, &pluma, "Mi voz", &wav).unwrap(), "Mi voz 2.wav");
+        assert_eq!(fs::read(root.join("voces").join("Pluma").join("hablar").join("Mi voz.wav")).unwrap(), wav);
         fs::remove_dir_all(root).unwrap();
     }
 
