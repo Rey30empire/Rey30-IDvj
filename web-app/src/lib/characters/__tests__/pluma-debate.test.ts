@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { cleanDebate, DEFAULT_DEBATE, debateAgents, debateSystemFor, isDebateTurn, parseDebate, plumaDebateSystem, withoutDebateCommand } from '../pluma-debate'
+import { cleanDebate, DEFAULT_DEBATE, debateAgents, debateCommandPrefix, debateSystemFor, isDebateTurn, offersDebateCommand, parseDebate, plumaDebateSystem, withoutDebateCommand } from '../pluma-debate'
 
 const debate = (over: Partial<typeof DEFAULT_DEBATE> = {}) => cleanDebate({ ...DEFAULT_DEBATE, ...over })
 
 describe('debate de documentos de Pluma', () => {
+  it('ofrece «/debate» mientras se escribe su comienzo, y lo marca cuando está escrito', () => {
+    expect(['/', '/d', '/De', '/debat'].map(offersDebateCommand)).toEqual([true, true, true, true])
+    expect(['', 'hola', '/debate', '/debate ', '/x', ' /d', '/d e'].map(offersDebateCommand)).toEqual([false, false, false, false, false, false, false])
+    expect(debateCommandPrefix('/debate resume esto')).toBe('/debate')
+    expect(debateCommandPrefix('/Debate')).toBe('/Debate')
+    expect(debateCommandPrefix('/debates')).toBeNull()
+    expect(debateCommandPrefix('hola /debate')).toBeNull()
+  })
+
   it('sin papel descrito, cada participante recibe uno según cuántos son', () => {
     expect(debateAgents(debate({ count: 1 })).map(agent => agent.role)).toEqual(['narradora que presenta el documento, explica sus ideas principales con ejemplos y cierra con una conclusión'])
     const four = debateAgents(debate({ count: 4 }))

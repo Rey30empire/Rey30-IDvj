@@ -70,7 +70,8 @@ import { defaultModel } from '@/lib/models'
 import { cancelAgentThreadBash, getSandboxStatus } from '@/lib/agentTools'
 import { useChatShell } from '@/hooks/useChatShell'
 import { expandChatSkill } from '@/lib/chatSkills'
-import { isDebateTurn, usePlumaDebate } from '@/lib/characters/pluma-debate'
+import { DEBATE_COMMAND_TEXT, debateCommandPrefix, isDebateTurn, offersDebateCommand, usePlumaDebate } from '@/lib/characters/pluma-debate'
+import { PlumaDebateCommand } from '@/containers/characters/PlumaDebateCommand'
 import ChatSkillsMenu from '@/containers/ChatSkillsMenu'
 import { useAssistant } from '@/hooks/useAssistant'
 import CharacterPanel, { CharacterAudioRuntime } from '@/containers/characters/CharacterPanel'
@@ -327,6 +328,14 @@ const ChatInput = memo(function ChatInput({
   const assistants = useAvailableAssistants()
   const privateLibraryChat = isLiteraryThread(currentThread) ||
     (!currentThreadId && (projectAssistantId || currentAssistant?.id) === literaryAssistantId)
+  // Pluma's chat offers «/debate» while «/» is typed; Escape hides the offer for that text.
+  const [dismissedCommand, setDismissedCommand] = useState<string | null>(null)
+  const debateCommandOpen = privateLibraryChat && offersDebateCommand(prompt) && dismissedCommand !== prompt
+  const chooseDebateCommand = () => {
+    setPrompt(DEBATE_COMMAND_TEXT)
+    textareaRef.current?.focus()
+  }
+  const shownPrefix = highlightedPrefix ?? (privateLibraryChat ? debateCommandPrefix(prompt) : null)
 
   // Agent mode
   // Use TEMPORARY_CHAT_ID as fallback key on the home screen (same pattern as attachments)
@@ -2125,6 +2134,8 @@ const ChatInput = memo(function ChatInput({
       {ownsToolSet && !effectiveAgentMode && <CharacterAudioRuntime busy={isStreaming || !!toolsRunning} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
       {ownsToolSet && !effectiveAgentMode && <VoiceOrbDock busy={isStreaming || !!toolsRunning} onVoiceMessage={handleVoiceMessage} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
       <div className="relative">
+        {/* Outside the rounded frame below, whose overflow-hidden would clip it */}
+        {debateCommandOpen && <PlumaDebateCommand onChoose={chooseDebateCommand} />}
         <div
           className={cn(
             'relative overflow-hidden p-0.5 rounded-3xl'
@@ -2290,15 +2301,15 @@ const ChatInput = memo(function ChatInput({
               </div>
             )}
             <div className="relative">
-              {highlightedPrefix && prompt.startsWith(highlightedPrefix) && (
+              {shownPrefix && prompt.startsWith(shownPrefix) && (
                 <div
                   ref={highlightRef}
                   aria-hidden="true"
                   className={cn('pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 pt-4 text-transparent', className)}
                   style={{ overflowWrap: 'break-word' }}
                 >
-                  <mark className="rounded-sm bg-primary/20 text-transparent">{highlightedPrefix}</mark>
-                  {prompt.slice(highlightedPrefix.length)}
+                  <mark className="rounded-sm bg-primary/20 text-transparent">{shownPrefix}</mark>
+                  {prompt.slice(shownPrefix.length)}
                 </div>
               )}
             <TextareaAutosize
@@ -2343,6 +2354,19 @@ const ChatInput = memo(function ChatInput({
                 // e.keyCode 229 is for IME input with Safari
                 const isComposing =
                   e.nativeEvent.isComposing || e.keyCode === 229
+                // Tab or Enter takes the «/debate» offered in Pluma's chat; Escape hides it
+                if (debateCommandOpen && !isComposing) {
+                  if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+                    e.preventDefault()
+                    chooseDebateCommand()
+                    return
+                  }
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setDismissedCommand(prompt)
+                    return
+                  }
+                }
                 if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
                   e.preventDefault()
                   // Submit prompt when Enter is pressed without Shift and prompt is not empty.

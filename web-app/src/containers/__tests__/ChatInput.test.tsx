@@ -5,6 +5,7 @@ import {
   fireEvent,
   act,
   waitFor,
+  cleanup,
 } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
@@ -475,14 +476,51 @@ describe('ChatInput', () => {
     useAvatarVoiceSession.setState({ open: true, active: true, phase: 'ready', characterId: 'literatura', threadId: 'thread-1', sendTyped })
     try {
       promptState = '/debate resume el capítulo'
-      renderInput()
+      const onSubmit = vi.fn()
+      renderInput({ onSubmit })
       fireEvent.keyDown(getTextarea(), { key: 'Enter' })
-      await waitFor(() => expect(addToHistoryMock).toHaveBeenCalledWith('/debate resume el capítulo'))
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith('/debate resume el capítulo', undefined, undefined, '/debate resume el capítulo'))
+      expect(addToHistoryMock).toHaveBeenCalledWith('/debate resume el capítulo')
       expect(sendTyped).not.toHaveBeenCalled()
     } finally {
       useAvatarVoiceSession.getState().close()
       useAvatarVoiceSession.setState({ sendTyped: null })
     }
+  })
+
+  it('offers «/debate» while «/» is typed in Pluma\'s chat, and Tab or Enter takes it', () => {
+    getCurrentThreadMock.mockReturnValue({ id: 'thread-1', assistants: [{ id: 'character:literatura' }] } as never)
+    const onSubmit = vi.fn()
+    // ChatInput is memoised and the prompt store here is a plain mock, so each case renders afresh
+    const typed = (text: string) => {
+      cleanup()
+      setPromptMock.mockClear()
+      promptState = text
+      renderInput({ onSubmit })
+    }
+    typed('/de')
+    expect(screen.getByTestId('pluma-debate-command')).toHaveTextContent('/debate')
+    fireEvent.keyDown(getTextarea(), { key: 'Enter' })
+    expect(setPromptMock).toHaveBeenLastCalledWith('/debate ')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(addToHistoryMock).not.toHaveBeenCalled()
+
+    typed('/')
+    fireEvent.keyDown(getTextarea(), { key: 'Tab' })
+    expect(setPromptMock).toHaveBeenLastCalledWith('/debate ')
+
+    typed('/d')
+    fireEvent.keyDown(getTextarea(), { key: 'Escape' })
+    expect(screen.queryByTestId('pluma-debate-command')).not.toBeInTheDocument()
+
+    typed('/debate resume el capítulo')
+    expect(screen.queryByTestId('pluma-debate-command')).not.toBeInTheDocument()
+  })
+
+  it('does not offer «/debate» outside Pluma\'s chat', () => {
+    promptState = '/de'
+    renderInput()
+    expect(screen.queryByTestId('pluma-debate-command')).not.toBeInTheDocument()
   })
 
   it('keeps the words in the box while the call is still getting ready', async () => {

@@ -108,6 +108,16 @@ export const isDebateTurn = (userText: string, enabled: boolean) => enabled || D
 /** The message without its «/debate» command, for showing what was asked. */
 export const withoutDebateCommand = (userText: string) => userText.replace(DEBATE_COMMAND, '').trim()
 
+/** What choosing the command leaves in the box, ready for the text or the question. */
+export const DEBATE_COMMAND_TEXT = '/debate '
+
+/** Whether the box holds the start of «/debate» («/», «/de»…), so the command can be offered. */
+export const offersDebateCommand = (prompt: string) =>
+  prompt.startsWith('/') && prompt.length < '/debate'.length && '/debate'.startsWith(prompt.toLowerCase())
+
+/** The «/debate» at the start of the box, to mark it as a command, or `null`. */
+export const debateCommandPrefix = (prompt: string) => prompt.match(DEBATE_COMMAND)?.[0] ?? null
+
 /** The instructions that turn Pluma's answer into the debate script. */
 export function plumaDebateSystem(agents: ResolvedAgent[], length: DebateLength): string {
   const cast = agents.map(agent => {
