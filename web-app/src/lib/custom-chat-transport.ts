@@ -24,6 +24,7 @@ import { useServiceStore } from '@/hooks/useServiceHub'
 import { useToolAvailable } from '@/hooks/useToolAvailable'
 import { ModelFactory } from './model-factory'
 import { ensureStrataServing, STRATA_PROVIDER } from './strata'
+import { debateSystemFor } from './characters/pluma-debate'
 import { buildsOwnToolImageRequest } from './providerCaps'
 import { useModelProvider } from '@/hooks/useModelProvider'
 import { useAssistant } from '@/hooks/useAssistant'
@@ -1639,7 +1640,9 @@ export class CustomChatTransport implements ChatTransport<UIMessage> {
     const requestSystem = !privateLibraryThread && privacyAllowsTools(getPrivacyModeSnapshot())
       ? this.buildSystemPrompt(messagesToConvert, turnCharacter ? '' : this.systemMessage)
       : turnCharacter ? undefined : this.systemMessage
-    const effectiveSystem = [responseGuidance, requestSystem, requestMaster?.system, characterContext?.system, libraryContext]
+    // Pluma's document debate: «/debate…», or every message while the mode is on.
+    const debateSystem = debateSystemFor(turnCharacter?.id, turnUserText)
+    const effectiveSystem = [responseGuidance, requestSystem, requestMaster?.system, characterContext?.system, libraryContext, debateSystem]
       .filter(Boolean).join('\n\n')
 
     const maxOutputTokens: number | undefined = (() => {

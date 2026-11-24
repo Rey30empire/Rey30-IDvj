@@ -70,6 +70,7 @@ import { defaultModel } from '@/lib/models'
 import { cancelAgentThreadBash, getSandboxStatus } from '@/lib/agentTools'
 import { useChatShell } from '@/hooks/useChatShell'
 import { expandChatSkill } from '@/lib/chatSkills'
+import { isDebateTurn, usePlumaDebate } from '@/lib/characters/pluma-debate'
 import ChatSkillsMenu from '@/containers/ChatSkillsMenu'
 import { useAssistant } from '@/hooks/useAssistant'
 import CharacterPanel, { CharacterAudioRuntime } from '@/containers/characters/CharacterPanel'
@@ -662,8 +663,10 @@ const ChatInput = memo(function ChatInput({
       const session = useAvatarVoiceSession.getState()
       if (session.active && session.threadId === (currentThreadId ?? null)) {
         const words = prompt.trim()
-        // Typing keeps the voice on. Only a message with attachments goes to the chat alone.
-        if (words && attachments.length === 0) {
+        // Typing keeps the voice on. Only a message with attachments, or a
+        // debate for Pluma («/debate», or while the debate mode is on), goes to
+        // the chat alone: the debate is written there and read from there.
+        if (words && attachments.length === 0 && !isDebateTurn(words, usePlumaDebate.getState().enabled)) {
           // A call on this computer (Pluma) answers typed words aloud, inside the call.
           if (session.sendTyped) {
             if (session.sendTyped(words)) {

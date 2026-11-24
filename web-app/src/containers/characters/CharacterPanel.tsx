@@ -7,6 +7,7 @@ import { HOLOGRAM_PORTRAITS, usesHologram } from './HologramAvatar'
 import { AvatarPortraitEditor } from './AvatarPortraitEditor'
 import { PlumaCloneSamples } from './PlumaCloneReference'
 import { PlumaVoiceStyleControls } from './PlumaVoiceStyle'
+import { PlumaDebateSettings } from './PlumaDebateSettings'
 import { deleteAvatarImage } from '@/lib/characters/avatar-image'
 import { clonedVoices, useCharacterAudio, defaultVoiceId } from '@/lib/characters/audio'
 import { loreVoiceGroups } from '@/lib/characters/lore'
@@ -371,6 +372,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               {isLiterary && open && <LiteraryLibrarySettings />}
               {isLiterary && open && <PlumaProjectSettings />}
               {isLiterary && open && <PlumaLearnedMemory />}
+              {isLiterary && open && <PlumaDebateSettings />}
               <AvatarPortraitEditor value={draft.avatar.portrait} builtInSrc={HOLOGRAM_PORTRAITS[draft.baseId]?.src} onChange={(portrait) => {
                 const avatar = { ...draft.avatar }
                 delete avatar.portrait

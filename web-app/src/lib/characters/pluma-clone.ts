@@ -6,7 +6,7 @@ import { startPlumaFast } from './pluma-fast'
 import { plumaActions, type PlumaActions } from './pluma-actions'
 import { loadPlumaMemory } from './pluma-memory'
 import { normalizePlumaSpeech } from './pluma-text'
-import { applyVoiceStyle, styleChangesAudio, usePlumaVoiceStyle } from './pluma-voice-style'
+import { applyVoiceStyle, styleChangesAudio, usePlumaVoiceStyle, voxcpmDescription } from './pluma-voice-style'
 import { describeStartError as describePlumaAudioError, supportsPlumaCall, type PlumaCallCallbacks, type PlumaCallPhase } from './pluma-realtime'
 import type { PlumaAudioClip } from './pluma-call-history'
 import { readingPercent } from './pluma-reading'
@@ -476,7 +476,10 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
     turn.abort.signal.addEventListener('abort', cancelWait, { once: true })
     try {
       const command = song ? 'pluma_clone_sing' : 'pluma_clone_speak'
-      await Promise.race([Promise.all([invoke(command, { sessionId: id, turnId: turn.id, ...request, events }), channelDone]), stopped])
+      // With the expressive voice, the mood and accent also go into how she sounds.
+      const description = song ? '' : voxcpmDescription(usePlumaVoiceStyle.getState())
+      const voice = description ? { style: { description } } : {}
+      await Promise.race([Promise.all([invoke(command, { sessionId: id, turnId: turn.id, ...request, ...voice, events }), channelDone]), stopped])
     } finally {
       turn.abort.signal.removeEventListener('abort', cancelWait)
       events.onmessage = () => {}
@@ -946,7 +949,7 @@ export function startPlumaClone(callbacks: PlumaCallCallbacks, volume: number) {
       callbacks.loadHistory?.().then(history => { if (usable() && !previousMessages.length) previousMessages = history.slice(-PLUMA_HISTORY_MESSAGES) }).catch(() => undefined),
     ]).then(() => undefined)
     fast = startPlumaFast()
-    const id = await invoke<string>('pluma_clone_start', { events: lifecycle })
+    const id = await invoke<string>('pluma_clone_start', { events: lifecycle, expressive: usePlumaVoiceStyle.getState().expressive })
     if (!usable()) { stopNative(id); return }
     sessionId = id
     await startMicrophone()

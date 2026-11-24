@@ -5,42 +5,43 @@ import { persist } from 'zustand/middleware'
  * How Pluma speaks: a mood and a regional Spanish she writes in, plus the
  * speed and pitch her cloned voice is played at.
  *
- * Qwen3-TTS clones the timbre of the sample but takes no style or accent
- * instruction, so the mood and the accent go into what she says (wording,
- * rhythm, exclamations, regional vocabulary) and speed and pitch are applied
- * to the audio here. The voice itself stays the chosen sample.
+ * The mood and the accent always go into what she says (wording, rhythm,
+ * exclamations, regional vocabulary). With the expressive voice (VoxCPM2) they
+ * also go into how she sounds: VoxCPM2 clones the sample and follows a short
+ * style description, which it only heeds in English. Qwen3-TTS clones the
+ * timbre alone. Speed and pitch are applied to the audio here either way.
  */
 export const PLUMA_EMOTIONS = {
-  normal: { label: 'Normal', prompt: '' },
-  suave: { label: 'Suave y tranquila', prompt: 'Habla con dulzura y calma: frases suaves, pausadas y cálidas.' },
-  susurro: { label: 'Susurrando, escondida', prompt: 'Habla en susurros, como escondida para que nadie te oiga: frases muy cortas, pausas con puntos suspensivos y algún «shh».' },
-  alegre: { label: 'Alegre', prompt: 'Estás muy contenta: frases vivas, con entusiasmo y alguna exclamación.' },
-  triste: { label: 'Triste', prompt: 'Estás triste y apagada: frases cortas, lentas, con pausas y suspiros.' },
-  enojada: { label: 'Enojada', prompt: 'Estás enfadada: frases cortas y tajantes, con exclamaciones. Nunca insultes a la persona.' },
-  gritona: { label: 'Gritona', prompt: 'Hablas a gritos y con mucha energía: exclamaciones (¡…!) y palabras enfáticas.' },
+  normal: { label: 'Normal', prompt: '', voice: '' },
+  suave: { label: 'Suave y tranquila', prompt: 'Habla con dulzura y calma: frases suaves, pausadas y cálidas.', voice: 'speaking softly and calmly, warm and gentle' },
+  susurro: { label: 'Susurrando, escondida', prompt: 'Habla en susurros, como escondida para que nadie te oiga: frases muy cortas, pausas con puntos suspensivos y algún «shh».', voice: 'whispering, scared, hiding, very quiet voice' },
+  alegre: { label: 'Alegre', prompt: 'Estás muy contenta: frases vivas, con entusiasmo y alguna exclamación.', voice: 'very happy and excited, cheerful and lively' },
+  triste: { label: 'Triste', prompt: 'Estás triste y apagada: frases cortas, lentas, con pausas y suspiros.', voice: 'sad and tired, speaking slowly with sighs' },
+  enojada: { label: 'Enojada', prompt: 'Estás enfadada: frases cortas y tajantes, con exclamaciones. Nunca insultes a la persona.', voice: 'angry and annoyed, sharp and firm' },
+  gritona: { label: 'Gritona', prompt: 'Hablas a gritos y con mucha energía: exclamaciones (¡…!) y palabras enfáticas.', voice: 'shouting angrily, very loud and furious' },
 } as const
 
 export const PLUMA_ACCENTS = {
-  neutro: { label: 'Español neutro', place: '' },
-  cuba: { label: 'Cuba', place: 'Cuba' },
-  espana: { label: 'España', place: 'España' },
-  mexico: { label: 'México', place: 'México' },
-  'republica-dominicana': { label: 'República Dominicana', place: 'República Dominicana' },
-  'puerto-rico': { label: 'Puerto Rico', place: 'Puerto Rico' },
-  venezuela: { label: 'Venezuela', place: 'Venezuela' },
-  colombia: { label: 'Colombia', place: 'Colombia' },
-  argentina: { label: 'Argentina', place: 'Argentina' },
-  chile: { label: 'Chile', place: 'Chile' },
-  peru: { label: 'Perú', place: 'Perú' },
-  'guinea-ecuatorial': { label: 'Guinea Ecuatorial (África)', place: 'Guinea Ecuatorial' },
+  neutro: { label: 'Español neutro', place: '', voice: '' },
+  cuba: { label: 'Cuba', place: 'Cuba', voice: 'a strong Cuban accent' },
+  espana: { label: 'España', place: 'España', voice: 'a Castilian accent from Madrid, Spain' },
+  mexico: { label: 'México', place: 'México', voice: 'a Mexican accent' },
+  'republica-dominicana': { label: 'República Dominicana', place: 'República Dominicana', voice: 'a Dominican accent from the Dominican Republic' },
+  'puerto-rico': { label: 'Puerto Rico', place: 'Puerto Rico', voice: 'a Puerto Rican accent' },
+  venezuela: { label: 'Venezuela', place: 'Venezuela', voice: 'a Venezuelan accent' },
+  colombia: { label: 'Colombia', place: 'Colombia', voice: 'a Colombian accent from Bogotá' },
+  argentina: { label: 'Argentina', place: 'Argentina', voice: 'an Argentinian accent from Buenos Aires' },
+  chile: { label: 'Chile', place: 'Chile', voice: 'a Chilean accent' },
+  peru: { label: 'Perú', place: 'Perú', voice: 'a Peruvian accent from Lima' },
+  'guinea-ecuatorial': { label: 'Guinea Ecuatorial (África)', place: 'Guinea Ecuatorial', voice: 'an Equatorial Guinean accent from Africa' },
 } as const
 
 export type PlumaEmotion = keyof typeof PLUMA_EMOTIONS
 export type PlumaAccent = keyof typeof PLUMA_ACCENTS
-/** `speed`: 0.7 to 1.4 times. `pitch`: semitones, -4 to +4. */
-export type PlumaVoiceStyle = { emotion: PlumaEmotion; accent: PlumaAccent; speed: number; pitch: number }
+/** `speed`: 0.7 to 1.4 times. `pitch`: semitones, -4 to +4. `expressive`: speak with VoxCPM2. */
+export type PlumaVoiceStyle = { emotion: PlumaEmotion; accent: PlumaAccent; speed: number; pitch: number; expressive: boolean }
 
-export const DEFAULT_PLUMA_STYLE: PlumaVoiceStyle = { emotion: 'normal', accent: 'neutro', speed: 1, pitch: 0 }
+export const DEFAULT_PLUMA_STYLE: PlumaVoiceStyle = { emotion: 'normal', accent: 'neutro', speed: 1, pitch: 0, expressive: true }
 const clamp = (value: number, low: number, high: number, fallback: number) => Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : fallback
 
 /** A stored style made safe: unknown moods or accents and out-of-range numbers fall back. */
@@ -50,6 +51,7 @@ export function cleanPlumaStyle(value: Partial<PlumaVoiceStyle> | undefined): Pl
     accent: value?.accent && value.accent in PLUMA_ACCENTS ? value.accent : 'neutro',
     speed: clamp(Number(value?.speed), 0.7, 1.4, 1),
     pitch: clamp(Number(value?.pitch), -4, 4, 0),
+    expressive: value?.expressive !== false,
   }
 }
 
@@ -64,7 +66,7 @@ export const usePlumaVoiceStyle = create<StyleState>()(
     }),
     {
       name: 'rey30-pluma-voice-style',
-      partialize: ({ emotion, accent, speed, pitch }) => ({ emotion, accent, speed, pitch }),
+      partialize: ({ emotion, accent, speed, pitch, expressive }) => ({ emotion, accent, speed, pitch, expressive }),
       merge: (stored, current) => ({ ...current, ...cleanPlumaStyle(stored as Partial<PlumaVoiceStyle>) }),
     }
   )
@@ -78,6 +80,20 @@ export function plumaStyleInstructions(style: Pick<PlumaVoiceStyle, 'emotion' | 
   const place = PLUMA_ACCENTS[style.accent]?.place
   if (place) lines.push(`Habla como una persona de ${place}: su vocabulario, sus expresiones, su trato (tú, usted o vos) y su ritmo. Que se note, sin caricaturizar.`)
   return lines.join('\n')
+}
+
+/**
+ * The style VoxCPM2 gets before each sentence, in English (it ignores Spanish
+ * descriptions when it clones a voice): the mood, then the accent. Empty for
+ * a normal mood in neutral Spanish, or without the expressive voice.
+ */
+export function voxcpmDescription(style: Pick<PlumaVoiceStyle, 'emotion' | 'accent' | 'expressive'>): string {
+  if (!style.expressive) return ''
+  const mood = PLUMA_EMOTIONS[style.emotion]?.voice ?? ''
+  const accent = PLUMA_ACCENTS[style.accent]?.voice ?? ''
+  if (mood && accent) return `${mood}, speaking Spanish with ${accent}`
+  if (accent) return `a woman speaking Spanish with ${accent}`
+  return mood
 }
 
 /** Whether the audio needs processing: speed or pitch away from normal. */

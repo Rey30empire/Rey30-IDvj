@@ -470,6 +470,21 @@ describe('ChatInput', () => {
     }
   })
 
+  it('a «/debate» typed during Pluma\'s call goes to the chat, where the debate is written', async () => {
+    const sendTyped = vi.fn(() => true)
+    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'ready', characterId: 'literatura', threadId: 'thread-1', sendTyped })
+    try {
+      promptState = '/debate resume el capítulo'
+      renderInput()
+      fireEvent.keyDown(getTextarea(), { key: 'Enter' })
+      await waitFor(() => expect(addToHistoryMock).toHaveBeenCalledWith('/debate resume el capítulo'))
+      expect(sendTyped).not.toHaveBeenCalled()
+    } finally {
+      useAvatarVoiceSession.getState().close()
+      useAvatarVoiceSession.setState({ sendTyped: null })
+    }
+  })
+
   it('keeps the words in the box while the call is still getting ready', async () => {
     const sendTyped = vi.fn(() => false)
     useAvatarVoiceSession.setState({ open: true, active: true, phase: 'ready', characterId: 'literatura', threadId: 'thread-1', sendTyped })

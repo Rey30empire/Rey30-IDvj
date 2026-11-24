@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyVoiceStyle, cleanPlumaStyle, plumaStyleInstructions, stretchVoice, styleChangesAudio } from '../pluma-voice-style'
+import { applyVoiceStyle, cleanPlumaStyle, plumaStyleInstructions, stretchVoice, styleChangesAudio, voxcpmDescription } from '../pluma-voice-style'
 
 const rate = 24000
 const tone = (hz: number, seconds: number) => Float32Array.from({ length: Math.round(rate * seconds) }, (_, index) => 0.5 * Math.sin(2 * Math.PI * hz * index / rate))
@@ -49,7 +49,16 @@ describe('estilo de la voz de Pluma', () => {
   })
 
   it('un ajuste guardado raro vuelve a valores seguros', () => {
-    expect(cleanPlumaStyle({ emotion: 'furiosa' as never, accent: 'marte' as never, speed: 9, pitch: Number.NaN })).toEqual({ emotion: 'normal', accent: 'neutro', speed: 1.4, pitch: 0 })
-    expect(cleanPlumaStyle(undefined)).toEqual({ emotion: 'normal', accent: 'neutro', speed: 1, pitch: 0 })
+    expect(cleanPlumaStyle({ emotion: 'furiosa' as never, accent: 'marte' as never, speed: 9, pitch: Number.NaN })).toEqual({ emotion: 'normal', accent: 'neutro', speed: 1.4, pitch: 0, expressive: true })
+    expect(cleanPlumaStyle(undefined)).toEqual({ emotion: 'normal', accent: 'neutro', speed: 1, pitch: 0, expressive: true })
+    expect(cleanPlumaStyle({ expressive: false }).expressive).toBe(false)
+  })
+
+  it('a VoxCPM2 le pide el ánimo y el acento en inglés, que es lo que obedece al clonar', () => {
+    expect(voxcpmDescription({ emotion: 'normal', accent: 'neutro', expressive: true })).toBe('')
+    expect(voxcpmDescription({ emotion: 'susurro', accent: 'neutro', expressive: true })).toBe('whispering, scared, hiding, very quiet voice')
+    expect(voxcpmDescription({ emotion: 'normal', accent: 'cuba', expressive: true })).toBe('a woman speaking Spanish with a strong Cuban accent')
+    expect(voxcpmDescription({ emotion: 'gritona', accent: 'espana', expressive: true })).toBe('shouting angrily, very loud and furious, speaking Spanish with a Castilian accent from Madrid, Spain')
+    expect(voxcpmDescription({ emotion: 'gritona', accent: 'cuba', expressive: false })).toBe('')
   })
 })

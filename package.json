@@ -58,7 +58,7 @@
     "build:e2e:deps": "yarn install && yarn build:tauri:plugin:api && yarn build:core && yarn build:extensions",
     "start:ui": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-ui.ps1",
     "prepare:audio": "node ./scripts/prepare-character-audio.mjs",
-    "prepare:pluma": "node ./scripts/prepare-pluma-runtime.mjs",
+    "prepare:pluma": "node ./scripts/prepare-pluma-runtime.mjs && node ./scripts/prepare-pluma-voxcpm-runtime.mjs && node ./scripts/prepare-pluma-whisper-runtime.mjs",
     "check:audio": "node ./scripts/check-character-audio.mjs"
   },
   "devDependencies": {

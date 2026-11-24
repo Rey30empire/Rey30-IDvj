@@ -16,6 +16,7 @@ import {
   type PartEntry,
 } from './message/types'
 import { CopyButton } from './CopyButton'
+import { PlumaDebatePlayer } from './characters/PlumaDebatePlayer'
 import { RememberButton } from './RememberButton'
 import { useTranslation } from '@/i18n/react-i18next-compat'
 import { formatDate, formatMessageTime } from '@/utils/formatDate'
@@ -662,6 +663,10 @@ export const MessageItem = memo(
         {!privateLibrary && message.role === 'assistant' &&
           !isStreaming &&
           webCitations.length > 0 && <WebSourcesRow citations={webCitations} />}
+
+        {message.role === 'assistant' && !isStreaming && (
+          <PlumaDebatePlayer text={getFullTextContent()} />
+        )}
 
         {message.role === 'assistant' &&
           !isStreaming &&

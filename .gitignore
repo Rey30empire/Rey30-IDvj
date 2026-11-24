@@ -83,6 +83,12 @@ src-tauri/resources/pluma-llama/*
 !src-tauri/resources/pluma-llama-tts/
 src-tauri/resources/pluma-llama-tts/*
 !src-tauri/resources/pluma-llama-tts/README.txt
+!src-tauri/resources/pluma-llama-voxcpm/
+src-tauri/resources/pluma-llama-voxcpm/*
+!src-tauri/resources/pluma-llama-voxcpm/README.txt
+!src-tauri/resources/pluma-whisper/
+src-tauri/resources/pluma-whisper/*
+!src-tauri/resources/pluma-whisper/README.txt
 !src-tauri/resources/pluma-music/
 src-tauri/resources/pluma-music/*
 !src-tauri/resources/pluma-music/generate.ps1

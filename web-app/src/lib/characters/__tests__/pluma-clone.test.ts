@@ -115,6 +115,26 @@ describe('llamada clonada de Pluma sin dispositivos ni modelos reales', () => {
     expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_stop', { sessionId: 'sesión' })
   })
 
+  it('con la voz expresiva, cada frase lleva el ánimo y el acento elegidos', async () => {
+    const { usePlumaVoiceStyle } = await import('../pluma-voice-style')
+    usePlumaVoiceStyle.getState().set({ emotion: 'susurro', accent: 'cuba', expressive: true })
+    mock.answer.mockResolvedValue({ text: 'Ven, no hagas ruido.', messages: [] })
+    const callbacks = { isCurrent: () => true, onPhase: vi.fn(), onAmplitude: vi.fn(), onError: vi.fn(), onFirstAudio: vi.fn() }
+    const call = startPlumaClone(callbacks, 0.8)
+    try {
+      await vi.waitFor(() => expect(callbacks.onPhase).toHaveBeenLastCalledWith('listening'))
+      expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_start', expect.objectContaining({ expressive: true }))
+      simulateTurn()
+      await vi.waitFor(() => expect(mock.invoke).toHaveBeenCalledWith('pluma_clone_speak', expect.objectContaining({
+        text: 'Ven, no hagas ruido.',
+        style: { description: 'whispering, scared, hiding, very quiet voice, speaking Spanish with a strong Cuban accent' },
+      })))
+    } finally {
+      call.stop()
+      usePlumaVoiceStyle.getState().reset()
+    }
+  })
+
   it('contesta en voz lo que se escribe en el chat y deja de hablar para leerlo', async () => {
     mock.answer.mockResolvedValueOnce({ text: 'Claro, aquí va.', messages: [] })
       .mockResolvedValueOnce({ text: 'Vale, cambio de tema.', messages: [] })

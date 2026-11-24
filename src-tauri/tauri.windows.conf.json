@@ -48,6 +48,8 @@
       "resources/character-audio/**/*",
       "resources/pluma-llama/*",
       "resources/pluma-llama-tts/*",
+      "resources/pluma-llama-voxcpm/*",
+      "resources/pluma-whisper/*",
       "resources/pluma-music/*"
     ],
     "externalBin": [

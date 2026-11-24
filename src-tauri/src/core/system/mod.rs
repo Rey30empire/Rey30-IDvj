@@ -10,6 +10,7 @@ pub mod pluma_clone;
 pub mod pluma_documents;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod pluma_first_asr;
+pub mod whisper;
 #[cfg(windows)]
 mod pluma_music;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

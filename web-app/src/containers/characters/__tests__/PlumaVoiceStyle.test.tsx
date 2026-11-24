@@ -18,4 +18,14 @@ describe('forma de hablar de Pluma', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Volver a lo normal' }))
     expect(usePlumaVoiceStyle.getState()).toMatchObject({ emotion: 'normal', accent: 'neutro', speed: 1, pitch: 0 })
   })
+
+  it('la voz expresiva viene activada y se puede apagar', () => {
+    render(<PlumaVoiceStyleControls />)
+    const expressive = screen.getByRole('checkbox', { name: /Voz expresiva \(VoxCPM2\)/ })
+    expect(expressive).toBeChecked()
+    expect(screen.getByText(/El ánimo se nota mucho; el acento, menos/)).toBeInTheDocument()
+    fireEvent.click(expressive)
+    expect(usePlumaVoiceStyle.getState().expressive).toBe(false)
+    expect(screen.getByText(/Sin la voz expresiva, la voz suena siempre igual/)).toBeInTheDocument()
+  })
 })

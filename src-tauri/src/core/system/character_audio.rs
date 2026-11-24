@@ -245,6 +245,15 @@ pub async fn character_audio_transcribe(
     if pcm.is_empty() || pcm.len() > 960_000 || pcm.len() % 2 != 0 {
         return Err("Se necesita PCM mono de 16 kHz y 16 bits, de hasta 30 segundos.".into());
     }
+    // Whisper understands far better than the small Vosk model, which stays
+    // as the fallback when Whisper is not installed or fails.
+    // A background transcription (the call's chat text) takes Whisper's whole
+    // window, the most accurate; one someone waits for takes a quick window.
+    #[cfg(windows)]
+    match super::whisper::transcribe(&app, &pcm, !background.unwrap_or(false)).await {
+        Ok(text) => return Ok(json!({"text": text, "localOnly": true, "engine": "whisper"})),
+        Err(error) => log::warn!("Whisper no transcribió ({error}); se usa Vosk."),
+    }
     execute(
         app,
         job_id,
