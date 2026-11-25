@@ -1,5 +1,6 @@
 import { getServiceHub } from '@/hooks/useServiceHub'
 import { usePlumaReading } from '@/stores/usePlumaReading'
+import type { Attachment } from '@/types/attachment'
 
 export type PlumaReadingSection = { title: string; text: string }
 export type PlumaBook = { title: string; chunks: string[] }
@@ -76,6 +77,43 @@ export function loadPlumaBook(path: string, fresh = false): Promise<PlumaBook> {
 
 /** Resolves null when the person closes the dialog. */
 export const choosePlumaReading = (folder: boolean) => invoke<string | null>('pluma_reading_choose', { folder })
+
+/** How much of a document goes into one message: about 85,000 tokens, more than a local model's window usually holds. */
+export const MAX_DOCUMENT_TEXT = 300_000
+
+export type PlumaDocument = { title: string; text: string; cut: boolean }
+
+/** A document or a folder of them as one text: each file under its name, cut at `MAX_DOCUMENT_TEXT`. */
+export function documentText(title: string, sections: PlumaReadingSection[], max = MAX_DOCUMENT_TEXT): PlumaDocument {
+  const parts = sections
+    .map(section => ({ title: section.title.trim(), text: section.text.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim() }))
+    .filter(section => /\p{L}/u.test(section.text))
+  if (!parts.length) throw new Error(`No encontré texto en «${title}».`)
+  const whole = parts.length === 1 ? parts[0].text : parts.map(part => `## ${part.title}\n\n${part.text}`).join('\n\n')
+  return { title, text: whole.slice(0, max), cut: whole.length > max }
+}
+
+/** Reads a document or a folder with Pluma's reader (txt, md, pdf, docx, epub, html). */
+export async function readPlumaDocument(path: string): Promise<PlumaDocument> {
+  const { title, sections } = await invoke<{ title: string; sections: PlumaReadingSection[] }>('pluma_reading_open', { path: path.trim() })
+  return documentText(title, sections)
+}
+
+/** The chat attachment for a document read whole: already processed and sent inside the message. */
+export function plumaDocumentAttachment(path: string, document: PlumaDocument, folder: boolean): Attachment {
+  const extension = folder ? 'carpeta' : path.split('.').pop()?.toLowerCase()
+  return {
+    name: document.title,
+    type: 'document',
+    path,
+    fileType: extension,
+    size: new TextEncoder().encode(document.text).length,
+    parseMode: 'inline',
+    processed: true,
+    injectionMode: 'inline',
+    inlineContent: document.text,
+  }
+}
 
 /** Loads the book first, so a path that cannot be read never replaces the current one. */
 export async function openPlumaBook(path: string) {

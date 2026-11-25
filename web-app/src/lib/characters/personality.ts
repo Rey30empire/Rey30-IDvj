@@ -74,8 +74,6 @@ export function buildCharacterContext(
 function buildVoiceStyle(profile: CharacterProfile, effectiveSettings: CharacterSettings): string[] {
   const selectedExamples = profile.examples.filter(example => {
     if (effectiveSettings.mode === 'serio') return /serio|error|correcci/i.test(example.situation) && !/nivel [123]/i.test(example.situation)
-    if (profile.baseId === 'roco' && effectiveSettings.profanity < 2) return /nivel 0/i.test(example.situation)
-    if (profile.baseId === 'nara' && effectiveSettings.flirtation < 2) return !/charla adulta|coqueteo|nivel [123]/i.test(example.situation)
     return true
   })
   const vocabulary = [

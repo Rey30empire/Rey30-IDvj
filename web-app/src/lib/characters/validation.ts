@@ -1,4 +1,4 @@
-import { DEFAULT_ACTIVE_AGENTS, LEGACY_CHARACTER_IDS, ORIGINAL_CHARACTER_IDS, refreshBuiltInProfiles } from './profiles'
+import { DEFAULT_ACTIVE_AGENTS, ORIGINAL_CHARACTER_IDS, upgradeSavedCharacters } from './profiles'
 import type { AvatarPoint, CharacterData, CharacterMemory, CharacterProfile, CharacterSettings, CustomPortrait, MemoryEntry } from './types'
 
 export const CHARACTER_LIMITS = { profiles: 32, projects: 64, memoryNotes: 4_000, profileJson: 64_000, storageJson: 630_000, context: 24_000 } as const
@@ -116,10 +116,11 @@ export function validateCharacterData(value: unknown): CharacterData {
   // Saves from before the agent switches have no `activeAgents`: they get the default set.
   if (Object.prototype.hasOwnProperty.call(raw, 'activeAgents')) keys.push('activeAgents')
   const v = shape(raw, keys, 'archivo guardado')
-  if (v.schema !== 1 || !Array.isArray(v.profiles) || v.profiles.length < LEGACY_CHARACTER_IDS.length || v.profiles.length > CHARACTER_LIMITS.profiles) return fail('versión o número de perfiles')
+  if (v.schema !== 1 || !Array.isArray(v.profiles) || v.profiles.length > CHARACTER_LIMITS.profiles) return fail('versión o número de perfiles')
   const profiles = v.profiles.map(validateCharacterProfile)
   const ids = new Set(profiles.map(profile => profile.id))
-  if (ids.size !== profiles.length || LEGACY_CHARACTER_IDS.some(id => !ids.has(id))) return fail('identificadores de perfiles')
+  // Pluma and Coder always exist; a save missing one gets it back on load (`upgradeSavedCharacters`).
+  if (ids.size !== profiles.length || ORIGINAL_CHARACTER_IDS.some(id => !ids.has(id))) return fail('identificadores de perfiles')
   const activeCharacterId = validateCharacterId(v.activeCharacterId)
   if (!ids.has(activeCharacterId)) return fail('personaje activo')
   const individual = record(v.individualMemory, 'memoria individual')
@@ -137,13 +138,13 @@ export function validateCharacterData(value: unknown): CharacterData {
   if (JSON.stringify(result).length > CHARACTER_LIMITS.storageJson) return fail('tamaño del archivo')
   return result
 }
-export function parseCharacterData(raw: string): CharacterData {
+/** Reads a save. `upgraded`: it changed on the way in (see `upgradeSavedCharacters`) and should be written back. */
+export function readCharacterData(raw: string): { data: CharacterData; upgraded: boolean } {
   if (raw.length > CHARACTER_LIMITS.storageJson) return fail('tamaño del archivo')
   let value: unknown
   try { value = JSON.parse(raw) } catch { return fail('JSON') }
-  const data = validateCharacterData(value)
-  const refreshed = refreshBuiltInProfiles(data)
-  return refreshed === data ? data : validateCharacterData(refreshed)
+  const upgraded = upgradeSavedCharacters(value)
+  return { data: validateCharacterData(upgraded), upgraded: upgraded !== value }
 }
 export function parseCharacterProfile(raw: string): CharacterProfile {
   if (raw.length > CHARACTER_LIMITS.profileJson) return fail('tamaño de importación')

@@ -19,7 +19,7 @@ import { useActiveCharacter } from '@/hooks/useAvailableAssistants'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { CharacterProfile, CharacterMode, Intensity } from '@/lib/characters/types'
-import { getCharacterChatRole, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
+import { getCharacterChatRole } from '@/lib/characters/profiles'
 import { isLiteraryModelProvider, loadLiteraryLibraryStatus, setLiteraryLibraryRoot, type LiteraryLibraryStatus } from '@/lib/literaryLibrary'
 import { clearPlumaMemory, forgetPlumaNote, loadPlumaMemory, MAX_PLUMA_NOTES } from '@/lib/characters/pluma-memory'
 import { loadPlumaProject, pickPlumaProjectFolder, savePlumaProject, type PlumaProject } from '@/lib/characters/pluma-project'
@@ -353,7 +353,7 @@ export default function CharacterPanel({ busy = false, onVoiceMessage, presentat
               <Field label="Nombre"><Input value={draft.name} maxLength={80} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
               <Field label="Descripción"><Input value={draft.description} maxLength={300} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></Field>
               <div className="rounded-md border px-3 py-2 text-sm">
-                <p className="font-medium">{isVoiceOnlyCharacter(draft) ? 'Solo voz' : `Chat · ${chatRole.label}`}</p>
+                <p className="font-medium">Chat · {chatRole.label}</p>
                 <p className="text-muted-foreground">{chatRole.description}</p>
               </div>
               <Field label="Personalidad de voz"><textarea className={fieldClass} rows={4} maxLength={6000} value={draft.instructions} onChange={(e) => setDraft({ ...draft, instructions: e.target.value })} /></Field>

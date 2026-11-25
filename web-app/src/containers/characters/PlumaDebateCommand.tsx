@@ -6,9 +6,8 @@ import { debateAgents, usePlumaDebate } from '@/lib/characters/pluma-debate'
  * typed. Tab or Enter (or a click) puts the command in the box.
  */
 export function PlumaDebateCommand({ onChoose }: { onChoose: () => void }) {
-  const count = usePlumaDebate((state) => state.count)
   const agents = usePlumaDebate((state) => state.agents)
-  const names = debateAgents({ count, agents }).map((agent) => agent.name).join(', ')
+  const names = debateAgents({ agents }).map((agent) => agent.name).join(', ')
   return (
     <div
       role="listbox"

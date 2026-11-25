@@ -72,6 +72,8 @@ import { useChatShell } from '@/hooks/useChatShell'
 import { expandChatSkill } from '@/lib/chatSkills'
 import { DEBATE_COMMAND_TEXT, debateCommandPrefix, isDebateTurn, offersDebateCommand, usePlumaDebate } from '@/lib/characters/pluma-debate'
 import { PlumaDebateCommand } from '@/containers/characters/PlumaDebateCommand'
+import { PlumaAttachMenu } from '@/containers/characters/PlumaAttachMenu'
+import { DebateHologramDock } from '@/containers/characters/DebateHologramDock'
 import ChatSkillsMenu from '@/containers/ChatSkillsMenu'
 import { useAssistant } from '@/hooks/useAssistant'
 import CharacterPanel, { CharacterAudioRuntime } from '@/containers/characters/CharacterPanel'
@@ -1289,6 +1291,16 @@ const ChatInput = memo(function ChatInput({
     }
   }
 
+  /** A document or folder Pluma read whole; the same one twice is kept once. */
+  const addPlumaDocument = (attachment: Attachment) => {
+    let duplicate = false
+    setAttachmentsForThread(attachmentsKey, (current) => {
+      duplicate = current.some((item) => item.type === 'document' && item.path === attachment.path)
+      return duplicate ? current : [...current, attachment]
+    })
+    if (duplicate) toast.warning(`«${attachment.name}» ya está adjunto.`)
+  }
+
   const handleRemoveAttachment = async (indexToRemove: number) => {
     const attachmentToRemove = attachments[indexToRemove]
 
@@ -2133,6 +2145,7 @@ const ChatInput = memo(function ChatInput({
     <div className="relative">
       {ownsToolSet && !effectiveAgentMode && <CharacterAudioRuntime busy={isStreaming || !!toolsRunning} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
       {ownsToolSet && !effectiveAgentMode && <VoiceOrbDock busy={isStreaming || !!toolsRunning} onVoiceMessage={handleVoiceMessage} onInterrupt={() => { if (isStreaming) stopStreaming(currentThreadId ?? '') }} />}
+      {ownsToolSet && <DebateHologramDock />}
       <div className="relative">
         {/* Outside the rounded frame below, whose overflow-hidden would clip it */}
         {debateCommandOpen && <PlumaDebateCommand onChoose={chooseDebateCommand} />}
@@ -2457,6 +2470,8 @@ const ChatInput = memo(function ChatInput({
                   isStreaming && 'opacity-50 pointer-events-none'
                 )}
               >
+                {/* Pluma's chat takes documents and folders as text, read whole */}
+                {!effectiveAgentMode && privateLibraryChat && <PlumaAttachMenu onAttach={addPlumaDocument} />}
                 {/* Dropdown for attachments — hidden in agent mode */}
                 {!effectiveAgentMode && !privateLibraryChat && (
                 <DropdownMenu>

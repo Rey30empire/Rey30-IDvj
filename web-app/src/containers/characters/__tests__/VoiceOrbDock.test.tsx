@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
 import { createDefaultCharacterData } from '@/lib/characters/profiles'
-const h = vi.hoisted(() => ({ saved: null as string | null, failWrite: false, activeId: 'kairo', threadId: 'thread-qa' as string | undefined, notifyMessages: new Set<() => void>(), notifyStatus: new Set<() => void>(), chatStatus: 'ready', onText: undefined as ((text: string) => void) | undefined, resolveSpeech: undefined as (() => void) | undefined, listen: vi.fn(), speak: vi.fn(), stop: vi.fn(), catalog: vi.fn(), messages: [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }] }))
+const h = vi.hoisted(() => ({ saved: null as string | null, failWrite: false, activeId: 'coder', threadId: 'thread-qa' as string | undefined, notifyMessages: new Set<() => void>(), notifyStatus: new Set<() => void>(), chatStatus: 'ready', onText: undefined as ((text: string) => void) | undefined, resolveSpeech: undefined as (() => void) | undefined, listen: vi.fn(), speak: vi.fn(), stop: vi.fn(), catalog: vi.fn(), messages: [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }] }))
 vi.mock('@/lib/characters/persistence', async original => ({ ...(await original<typeof import('@/lib/characters/persistence')>()), characterStorage: { read: async () => h.saved, write: async (value: string) => { if (h.failWrite) throw new Error('disco lleno'); h.saved = value } } }))
 
 vi.mock('@/hooks/useAvailableAssistants', async () => { const { useCharacterStore } = await import('@/stores/useCharacterStore'); return { useActiveCharacter: () => useCharacterStore(state => state.profiles.find(profile => profile.id === h.activeId)) } })
@@ -55,14 +55,14 @@ async function transcribe() {
   if (h.threadId) submitVoiceTurn()
 }
 beforeEach(async () => {
-  vi.clearAllMocks(); h.saved = null; h.failWrite = false; h.activeId = 'kairo'; h.threadId = 'thread-qa'; h.onText = undefined; h.resolveSpeech = undefined; h.chatStatus = 'ready'; h.notifyMessages.clear(); h.notifyStatus.clear(); window.history.replaceState({}, '', '/')
+  vi.clearAllMocks(); h.saved = null; h.failWrite = false; h.activeId = 'coder'; h.threadId = 'thread-qa'; h.onText = undefined; h.resolveSpeech = undefined; h.chatStatus = 'ready'; h.notifyMessages.clear(); h.notifyStatus.clear(); window.history.replaceState({}, '', '/')
   h.messages = [{ id: 'old', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta anterior que nunca debe reproducirse al abrir.' }] }]
   useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: true, saving: false, error: null }); useCharacterAudio.setState({ status: 'idle', error: null, dictation: true, catalogLoaded: true })
   h.catalog.mockResolvedValue(undefined)
   clone.status.mockResolvedValue({ ready: false })
   h.listen.mockImplementation(async (cb: (text: string) => void) => { h.onText = cb; useCharacterAudio.setState({ status: 'listening' }) })
   h.speak.mockImplementation(() => { useCharacterAudio.setState({ status: 'speaking' }); return new Promise<void>(resolve => { h.resolveSpeech = () => { useCharacterAudio.setState({ status: 'idle' }); resolve() } }) })
-  useAvatarVoiceSession.getState().close(); useAvatarVoiceSession.getState().openFor('kairo', h.threadId); i18n.changeLanguage('es')
+  useAvatarVoiceSession.getState().close(); useAvatarVoiceSession.getState().openFor('coder', h.threadId); i18n.changeLanguage('es')
 })
 afterEach(() => { vi.useRealTimers(); act(() => useAvatarVoiceSession.getState().close()) })
 describe('avatar y voz con motores sustituidos por fixtures funcionales sin dispositivos', () => {
@@ -142,7 +142,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
   // Enters a local call that started by itself, with the options menu open.
   const callPluma = async () => {
     act(() => useAvatarVoiceSession.getState().close())
-    h.activeId = 'nara'
+    h.activeId = 'coder'
     mount().unmount()
     h.activeId = 'literatura'
     live.start.mockReturnValue({ stop: live.stop, setMuted: live.mute, finishTurn: live.finish })
@@ -180,7 +180,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
   })
   it('no escucha sola con la voz apagada', async () => {
     act(() => useAvatarVoiceSession.getState().close())
-    h.activeId = 'nara'
+    h.activeId = 'coder'
     mount()
     h.activeId = 'literatura'
     const view = mount()
@@ -253,24 +253,24 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     h.messages.push({ id: 'new', role: 'assistant', parts: [{ type: 'text', text: 'Nueva respuesta comprobable de la fixture.' }] })
     view.rerender(<VoiceOrbDock busy={false} onVoiceMessage={send} />)
     await waitFor(() => expect(h.speak).toHaveBeenCalledTimes(1)); expect(h.listen).toHaveBeenCalledTimes(1)
-    expect(h.speak).toHaveBeenCalledWith('Nueva respuesta comprobable de la fixture.', expect.objectContaining({ id: 'kairo' }), expect.anything())
+    expect(h.speak).toHaveBeenCalledWith('Nueva respuesta comprobable de la fixture.', expect.objectContaining({ id: 'coder' }), expect.anything())
     await act(async () => h.resolveSpeech?.()); await waitFor(() => expect(h.listen).toHaveBeenCalledTimes(2))
   })
   it('cancels queued submission and stale transcription when returning to Solo chat, and persists voice off', async () => {
-    const p = useCharacterStore.getState().profiles[0]; await useCharacterStore.getState().updateProfile({ ...p, voice: { ...p.voice, enabled: true } })
+    const p = useCharacterStore.getState().profiles[1]; await useCharacterStore.getState().updateProfile({ ...p, voice: { ...p.voice, enabled: true } })
     const send = vi.fn(); mount(send); await start(); const late = h.onText
     fireEvent.click(screen.getByTestId('voice-orb-options'))
     await act(async () => { h.onText?.('No debe enviarse después de salir.'); fireEvent.click(screen.getByTestId('voice-orb-exit')) })
     await act(async () => late?.('Tampoco debe enviarse esta transcripción tardía.'))
     expect(send).not.toHaveBeenCalled(); expect(h.speak).not.toHaveBeenCalled(); expect(useAvatarVoiceSession.getState()).toMatchObject({ open: false, active: false })
-    await waitFor(() => expect(useCharacterStore.getState().profiles[0].voice.enabled).toBe(false)); expect(JSON.parse(h.saved!).profiles[0].voice.enabled).toBe(false)
+    await waitFor(() => expect(useCharacterStore.getState().profiles[1].voice.enabled).toBe(false)); expect(JSON.parse(h.saved!).profiles[1].voice.enabled).toBe(false)
   })
   it('ignores completion from playback cancelled by pause', async () => {
     const send = vi.fn(); const view = mount(send); await start(); await transcribe(); view.rerender(<VoiceOrbDock busy onVoiceMessage={send} />); h.messages.push({ id: 'new', role: 'assistant', parts: [{ type: 'text', text: 'Respuesta nueva.' }] }); view.rerender(<VoiceOrbDock onVoiceMessage={send} />); await waitFor(() => expect(h.speak).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByRole('button', { name: 'Pausar voz' })); await act(async () => h.resolveSpeech?.()); expect(h.listen).toHaveBeenCalledTimes(1); expect(useAvatarVoiceSession.getState()).toMatchObject({ active: false, phase: 'paused' })
   })
   it('preserves authorized waiting across home to new-thread remount, without duplicating microphone or reply', async () => {
-    h.threadId = undefined; useAvatarVoiceSession.getState().openFor('kairo', null); const send = vi.fn(); const old = mount(send); await start(); await transcribe()
+    h.threadId = undefined; useAvatarVoiceSession.getState().openFor('coder', null); const send = vi.fn(); const old = mount(send); await start(); await transcribe()
     let next: ReturnType<typeof mount>
     act(() => { old.unmount(); h.threadId = 'created-thread-qa'; next = mount(send, true) })
     await waitFor(() => expect(useAvatarVoiceSession.getState().threadId).toBe('created-thread-qa')); expect(useAvatarVoiceSession.getState().active).toBe(true); expect(h.listen).toHaveBeenCalledTimes(1)
@@ -279,7 +279,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     await waitFor(() => expect(h.speak).toHaveBeenCalledTimes(1)); await act(async () => h.resolveSpeech?.()); await waitFor(() => expect(h.listen).toHaveBeenCalledTimes(2))
   })
   it('holds only a waiting submitted turn across a delayed lazy thread mount, with no microphone during the gap', async () => {
-    h.threadId = undefined; useAvatarVoiceSession.getState().openFor('kairo', null); const send = vi.fn(); const old = mount(send); await start(); await transcribe()
+    h.threadId = undefined; useAvatarVoiceSession.getState().openFor('coder', null); const send = vi.fn(); const old = mount(send); await start(); await transcribe()
     window.history.replaceState({}, '', '/threads/created-thread-qa')
     old.unmount()
     await new Promise(resolve => setTimeout(resolve, 100))
@@ -304,7 +304,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     expect(h.speak).toHaveBeenCalledTimes(1)
   })
   it('ends authorization on identity or unrelated thread change', async () => {
-    const send = vi.fn(); const view = mount(send); await start(); const late = h.onText; h.activeId = 'nara'; view.rerender(<VoiceOrbDock onVoiceMessage={send} />); await act(async () => late?.('No enviar.')); expect(useAvatarVoiceSession.getState().open).toBe(false); expect(send).not.toHaveBeenCalled(); expect(h.speak).not.toHaveBeenCalled()
+    const send = vi.fn(); const view = mount(send); await start(); const late = h.onText; h.activeId = 'literatura'; view.rerender(<VoiceOrbDock onVoiceMessage={send} />); await act(async () => late?.('No enviar.')); expect(useAvatarVoiceSession.getState().open).toBe(false); expect(send).not.toHaveBeenCalled(); expect(h.speak).not.toHaveBeenCalled()
   })
   it('does not adopt a second unrelated thread', async () => {
     const view = mount(); await start(); await transcribe(); h.threadId = 'other-thread-qa'; view.rerender(<VoiceOrbDock onVoiceMessage={vi.fn()} />); expect(useAvatarVoiceSession.getState().open).toBe(false)
@@ -319,7 +319,7 @@ describe('avatar y voz con motores sustituidos por fixtures funcionales sin disp
     const view = render(<VoiceOrbDock onVoiceMessage={send} onInterrupt={interrupt} />, { wrapper }); await start(); await transcribe()
     view.rerender(<VoiceOrbDock busy onVoiceMessage={send} onInterrupt={interrupt} />)
     fireEvent.click(screen.getByTestId('voice-orb-options')); fireEvent.click(screen.getByTestId('voice-orb-exit'))
-    await waitFor(() => expect(useCharacterStore.getState().profiles[0].voice.enabled).toBe(false))
+    await waitFor(() => expect(useCharacterStore.getState().profiles[1].voice.enabled).toBe(false))
     expect(textStillRunning).toBe(true); expect(interrupt).not.toHaveBeenCalled(); expect(useAvatarVoiceSession.getState().active).toBe(false)
     h.messages = [...h.messages, { id: 'reply-kept-as-text', role: 'assistant', parts: [{ type: 'text', text: 'La generación de texto conserva su respuesta.' }] }]
     view.rerender(<VoiceOrbDock onVoiceMessage={send} onInterrupt={interrupt} />)

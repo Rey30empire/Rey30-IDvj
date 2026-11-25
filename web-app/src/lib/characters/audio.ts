@@ -44,15 +44,6 @@ type AudioState = {
   finishDictation: () => Promise<void>
 }
 const variants: Record<OriginalCharacterId, string> = {
-  kairo: 'm1',
-  beto: 'm2',
-  tino: 'm3',
-  milo: 'm4',
-  roco: 'm5',
-  nara: 'f3',
-  centinela: 'm2',
-  verso: 'm4',
-  fullstack: 'm3',
   literatura: 'f3',
   coder: 'm1',
 }

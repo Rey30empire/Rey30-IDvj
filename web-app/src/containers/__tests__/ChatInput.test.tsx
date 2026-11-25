@@ -517,6 +517,16 @@ describe('ChatInput', () => {
     expect(screen.queryByTestId('pluma-debate-command')).not.toBeInTheDocument()
   })
 
+  it('Pluma\'s chat has its own «+» for documents and folders', () => {
+    getCurrentThreadMock.mockReturnValue({ id: 'thread-1', assistants: [{ id: 'character:literatura' }] } as never)
+    renderInput()
+    expect(screen.getByRole('button', { name: 'Adjuntar un documento para Pluma' })).toBeInTheDocument()
+    cleanup()
+    getCurrentThreadMock.mockReturnValue(undefined)
+    renderInput()
+    expect(screen.queryByRole('button', { name: 'Adjuntar un documento para Pluma' })).not.toBeInTheDocument()
+  })
+
   it('does not offer «/debate» outside Pluma\'s chat', () => {
     promptState = '/de'
     renderInput()
@@ -542,7 +552,7 @@ describe('ChatInput', () => {
   })
 
   it('with another voice, the chat answers the typed words as a voice turn', async () => {
-    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'listening', characterId: 'nara', threadId: 'thread-1', sendTyped: null })
+    useAvatarVoiceSession.setState({ open: true, active: true, phase: 'listening', characterId: 'coder', threadId: 'thread-1', sendTyped: null })
     const generation = useAvatarVoiceSession.getState().generation
     try {
       promptState = '¿Qué tal?'

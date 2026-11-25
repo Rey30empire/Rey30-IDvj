@@ -315,9 +315,10 @@ describe('CustomChatTransport: turn model and character context', () => {
     )
   })
 
-  it.each(['kairo', 'beto', 'tino', 'milo', 'roco', 'nara'])(
-    'resolves the assigned %s profile from its thread and excludes a stale assistant system snapshot',
-    async (id) => {
+  it.each([false, true])(
+    'resolves the assigned Coder profile (a copy: %s) from its thread and excludes a stale assistant system snapshot',
+    async (copy) => {
+      const id = copy ? await useCharacterStore.getState().duplicateProfile('coder') : 'coder'
       h.threads = { 'thread-a': { assistants: [{ id: `character:${id}` }] } }
       const profile = useCharacterStore
         .getState()
@@ -354,10 +355,10 @@ describe('CustomChatTransport: turn model and character context', () => {
   )
 
   it('uses an explicit character model binding instead of the globally selected model', async () => {
-    h.threads = { 'thread-a': { assistants: [{ id: 'character:tino' }] } }
-    await useCharacterStore.getState().selectCharacter('tino')
+    h.threads = { 'thread-a': { assistants: [{ id: 'character:coder' }] } }
+    await useCharacterStore.getState().selectCharacter('coder')
     const profile = structuredClone(
-      useCharacterStore.getState().profiles.find((item) => item.id === 'tino')!
+      useCharacterStore.getState().profiles.find((item) => item.id === 'coder')!
     )
     profile.modelBinding = {
       providerId: 'openai',
@@ -379,9 +380,9 @@ describe('CustomChatTransport: turn model and character context', () => {
   })
 
   it.each([true, false])('resolves an automatic profile binding on an existing thread only when a suitable local model is available (%s)', async (hasLocalModel) => {
-    h.threads = { 'thread-a': { assistants: [{ id: 'character:nara' }] } }
+    h.threads = { 'thread-a': { assistants: [{ id: 'character:coder' }] } }
     const store = useCharacterStore.getState()
-    const profile = store.profiles.find((item) => item.id === 'nara')!
+    const profile = store.profiles.find((item) => item.id === 'coder')!
     await store.updateProfile({ ...profile, modelBinding: null })
     openOtherThreadOnRemoteModel()
     providers.openai.models = [h.selection.selectedModel]
@@ -419,10 +420,10 @@ describe('CustomChatTransport: turn model and character context', () => {
   })
 
   it('fails visibly before sending when a bound character model is no longer available', async () => {
-    h.threads = { 'thread-a': { assistants: [{ id: 'character:tino' }] } }
-    await useCharacterStore.getState().selectCharacter('tino')
+    h.threads = { 'thread-a': { assistants: [{ id: 'character:coder' }] } }
+    await useCharacterStore.getState().selectCharacter('coder')
     const profile = structuredClone(
-      useCharacterStore.getState().profiles.find((item) => item.id === 'tino')!
+      useCharacterStore.getState().profiles.find((item) => item.id === 'coder')!
     )
     profile.modelBinding = {
       providerId: 'missing-owned-provider',
@@ -439,9 +440,9 @@ describe('CustomChatTransport: turn model and character context', () => {
   })
 
   it('sends serious-mode settings and only authorized memory for this character and project', async () => {
-    await useCharacterStore.getState().selectCharacter('nara')
+    await useCharacterStore.getState().selectCharacter('coder')
     const profile = structuredClone(
-      useCharacterStore.getState().profiles.find((item) => item.id === 'nara')!
+      useCharacterStore.getState().profiles.find((item) => item.id === 'coder')!
     )
     profile.settings = {
       ...profile.settings,
@@ -452,11 +453,11 @@ describe('CustomChatTransport: turn model and character context', () => {
     }
     profile.voice.enabled = true
     await useCharacterStore.getState().updateProfile(profile)
-    await useCharacterStore.getState().setIndividualMemory('nara', {
+    await useCharacterStore.getState().setIndividualMemory('coder', {
       enabled: true,
-      notes: 'INDIVIDUAL_NARA_OWNED_QA',
+      notes: 'INDIVIDUAL_CODER_OWNED_QA',
     })
-    await useCharacterStore.getState().setIndividualMemory('kairo', {
+    await useCharacterStore.getState().setIndividualMemory('literatura', {
       enabled: true,
       notes: 'OTHER_CHARACTER_OWNED_QA',
     })
@@ -470,12 +471,12 @@ describe('CustomChatTransport: turn model and character context', () => {
     })
     h.threads = {
       'thread-a': {
-        assistants: [{ id: 'character:nara' }],
+        assistants: [{ id: 'character:coder' }],
         metadata: { project: { id: 'project-a' } },
       },
     }
     const transport = new CustomChatTransport('MEMORY_SYSTEM_QA', 'thread-a')
-    submitVoiceMessage('nara', 'thread-a', 'serious-turn')
+    submitVoiceMessage('coder', 'thread-a', 'serious-turn')
     await send(transport, [
       user('serious-turn', 'Háblame en serio. Revisa mi plan.'),
     ])
@@ -483,34 +484,35 @@ describe('CustomChatTransport: turn model and character context', () => {
     expect(first).toContain('Modo efectivo: serio. Intensidad de humor: 0/3')
     expect(first).toContain('Regla de lenguaje (0/3)')
     expect(first).toContain('Regla de coqueteo (0/3)')
-    expect(first).toContain('INDIVIDUAL_NARA_OWNED_QA')
+    expect(first).toContain('INDIVIDUAL_CODER_OWNED_QA')
     expect(first).toContain('PROJECT_A_OWNED_QA')
     expect(first).not.toContain('PROJECT_B_OWNED_QA')
     expect(first).not.toContain('OTHER_CHARACTER_OWNED_QA')
 
     h.threads = {
       'thread-a': {
-        assistants: [{ id: 'character:nara' }],
+        assistants: [{ id: 'character:coder' }],
         metadata: { project: { id: 'project-b' } },
       },
     }
     await send(transport, [user('project-b-turn', 'Siguiente paso.')])
     expect(h.sent.at(-1)?.system).toContain('PROJECT_B_OWNED_QA')
     expect(h.sent.at(-1)?.system).not.toContain('PROJECT_A_OWNED_QA')
-    await useCharacterStore.getState().setIndividualMemory('nara', {
+    await useCharacterStore.getState().setIndividualMemory('coder', {
       enabled: false,
-      notes: 'INDIVIDUAL_NARA_OWNED_QA',
+      notes: 'INDIVIDUAL_CODER_OWNED_QA',
     })
-    h.threads = { 'thread-a': { assistants: [{ id: 'character:nara' }] } }
+    h.threads = { 'thread-a': { assistants: [{ id: 'character:coder' }] } }
     await send(transport, [user('no-project-turn', 'Continúa.')])
     expect(h.sent.at(-1)?.system).not.toMatch(
-      /INDIVIDUAL_NARA_OWNED_QA|PROJECT_A_OWNED_QA|PROJECT_B_OWNED_QA|OTHER_CHARACTER_OWNED_QA/
+      /INDIVIDUAL_CODER_OWNED_QA|PROJECT_A_OWNED_QA|PROJECT_B_OWNED_QA|OTHER_CHARACTER_OWNED_QA/
     )
   })
 
-  it.each(['nara', 'verso'])(
-    'isolates the spoken style of %s to its own active voice turn and follow-ups',
-    async (id) => {
+  it.each([false, true])(
+    'isolates the spoken style of Coder (a copy: %s) to its own active voice turn and follow-ups',
+    async (copy) => {
+      const id = copy ? await useCharacterStore.getState().duplicateProfile('coder') : 'coder'
       const store = useCharacterStore.getState()
       const profile = store.profiles.find((item) => item.id === id)!
       await store.updateProfile({ ...profile, voice: { ...profile.voice, enabled: true } })
@@ -550,10 +552,10 @@ describe('CustomChatTransport: turn model and character context', () => {
   )
 
   it('keeps the actual Cowork transport free of chat character context, memory, mode changes and model bindings', async () => {
-    h.currentAssistant = { id: 'character:nara' }
-    await useCharacterStore.getState().selectCharacter('nara')
+    h.currentAssistant = { id: 'character:coder' }
+    await useCharacterStore.getState().selectCharacter('coder')
     const profile = structuredClone(
-      useCharacterStore.getState().profiles.find((item) => item.id === 'nara')!
+      useCharacterStore.getState().profiles.find((item) => item.id === 'coder')!
     )
     profile.settings.mode = 'charla'
     profile.modelBinding = {
@@ -561,7 +563,7 @@ describe('CustomChatTransport: turn model and character context', () => {
       modelId: 'owned-character-model',
     }
     await useCharacterStore.getState().updateProfile(profile)
-    await useCharacterStore.getState().setIndividualMemory('nara', {
+    await useCharacterStore.getState().setIndividualMemory('coder', {
       enabled: true,
       notes: 'NO_COWORK_MEMORY_OWNED_QA',
     })
@@ -590,7 +592,7 @@ describe('CustomChatTransport: turn model and character context', () => {
       expect.anything()
     )
     expect(
-      useCharacterStore.getState().profiles.find((item) => item.id === 'nara')
+      useCharacterStore.getState().profiles.find((item) => item.id === 'coder')
         ?.settings.mode
     ).toBe('charla')
   })
@@ -598,8 +600,8 @@ describe('CustomChatTransport: turn model and character context', () => {
   it.each(['rey30', 'model-only', undefined])(
     'never adds a global character to a thread assigned %s',
     async (id) => {
-      h.currentAssistant = { id: 'character:nara' }
-      await useCharacterStore.getState().selectCharacter('nara')
+      h.currentAssistant = { id: 'character:coder' }
+      await useCharacterStore.getState().selectCharacter('coder')
       h.threads = { 'thread-a': { assistants: id ? [{ id }] : [] } }
       await send(new CustomChatTransport('ORDINARY_SYSTEM_QA', 'thread-a'), [
         user('ordinary-turn', 'Háblame en serio.'),
@@ -611,13 +613,13 @@ describe('CustomChatTransport: turn model and character context', () => {
       expect(
         useCharacterStore
           .getState()
-          .profiles.find((profile) => profile.id === 'nara')?.settings.mode
+          .profiles.find((profile) => profile.id === 'coder')?.settings.mode
       ).not.toBe('serio')
     }
   )
 
   it('does not inherit the global character while a known thread has not loaded', async () => {
-    h.currentAssistant = { id: 'character:nara' }
+    h.currentAssistant = { id: 'character:coder' }
     await send(
       new CustomChatTransport('PENDING_THREAD_SYSTEM_QA', 'thread-a'),
       [user('pending-thread', 'Hola')]

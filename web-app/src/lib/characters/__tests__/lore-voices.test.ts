@@ -41,28 +41,28 @@ describe('voces de Lore en cualquier formato', () => {
 describe('carpetas de voces por asistente y por género', () => {
   beforeEach(() => { invoke.mockReset() })
 
-  it('Pluma usa su carpeta y la de mujer; Beto, la suya y la de hombre', () => {
+  it('Pluma usa su carpeta y la de mujer; Coder, la suya y la de hombre, aunque le cambies el nombre', () => {
     expect(loreVoiceGroups(getOriginalProfile('literatura'))).toEqual({ own: 'Pluma', gender: 'mujer' })
-    expect(loreVoiceGroups(getOriginalProfile('beto'))).toEqual({ own: 'Beto', gender: 'hombre' })
-    expect(loreVoiceGroups(getOriginalProfile('nara'))).toEqual({ own: 'Nara', gender: 'mujer' })
+    expect(loreVoiceGroups(getOriginalProfile('coder'))).toEqual({ own: 'Coder', gender: 'hombre' })
+    expect(loreVoiceGroups({ ...getOriginalProfile('coder'), name: 'Mi ingeniero' })).toEqual({ own: 'Coder', gender: 'hombre' })
   })
 
   it('un asistente creado por ti usa su propio nombre', () => {
-    const custom = { ...getOriginalProfile('nara'), id: 'custom-1', name: 'Luna Roja' }
+    const custom = { ...getOriginalProfile('literatura'), id: 'custom-1', name: 'Luna Roja' }
     expect(loreVoiceGroups(custom)).toEqual({ own: 'Luna', gender: 'mujer' })
   })
 
   it('el género sigue a la voz que tiene elegida', () => {
-    const beto = getOriginalProfile('beto')
-    expect(loreGender({ ...beto, voice: { ...beto.voice, voiceURI: 'espeak:es-419+f3' } })).toBe('mujer')
-    expect(loreGender({ ...beto, voice: { ...beto.voice, voiceURI: 'otra-voz' } })).toBe('hombre')
+    const coder = getOriginalProfile('coder')
+    expect(loreGender({ ...coder, voice: { ...coder.voice, voiceURI: 'espeak:es-419+f3' } })).toBe('mujer')
+    expect(loreGender({ ...coder, voice: { ...coder.voice, voiceURI: 'otra-voz' } })).toBe('hombre')
   })
 
   it('la carpeta propia es el primer nombre, sin caracteres que una carpeta no admite', () => {
-    expect(loreOwnFolder('Beto Carambola', 'beto')).toBe('Beto')
-    expect(loreOwnFolder('  ..Lu:na/Roja ', 'nara')).toBe('Lu')
+    expect(loreOwnFolder('Pluma Roja', 'literatura')).toBe('Pluma')
+    expect(loreOwnFolder('  ..Lu:na/Roja ', 'literatura')).toBe('Lu')
     expect(loreOwnFolder('', 'coder')).toBe('coder')
-    expect(loreOwnFolder('Mujer fatal', 'nara')).toBe('nara')
+    expect(loreOwnFolder('Mujer fatal', 'literatura')).toBe('literatura')
   })
 
   it('pide solo sus carpetas y graba en la suya', async () => {

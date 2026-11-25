@@ -1,5 +1,5 @@
 export type CharacterId = string
-export type OriginalCharacterId = 'kairo' | 'beto' | 'tino' | 'milo' | 'roco' | 'nara' | 'centinela' | 'verso' | 'fullstack' | 'literatura' | 'coder'
+export type OriginalCharacterId = 'literatura' | 'coder'
 export type CharacterMode = 'charla' | 'trabajo' | 'serio'
 export type CharacterChannel = 'chat' | 'voice'
 export type Intensity = 0 | 1 | 2 | 3

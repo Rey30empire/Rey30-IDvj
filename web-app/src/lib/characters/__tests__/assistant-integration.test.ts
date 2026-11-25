@@ -113,9 +113,9 @@ describe('asistentes de personajes integrados', () => {
       'character:literatura',
       'character:coder',
     ])
-    const profile = useCharacterStore.getState().profiles[0]
+    const profile = useCharacterStore.getState().profiles[1]
     expect(toCharacterAssistant(profile)).toMatchObject({
-      id: 'character:kairo',
+      id: 'character:coder',
       name: `Rey30-IDvj ${profile.name}`,
       instructions: '',
       parameters: {},
@@ -126,7 +126,7 @@ describe('asistentes de personajes integrados', () => {
         [defaultAssistant, toCharacterAssistant(profile)],
         useCharacterStore.getState().profiles
       )
-    ).toHaveLength(12)
+    ).toHaveLength(3)
     await expect(
       useAssistant.getState().addAssistant(toCharacterAssistant(profile))
     ).rejects.toThrow('no se duplican')
@@ -134,25 +134,25 @@ describe('asistentes de personajes integrados', () => {
     expect(h.saveCharacter).not.toHaveBeenCalled()
     expect(characterIdFromAssistantId('character:../bad')).toBeUndefined()
     expect(characterIdFromAssistantId('rey30')).toBeUndefined()
-    expect(characterAssistantId('nara')).toBe('character:nara')
+    expect(characterAssistantId('coder')).toBe('character:coder')
   })
 
   it('restaura predeterminado y último usado por id virtual manteniendo el id rey30 y la lista persistida separados', async () => {
-    localStorage.setItem(localStorageKey.lastUsedAssistant, 'character:beto')
+    localStorage.setItem(localStorageKey.lastUsedAssistant, 'character:coder')
     act(() => useAssistant.getState().setAssistants([defaultAssistant]))
     await waitFor(() =>
       expect(useAssistant.getState().currentAssistant?.id).toBe(
-        'character:beto'
+        'character:coder'
       )
     )
-    act(() => useAssistant.getState().setDefaultAssistant('character:roco'))
+    act(() => useAssistant.getState().setDefaultAssistant('character:literatura'))
     expect(localStorage.getItem(localStorageKey.defaultAssistantId)).toBe(
-      'character:roco'
+      'character:literatura'
     )
     act(() => useAssistant.getState().setAssistants([defaultAssistant]))
     await waitFor(() =>
       expect(useAssistant.getState().currentAssistant?.id).toBe(
-        'character:roco'
+        'character:literatura'
       )
     )
     expect(useAssistant.getState().assistants).toEqual([defaultAssistant])
@@ -160,29 +160,30 @@ describe('asistentes de personajes integrados', () => {
   })
 
   it('actualiza la proyección desde el perfil único sin sobrescribir su memoria ni otro asistente', async () => {
+    useCharacterStore.setState({ activeAgents: ['literatura'] })
     useAssistant
       .getState()
       .setCurrentAssistant(
-        toCharacterAssistant(useCharacterStore.getState().profiles[0])
+        toCharacterAssistant(useCharacterStore.getState().profiles[1])
       )
     const { result } = renderHook(useAvailableAssistants)
     await act(async () => {
-      await useCharacterStore.getState().setAgentActive('kairo', true)
-      await useCharacterStore.getState().setIndividualMemory('kairo', {
+      await useCharacterStore.getState().setAgentActive('coder', true)
+      await useCharacterStore.getState().setIndividualMemory('coder', {
         enabled: true,
         notes: 'MEMORY_OWNED_QA',
       })
-      const profile = structuredClone(useCharacterStore.getState().profiles[0])
-      profile.name = 'Kairo propio QA'
+      const profile = structuredClone(useCharacterStore.getState().profiles[1])
+      profile.name = 'Coder propio QA'
       await useCharacterStore.getState().updateProfile(profile)
     })
     expect(
-      result.current.find((item) => item.id === 'character:kairo')?.name
-    ).toBe('Rey30-IDvj Kairo propio QA')
+      result.current.find((item) => item.id === 'character:coder')?.name
+    ).toBe('Rey30-IDvj Coder propio QA')
     expect(useAssistant.getState().currentAssistant?.name).toBe(
-      'Rey30-IDvj Kairo propio QA'
+      'Rey30-IDvj Coder propio QA'
     )
-    expect(useCharacterStore.getState().individualMemory.kairo.notes).toBe(
+    expect(useCharacterStore.getState().individualMemory.coder.notes).toBe(
       'MEMORY_OWNED_QA'
     )
     expect(useAssistant.getState().assistants).toEqual([defaultAssistant])
@@ -218,11 +219,11 @@ describe('asistentes de personajes integrados', () => {
   it('completa bindings ausentes una vez, preservando otros modelos y memoria', async () => {
     const data = createDefaultCharacterData()
     data.profiles[0].modelBinding = null
-    data.profiles[4].modelBinding = {
+    data.profiles[1].modelBinding = {
       providerId: 'openai',
       modelId: 'chosen-owned',
     }
-    data.individualMemory.kairo = { enabled: false, notes: 'KEEP_OWNED_QA' }
+    data.individualMemory.literatura = { enabled: false, notes: 'KEEP_OWNED_QA' }
     useCharacterStore.setState(data)
     await ensureCharacterModelBindings(h.providers)
     expect(h.saveCharacter).toHaveBeenCalledOnce()
@@ -232,7 +233,7 @@ describe('asistentes de personajes integrados', () => {
         modelBinding: profile.modelBinding?.modelId === 'chosen-owned' ? profile.modelBinding : binding,
       }))
     )
-    expect(useCharacterStore.getState().individualMemory.kairo.notes).toBe(
+    expect(useCharacterStore.getState().individualMemory.literatura.notes).toBe(
       'KEEP_OWNED_QA'
     )
     await ensureCharacterModelBindings(h.providers)
@@ -261,7 +262,7 @@ describe('asistentes de personajes integrados', () => {
         })
     )
     const selecting = selectIntegratedAssistant(
-      'character:tino',
+      'character:coder',
       'owned-thread'
     )
     await waitFor(() => expect(h.updateThread).toHaveBeenCalledOnce())
@@ -274,7 +275,7 @@ describe('asistentes de personajes integrados', () => {
         model: { id: binding.modelId, provider: 'llamacpp' },
         assistants: [
           expect.objectContaining({
-            id: 'character:tino',
+            id: 'character:coder',
             instructions: '',
             model: { id: binding.modelId, provider: 'llamacpp' },
           }),
@@ -282,7 +283,7 @@ describe('asistentes de personajes integrados', () => {
         metadata: old.metadata,
       })
     )
-    expect(useAssistant.getState().currentAssistant?.id).toBe('character:tino')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('character:coder')
     expect(h.selectModel).toHaveBeenCalledWith('llamacpp', binding.modelId)
     expect(useCharacterStore.getState().enabled).toBe(false)
     expect(h.createAssistant).not.toHaveBeenCalled()
@@ -299,18 +300,18 @@ describe('asistentes de personajes integrados', () => {
     useThreads.setState({ threads: { 'owned-thread': old } })
     h.updateThread.mockRejectedValueOnce(new Error('owned-disk-full'))
     await expect(
-      selectIntegratedAssistant('character:roco', 'owned-thread')
+      selectIntegratedAssistant('character:coder', 'owned-thread')
     ).rejects.toThrow('owned-disk-full')
     expect(useThreads.getState().threads['owned-thread']).toEqual(old)
     expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
     expect(h.selectModel).not.toHaveBeenCalled()
-    const profile = structuredClone(useCharacterStore.getState().profiles[4])
+    const profile = structuredClone(useCharacterStore.getState().profiles[1])
     profile.modelBinding = { providerId: 'openai', modelId: 'missing-owned' }
     await useCharacterStore.getState().updateProfile(profile)
-    await expect(selectIntegratedAssistant('character:roco')).rejects.toThrow(
+    await expect(selectIntegratedAssistant('character:coder')).rejects.toThrow(
       'ya no está disponible'
     )
-    expect(useCharacterStore.getState().profiles[4].modelBinding).toEqual(
+    expect(useCharacterStore.getState().profiles[1].modelBinding).toEqual(
       profile.modelBinding
     )
     expect(useAssistant.getState().currentAssistant?.id).toBe('rey30')
@@ -318,7 +319,7 @@ describe('asistentes de personajes integrados', () => {
 
   it('cancela voz y un envío pendiente sincrónicamente al cambiar de asistente, antes de resolver la nueva selección', async () => {
     const voice = useAvatarVoiceSession.getState()
-    voice.openFor('kairo', null)
+    voice.openFor('literatura', null)
     useAvatarVoiceSession.getState().start()
     const generation = useAvatarVoiceSession.getState().generation
     useAvatarVoiceSession.setState({ phase: 'waiting' })
@@ -329,7 +330,7 @@ describe('asistentes de personajes integrados', () => {
         send()
     })
 
-    const selecting = selectIntegratedAssistant('character:nara')
+    const selecting = selectIntegratedAssistant('character:coder')
     expect(useAvatarVoiceSession.getState()).toMatchObject({
       open: false,
       active: false,
@@ -339,14 +340,14 @@ describe('asistentes de personajes integrados', () => {
     await pending
     await selecting
     expect(send).not.toHaveBeenCalled()
-    expect(useAssistant.getState().currentAssistant?.id).toBe('character:nara')
+    expect(useAssistant.getState().currentAssistant?.id).toBe('character:coder')
   })
 
   it('deriva el personaje del hilo y no hereda el global al cargar, al elegir el predeterminado ni en model-only', () => {
     useAssistant
       .getState()
       .setCurrentAssistant(
-        toCharacterAssistant(useCharacterStore.getState().profiles[0])
+        toCharacterAssistant(useCharacterStore.getState().profiles[1])
       )
     useThreads.setState({ currentThreadId: 'owned-thread', threads: {} })
     const { result } = renderHook(useActiveCharacter)
@@ -358,12 +359,12 @@ describe('asistentes de personajes integrados', () => {
             id: 'owned-thread',
             title: 'Owned',
             updated: 1,
-            assistants: [{ id: 'character:nara' }],
+            assistants: [{ id: 'character:literatura' }],
           } as Thread,
         },
       })
     )
-    expect(result.current?.id).toBe('nara')
+    expect(result.current?.id).toBe('literatura')
     for (const id of ['rey30', 'model-only']) {
       act(() =>
         useThreads.setState({
@@ -380,7 +381,7 @@ describe('asistentes de personajes integrados', () => {
       expect(result.current).toBeUndefined()
     }
     act(() => useThreads.setState({ currentThreadId: undefined }))
-    expect(result.current?.id).toBe('kairo')
+    expect(result.current?.id).toBe('coder')
   })
 })
 

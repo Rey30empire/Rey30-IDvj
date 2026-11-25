@@ -96,7 +96,7 @@ fn voices_dir(root: &Path, group: &str, singing: bool) -> Option<PathBuf> {
 }
 
 /// A real folder, never a link or junction that could lead out of Lore.
-fn plain_dir(path: &Path) -> bool {
+pub(super) fn plain_dir(path: &Path) -> bool {
     fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_dir() && !is_link(&metadata))
 }
 

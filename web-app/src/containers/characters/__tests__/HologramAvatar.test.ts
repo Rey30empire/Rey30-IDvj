@@ -45,7 +45,7 @@ describe('holograma de partículas', () => {
     const avatar = (display?: 'sphere' | 'hologram') => ({ display })
     expect(usesHologram({ baseId: 'literatura', avatar: avatar() })).toBe(true)
     expect(usesHologram({ baseId: 'literatura', avatar: avatar('sphere') })).toBe(false)
-    expect(usesHologram({ baseId: 'nara', avatar: avatar('hologram') })).toBe(false)
+    expect(usesHologram({ baseId: 'sin-retrato', avatar: avatar('hologram') })).toBe(false)
   })
 
   it('da volumen a la cara: el centro sobresale y al girar se desplaza más que el borde', () => {
@@ -57,6 +57,7 @@ describe('holograma de partículas', () => {
     expect(shift(60)).toBeGreaterThan(shift(0))
   })
 
+  // Blaster (`kairo`) is no longer an assistant, but the debate still shows his face.
   it('tiene retrato con ojos y boca para Plumita, Blaster y Coder', () => {
     expect(Object.keys(HOLOGRAM_PORTRAITS).sort()).toEqual(['coder', 'kairo', 'literatura'])
     for (const { leftEye, rightEye, mouth } of Object.values(HOLOGRAM_PORTRAITS)) {

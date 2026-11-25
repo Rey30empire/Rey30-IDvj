@@ -127,8 +127,8 @@ describe('DropdownModelProvider - models on this PC', () => {
   it("leaves an assistant's own model alone", () => {
     const { selectModelProvider } = mockProviders([llamacpp()])
     vi.mocked(useActiveCharacter).mockReturnValue({
-      id: 'kairo',
-      name: 'Kairo',
+      id: 'coder',
+      name: 'Coder',
       modelBinding: { providerId: 'llamacpp', modelId: 'qwen' },
     } as never)
     render(<DropdownModelProvider />)

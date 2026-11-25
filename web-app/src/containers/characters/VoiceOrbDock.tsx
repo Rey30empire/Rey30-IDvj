@@ -20,6 +20,7 @@ import { PlumaReadingPanel } from './PlumaReadingPanel'
 import { plumaReader, type PlumaReadingProgress } from '@/lib/characters/pluma-reading'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 import { useAvatarVoiceSession } from '@/stores/useAvatarVoiceSession'
+import { useDebateStage } from '@/stores/useDebateStage'
 import { useChatSessions } from '@/stores/chat-session-store'
 import { toast } from 'sonner'
 import { HologramAvatar, HOLOGRAM_STAGE_ID, HOLOGRAM_THREAD_STAGE_ID, useHologramPortrait, usesHologram } from './HologramAvatar'
@@ -321,6 +322,8 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
       useCharacterAudio.getState().stop(); useAvatarVoiceSession.getState().pause()
     }
   }, [session.open, session.active, profile?.voice.enabled, profile?.avatar.enabled, profile])
+  // A debate playing shows its own cards in this corner; this one steps aside meanwhile.
+  const debating = useDebateStage(state => state.agents.length > 0)
 
   if (!profile?.avatar.enabled) return null
   const cloneNeedsReference = cloneCall && !reference.reference?.ready
@@ -366,7 +369,7 @@ export default function VoiceOrbDock({ busy = false, onVoiceMessage }: {
     writeHomeCard(card)
   }
   const hologramAt = (size: 'stage' | 'call' | 'corner') => portrait && <HologramAvatar portrait={portrait} state={state} level={level} color="#5CE1E6" label={`Holograma de ${profile.name} · ${status}`} size={size} onToggleSize={stage || threadStage ? toggleSize : undefined} toggleHint={size === 'stage' ? 'hacerlo pequeño' : 'agrandarlo'} />
-  return <aside data-view={hologram ? 'hologram' : 'sphere'} data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className="voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1" data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
+  return <aside data-view={hologram ? 'hologram' : 'sphere'} data-testid="voice-orb-dock" aria-label={`Voz de ${profile.name}`} className={cn('voice-orb-dock fixed top-16 right-4 z-40 flex items-center gap-1', debating && 'hidden')} data-state={state} data-motion={profile.avatar.motion} data-pluma-phase={localCall && session.active ? callPhase : undefined} data-pluma-first-audio-ms={localCall ? callTiming?.fromSpeechMs : undefined} data-pluma-commit-to-audio-ms={localCall ? callTiming?.fromCommitMs : undefined} style={{ '--voice-level': level, '--voice-sphere': color(profile.avatar.primary), '--voice-ring': color(profile.avatar.secondary), '--voice-detail': color(profile.avatar.accent) } as CSSProperties}>
     <button data-testid="voice-orb-toggle" type="button" title={`${profile.name} · ${status}`} aria-label={session.active ? 'Pausar voz' : cloneNeedsReference ? 'Configurar muestra de voz' : 'Iniciar voz'} aria-pressed={session.active} disabled={!session.active && (saving || processing || (!localCall && (!onVoiceMessage || !catalogLoaded || !dictation)))} className="voice-orb focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-foreground disabled:cursor-not-allowed disabled:opacity-60" onClick={() => { if (session.active) { autoListenDeclined = profile.id; stop() } else { autoListenDeclined = null; start() } }}>{hologram ? <Mic className="size-5" aria-hidden="true" /> : <span className="voice-orb-core" />}<span className="sr-only">{profile.name} · {status}</span></button>
     <Popover open={optionsOpen} onOpenChange={setOptionsOpen}>
       <PopoverTrigger asChild><Button data-testid="voice-orb-options" aria-label="Opciones de voz" type="button" size="icon-sm" variant="ghost"><MoreHorizontal className="size-4" /></Button></PopoverTrigger>

@@ -642,7 +642,7 @@ describe('ThreadDetail route', () => {
 
   it('marks the actual SDK user message for a live dictation without persisting the authorization', async () => {
     const session = useAvatarVoiceSession.getState()
-    session.openFor('nara', 'thread-1')
+    session.openFor('coder', 'thread-1')
     session.start()
     useAvatarVoiceSession.setState({ phase: 'waiting' })
     renderComponent()
@@ -658,7 +658,7 @@ describe('ThreadDetail route', () => {
 
   it.each([true, false])('only submits an initial dictation while its voice session remains active (%s)', async (active) => {
     const session = useAvatarVoiceSession.getState()
-    session.openFor('nara', null)
+    session.openFor('coder', null)
     session.start()
     useAvatarVoiceSession.setState({ phase: 'waiting' })
     expect(session.adoptThread('thread-1')).toBe(true)

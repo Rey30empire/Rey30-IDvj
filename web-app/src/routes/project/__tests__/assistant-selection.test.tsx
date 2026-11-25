@@ -5,7 +5,7 @@ const h = vi.hoisted(() => ({
   project: {
     id: 'owned-project',
     name: 'Owned project',
-    assistantId: 'character:beto' as string | undefined,
+    assistantId: 'character:coder' as string | undefined,
   },
   providers: [{}] as unknown[],
   selectedProvider: 'owned-provider',
@@ -95,7 +95,7 @@ describe('asistente del proyecto y cabecera controlada', () => {
     h.project = {
       id: 'owned-project',
       name: 'Owned project',
-      assistantId: 'character:beto',
+      assistantId: 'character:coder',
     }
     h.providers = [{}]
     h.selectedProvider = 'owned-provider'
@@ -103,10 +103,10 @@ describe('asistente del proyecto y cabecera controlada', () => {
   })
   it('deriva cabecera, chat y selección inicial del mismo asistente del proyecto, sin conservar otro hilo activo', async () => {
     render(<Component />)
-    await waitFor(() => expect(h.select).toHaveBeenCalledWith('character:beto'))
+    await waitFor(() => expect(h.select).toHaveBeenCalledWith('character:coder'))
     expect(h.clearThread).toHaveBeenCalledWith(undefined)
-    expect(h.dropdown.assistantId).toBe('character:beto')
-    expect(h.chat.projectAssistantId).toBe('character:beto')
+    expect(h.dropdown.assistantId).toBe('character:coder')
+    expect(h.chat.projectAssistantId).toBe('character:coder')
     expect(h.updateFolder).not.toHaveBeenCalled()
   })
   it('mantiene el proyecto sin asistente como selección explícita vacía, sin heredar la selección global', async () => {
@@ -120,12 +120,12 @@ describe('asistente del proyecto y cabecera controlada', () => {
     render(<Component />)
     await waitFor(() => expect(h.select).toHaveBeenCalled())
     await act(async () => {
-      await h.dropdown.onAssistantChange?.('character:nara')
+      await h.dropdown.onAssistantChange?.('character:literatura')
     })
     expect(h.updateFolder).toHaveBeenCalledWith(
       'owned-project',
       'Owned project',
-      'character:nara'
+      'character:literatura'
     )
     await act(async () => {
       await h.dropdown.onAssistantChange?.('')
@@ -144,10 +144,10 @@ describe('asistente del proyecto y cabecera controlada', () => {
     )
     await act(async () => {
       await expect(
-        h.dropdown.onAssistantChange?.('character:nara')
+        h.dropdown.onAssistantChange?.('character:literatura')
       ).rejects.toThrow('owned-project-write-failed')
     })
-    expect(h.select).toHaveBeenLastCalledWith('character:beto')
+    expect(h.select).toHaveBeenLastCalledWith('character:coder')
     expect(h.selectModel).toHaveBeenCalledWith('owned-provider', 'owned-model')
   })
   it('espera a que los proveedores estén disponibles antes de resolver un binding al entrar', async () => {
@@ -156,6 +156,6 @@ describe('asistente del proyecto y cabecera controlada', () => {
     expect(h.select).not.toHaveBeenCalled()
     h.providers = [{}]
     view.rerender(<Component />)
-    await waitFor(() => expect(h.select).toHaveBeenCalledWith('character:beto'))
+    await waitFor(() => expect(h.select).toHaveBeenCalledWith('character:coder'))
   })
 })

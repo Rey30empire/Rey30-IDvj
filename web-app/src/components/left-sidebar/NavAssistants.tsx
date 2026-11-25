@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Bot, ChevronDown, Mic, Settings2 } from 'lucide-react'
+import { Bot, ChevronDown, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   SidebarGroup,
@@ -21,7 +21,7 @@ import {
   characterIdFromAssistantId,
   selectIntegratedAssistant,
 } from '@/lib/characters/assistant-integration'
-import { getCharacterChatRole, isCoderCharacter, isVoiceOnlyCharacter } from '@/lib/characters/profiles'
+import { getCharacterChatRole, isCoderCharacter } from '@/lib/characters/profiles'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 
 export function NavAssistants() {
@@ -89,13 +89,11 @@ export function NavAssistants() {
           const profileId = characterIdFromAssistantId(assistant.id)
           if (profileId && !loaded) return null
           const profile = profiles.find((item) => item.id === profileId)
-          const voiceOnly = profile && isVoiceOnlyCharacter(profile)
-          const subtitle = voiceOnly ? t('assistants:voiceOnly') : profile ? getCharacterChatRole(profile).label : undefined
-          const Icon = voiceOnly ? Mic : Bot
+          const subtitle = profile ? getCharacterChatRole(profile).label : undefined
           const content = (
             <>
               <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
-                {profile && !voiceOnly ? assistant.name.trim().slice(0, 1).toUpperCase() : <Icon size={14} />}
+                {profile ? assistant.name.trim().slice(0, 1).toUpperCase() : <Bot size={14} />}
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-medium">{assistant.name}</span>

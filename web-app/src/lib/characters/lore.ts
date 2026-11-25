@@ -11,7 +11,7 @@ import { audioToVoiceSample } from './voice-recorder'
  * saved song lyrics (`canciones`). Files dropped there show up here without
  * rebuilding the app.
  *
- * A voice folder is an assistant's first name (`Pluma`, `Beto`) or a gender
+ * A voice folder is an assistant's first name (`Pluma`, `Coder`) or a gender
  * (`mujer`, `hombre`): an assistant is offered its own voices and those of its
  * gender, so a man's voice never turns up for a woman. The old flat
  * `voces/hablar` and `voces/cantar` still count, as the folder "".
@@ -43,7 +43,7 @@ export function loreGender(profile: Pick<CharacterProfile, 'baseId' | 'voice'>):
   return variant?.[1].toLowerCase() === 'f' ? 'mujer' : 'hombre'
 }
 
-/** A built-in assistant keeps the name it is known by (`Beto`, even shown as Don Chispa); Plumita's is `Pluma`. */
+/** A built-in assistant keeps its folder even if renamed: Plumita's is `Pluma`, Coder's `Coder`. */
 function builtInFolder(profile: Pick<CharacterProfile, 'id' | 'baseId'>) {
   if (profile.id !== profile.baseId) return undefined
   return profile.baseId === 'literatura' ? 'Pluma' : profile.baseId.charAt(0).toUpperCase() + profile.baseId.slice(1)

@@ -39,7 +39,6 @@
   "allAssistants": "All Assistants",
   "lastUsed": "Last used",
   "manage": "Manage assistants",
-  "voiceOnly": "Voice only",
   "openError": "Could not open the assistant.",
   "loadError": "Could not load built-in assistants.",
   "loading": "Loading assistants…"

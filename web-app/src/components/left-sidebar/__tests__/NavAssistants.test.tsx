@@ -22,11 +22,11 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/hooks/useAssistant', () => ({ useAssistant: () => undefined }))
 vi.mock('@/hooks/useThreads', () => ({ useThreads: (select: (store: object) => unknown) => select({ threads: state.threads }) }))
 vi.mock('@/hooks/useAgentMode', () => ({ useAgentMode: { getState: () => ({ removeThread: state.removeThread }) } }))
-vi.mock('@/hooks/useAvailableAssistants', () => ({ useAvailableAssistants: () => [{ id: 'character:kairo', name: 'Atlas' }] }))
+vi.mock('@/hooks/useAvailableAssistants', () => ({ useAvailableAssistants: () => [{ id: 'character:literatura', name: 'Atlas' }] }))
 vi.mock('@/stores/useCharacterStore', () => ({
   useCharacterStore: (select: (store: object) => unknown) => select({
     loaded: true,
-    profiles: [{ id: 'kairo', baseId: 'kairo' }],
+    profiles: [{ id: 'literatura', baseId: 'literatura' }],
   }),
 }))
 vi.mock('@/lib/characters/assistant-integration', () => ({
@@ -45,7 +45,7 @@ function chat(id: string, updated: number, metadata?: Thread['metadata']): Threa
     title: id,
     updated,
     metadata,
-    assistants: [{ id: 'character:kairo', name: 'Atlas', instructions: '', parameters: {}, created_at: 0 }],
+    assistants: [{ id: 'character:literatura', name: 'Atlas', instructions: '', parameters: {}, created_at: 0 }],
   }
 }
 
@@ -59,7 +59,7 @@ it('selects a new assistant without reassigning the currently open thread', asyn
   mount()
   fireEvent.click(screen.getByRole('button', { name: /Atlas/ }))
   await waitFor(() => expect(state.navigate).toHaveBeenCalledWith({ to: '/', search: {} }))
-  expect(state.select).toHaveBeenCalledWith('character:kairo')
+  expect(state.select).toHaveBeenCalledWith('character:literatura')
   expect(state.removeThread).toHaveBeenCalledTimes(1)
 })
 

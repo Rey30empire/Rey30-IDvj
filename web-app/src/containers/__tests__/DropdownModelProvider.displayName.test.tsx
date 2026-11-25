@@ -210,8 +210,8 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     render(<DropdownModelProvider />)
     expect(screen.getByRole('button', { name: 'Seleccionar asistente y modelo' })).toBeInTheDocument()
     for (const profile of profiles) expect(screen.getByTestId(`assistant-option-character:${profile.id}`)).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('assistant-option-character:beto'))
-    await waitFor(() => expect(selectIntegratedAssistant).toHaveBeenCalledWith('character:beto', undefined))
+    fireEvent.click(screen.getByTestId('assistant-option-character:coder'))
+    await waitFor(() => expect(selectIntegratedAssistant).toHaveBeenCalledWith('character:coder', undefined))
     expect(screen.queryByTestId('character-panel')).not.toBeInTheDocument()
   })
 
@@ -221,9 +221,9 @@ describe('DropdownModelProvider - Display Name Integration', () => {
     })))
     vi.mocked(selectIntegratedAssistant).mockResolvedValue(undefined)
     render(<DropdownModelProvider />)
-    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar asistentes' }), { target: { value: 'Luna' } })
-    expect(screen.getByTestId('assistant-option-character:nara')).toBeInTheDocument()
-    expect(screen.queryByTestId('assistant-option-character:kairo')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar asistentes' }), { target: { value: 'Pluma' } })
+    expect(screen.getByTestId('assistant-option-character:literatura')).toBeInTheDocument()
+    expect(screen.queryByTestId('assistant-option-character:coder')).not.toBeInTheDocument()
     fireEvent.click(screen.getByTestId('assistant-option-model-only'))
     await waitFor(() => expect(selectIntegratedAssistant).toHaveBeenCalledWith('', undefined))
     fireEvent.click(screen.getByRole('button', { name: 'Borrar búsqueda' }))
@@ -232,16 +232,16 @@ describe('DropdownModelProvider - Display Name Integration', () => {
   })
 
   it('muestra el error real si el modelo asociado no está disponible', async () => {
-    vi.mocked(useAvailableAssistants).mockReturnValue([{ id: 'character:kairo', name: 'Kairo Voltán', instructions: '', parameters: {}, created_at: 0 }])
+    vi.mocked(useAvailableAssistants).mockReturnValue([{ id: 'character:coder', name: 'Coder', instructions: '', parameters: {}, created_at: 0 }])
     vi.mocked(selectIntegratedAssistant).mockRejectedValue(new Error('El modelo asignado ya no está disponible.'))
     render(<DropdownModelProvider />)
-    fireEvent.click(screen.getByTestId('assistant-option-character:kairo'))
+    fireEvent.click(screen.getByTestId('assistant-option-character:coder'))
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('El modelo asignado ya no está disponible.'))
   })
 
   it('muestra y selecciona el modelo actual del perfil aunque el chat conserve otro', async () => {
-    const atlas = useCharacterStore.getState().profiles.find((item) => item.id === 'kairo')!
-    vi.mocked(useActiveCharacter).mockReturnValue({ ...atlas, modelBinding: { providerId: 'llamacpp', modelId: 'model2-very-long-filename.gguf' } })
+    const coder = useCharacterStore.getState().profiles.find((item) => item.id === 'coder')!
+    vi.mocked(useActiveCharacter).mockReturnValue({ ...coder, modelBinding: { providerId: 'llamacpp', modelId: 'model2-very-long-filename.gguf' } })
     render(<DropdownModelProvider model={{ provider: 'llamacpp', id: 'model1.gguf' }} />)
     const trigger = screen.getByRole('button', { name: 'Seleccionar asistente y modelo' })
     expect(trigger).toHaveTextContent('Short Name · Llama.cpp')

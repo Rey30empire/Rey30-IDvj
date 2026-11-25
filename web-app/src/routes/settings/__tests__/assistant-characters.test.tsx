@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDefaultCharacterData } from '@/lib/characters/profiles'
 import { TranslationContext } from '@/i18n/context'
 import i18n from '@/i18n/setup'
-const h = vi.hoisted(() => ({ setDefault: vi.fn(), add: vi.fn(), update: vi.fn(), remove: vi.fn(), defaultId: 'character:nara' }))
+const h = vi.hoisted(() => ({ setDefault: vi.fn(), add: vi.fn(), update: vi.fn(), remove: vi.fn(), defaultId: 'character:literatura' }))
 vi.mock('@/hooks/useAssistant', () => ({ useAssistant: () => ({ assistants: [{ id: 'rey30', name: 'Rey30 IDvj', description: 'Asistente habitual', created_at: 1, instructions: '', parameters: {} }], defaultAssistantId: h.defaultId, setDefaultAssistant: h.setDefault, addAssistant: h.add, updateAssistant: h.update, deleteAssistant: h.remove }) }))
 vi.mock('@/hooks/useAvailableAssistants', async () => {
   const { useCharacterStore } = await import('@/stores/useCharacterStore')
@@ -18,10 +18,10 @@ vi.mock('@/containers/characters/CharacterPanel', () => ({ CharacterEditorDialog
 import { AssistantContent } from '../assistant'
 import { useCharacterStore } from '@/stores/useCharacterStore'
 const mount = () => render(<AssistantContent />, { wrapper: ({ children }) => <TranslationContext.Provider value={{ t: i18n.t, i18n }}>{children}</TranslationContext.Provider> })
-beforeEach(() => { vi.clearAllMocks(); h.defaultId = 'character:nara'; useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: true, saving: false, error: null }); i18n.changeLanguage('es') })
+beforeEach(() => { vi.clearAllMocks(); h.defaultId = 'character:literatura'; useCharacterStore.setState({ ...createDefaultCharacterData(), loaded: true, saving: false, error: null }); i18n.changeLanguage('es') })
 describe('personajes como filas de la página existente de asistentes', () => {
-  it('shows eleven editable profiles with a visibility switch and the existing normal assistant without an active chat panel', () => {
-    mount(); const rows = screen.getAllByTestId('assistant-character-row'); expect(rows).toHaveLength(11)
+  it('shows Pluma and Coder as editable profiles with a visibility switch and the existing normal assistant without an active chat panel', () => {
+    mount(); const rows = screen.getAllByTestId('assistant-character-row'); expect(rows.map(row => row.dataset.characterId)).toEqual(['literatura', 'coder'])
     for (const profile of useCharacterStore.getState().profiles) {
       const row = rows.find(item => item.dataset.characterId === profile.id)!
       expect(within(row).getByText(`Rey30-IDvj ${profile.name}`)).toBeVisible(); expect(within(row).getByRole('button', { name: `Editar ${profile.name}` })).toBeVisible(); expect(within(row).getByRole('switch', { name: `Mostrar ${profile.name}` })).toHaveAttribute('aria-checked', String(['literatura', 'coder'].includes(profile.id)))
@@ -29,9 +29,9 @@ describe('personajes como filas de la página existente de asistentes', () => {
     expect(screen.getByText('Asistente habitual')).toBeVisible(); expect(screen.queryByTestId('voice-orb-dock')).toBeNull(); expect(document.querySelector('svg[data-character-id],canvas')).toBeNull()
   })
   it('opens the requested editor without selecting an assistant or changing the default', () => {
-    mount(); fireEvent.click(screen.getByRole('button', { name: 'Editar Don Chispa' })); expect(screen.getByTestId('character-editor-fixture')).toHaveAttribute('data-character-id', 'beto'); expect(h.setDefault).not.toHaveBeenCalled(); expect(useCharacterStore.getState()).toMatchObject({ enabled: false, activeCharacterId: 'literatura' }); fireEvent.click(screen.getByRole('button', { name: 'Cerrar editor' })); expect(screen.queryByRole('dialog')).toBeNull()
+    mount(); fireEvent.click(screen.getByRole('button', { name: 'Editar Coder' })); expect(screen.getByTestId('character-editor-fixture')).toHaveAttribute('data-character-id', 'coder'); expect(h.setDefault).not.toHaveBeenCalled(); expect(useCharacterStore.getState()).toMatchObject({ enabled: false, activeCharacterId: 'literatura' }); fireEvent.click(screen.getByRole('button', { name: 'Cerrar editor' })); expect(screen.queryByRole('dialog')).toBeNull()
   })
   it('includes real character IDs in the default assistant choices and preserves normal creation', () => {
-    mount(); fireEvent.keyDown(screen.getByTestId('default-assistant-trigger'), { key: 'Enter' }); fireEvent.click(screen.getByRole('menuitem', { name: 'Rey30-IDvj Don Chispa' })); expect(h.setDefault).toHaveBeenCalledWith('character:beto'); fireEvent.click(screen.getByRole('button', { name: i18n.t('assistants:addAssistant') })); expect(screen.getByTestId('normal-assistant-editor')).toBeInTheDocument(); expect(screen.queryByTestId('character-editor-fixture')).toBeNull()
+    mount(); fireEvent.keyDown(screen.getByTestId('default-assistant-trigger'), { key: 'Enter' }); fireEvent.click(screen.getByRole('menuitem', { name: 'Rey30-IDvj Coder' })); expect(h.setDefault).toHaveBeenCalledWith('character:coder'); fireEvent.click(screen.getByRole('button', { name: i18n.t('assistants:addAssistant') })); expect(screen.getByTestId('normal-assistant-editor')).toBeInTheDocument(); expect(screen.queryByTestId('character-editor-fixture')).toBeNull()
   })
 })

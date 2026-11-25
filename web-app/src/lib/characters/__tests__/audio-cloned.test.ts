@@ -43,15 +43,15 @@ describe('voz clonada de cada asistente', () => {
     expect(clonedVoices()).toBe(false)
   })
 
-  it('Beto habla con su propia muestra por Qwen3-TTS, nunca con la voz sintética', async () => {
+  it('Coder habla con su propia muestra por Qwen3-TTS, nunca con la voz sintética', async () => {
     h.invoke.mockImplementation(async (command: string, args: { events: { onmessage: (event: unknown) => void } }) => {
       if (command !== 'assistant_voice_speak') return undefined
       args.events.onmessage({ data: frame, sampleRate: 24000 })
       args.events.onmessage({ data: frame, sampleRate: 24000 })
       args.events.onmessage({ done: true })
     })
-    await useCharacterAudio.getState().speak('Hola, soy Beto.', getOriginalProfile('beto'))
-    expect(h.invoke).toHaveBeenCalledWith('assistant_voice_speak', expect.objectContaining({ owner: 'beto', text: 'Hola, soy Beto.' }))
+    await useCharacterAudio.getState().speak('Hola, soy Coder.', getOriginalProfile('coder'))
+    expect(h.invoke).toHaveBeenCalledWith('assistant_voice_speak', expect.objectContaining({ owner: 'coder', text: 'Hola, soy Coder.' }))
     expect(h.invoke.mock.calls.some(([command]) => command === 'character_audio_synthesize')).toBe(false)
     // The two parts play back to back, without a gap or an overlap.
     expect(h.started).toHaveLength(2)
@@ -76,7 +76,7 @@ describe('voz clonada de cada asistente', () => {
   it('detener corta también la voz que todavía se está generando', async () => {
     let finish!: () => void
     h.invoke.mockImplementation((command: string) => command === 'assistant_voice_speak' ? new Promise<void>(done => { finish = done }) : Promise.resolve())
-    const speaking = useCharacterAudio.getState().speak('Una frase larga.', getOriginalProfile('beto'))
+    const speaking = useCharacterAudio.getState().speak('Una frase larga.', getOriginalProfile('coder'))
     await vi.waitFor(() => expect(h.invoke).toHaveBeenCalledWith('assistant_voice_speak', expect.anything()))
     useCharacterAudio.getState().stop()
     expect(h.invoke).toHaveBeenCalledWith('assistant_voice_cancel', {})

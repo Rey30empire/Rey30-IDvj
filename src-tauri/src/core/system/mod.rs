@@ -5,6 +5,8 @@ pub mod models_root;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod lore;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod debate_files;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod pluma_clone;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod pluma_documents;

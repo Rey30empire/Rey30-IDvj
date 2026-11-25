@@ -12,8 +12,8 @@ import { detectCharacterMode } from '@/lib/characters/personality'
 import {
   CHARACTER_LIMITS,
   CharacterValidationError,
-  parseCharacterData,
   parseCharacterProfile,
+  readCharacterData,
   validateCharacterData,
   validateCharacterId,
   validateCharacterProfile,
@@ -131,10 +131,15 @@ export function createCharacterStore(
         loading = (async () => {
           try {
             const raw = await storage.read()
+            const saved = raw === null ? null : readCharacterData(raw)
+            if (saved?.upgraded) {
+              // A save from an older build (with the retired assistants, say)
+              // is written back cleaned. If that fails, the cleaned data is
+              // still what loads, and the next change saves all of it.
+              await storage.write(JSON.stringify(saved.data)).catch(() => {})
+            }
             set({
-              ...(raw === null
-                ? createDefaultCharacterData()
-                : parseCharacterData(raw)),
+              ...(saved ? saved.data : createDefaultCharacterData()),
               loaded: true,
               error: null,
             })
